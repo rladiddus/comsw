@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <title>학과 커리큘럼 - 준비 중</title>
+  <link rel="icon" href="data:,">
+  <link rel="stylesheet" as="style" crossorigin
+        href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable.min.css" />
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/rladiddus/comsw@main/assets/fonts/paperlogy.css">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html, body {
+      height: 100vh;
+      width: 100%;
+      font-family: 'Pretendard Variable', 'Pretendard', sans-serif;
+      background: #000;
+      color: #f6f6f6;
+      overflow: hidden;
+      letter-spacing: -0.03em;
+    }
+    .center {
+      position: absolute;
+      top: 50%; left: 50%;
+      transform: translate(-50%, -50%);
+      text-align: center;
+      width: min(90vw, 600px);
+    }
+    .label {
+      font-size: 14px;
+      letter-spacing: 0.3em;
+      color: #fa491d;
+      font-weight: 700;
+      margin-bottom: 20px;
+    }
+    h1 {
+      font-size: clamp(36px, 5.5vw, 64px);
+      font-weight: 700;
+      line-height: 1.15;
+      margin-bottom: 24px;
+    }
+    p {
+      font-size: clamp(15px, 1.7vw, 19px);
+      font-weight: 300;
+      line-height: 1.6;
+      color: #cccccc;
+      margin-bottom: 48px;
+      word-break: keep-all;
+    }
+    a.back {
+      display: inline-block;
+      padding: 14px 32px;
+      border: 1.5px solid #fa491d;
+      border-radius: 999px;
+      color: #fa491d;
+      font-size: 16px;
+      font-weight: 600;
+      text-decoration: none;
+      transition: background 0.18s ease, color 0.18s ease;
+    }
+    a.back:hover {
+      background: #fa491d;
+      color: #ffffff;
+    }
+    .hint {
+      position: absolute;
+      bottom: 24px;
+      left: 0; right: 0;
+      text-align: center;
+      font-size: 12px;
+      letter-spacing: 0.15em;
+      color: #555;
+    }
+  </style>
+</head>
+<body>
+  <div class="center">
+    <div class="label">UNDER CONSTRUCTION</div>
+    <h1>학과 커리큘럼</h1>
+    <p>이 페이지의 GitHub Pages 버전은 아직 준비 중입니다.<br>곧 정식 페이지로 교체될 예정이에요.</p>
+    <a href="./index.html" class="back">← 메인으로 돌아가기</a>
+  </div>
+  <div class="hint">ESC: back to main</div>
+  <script>
+    document.addEventListener('keydown', function(e) {
+      if (e.key === 'Escape') window.location.href = './index.html';
+    });
+  </script>
+</body>
+</html>

@@ -1,0 +1,1266 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <base target="_top">
+  <meta charset="utf-8">
+  <link rel="stylesheet" as="style" crossorigin href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable.min.css" />
+  <link href="https://fonts.googleapis.com/css2?family=Great+Vibes&display=swap" rel="stylesheet">
+  <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/rladiddus/comsw@main/assets/fonts/paperlogy.css">
+  <style>
+    :root {
+      --roadmap-blue: #3D67B7;
+      --roadmap-yellow: #FFE684;
+      --bar-color:    linear-gradient(90deg, #FFE684 0%, #3D67B7 100%);
+      --bar-radius:   11px;
+      --dept-box-bg:  #ffffff;
+      --dept-box-fg:  #000000;
+      --subject-fg:   #111111;
+      --summary-fg:   #929292;
+    }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html, body {
+      width: 100%; height: 100vh;
+      background: #ffffff;
+      font-family: 'Pretendard Variable', 'Pretendard', -apple-system, sans-serif;
+      color: #1a1a1a;
+      overflow: hidden;
+    }
+
+    /* ============================================== */
+    /*  스케일 컨테이너 (피그마 1920 기준 → 가로 fit)     */
+    /* ============================================== */
+    .scale-view {
+      width: 100%;
+      height: 100vh;
+      overflow: hidden;
+    }
+    #canvas {
+      width: 1920px;
+      min-height: 1080px;
+      transform-origin: top left;
+      position: relative;
+      background: #ffffff;
+    }
+
+    /* ============================================== */
+    /*  상단 헤더                                         */
+    /* ============================================== */
+    .roadmap-title {
+      position: absolute;
+      left: 45px;
+      top: 22px;
+      width: 1214px;
+      font-size: 96px;
+      font-weight: 800;
+      letter-spacing: -0.02em;
+      color: var(--roadmap-blue);
+      line-height: 1.1;
+    }
+    .roadmap-badge {
+      position: absolute;
+      width: 249px;
+      height: 31px;
+      background: #f0f0f0;
+      border: none;
+      border-radius: 16px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 16px;
+      font-weight: 600;
+      color: #111111;
+      letter-spacing: -0.02em;
+    }
+    .roadmap-badge.b1 {
+      left: 1287px;
+      top: 37px;
+      background: var(--roadmap-blue);
+      color: #ffffff;
+    }
+    .roadmap-badge.b2 {
+      left: 1287px;
+      top: 79px;
+      background: var(--roadmap-yellow);
+      color: #2A2A2A;
+    }
+
+    .roadmap-logo {
+      position: absolute;
+      left: 1568px;
+      top: 32px;
+      width: 305px;
+      height: 82px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 36px;
+      font-weight: 900;
+      color: #111111;
+      letter-spacing: -0.04em;
+    }
+    .roadmap-logo.logo-placeholder {
+      border: none;
+      border-radius: 0;
+      color: transparent;
+    }
+    .roadmap-logo.logo-placeholder.missing-logo {
+      border: 2px dashed rgba(61, 103, 183, 0.35);
+      border-radius: 12px;
+      color: var(--roadmap-blue);
+      font-size: 16px;
+      font-weight: 700;
+      letter-spacing: 0;
+    }
+    .roadmap-logo.logo-placeholder.missing-logo::after {
+      content: 'LOGO IMAGE';
+    }
+    .roadmap-logo img {
+      display: block;
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+    }
+
+    /* ============================================== */
+    /*  학과 행 / 학과 영역 / 가로 막대                    */
+    /*  (모든 좌표 계산은 JS에서 inline style로 부여)      */
+    /* ============================================== */
+    .roadmap-rows {
+      position: absolute;
+      left: 0;
+      top: 200px;   /* 첫 학과 행 시작 y (피그마 y=210 근처) */
+      width: 100%;
+      overflow-x: hidden;
+      overflow-y: auto;
+      padding-bottom: 80px;
+    }
+    .dept-row {
+      position: relative;
+      width: 1920px;
+      height: 130px;
+      margin-bottom: 11px;   /* 행간 간격: 130 + 11 = 141px (피그마 간격) */
+    }
+    .dept-area {
+      position: absolute;
+      top: 0;
+      height: 130px;
+    }
+
+    /* 좌측 학과명 박스 */
+    .dept-name-box {
+      position: absolute;
+      left: 0;
+      top: 0;
+      height: 40px;
+      width: 176px;
+      background: var(--dept-box-bg);
+      border: 2px solid var(--roadmap-blue);
+      border-radius: 999px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--dept-box-fg);
+      font-size: 20px;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      z-index: 3;
+      padding: 0 8px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      cursor: pointer;
+      transition: background 0.18s ease, color 0.18s ease;
+    }
+    .dept-name-box:hover {
+      background: var(--roadmap-blue);
+      color: #ffffff;
+    }
+
+    /* 가로 막대 (학과명 박스 우측에서 시작) */
+    .dept-bar {
+      position: absolute;
+      top: 9px;
+      height: 22px;
+      background: var(--bar-color);
+      border-radius: var(--bar-radius);
+      z-index: 1;
+    }
+
+    /* 삼각형 마일스톤 점 (각 박스 가운데 위) */
+    .milestone {
+      position: absolute;
+      top: 13px;
+      width: 0;
+      height: 0;
+      border-top: 6px solid transparent;
+      border-bottom: 6px solid transparent;
+      border-left: 11px solid #ffffff;
+      transform: translateX(-50%);
+      z-index: 4;
+    }
+
+    /* 과목 박스 (막대 위 균등 분포) */
+    .subject-box {
+      position: absolute;
+      top: 41px;        /* 막대 아래 (다이아몬드 점 아래) */
+      height: 89px;
+      z-index: 2;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      text-align: center;
+      padding-top: 3px;
+    }
+    .subject-name {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 2px;
+      font-size: 15px;
+      font-weight: 700;
+      color: var(--subject-fg);
+      letter-spacing: -0.02em;
+      line-height: 1.2;
+      width: 100%;
+      max-height: 56px;
+      overflow: hidden;
+    }
+    .subject-name .name-part {
+      display: block;
+      white-space: nowrap;
+      max-width: 100%;
+    }
+    .subject-summary {
+      margin-top: 6px;
+      font-size: 14px;
+      font-weight: 500;
+      color: var(--summary-fg);
+      letter-spacing: -0.02em;
+      line-height: 1.4;
+      width: 100%;
+      max-height: 56px;
+      overflow: hidden;
+      white-space: pre-line;
+      word-break: keep-all;
+    }
+
+    /* ============================================== */
+    /*  좌하단 < 버튼 (호버 시 등장)                      */
+    /* ============================================== */
+    .back-btn {
+      position: fixed;
+      bottom: 30px;
+      left: 30px;
+      z-index: 500;
+      width: 48px; height: 48px;
+      padding: 0;
+      background: #2a2a2a;
+      color: #f6f6f6;
+      border: none;
+      border-radius: 50%;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      opacity: 0;
+      pointer-events: none;
+      transform: translateY(60px);
+      transition: opacity 0.3s ease,
+                  transform 0.4s cubic-bezier(0.4, 0, 0.2, 1),
+                  background 0.2s ease;
+    }
+    .back-btn.visible {
+      opacity: 1;
+      pointer-events: auto;
+      transform: translateY(0);
+    }
+    .back-btn:hover { background: #444; }
+    .back-btn svg {
+      width: 20px;
+      height: 20px;
+      stroke: #f6f6f6;
+      fill: none;
+      stroke-width: 2.5;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+    }
+
+    /* ============================================== */
+    /*  빈 / 로딩 상태                                     */
+    /* ============================================== */
+    .roadmap-empty {
+      position: absolute;
+      top: 200px; left: 50%;
+      transform: translateX(-50%);
+      font-size: 24px;
+      color: #999;
+    }
+
+    /* ============================================== */
+    /*  학과 커리큘럼 표 팝업                              */
+    /* ============================================== */
+    #curriculum-popup {
+      position: fixed;
+      inset: 0;
+      z-index: 1200;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 48px;
+      background: rgba(0, 0, 0, 0.32);
+      opacity: 0;
+      visibility: hidden;
+      pointer-events: none;
+      transition: opacity 0.24s ease, visibility 0s linear 0.24s;
+    }
+    #curriculum-popup.visible {
+      opacity: 1;
+      visibility: visible;
+      pointer-events: auto;
+      transition: opacity 0.24s ease, visibility 0s linear 0s;
+    }
+    .curriculum-popup-panel {
+      position: relative;
+      width: min(1500px, 88vw);
+      max-height: 84vh;
+      padding: 34px 34px 42px;
+      background: #ffffff;
+      border-radius: 10px;
+      box-shadow: 0 24px 80px rgba(0, 0, 0, 0.24);
+      overflow: hidden;
+    }
+    .curriculum-popup-title {
+      margin-bottom: 18px;
+      color: var(--roadmap-blue);
+      font-size: 38px;
+      font-weight: 800;
+      line-height: 1.2;
+      letter-spacing: -0.02em;
+      text-align: center;
+    }
+    .curriculum-popup-close {
+      position: absolute;
+      right: 18px;
+      bottom: 18px;
+      width: 42px;
+      height: 42px;
+      border: none;
+      border-radius: 50%;
+      background: #2a2a2a;
+      color: #ffffff;
+      font-size: 24px;
+      font-weight: 800;
+      cursor: pointer;
+    }
+    .curriculum-popup-body {
+      max-height: calc(84vh - 128px);
+      overflow: hidden;
+    }
+    .roadmap-curriculum-header-table,
+    .roadmap-curriculum-table {
+      display: grid;
+      grid-template-columns: 145px 110px 1fr 190px 150px;
+      width: 100%;
+      background: #ffffff;
+    }
+    .roadmap-curriculum-header-table {
+      border-radius: 8px 8px 0 0;
+      overflow: hidden;
+    }
+    .roadmap-curriculum-scroll {
+      max-height: calc(84vh - 182px);
+      overflow-y: auto;
+      overflow-x: hidden;
+      border-radius: 0 0 8px 8px;
+      scrollbar-width: none;
+      -ms-overflow-style: none;
+    }
+    .roadmap-curriculum-scroll::-webkit-scrollbar {
+      width: 0;
+      height: 0;
+    }
+    .roadmap-curriculum-header {
+      min-height: 54px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      background: var(--roadmap-blue);
+      color: #ffffff;
+      font-size: 18px;
+      font-weight: 800;
+      border-right: 2px solid #ffffff;
+    }
+    .roadmap-curriculum-header .header-small {
+      display: block;
+      margin-top: 2px;
+      font-size: 13px;
+      font-weight: 600;
+      line-height: 1.1;
+    }
+    .roadmap-curriculum-cell {
+      min-height: 78px;
+      padding: 18px 16px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-right: 1px solid #dedede;
+      border-bottom: 1px solid #e8e8e8;
+      color: #000000;
+      font-size: 16px;
+      line-height: 1.55;
+      white-space: pre-line;
+      word-break: keep-all;
+      text-align: center;
+    }
+    .roadmap-curriculum-cell.subject {
+      background: #edf5f7;
+      font-weight: 800;
+    }
+    .roadmap-curriculum-cell.content {
+      justify-content: center;
+      text-align: center;
+    }
+    .roadmap-popup-message {
+      padding: 80px 20px;
+      color: #888888;
+      font-size: 22px;
+      font-weight: 700;
+      text-align: center;
+    }
+
+    /* ============================================== */
+    /*  로딩 오버레이 (메인 페이지 이동용)                  */
+    /* ============================================== */
+    #loading-overlay {
+      position: fixed;
+      top: 0; left: 0;
+      width: 100vw; height: 100vh;
+      z-index: 9999;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.3s ease-out;
+      background: #000;
+    }
+    #loading-overlay.active { opacity: 1; pointer-events: auto; }
+    #loading-overlay.lock   { opacity: 1 !important; pointer-events: auto !important; }
+    #loading-bg {
+      position: absolute;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+      object-fit: cover;
+    }
+    #loading-dim {
+      position: absolute;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+      background: rgba(0, 0, 0, 0.4);
+    }
+    #loading-text-wrapper {
+      position: absolute;
+      top: 50%; left: 50%;
+      transform: translate(-50%, -50%);
+      z-index: 2;
+      width: 90vw;
+      text-align: center;
+    }
+    .wipe-text {
+      font-family: 'Paperlogy', 'Great Vibes', cursive;
+      font-weight: 800;
+      font-size: clamp(1.25rem, 3.5vw, 3rem);
+      line-height: 1.2;
+      position: relative;
+      display: inline-block;
+      color: rgba(255, 255, 255, 0.5);
+    }
+    .wipe-text::after {
+      content: attr(data-text);
+      position: absolute;
+      top: 0; left: 0;
+      width: 100%;
+      color: rgba(255, 255, 255, 1);
+      clip-path: inset(0 calc(100% - var(--loading-progress, 0%)) 0 0);
+      transition: clip-path 0.35s cubic-bezier(0.65, 0, 0.35, 1);
+    }
+    .wipe-text.animate::after {
+      transition-duration: 0.35s;
+    }
+    @keyframes wipeIn {
+      0%   { clip-path: inset(0 100% 0 0); }
+      100% { clip-path: inset(0 0 0 0); }
+    }
+  </style>
+</head>
+<body>
+  <div class="scale-view">
+    <div id="canvas">
+      <!-- 헤더 -->
+      <h1 class="roadmap-title">CURRICULUM ROAD MAP</h1>
+      <div class="roadmap-badge b1">실무 맞춤형 교육 과정</div>
+      <div class="roadmap-badge b2">기초부터 취업까지</div>
+      <div class="roadmap-logo logo-placeholder">
+        <img id="roadmap-logo-img" src="" alt="SBS아카데미컴퓨터아트학원" onerror="this.style.display='none';this.parentElement.classList.add('missing-logo');">
+      </div>
+
+      <!-- 학과 행들 (동적 생성) -->
+      <div class="roadmap-rows" id="dept-rows"></div>
+
+      <div class="roadmap-empty" id="roadmap-empty">로드맵을 불러오는 중...</div>
+    </div>
+  </div>
+
+  <!-- 좌하단 메인으로 -->
+  <button class="back-btn" id="back-btn" onclick="goHome()" title="메인으로 (ESC)">
+    <svg viewBox="0 0 24 24"><polyline points="15 6 9 12 15 18"></polyline></svg>
+  </button>
+
+  <!-- 로딩 오버레이 -->
+  <div id="loading-overlay">
+    <img id="loading-bg" src="" alt="">
+    <div id="loading-dim"></div>
+    <div id="loading-text-wrapper">
+      <span class="wipe-text" id="loading-text" data-text=""></span>
+    </div>
+  </div>
+
+  <div id="curriculum-popup">
+    <div class="curriculum-popup-panel">
+      <div class="curriculum-popup-title" id="curriculum-popup-title">CURRICULUM</div>
+      <div class="curriculum-popup-body" id="curriculum-popup-body">
+        <div class="roadmap-popup-message">커리큘럼을 불러오는 중...</div>
+      </div>
+      <button class="curriculum-popup-close" id="curriculum-popup-close" title="닫기">×</button>
+    </div>
+  </div>
+
+  <script>
+    /* ============================================== */
+    /*  상수 / 좌표 (피그마 1920 기준)                    */
+    /* ============================================== */
+    const CANVAS_W    = 1920;
+    const ROW_HEIGHT  = 130;
+    const ROW_GAP     = 11;
+    const HEADER_H    = 200;
+    const FOOTER_PAD  = 80;
+
+    const SIDE_PAD       = 45;        // 학과 행 좌측 시작
+    const DEPT_BOX_W     = 176;       // 학과명 알약 너비
+    const DEPT_BOX_TO_BAR_GAP = -18;  // 학과명 알약이 막대를 살짝 덮도록 음수 간격
+    const ROW_INNER_PAD_R = 45;       // 행 우측 패딩
+    const TWO_DEPT_GAP   = 50;        // 한 행에 두 학과 둘 때 사이 간격
+
+    const LOADING_CACHE_KEY = 'loading_image_cache_v1';
+    const LOADING_LIST_CACHE_KEY = 'loading_list_cache_v1';
+
+    let cachedWebAppUrl = null;
+    let isNavigating = false;
+    let roadmap = [];
+    let curriculumPopupCache = {};
+    let supabaseSheetCache = {};
+
+    /*
+     * Supabase 테스트 설정
+     * - 브라우저 공개용 파일이므로 service_role 키를 절대 넣지 않는다.
+     * - 아래 키는 읽기 전용 RLS 정책에 맞춘 anon/public key만 사용한다.
+     */
+    const SUPABASE_URL = 'https://bpdxbqsvkvvybrtgvrnf.supabase.co';
+    const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJwZHhicXN2a3Z2eWJydGd2cm5mIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODEwNzYxOTgsImV4cCI6MjA5NjY1MjE5OH0.AL1W970ZqrkVMAg8ij1XJMrT91Y1AntsI7phmcSYHzg';
+    const SUPABASE_RAW_TABLE = 'raw_sheet_rows';
+    const ROADMAP_SHEET_NAME = '로드맵';
+    const CURRICULUM_SHEET_NAME = '컴수원_전체수업';
+    const MAIN_PAGE_SHEET_NAME = '메인 페이지';
+
+    function setLoadingProgress(percent) {
+      document.documentElement.style.setProperty('--loading-progress', Math.max(0, Math.min(100, percent)) + '%');
+    }
+
+    /* ============================================== */
+    /*  가로 스케일 (1920 → viewport width)             */
+    /* ============================================== */
+    function applyScale() {
+      const canvas = document.getElementById('canvas');
+      if (!canvas) return;
+      const vw = window.innerWidth;
+      const vh = window.innerHeight;
+      const scale = Math.min(1, vw / CANVAS_W);
+      canvas.style.transform = 'scale(' + scale + ')';
+      canvas.style.height = (vh / scale) + 'px';
+
+      const rowsContainer = document.getElementById('dept-rows');
+      if (rowsContainer) {
+        rowsContainer.style.height = Math.max(320, (vh / scale) - HEADER_H) + 'px';
+      }
+    }
+    window.addEventListener('resize', applyScale);
+
+    /* ============================================== */
+    /*  HTML 이스케이프                                   */
+    /* ============================================== */
+    function escapeHtml(str) {
+      return String(str == null ? '' : str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+    }
+
+    function normalizeText(v) {
+      if (v === null || v === undefined) return '';
+      return String(v).replace(/[\u200B\u200C\u200D\uFEFF\u00A0]/g, '').trim();
+    }
+
+    function convertDriveUrl(url) {
+      const raw = normalizeText(url);
+      if (!raw) return '';
+
+      let match = raw.match(/\/file\/d\/([^/]+)/);
+      if (match && match[1]) {
+        return 'https://drive.google.com/thumbnail?id=' + match[1] + '&sz=w1000';
+      }
+
+      match = raw.match(/[?&]id=([^&]+)/);
+      if (match && match[1] && raw.indexOf('drive.google.com') !== -1) {
+        return 'https://drive.google.com/thumbnail?id=' + match[1] + '&sz=w1000';
+      }
+
+      return raw;
+    }
+
+    function getRawValues(row) {
+      const data = row && row.data ? row.data : {};
+      if (Array.isArray(data.values)) return data.values;
+      if (data.row && typeof data.row === 'object') {
+        return Object.keys(data.row).map(function(key) { return data.row[key]; });
+      }
+      return [];
+    }
+
+    async function fetchSupabaseRowsForSheet(sheetName) {
+      if (supabaseSheetCache[sheetName]) return supabaseSheetCache[sheetName];
+
+      const endpoint = SUPABASE_URL.replace(/\/+$/, '') + '/rest/v1/' + SUPABASE_RAW_TABLE;
+      const url = endpoint
+        + '?select=sheet_name,row_number,data'
+        + '&sheet_name=eq.' + encodeURIComponent(sheetName)
+        + '&order=row_number.asc';
+
+      const res = await fetch(url, {
+        headers: {
+          apikey: SUPABASE_ANON_KEY,
+          Authorization: 'Bearer ' + SUPABASE_ANON_KEY
+        }
+      });
+
+      if (!res.ok) {
+        throw new Error('Supabase HTTP ' + res.status + ' / ' + await res.text());
+      }
+
+      const rows = await res.json();
+      supabaseSheetCache[sheetName] = rows || [];
+      return supabaseSheetCache[sheetName];
+    }
+
+    function splitRoadmapSubjects(value) {
+      const text = normalizeText(value);
+      if (!text) return [];
+      return text
+        .split(/[,\n\r]+|\s+\/\s+/g)
+        .map(function(part) { return normalizeText(part).replace(/\s+/g, ' '); })
+        .filter(function(part) { return part.length > 0; });
+    }
+
+    function buildDeptGroupsFromRoadmapRows(rawRows) {
+      const groups = [];
+      let current = null;
+
+      rawRows.forEach(function(rawRow) {
+        const values = getRawValues(rawRow);
+        const deptName = normalizeText(values[0]);
+        if (!deptName) return;
+
+        if (!current || current.deptName !== deptName) {
+          current = {
+            deptName: deptName,
+            startRow: rawRow.row_number || 0,
+            rows: []
+          };
+          groups.push(current);
+        }
+
+        current.rows.push({
+          rowNumber: rawRow.row_number || 0,
+          values: values
+        });
+      });
+
+      return groups;
+    }
+
+    async function loadRoadmapListFromSupabase() {
+      const roadmapRows = await fetchSupabaseRowsForSheet(ROADMAP_SHEET_NAME);
+      const curriculumRows = await fetchSupabaseRowsForSheet(CURRICULUM_SHEET_NAME);
+      const deptEngMap = {};
+
+      curriculumRows.forEach(function(row) {
+        const values = getRawValues(row);
+        const name = normalizeText(values[14]);   // O열
+        const engName = normalizeText(values[20]); // U열
+        if (name && engName) deptEngMap[name] = engName;
+      });
+
+      return buildDeptGroupsFromRoadmapRows(roadmapRows).map(function(group) {
+        const nameValues = (group.rows[0] && group.rows[0].values) || [];
+        const summaryValues = (group.rows[2] && group.rows[2].values) || [];
+        const subjects = [];
+
+        for (let c = 1; c < nameValues.length; c++) {
+          const name = normalizeText(nameValues[c]);
+          if (!name) continue;
+          subjects.push({
+            name: name,
+            summary: normalizeText(summaryValues[c])
+          });
+        }
+
+        return {
+          deptName: group.deptName,
+          engName: deptEngMap[group.deptName] || '',
+          subjects: subjects
+        };
+      }).filter(function(dept) {
+        return dept.subjects.length > 0;
+      });
+    }
+
+    async function loadRoadmapLogoFromSupabase() {
+      const rows = await fetchSupabaseRowsForSheet(MAIN_PAGE_SHEET_NAME);
+      const row2 = rows.find(function(row) { return Number(row.row_number) === 2; }) || rows[0];
+      const values = getRawValues(row2);
+      return convertDriveUrl(values[9]); // J열
+    }
+
+    async function loadCurriculumSimpleByDeptFromSupabase(deptName) {
+      const roadmapRows = await fetchSupabaseRowsForSheet(ROADMAP_SHEET_NAME);
+      const curriculumRows = await fetchSupabaseRowsForSheet(CURRICULUM_SHEET_NAME);
+
+      let engName = '';
+      curriculumRows.forEach(function(row) {
+        const values = getRawValues(row);
+        const dept = normalizeText(values[14]);    // O열
+        const eng = normalizeText(values[20]);     // U열
+        if (dept === deptName && eng) engName = eng;
+      });
+
+      const selectedSubjects = [];
+      const selectedSet = {};
+      const targetGroup = buildDeptGroupsFromRoadmapRows(roadmapRows)
+        .find(function(group) { return group.deptName === deptName; });
+
+      if (targetGroup && targetGroup.rows[0]) {
+        const values = targetGroup.rows[0].values;
+        for (let c = 1; c < values.length; c++) {
+          splitRoadmapSubjects(values[c]).forEach(function(subjectName) {
+            if (selectedSet[subjectName]) return;
+            selectedSet[subjectName] = true;
+            selectedSubjects.push(subjectName);
+          });
+        }
+      }
+
+      const rowsBySubject = {};
+      curriculumRows.forEach(function(row) {
+        const values = getRawValues(row);
+        const subjectName = normalizeText(values[2]); // C열
+        if (!subjectName) return;
+        if (!rowsBySubject[subjectName]) rowsBySubject[subjectName] = [];
+        rowsBySubject[subjectName].push(values);
+      });
+
+      const subjects = [];
+      selectedSubjects.forEach(function(subjectName) {
+        const rows = rowsBySubject[subjectName] || [];
+        rows.forEach(function(values) {
+          const duration = normalizeText(values[6]);  // G열
+          const content = normalizeText(values[9]);   // J열
+          const program = normalizeText(values[10]);  // K열
+          const level = normalizeText(values[11]);    // L열
+          if (!duration && !content && !program && !level) return;
+
+          subjects.push({
+            name: subjectName,
+            duration: duration,
+            content: content,
+            program: program,
+            level: level
+          });
+        });
+      });
+
+      return {
+        engName: engName,
+        subjects: subjects
+      };
+    }
+
+    /* ============================================== */
+    /*  과목명 multi-value split (",", " / ", 줄바꿈 등) */
+    /* ============================================== */
+    function splitSubjectNames(raw) {
+      if (!raw) return [];
+      const parts = String(raw).split(/[,\n\r/]| {2,}/);
+      const names = parts
+        .reduce(function(acc, part) {
+          return acc.concat(splitNumberedSequence(part));
+        }, [])
+        .map(function(s) { return s.replace(/\s+/g, ' ').trim(); })
+        .filter(function(s) { return s.length > 0; });
+      return mergeNumberedSubjectNames(names);
+    }
+
+    function splitNumberedSequence(value) {
+      const text = String(value || '').replace(/\s+/g, ' ').trim();
+      const first = text.match(/^(.+?)(\d+)\s+(.+)$/);
+      if (!first) return [text];
+
+      const base = first[1].trim();
+      const result = [base + first[2]];
+      let rest = first[3].trim();
+
+      while (rest.indexOf(base) === 0) {
+        const next = rest.slice(base.length).trim().match(/^(\d+)(?:\s+(.+))?$/);
+        if (!next) return [text];
+        result.push(base + next[1]);
+        rest = (next[2] || '').trim();
+        if (!rest) return result;
+      }
+
+      return [text];
+    }
+
+    function mergeNumberedSubjectNames(names) {
+      const merged = [];
+      const groups = {};
+
+      names.forEach(function(name) {
+        const match = String(name).trim().match(/^(.*?)(\d+)$/);
+        if (!match) {
+          merged.push({ type: 'plain', value: name });
+          return;
+        }
+
+        const base = match[1].trim();
+        const num = Number(match[2]);
+        const key = base || '__number_only__';
+        if (!groups[key]) {
+          groups[key] = { type: 'numbered', base: base, nums: [] };
+          merged.push(groups[key]);
+        }
+        groups[key].nums.push(num);
+      });
+
+      return merged.map(function(item) {
+        if (item.type !== 'numbered') return item.value;
+        const nums = item.nums
+          .filter(function(num, index, arr) { return arr.indexOf(num) === index; })
+          .sort(function(a, b) { return a - b; });
+        if (nums.length === 1) return item.base + nums[0];
+        return item.base + nums[0] + '~' + nums[nums.length - 1];
+      });
+    }
+
+    /* ============================================== */
+    /*  학과들을 행 단위로 묶음                            */
+    /*  5개 이하 학과 둘이 연속이면 좌우 묶음, 아니면 단독  */
+    /* ============================================== */
+    function groupIntoRows(deptList) {
+      const rows = [];
+      let i = 0;
+      while (i < deptList.length) {
+        const cur = deptList[i];
+        const next = deptList[i + 1];
+        const curSmall = (cur.subjects.length <= 5);
+        const nextSmall = next && (next.subjects.length <= 5);
+        if (curSmall && nextSmall) {
+          rows.push([cur, next]);
+          i += 2;
+        } else {
+          rows.push([cur]);
+          i += 1;
+        }
+      }
+      return rows;
+    }
+
+    /* ============================================== */
+    /*  학과 영역 한 개의 DOM 생성                        */
+    /*  areaX/areaW : 행 안에서 이 학과의 좌측 시작 / 너비  */
+    /* ============================================== */
+    function buildDeptArea(dept, areaX, areaW) {
+      const area = document.createElement('div');
+      area.className = 'dept-area';
+      area.style.left  = areaX + 'px';
+      area.style.width = areaW + 'px';
+
+      // 학과명 박스
+      const nameBox = document.createElement('div');
+      nameBox.className = 'dept-name-box';
+      nameBox.textContent = dept.deptName;
+      nameBox.title = dept.deptName + ' 커리큘럼 보기';
+      nameBox.addEventListener('click', function() {
+        openCurriculumPopup(dept.deptName, dept.engName || '');
+      });
+      area.appendChild(nameBox);
+
+      // 가로 막대 (학과명 박스 우측에서 영역 끝까지)
+      const barLeft  = DEPT_BOX_W + DEPT_BOX_TO_BAR_GAP;
+      const barWidth = areaW - barLeft;
+      const bar = document.createElement('div');
+      bar.className = 'dept-bar';
+      bar.style.left  = barLeft + 'px';
+      bar.style.width = barWidth + 'px';
+      area.appendChild(bar);
+
+      // 과목 박스들 + 마일스톤 점
+      const N = dept.subjects.length;
+      if (N === 0 || barWidth <= 0) return area;
+
+      // 박스 너비 + 사이 간격 계산
+      // 박스 간격 비율 = 8% (전체 막대 너비의 8% 정도를 간격에 할당)
+      let gap = 0;
+      let boxW;
+      if (N === 1) {
+        // 단일 과목: 박스 = 막대 너비 또는 적당히
+        boxW = Math.min(barWidth, 200);
+        gap = 0;
+      } else {
+        // gap = 10px 고정, 너비는 자동 계산
+        const desiredGap = 12;
+        boxW = (barWidth - (N - 1) * desiredGap) / N;
+        if (boxW < 80) {
+          // 너무 좁으면 gap 줄임
+          gap = Math.max(0, (barWidth - N * 80) / (N - 1));
+          boxW = 80;
+        } else {
+          gap = desiredGap;
+        }
+      }
+
+      for (let s = 0; s < N; s++) {
+        const subj = dept.subjects[s];
+        let boxLeft;
+        if (N === 1) {
+          boxLeft = barLeft + (barWidth - boxW) / 2;
+        } else {
+          boxLeft = barLeft + s * (boxW + gap);
+        }
+        // 박스 중앙 (다이아몬드 점 위치)
+        const centerX = boxLeft + boxW / 2;
+
+        // 다이아몬드 점
+        const dot = document.createElement('div');
+        dot.className = 'milestone';
+        dot.style.left = centerX + 'px';
+        area.appendChild(dot);
+
+        // 과목 박스
+        const box = document.createElement('div');
+        box.className = 'subject-box';
+        box.style.left  = boxLeft + 'px';
+        box.style.width = boxW + 'px';
+
+        // 과목명 (다중 값 처리)
+        const names = splitSubjectNames(subj.name);
+        let nameHtml = '';
+        if (names.length === 0) {
+          nameHtml = '';
+        } else {
+          // 각 이름을 .name-part로 감쌈 → flex-wrap이 좌우 / 위아래 자동 처리
+          nameHtml = names.map(function(n) {
+            return '<span class="name-part">' + escapeHtml(n) + '</span>';
+          }).join('');
+        }
+        const nameDiv = document.createElement('div');
+        nameDiv.className = 'subject-name';
+        nameDiv.innerHTML = nameHtml;
+        box.appendChild(nameDiv);
+
+        // 과목 요약
+        if (subj.summary) {
+          const sumDiv = document.createElement('div');
+          sumDiv.className = 'subject-summary';
+          sumDiv.textContent = subj.summary;
+          box.appendChild(sumDiv);
+        }
+
+        area.appendChild(box);
+      }
+
+      return area;
+    }
+
+    /* ============================================== */
+    /*  로드맵 전체 렌더                                  */
+    /* ============================================== */
+    function renderRoadmap() {
+      const rowsContainer = document.getElementById('dept-rows');
+      const emptyEl       = document.getElementById('roadmap-empty');
+      rowsContainer.innerHTML = '';
+
+      if (!roadmap || roadmap.length === 0) {
+        emptyEl.textContent = '등록된 로드맵이 없습니다.';
+        emptyEl.style.display = 'block';
+        applyScale();
+        return;
+      }
+      emptyEl.style.display = 'none';
+
+      const rows = groupIntoRows(roadmap);
+
+      // 행 영역 좌·우 끝 좌표 (캔버스 안 절대 위치)
+      const innerLeft  = SIDE_PAD;
+      const innerRight = CANVAS_W - ROW_INNER_PAD_R;
+      const innerWidth = innerRight - innerLeft;   // 학과 영역 가용 너비
+
+      rows.forEach(function(rowDepts) {
+        const rowDiv = document.createElement('div');
+        rowDiv.className = 'dept-row';
+
+        if (rowDepts.length === 1) {
+          // 단독 학과: 행 전체 너비 사용
+          const area = buildDeptArea(rowDepts[0], innerLeft, innerWidth);
+          rowDiv.appendChild(area);
+        } else {
+          // 두 학과: 좌우 절반씩
+          const halfW = (innerWidth - TWO_DEPT_GAP) / 2;
+          const leftArea  = buildDeptArea(rowDepts[0], innerLeft, halfW);
+          const rightArea = buildDeptArea(rowDepts[1], innerLeft + halfW + TWO_DEPT_GAP, halfW);
+          rowDiv.appendChild(leftArea);
+          rowDiv.appendChild(rightArea);
+        }
+
+        rowsContainer.appendChild(rowDiv);
+      });
+
+      // 캔버스 자연 높이 갱신 후 스케일 재계산
+      applyScale();
+    }
+
+    /* ============================================== */
+    /*  학과 커리큘럼 표 팝업                              */
+    /* ============================================== */
+    function openCurriculumPopup(deptName, initialEngName) {
+      if (!deptName) return;
+
+      const popup = document.getElementById('curriculum-popup');
+      const title = document.getElementById('curriculum-popup-title');
+      const body = document.getElementById('curriculum-popup-body');
+
+      title.textContent = (initialEngName || deptName) + ' CURRICULUM';
+      body.innerHTML = '<div class="roadmap-popup-message">커리큘럼을 불러오는 중...</div>';
+      popup.classList.add('visible');
+
+      if (curriculumPopupCache[deptName]) {
+        renderCurriculumPopup(deptName, curriculumPopupCache[deptName]);
+        return;
+      }
+
+      loadCurriculumSimpleByDeptFromSupabase(deptName)
+        .then(function(data) {
+          curriculumPopupCache[deptName] = data;
+          renderCurriculumPopup(deptName, data);
+        })
+        .catch(function(err) {
+          body.innerHTML = '<div class="roadmap-popup-message" style="color:#b53017;">오류: '
+            + escapeHtml(err && err.message ? err.message : err) + '</div>';
+        });
+    }
+
+    function renderCurriculumPopup(deptName, data) {
+      const title = document.getElementById('curriculum-popup-title');
+      const body = document.getElementById('curriculum-popup-body');
+      if (data && data.engName) {
+        title.textContent = data.engName + ' CURRICULUM';
+      } else {
+        title.textContent = deptName + ' CURRICULUM';
+      }
+
+      if (data && data.error) {
+        body.innerHTML = '<div class="roadmap-popup-message" style="color:#b53017;">'
+          + escapeHtml(data.error) + '</div>';
+        return;
+      }
+
+      const subjects = (data && data.subjects) || [];
+      if (subjects.length === 0) {
+        body.innerHTML = '<div class="roadmap-popup-message">등록된 과목이 없습니다.</div>';
+        return;
+      }
+
+      const headerHtml = ''
+        + '<div class="roadmap-curriculum-header">과목명</div>'
+        + '<div class="roadmap-curriculum-header">기간</div>'
+        + '<div class="roadmap-curriculum-header">과정내용</div>'
+        + '<div class="roadmap-curriculum-header"><span>프로그램</span><span class="header-small">(준비물)</span></div>'
+        + '<div class="roadmap-curriculum-header">학습수준</div>';
+      const rowHtml = subjects.map(function(subject) {
+        return ''
+          + '<div class="roadmap-curriculum-cell subject">' + escapeHtml(subject.name) + '</div>'
+          + '<div class="roadmap-curriculum-cell">' + escapeHtml(subject.duration) + '</div>'
+          + '<div class="roadmap-curriculum-cell content">' + escapeHtml(subject.content) + '</div>'
+          + '<div class="roadmap-curriculum-cell">' + escapeHtml(subject.program) + '</div>'
+          + '<div class="roadmap-curriculum-cell">' + escapeHtml(subject.level) + '</div>';
+      }).join('');
+
+      body.innerHTML = ''
+        + '<div class="roadmap-curriculum-header-table">' + headerHtml + '</div>'
+        + '<div class="roadmap-curriculum-scroll">'
+        + '<div class="roadmap-curriculum-table">' + rowHtml + '</div>'
+        + '</div>';
+    }
+
+    function closeCurriculumPopup() {
+      const popup = document.getElementById('curriculum-popup');
+      if (popup) popup.classList.remove('visible');
+    }
+
+    function loadRoadmapLogo() {
+      const logo = document.getElementById('roadmap-logo-img');
+      const logoWrap = document.querySelector('.roadmap-logo');
+      if (!logo || !logoWrap) return;
+
+      loadRoadmapLogoFromSupabase()
+        .then(function(url) {
+          if (!url) {
+            logo.style.display = 'none';
+            logoWrap.classList.add('missing-logo');
+            return;
+          }
+          logoWrap.classList.remove('missing-logo');
+          logo.style.display = 'block';
+          logo.src = url;
+        })
+        .catch(function() {
+          logo.style.display = 'none';
+          logoWrap.classList.add('missing-logo');
+        });
+    }
+
+    /* ============================================== */
+    /*  데이터 로드 (window.onload)                      */
+    /* ============================================== */
+    window.onload = function() {
+      applyScale();
+      loadRoadmapLogo();
+      document.getElementById('curriculum-popup').addEventListener('click', function(e) {
+        if (e.target === this) closeCurriculumPopup();
+      });
+      document.querySelector('.curriculum-popup-panel').addEventListener('click', function(e) {
+        e.stopPropagation();
+      });
+      document.getElementById('curriculum-popup-close').addEventListener('click', closeCurriculumPopup);
+
+      // 로드맵 데이터
+      loadRoadmapListFromSupabase()
+        .then(function(list) {
+          roadmap = list || [];
+          renderRoadmap();
+        })
+        .catch(function(err) {
+          const emptyEl = document.getElementById('roadmap-empty');
+          emptyEl.textContent = '오류: ' + (err && err.message ? err.message : err);
+          emptyEl.style.display = 'block';
+        });
+    };
+
+    /* ============================================== */
+    /*  좌하단 < 버튼 호버 감지                            */
+    /* ============================================== */
+    document.addEventListener('mousemove', function(e) {
+      const HOVER_CORNER = 200;
+      const inLeftBottom = (e.clientX < HOVER_CORNER) && (e.clientY > window.innerHeight - HOVER_CORNER);
+      const backBtn = document.getElementById('back-btn');
+      if (inLeftBottom) backBtn.classList.add('visible');
+      else backBtn.classList.remove('visible');
+    });
+    document.addEventListener('mouseleave', function() {
+      document.getElementById('back-btn').classList.remove('visible');
+    });
+
+    /* ESC = 메인으로 */
+    document.addEventListener('keydown', function(e) {
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        const popup = document.getElementById('curriculum-popup');
+        if (popup && popup.classList.contains('visible')) {
+          closeCurriculumPopup();
+          return;
+        }
+        goHome();
+      }
+    });
+
+    /* ============================================== */
+    /*  메인으로 이동 (로딩 화면 후)                       */
+    /* ============================================== */
+    function getCachedImage(id) {
+      try {
+        const raw = localStorage.getItem(LOADING_CACHE_KEY);
+        if (!raw) return null;
+        const cache = JSON.parse(raw);
+        return cache[id] || null;
+      } catch (e) { return null; }
+    }
+    function showLoadingAndNavigate(targetUrl) {
+      if (isNavigating) return;
+      isNavigating = true;
+
+      const overlay = document.getElementById('loading-overlay');
+      const bg = document.getElementById('loading-bg');
+      const textEl = document.getElementById('loading-text');
+      setLoadingProgress(0);
+
+      let picked = null;
+      try {
+        const raw = localStorage.getItem(LOADING_LIST_CACHE_KEY);
+        if (raw) {
+          const list = JSON.parse(raw);
+          if (list.length > 0) picked = list[Math.floor(Math.random() * list.length)];
+        }
+      } catch (e) {}
+
+      if (picked) {
+        const cachedImage = getCachedImage(picked.id);
+        bg.src = cachedImage || picked.imageUrl;
+        textEl.textContent = picked.text || '';
+        textEl.setAttribute('data-text', picked.text || '');
+        if (typeof applyLoadingFont === 'function') applyLoadingFont(textEl, picked);
+      } else {
+        textEl.textContent = '';
+        textEl.setAttribute('data-text', '');
+        if (typeof applyLoadingFont === 'function') applyLoadingFont(textEl, null);
+      }
+
+      overlay.classList.add('active');
+      overlay.classList.add('lock');
+      setLoadingProgress(25);
+
+      textEl.classList.remove('animate');
+      void textEl.offsetWidth;
+      textEl.classList.add('animate');
+
+      requestAnimationFrame(function() { setLoadingProgress(100); });
+      setTimeout(function() { window.top.location.href = targetUrl; }, 2500);
+    }
+    function goHome() {
+      if (cachedWebAppUrl) {
+        showLoadingAndNavigate(cachedWebAppUrl);
+      } else {
+        window.location.href = './index.html';
+      }
+    }
+  </script>
+</body>
+</html>

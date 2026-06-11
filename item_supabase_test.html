@@ -7,6 +7,8 @@
   <link href="https://fonts.googleapis.com/css2?family=Great+Vibes&display=swap" rel="stylesheet">
   <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/rladiddus/comsw@main/assets/fonts/paperlogy.css">
+  <script src="./assets/js/supabase-config.js"></script>
+  <script src="./assets/js/supabase-client.js"></script>
   <style>
     :root {
       --accent-orange: #fa491d;
@@ -464,9 +466,9 @@
      * - 브라우저용 테스트 파일이므로 service_role 키를 절대 넣지 않는다.
      * - SUPABASE_ANON_KEY에는 Supabase의 Publishable key 또는 Legacy anon key를 넣는다.
      */
-    const SUPABASE_URL = 'https://bpdxbqsvkvvybrtgvrnf.supabase.co';
-    const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJwZHhicXN2a3Z2eWJydGd2cm5mIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODEwNzYxOTgsImV4cCI6MjA5NjY1MjE5OH0.AL1W970ZqrkVMAg8ij1XJMrT91Y1AntsI7phmcSYHzg';
-    const SUPABASE_RAW_TABLE = 'raw_sheet_rows';
+    const SUPABASE_URL = window.COMSW_SUPABASE_CONFIG.url;
+    const SUPABASE_ANON_KEY = window.COMSW_SUPABASE_CONFIG.anonKey;
+    const SUPABASE_RAW_TABLE = window.COMSW_SUPABASE_CONFIG.rawTable;
     const COURSE_PREP_SHEET_NAMES = [
       '수업별 준비물(AI/교재 등)',
       '수업별 준비몰(AI/교재 등)'
@@ -839,6 +841,9 @@
     }
 
     async function fetchSupabaseRowsForSheet(sheetName) {
+      if (window.ComswSupabase && typeof window.ComswSupabase.fetchSheetRows === 'function') {
+        return window.ComswSupabase.fetchSheetRows(sheetName);
+      }
       const endpoint = SUPABASE_URL.replace(/\/+$/, '') + '/rest/v1/' + SUPABASE_RAW_TABLE;
       const url = endpoint
         + '?select=sheet_name,row_number,data'

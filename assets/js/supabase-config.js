@@ -1,0 +1,21 @@
+(function() {
+  window.COMSW_SUPABASE_CONFIG = {
+    url: 'https://bpdxbqsvkvvybrtgvrnf.supabase.co',
+    anonKey: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJwZHhicXN2a3Z2eWJydGd2cm5mIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODEwNzYxOTgsImV4cCI6MjA5NjY1MjE5OH0.AL1W970ZqrkVMAg8ij1XJMrT91Y1AntsI7phmcSYHzg',
+    rawTable: 'raw_sheet_rows',
+    sheets: {
+      curriculum: '컴수원_전체수업',
+      roadmap: '로드맵',
+      main: '메인 페이지',
+      instructor: '강사페이지',
+      coursePrep: [
+        '수업별 준비물(AI/교재 등)',
+        '수업별 준비몰(AI/교재 등)'
+      ]
+    },
+    externalSheetsTodo: {
+      recruitmentSpreadsheetId: '1nADj2xWBQDOXS0vxd-1RWIG4LaselTP2EXImrIns6D0',
+      instructorCurriculumSpreadsheetId: '1iHwbOB4Uyx7jbr2VnS7-pojy3UHd20hUIcuKisFR8xM'
+    }
+  };
+})();

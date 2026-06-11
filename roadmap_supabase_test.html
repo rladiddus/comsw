@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html>
 <head>
   <base target="_top">
@@ -7,6 +7,8 @@
   <link href="https://fonts.googleapis.com/css2?family=Great+Vibes&display=swap" rel="stylesheet">
   <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/rladiddus/comsw@main/assets/fonts/paperlogy.css">
+  <script src="./assets/js/supabase-config.js"></script>
+  <script src="./assets/js/supabase-client.js"></script>
   <style>
     :root {
       --roadmap-blue: #3D67B7;
@@ -565,9 +567,9 @@
      * - 브라우저 공개용 파일이므로 service_role 키를 절대 넣지 않는다.
      * - 아래 키는 읽기 전용 RLS 정책에 맞춘 anon/public key만 사용한다.
      */
-    const SUPABASE_URL = 'https://bpdxbqsvkvvybrtgvrnf.supabase.co';
-    const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJwZHhicXN2a3Z2eWJydGd2cm5mIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODEwNzYxOTgsImV4cCI6MjA5NjY1MjE5OH0.AL1W970ZqrkVMAg8ij1XJMrT91Y1AntsI7phmcSYHzg';
-    const SUPABASE_RAW_TABLE = 'raw_sheet_rows';
+    const SUPABASE_URL = window.COMSW_SUPABASE_CONFIG.url;
+    const SUPABASE_ANON_KEY = window.COMSW_SUPABASE_CONFIG.anonKey;
+    const SUPABASE_RAW_TABLE = window.COMSW_SUPABASE_CONFIG.rawTable;
     const ROADMAP_SHEET_NAME = '로드맵';
     const CURRICULUM_SHEET_NAME = '컴수원_전체수업';
     const MAIN_PAGE_SHEET_NAME = '메인 페이지';
@@ -639,6 +641,9 @@
     }
 
     async function fetchSupabaseRowsForSheet(sheetName) {
+      if (window.ComswSupabase && typeof window.ComswSupabase.fetchSheetRows === 'function') {
+        return window.ComswSupabase.fetchSheetRows(sheetName);
+      }
       if (supabaseSheetCache[sheetName]) return supabaseSheetCache[sheetName];
 
       const endpoint = SUPABASE_URL.replace(/\/+$/, '') + '/rest/v1/' + SUPABASE_RAW_TABLE;
@@ -1264,3 +1269,4 @@
   </script>
 </body>
 </html>
+

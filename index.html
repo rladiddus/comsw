@@ -586,25 +586,14 @@
       }
     }
     
+    // GitHub Pages 환경에서는 Drive thumbnail이 CORS 헤더를 안 보내서 fetch가
+    // 반드시 차단된다. base64 캐시 없이도 <img src="...">는 그냥 잘 표시되므로,
+    // 여기서는 캐시 시도 자체를 skip해 콘솔 노이즈를 제거한다.
+    //
+    // 만약 Apps Script 환경으로 다시 돌아가거나 외부 CDN으로 이미지를 옮기면
+    // 이 함수를 원래 fetch 기반으로 되돌리면 된다.
     function cacheImageAsBase64(id, url) {
-      fetch(url)
-        .then(res => res.blob())
-        .then(blob => {
-          const reader = new FileReader();
-          reader.onloadend = function() {
-            try {
-              let cache = {};
-              const raw = localStorage.getItem(LOADING_CACHE_KEY);
-              if (raw) cache = JSON.parse(raw);
-              cache[id] = reader.result;
-              localStorage.setItem(LOADING_CACHE_KEY, JSON.stringify(cache));
-            } catch (e) {
-              console.warn('이미지 캐시 저장 실패:', e);
-            }
-          };
-          reader.readAsDataURL(blob);
-        })
-        .catch(e => console.warn('이미지 캐시 실패:', e));
+      // no-op
     }
     
     /* ============================================== */
@@ -922,8 +911,16 @@
           break;
         case 'gdrive-video': {
           const driveId = extractDriveId(media.url);
+          if (!driveId) {
+            html = '<img src="' + escapeHtml(media.url) + '" alt="media">';
+            break;
+          }
+          // Drive `uc?export=download`는 작은 영상은 직접 스트리밍 되지만,
+          // 일정 크기 이상이면 virus warning HTML로 redirect 되어 <video>가 검은 화면이 된다.
+          // 그래서 <video>가 일정 시간 안에 재생을 시작하지 못하면 iframe `/preview`로 교체한다.
           const videoSrc = 'https://drive.google.com/uc?export=download&id=' + driveId;
-          html = '<video id="localvideo" src="' + videoSrc + '" autoplay muted playsinline loop></video>';
+          html = '<video id="localvideo" data-driveid="' + escapeHtml(driveId) + '" ' +
+                 'src="' + escapeHtml(videoSrc) + '" autoplay muted playsinline loop></video>';
           break;
         }
         case 'gdrive-image': {
@@ -951,12 +948,48 @@
       }
       
       container.innerHTML = html;
-      
+
+      // 🎯 Drive 영상 fallback (모든 인덱스 대상)
+      // `uc?export=download&id=...`는 작은 파일은 직접 스트리밍 되지만, 일정 크기 이상이면
+      // virus warning HTML로 redirect 되어 <video>가 검은 화면이 된다.
+      // canplay가 일정 시간 안에 안 오거나 error가 발생하면 iframe /preview로 교체.
+      container.querySelectorAll('video[data-driveid]').forEach(function(videoEl) {
+        const driveId = videoEl.dataset.driveid;
+        if (!driveId) return;
+        let resolved = false;
+        let fallbackTimer = null;
+        videoEl.addEventListener('canplay', function() {
+          resolved = true;
+          if (fallbackTimer) clearTimeout(fallbackTimer);
+        });
+        function doFallback() {
+          if (resolved) return;
+          resolved = true;
+          const parent = videoEl.parentNode;
+          if (!parent) return;
+          const size = getCoverSize();
+          const previewUrl = 'https://drive.google.com/file/d/' + driveId + '/preview';
+          parent.innerHTML =
+            '<div class="iframe-wrapper" style="width:' + size.width + 'px;height:' + size.height + 'px;">' +
+              '<iframe width="' + size.width + '" height="' + size.height + '" ' +
+                      'src="' + previewUrl + '" ' +
+                      'allow="autoplay" allowfullscreen frameborder="0"></iframe>' +
+            '</div>';
+          if (!firstMediaPlayable) {
+            firstMediaPlayable = true;
+            markLoadingStep('firstMedia');
+            tryHideLoadingOverlay();
+          }
+        }
+        videoEl.addEventListener('error', doFallback);
+        fallbackTimer = setTimeout(doFallback, 4000);
+      });
+
       if (index === 0) {
         const videoEl = container.querySelector('video');
         const imgEl = container.querySelector('img');
         const iframeEl = container.querySelector('iframe');
-        
+
         if (videoEl) {
           videoEl.addEventListener('canplay', function() {
             firstMediaPlayable = true;

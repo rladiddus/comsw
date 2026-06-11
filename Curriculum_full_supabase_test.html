@@ -4505,8 +4505,76 @@
         .filter(Boolean);
     }
 
+    function curriculumMatchKey(value) {
+      return normalizeText(value)
+        .replace(/[~～]/g, '~')
+        .replace(/\s+/g, '')
+        .toLowerCase();
+    }
+
+    function mergeSubjectLists(primary, secondary) {
+      const merged = [];
+      const seen = {};
+      (primary || []).concat(secondary || []).forEach(function(subjectName) {
+        const clean = normalizeText(subjectName);
+        const key = curriculumMatchKey(clean);
+        if (!clean || seen[key]) return;
+        seen[key] = true;
+        merged.push(clean);
+      });
+      return merged;
+    }
+
+    function buildInstructorCurriculumRecords(rows) {
+      const records = [];
+      let currentInstructor = '';
+      let currentSubject = '';
+
+      (rows || []).forEach(function(row) {
+        const values = getRawValues(row);
+        const inst = normalizeText(values[0]);    // A열
+        const subj = normalizeText(values[1]);    // B열
+        const title = normalizeText(values[2]);   // C열
+        const content = normalizeText(values[4]); // E열
+        const img = normalizeText(values[5]);     // F열
+
+        if (inst) currentInstructor = inst;
+        if (subj) currentSubject = subj;
+        if (!currentInstructor || !currentSubject || !title) return;
+
+        records.push({
+          instructor: currentInstructor,
+          subjectName: currentSubject,
+          title: title,
+          content: content,
+          img: img ? convertDriveUrl(img) : '',
+          mediaType: img ? 'image' : ''
+        });
+      });
+
+      return records;
+    }
+
+    function buildInstructorSubjectMap(records) {
+      const map = {};
+      (records || []).forEach(function(record) {
+        const instKey = curriculumMatchKey(record.instructor);
+        if (!instKey || !record.subjectName) return;
+        if (!map[instKey]) map[instKey] = [];
+        map[instKey] = mergeSubjectLists(map[instKey], [record.subjectName]);
+      });
+      return map;
+    }
+
     async function getInstructorListFromSupabase(deptName) {
       const rows = await fetchSupabaseRowsForSheet(INSTRUCTOR_SHEET_NAME);
+      let subjectsByInstructor = {};
+      try {
+        const curriculumRows = await fetchSupabaseRowsForSheet(deptName, getSupabaseSourceId('instructorCurriculum'));
+        subjectsByInstructor = buildInstructorSubjectMap(buildInstructorCurriculumRecords(curriculumRows));
+      } catch (err) {
+        console.warn('강사별 커리큘럼 과목 목록 로드 실패:', err);
+      }
       const targetDeptKey = normalizeText(deptName).replace(/\s+/g, '');
       const instructors = [];
 
@@ -4528,7 +4596,7 @@
         instructors.push({
           name: name,
           depts: depts,
-          subjects: subjects,
+          subjects: mergeSubjectLists(subjects, subjectsByInstructor[curriculumMatchKey(name)] || []),
           career: career,
           message: message,
           img: img ? convertDriveUrl(img) : ''
@@ -4541,22 +4609,17 @@
     async function getInstructorCurriculumFromSupabase(deptName, instructorName, subjectName) {
       const rows = await fetchSupabaseRowsForSheet(deptName, getSupabaseSourceId('instructorCurriculum'));
       const weeks = [];
-      const targetInst = normalizeText(instructorName);
-      const targetSubj = normalizeText(subjectName);
+      const targetInst = curriculumMatchKey(instructorName);
+      const targetSubj = curriculumMatchKey(subjectName);
 
-      rows.forEach(function(row) {
-        const values = getRawValues(row);
-        const inst = normalizeText(values[0]);    // A열
-        const subj = normalizeText(values[1]);    // B열
-        const title = normalizeText(values[2]);   // C열
-        const content = normalizeText(values[4]); // E열
-        const img = normalizeText(values[5]);     // F열
-        if (inst !== targetInst || subj !== targetSubj || !title) return;
+      buildInstructorCurriculumRecords(rows).forEach(function(record) {
+        if (curriculumMatchKey(record.instructor) !== targetInst ||
+            curriculumMatchKey(record.subjectName) !== targetSubj) return;
         weeks.push({
-          title: title,
-          content: content,
-          img: img ? convertDriveUrl(img) : '',
-          mediaType: img ? 'image' : ''
+          title: record.title,
+          content: record.content,
+          img: record.img,
+          mediaType: record.mediaType
         });
       });
 
@@ -4566,23 +4629,17 @@
     async function getAllInstructorCurriculumFromSupabase(deptName, instructorName) {
       const rows = await fetchSupabaseRowsForSheet(deptName, getSupabaseSourceId('instructorCurriculum'));
       const items = [];
-      const targetInst = normalizeText(instructorName);
+      const targetInst = curriculumMatchKey(instructorName);
 
-      rows.forEach(function(row) {
-        const values = getRawValues(row);
-        const inst = normalizeText(values[0]);
-        const subj = normalizeText(values[1]);
-        const title = normalizeText(values[2]);
-        const content = normalizeText(values[4]);
-        const img = normalizeText(values[5]);
-        if (inst !== targetInst || !subj || !title) return;
+      buildInstructorCurriculumRecords(rows).forEach(function(record) {
+        if (curriculumMatchKey(record.instructor) !== targetInst) return;
         items.push({
-          subjectName: subj,
+          subjectName: record.subjectName,
           week: {
-            title: title,
-            content: content,
-            img: img ? convertDriveUrl(img) : '',
-            mediaType: img ? 'image' : ''
+            title: record.title,
+            content: record.content,
+            img: record.img,
+            mediaType: record.mediaType
           }
         });
       });

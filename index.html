@@ -416,7 +416,16 @@
     function detectMediaTypeForIndex(url) {
       const raw = String(url || '').toLowerCase();
       if (raw.includes('youtube.com') || raw.includes('youtu.be')) return 'youtube';
-      if (/\.(mp4|webm|mov)(\?|#|$)/.test(raw)) return 'video';
+      if (raw.includes('vimeo.com')) return 'vimeo';
+      // 확장자가 명확한 영상
+      if (/\.(mp4|webm|mov|ogg)(\?|#|$)/.test(raw)) return 'video';
+      // 확장자가 명확한 이미지
+      if (/\.(jpe?g|png|gif|webp|bmp|svg|avif)(\?|#|$)/.test(raw)) return 'image';
+      // Google Drive — 클라이언트에서는 MIME 검사 불가. 메인 페이지 배경은 영상이
+      // 일반적이므로 'gdrive-video'로 먼저 시도하고, 실패 시 onerror에서 fallback.
+      // (Apps Script 원본은 DriveApp.getFileById()로 MIME을 정확히 판정했지만,
+      //  브라우저에서는 그게 불가능하므로 사용 패턴에 맞춰 영상으로 가정한다.)
+      if (raw.includes('drive.google.com')) return 'gdrive-video';
       return 'image';
     }
 
@@ -432,7 +441,13 @@
         const caption = normalizeText(values[1]);
         const checked = values[2];
         if (!url || !truthyCell(checked)) return null;
-        const finalUrl = convertDriveUrl(url);
+        // Drive URL은 변환하지 않고 raw 그대로 둔다.
+        //  - detectMediaTypeForIndex가 'gdrive-video' 등으로 분류한 뒤
+        //    renderMedia가 extractDriveId로 ID를 다시 뽑아 적절한 endpoint를 만든다.
+        //  - convertDriveUrl이 모든 Drive URL을 thumbnail 이미지 URL로 변환해버리면,
+        //    영상 파일이 정지 이미지(또는 검은 화면)로 표시되는 버그가 생긴다.
+        const isDrive = url.toLowerCase().indexOf('drive.google.com') !== -1;
+        const finalUrl = isDrive ? url : convertDriveUrl(url);
         return {
           url: finalUrl,
           type: detectMediaTypeForIndex(finalUrl),

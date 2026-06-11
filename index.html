@@ -1,0 +1,1050 @@
+﻿<!DOCTYPE html>
+<html>
+<head>
+  <base target="_top">
+  <meta charset="utf-8">
+  
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Great+Vibes&display=swap" rel="stylesheet">
+  <link rel="stylesheet" as="style" crossorigin href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable.min.css" />
+  <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/rladiddus/comsw@main/assets/fonts/paperlogy.css">
+  <script src="./assets/js/supabase-config.js"></script>
+  <script src="./assets/js/supabase-client.js"></script>
+  
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html, body {
+      width: 100%; height: 100vh;
+      overflow: hidden; background: #000;
+      font-family: 'Pretendard Variable', 'Pretendard', -apple-system, sans-serif;
+    }
+    #viewer {
+      position: fixed; top: 0; left: 0;
+      width: 100vw; height: 100vh;
+      background: #000;
+      overflow: hidden;
+    }
+    
+    #media-container {
+      position: absolute;
+      top: 50%; left: 50%;
+      width: 110%;
+      height: 110%;
+      transform: translate(-50%, -50%) translate(var(--parallax-x, 0%), var(--parallax-y, 0%));
+      transition: transform 0.5s cubic-bezier(0.22, 1, 0.36, 1);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    
+    #media-container img,
+    #media-container video {
+      width: 100%; height: 100%;
+      object-fit: cover;
+    }
+    
+    .iframe-wrapper {
+      position: absolute;
+      top: 50%; left: 50%;
+      transform: translate(-50%, -50%);
+      pointer-events: none;
+    }
+    .iframe-wrapper iframe {
+      display: block;
+      border: none;
+    }
+    
+    #caption {
+      position: fixed;
+      top: 50%; left: 50%;
+      transform: translate(-50%, -50%);
+      z-index: 100;
+      text-align: center;
+      pointer-events: none;
+      max-width: 90vw;
+      padding: 0 20px;
+      font-family: 'Pretendard Variable', 'Pretendard', -apple-system, sans-serif;
+      font-weight: 300;
+      color: #ffffff;
+      letter-spacing: -0.01em;
+      line-height: 0.98;
+    }
+    
+    .caption-line {
+      display: block;
+      line-height: 0.98;
+    }
+    
+    .line-1, .line-2, .line-3, .line-other { font-size: clamp(1rem, 2vw, 1.5rem); }
+    .line-1 { margin-top: 0; }
+    .line-2, .line-3, .line-other { margin-top: 0.14rem; }
+    
+    .red-highlight {
+      font-family: 'Great Vibes', cursive;
+      color: #ffffff;
+      font-size: 1.25em;
+      font-weight: 400;
+      display: inline-block;
+    }
+    
+    /* 하단 메뉴 시스템 */
+    #menu-area {
+      position: fixed;
+      bottom: 6vh;
+      left: 50%;
+      z-index: 200;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      pointer-events: none;
+      transform: translateX(-50%) translateY(calc(100% + 6vh));
+      opacity: 0;
+      transition: 
+        transform 0.5s cubic-bezier(0.22, 1, 0.36, 1),
+        opacity 0.4s ease-out;
+    }
+    #menu-area.visible {
+      transform: translateX(-50%) translateY(0);
+      opacity: 1;
+    }
+    
+    #main-menu-btn {
+      width: 60px; height: 60px;
+      border-radius: 50%;
+      background: #ffffff;
+      cursor: pointer;
+      pointer-events: auto;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: transform 0.3s cubic-bezier(0.22, 1, 0.36, 1), box-shadow 0.3s ease;
+      position: relative;
+      z-index: 20;
+    }
+    #main-menu-btn:hover {
+      transform: scale(1.08);
+      box-shadow: 0 6px 28px rgba(0, 0, 0, 0.4);
+    }
+    
+    #main-menu-btn .icon {
+      width: 20px; height: 20px;
+      position: relative;
+      transition: transform 0.4s cubic-bezier(0.22, 1, 0.36, 1);
+    }
+    #main-menu-btn .icon::before,
+    #main-menu-btn .icon::after {
+      content: ''; position: absolute;
+      background: #000; border-radius: 2px;
+    }
+    #main-menu-btn .icon::before {
+      width: 100%; height: 2px;
+      top: 50%; left: 0;
+      transform: translateY(-50%);
+    }
+    #main-menu-btn .icon::after {
+      width: 2px; height: 100%;
+      top: 0; left: 50%;
+      transform: translateX(-50%);
+    }
+    #menu-area.open #main-menu-btn .icon {
+      transform: rotate(135deg);
+    }
+    
+    .menu-side {
+      position: absolute;
+      top: 50%;
+      transform: translateY(-50%);
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      pointer-events: none;
+    }
+    .menu-side.left {
+      right: 50%;
+      margin-right: 40px;
+      flex-direction: row-reverse;
+    }
+    .menu-side.right {
+      left: 50%;
+      margin-left: 40px;
+    }
+    
+  .menu-item {
+    background: #ffffff;
+    color: #000;
+    font-family: 'Pretendard Variable', 'Pretendard', sans-serif;
+    font-weight: 500;
+    font-size: 14px;
+    padding: 12px 20px;
+    border-radius: 24px;
+    cursor: pointer;
+    white-space: nowrap;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.25);
+    opacity: 0;
+    transform: translateX(var(--hidden-x, 0));
+    
+    /* 🎯 닫힐 때: opacity 즉시(0.1s, 딜레이 0) + transform 0.5s */
+    transition: 
+      opacity 0.1s ease-out 0s,
+      transform 0.5s cubic-bezier(0.22, 1, 0.36, 1) 0s;  /* ⭐ 마지막 0s 추가 */
+    
+    pointer-events: none;
+    position: relative;
+    z-index: 1;
+  }
+
+  #menu-area.open .menu-item {
+    opacity: 1;
+    transform: translateX(0);
+    pointer-events: auto;
+    transition: 
+      opacity 0.5s cubic-bezier(0.22, 1, 0.36, 1),
+      transform 0.5s cubic-bezier(0.22, 1, 0.36, 1);
+  }
+
+  .menu-side.left .menu-item  { --hidden-x: calc(100% + 40px); }
+  .menu-side.right .menu-item { --hidden-x: calc(-100% - 40px); }
+
+  /* 🎯 열릴 때만 순차 딜레이 (안쪽 → 바깥쪽) */
+  #menu-area.open .menu-item:nth-child(1) { transition-delay: 0.00s; }
+  #menu-area.open .menu-item:nth-child(2) { transition-delay: 0.06s; }
+  #menu-area.open .menu-item:nth-child(3) { transition-delay: 0.12s; }
+  #menu-area.open .menu-item:nth-child(4) { transition-delay: 0.18s; }
+  #menu-area.open .menu-item:nth-child(5) { transition-delay: 0.24s; }
+  #menu-area.open .menu-item:nth-child(6) { transition-delay: 0.30s; }
+
+  /* 🎯 닫힐 때는 딜레이 없음 - 즉시 사라짐! */
+  /* (기존의 .menu-item:nth-child(n) transition-delay 규칙 모두 삭제) */
+
+  .menu-item:hover {
+    background: #f0f0f0;
+    box-shadow: 0 8px 28px rgba(0, 0, 0, 0.35);
+  }
+    
+    .message {
+      color: #fff; font-size: 1.2rem;
+      text-align: center; padding: 2rem;
+    }
+    .error { color: #ff6b6b; }
+    
+    .fade-in { animation: fadeIn 0.6s ease-in; }
+    @keyframes fadeIn {
+      from { opacity: 0; }
+      to { opacity: 1; }
+    }
+    
+    /* ============================================== */
+    /*  🎯 로딩 화면                                     */
+    /* ============================================== */
+    
+    #loading-overlay {
+      position: fixed;
+      top: 0; left: 0;
+      width: 100vw; height: 100vh;
+      z-index: 9999;
+      background: #000;
+      opacity: 1;
+      pointer-events: auto;
+      transition: opacity 0.6s ease-out;
+    }
+    
+    #loading-overlay.hidden {
+      opacity: 0;
+      pointer-events: none;
+    }
+    
+    #loading-overlay.lock {
+      opacity: 1 !important;
+      pointer-events: auto !important;
+    }
+    
+    #loading-bg {
+      position: absolute;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+      object-fit: cover;
+    }
+    
+    #loading-dim {
+      position: absolute;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+      background: rgba(0, 0, 0, 0.4);
+    }
+    
+    #loading-text-wrapper {
+      position: absolute;
+      top: 50%; left: 50%;
+      transform: translate(-50%, -50%);
+      z-index: 2;
+      width: 90vw;
+      text-align: center;
+    }
+    
+    .wipe-text {
+      font-family: 'Paperlogy', 'Great Vibes', cursive;
+      font-weight: 800;
+      font-size: clamp(1.25rem, 3.5vw, 3rem);
+      line-height: 1.2;
+      position: relative;
+      display: inline-block;
+      color: rgba(255, 255, 255, 0.5);
+    }
+    
+    .wipe-text::after {
+      content: attr(data-text);
+      position: absolute;
+      top: 0; left: 0;
+      width: 100%;
+      color: rgba(255, 255, 255, 1);
+      clip-path: inset(0 calc(100% - var(--loading-progress, 0%)) 0 0);
+      transition: clip-path 0.35s cubic-bezier(0.65, 0, 0.35, 1);
+    }
+    
+    .wipe-text.animate::after {
+      transition-duration: 0.35s;
+    }
+    
+    @keyframes wipeIn {
+      0%   { clip-path: inset(0 100% 0 0); }
+      100% { clip-path: inset(0 0 0 0); }
+    }
+  </style>
+</head>
+<body>
+  <div id="loading-overlay">
+    <img id="loading-bg" src="" alt="">
+    <div id="loading-dim"></div>
+    <div id="loading-text-wrapper">
+      <span class="wipe-text" id="loading-text" data-text=""></span>
+    </div>
+  </div>
+  
+  <div id="viewer">
+    <div id="media-container">
+      <div class="message" style="opacity:0;">불러오는 중...</div>
+    </div>
+  </div>
+  <div id="caption"></div>
+  
+  <div id="menu-area">
+    <div class="menu-side left" id="menu-left"></div>
+    <div id="main-menu-btn" onclick="toggleMenu()">
+      <div class="icon"></div>
+    </div>
+    <div class="menu-side right" id="menu-right"></div>
+  </div>
+
+  <script>
+    let mediaList = [];
+    let currentIndex = 0;
+    let slideTimer = null;
+    const IMAGE_DURATION = 8000;
+    const MAX_PARALLAX = 4.5;
+    
+    const LOADING_CACHE_KEY = 'loading_image_cache_v1';
+    const LOADING_LIST_CACHE_KEY = 'loading_list_cache_v1';
+    
+    let mediaReady = false;
+    let firstMediaPlayable = false;
+    let menuReady = false;
+    let loadingContentReady = false;
+    let webAppUrlReady = false;
+    let domReady = false;
+    const MIN_LOADING_TIME = 2500;
+    const MAX_LOADING_TIME = 8000;
+    const loadingStartTime = Date.now();
+    const loadingProgressSteps = {
+      dom: 5,
+      loadingContent: 15,
+      menu: 20,
+      media: 25,
+      firstMedia: 25,
+      webAppUrl: 10
+    };
+    const loadingProgressDone = {};
+    
+    let cachedWebAppUrl = null;
+    
+    // 🎯 핵심: 로딩 콘텐츠를 한 번 결정하면 절대 안 바뀜
+    let isLoadingContentDisplayed = false;
+
+    function normalizeText(value) {
+      return window.ComswSupabase
+        ? window.ComswSupabase.normalizeText(value)
+        : String(value == null ? '' : value).trim();
+    }
+
+    function truthyCell(value) {
+      return window.ComswSupabase
+        ? window.ComswSupabase.truthyCell(value)
+        : value === true;
+    }
+
+    function convertDriveUrl(url) {
+      return window.ComswSupabase
+        ? window.ComswSupabase.convertDriveUrl(url)
+        : normalizeText(url);
+    }
+
+    function getRawValues(row) {
+      return window.ComswSupabase
+        ? window.ComswSupabase.getRawValues(row)
+        : ((row && row.data && row.data.values) || []);
+    }
+
+    function hashString(text) {
+      let hash = 0;
+      const str = String(text || '');
+      for (let i = 0; i < str.length; i++) {
+        hash = ((hash << 5) - hash + str.charCodeAt(i)) | 0;
+      }
+      return Math.abs(hash).toString(16);
+    }
+
+    async function getMainRows() {
+      return window.ComswSupabase.fetchSheetRows(window.COMSW_SUPABASE_CONFIG.sheets.main);
+    }
+
+    async function getLoadingRows() {
+      return window.ComswSupabase.fetchSheetRows('로딩 중');
+    }
+
+    function detectMediaTypeForIndex(url) {
+      const raw = String(url || '').toLowerCase();
+      if (raw.includes('youtube.com') || raw.includes('youtu.be')) return 'youtube';
+      if (/\.(mp4|webm|mov)(\?|#|$)/.test(raw)) return 'video';
+      return 'image';
+    }
+
+    function captionTextToHtml(text) {
+      return escapeHtml(text || '').replace(/\n/g, '<br>');
+    }
+
+    async function getCheckedMediaFromSupabase() {
+      const rows = await getMainRows();
+      return rows.map(function(row) {
+        const values = getRawValues(row);
+        const url = normalizeText(values[0]);
+        const caption = normalizeText(values[1]);
+        const checked = values[2];
+        if (!url || !truthyCell(checked)) return null;
+        const finalUrl = convertDriveUrl(url);
+        return {
+          url: finalUrl,
+          type: detectMediaTypeForIndex(finalUrl),
+          captionHtml: captionTextToHtml(caption)
+        };
+      }).filter(Boolean);
+    }
+
+    async function getMenuListFromSupabase() {
+      const rows = await getMainRows();
+      const menus = rows.map(function(row) {
+        const values = getRawValues(row);
+        const name = normalizeText(values[4]);
+        const checked = values[5];
+        const direction = normalizeText(values[6]);
+        const order = Number(values[7]) || 999;
+        if (!name || !truthyCell(checked)) return null;
+
+        let dir = direction.toLowerCase();
+        if (dir === '왼쪽' || dir === 'left' || dir === 'l') dir = 'left';
+        else if (dir === '오른쪽' || dir === 'right' || dir === 'r') dir = 'right';
+        else dir = 'right';
+
+        return {
+          name: name,
+          direction: dir,
+          order: order
+        };
+      }).filter(Boolean);
+
+      menus.sort(function(a, b) { return a.order - b.order; });
+      return menus;
+    }
+
+    async function getLoadingContentFromSupabase() {
+      const rows = await getLoadingRows();
+      return rows.map(function(row) {
+        const values = getRawValues(row);
+        const rawUrl = normalizeText(values[0]);
+        const text = normalizeText(values[1]);
+        const checked = values[2];
+        const fontFamily = normalizeText(values[3]);
+        const fontSize = normalizeText(values[4]);
+        const fontWeight = normalizeText(values[5]);
+        if (!rawUrl || !truthyCell(checked)) return null;
+        const imageUrl = convertDriveUrl(rawUrl);
+        return {
+          id: 'loading_' + hashString(imageUrl),
+          imageUrl: imageUrl,
+          text: text,
+          fontFamily: fontFamily,
+          fontSize: fontSize,
+          fontWeight: fontWeight
+        };
+      }).filter(Boolean);
+    }
+
+    function setLoadingProgress(percent) {
+      document.documentElement.style.setProperty('--loading-progress', Math.max(0, Math.min(100, percent)) + '%');
+    }
+
+    function markLoadingStep(step) {
+      loadingProgressDone[step] = true;
+      let progress = 0;
+      Object.keys(loadingProgressSteps).forEach(function(key) {
+        if (loadingProgressDone[key]) progress += loadingProgressSteps[key];
+      });
+      setLoadingProgress(progress);
+      tryHideLoadingOverlay();
+    }
+
+    function isInitialPageReady() {
+      return domReady && loadingContentReady && menuReady && mediaReady && firstMediaPlayable && webAppUrlReady;
+    }
+    
+    /* ============================================== */
+    /*  🎯 페이지 진입 시 - 로딩 화면 표시                 */
+    /* ============================================== */
+    
+    document.addEventListener('DOMContentLoaded', function() {
+      tryDisplayCachedContent();
+    });
+    
+    function tryDisplayCachedContent() {
+      // 이미 표시했으면 절대 다시 안 함
+      if (isLoadingContentDisplayed) return;
+      
+      let cachedList = null;
+      try {
+        const raw = localStorage.getItem(LOADING_LIST_CACHE_KEY);
+        if (raw) cachedList = JSON.parse(raw);
+      } catch (e) {}
+      
+      if (cachedList && cachedList.length > 0) {
+        const picked = cachedList[Math.floor(Math.random() * cachedList.length)];
+        displayLoadingContent(picked);
+        isLoadingContentDisplayed = true;  // 🎯 표시 완료 플래그
+      }
+      // 캐시 없으면 아무것도 안 함 → 검은 화면 유지
+      // 서버 응답 오면 그때 표시됨
+    }
+    
+    function displayLoadingContent(item) {
+      const bg = document.getElementById('loading-bg');
+      const textEl = document.getElementById('loading-text');
+      
+      const cachedImage = getCachedImage(item.id);
+      if (cachedImage) {
+        bg.src = cachedImage;
+      } else if (item.imageUrl) {
+        bg.src = item.imageUrl;
+        cacheImageAsBase64(item.id, item.imageUrl);
+      }
+      
+      textEl.textContent = item.text || '';
+      textEl.setAttribute('data-text', item.text || '');
+      if (typeof applyLoadingFont === 'function') applyLoadingFont(textEl, item);
+
+      textEl.classList.remove('animate');
+      void textEl.offsetWidth;
+      textEl.classList.add('animate');
+    }
+    
+    /* ============================================== */
+    /*  🎯 이미지 base64 캐싱                            */
+    /* ============================================== */
+    
+    function getCachedImage(id) {
+      try {
+        const raw = localStorage.getItem(LOADING_CACHE_KEY);
+        if (!raw) return null;
+        const cache = JSON.parse(raw);
+        return cache[id] || null;
+      } catch (e) {
+        return null;
+      }
+    }
+    
+    function cacheImageAsBase64(id, url) {
+      fetch(url)
+        .then(res => res.blob())
+        .then(blob => {
+          const reader = new FileReader();
+          reader.onloadend = function() {
+            try {
+              let cache = {};
+              const raw = localStorage.getItem(LOADING_CACHE_KEY);
+              if (raw) cache = JSON.parse(raw);
+              cache[id] = reader.result;
+              localStorage.setItem(LOADING_CACHE_KEY, JSON.stringify(cache));
+            } catch (e) {
+              console.warn('이미지 캐시 저장 실패:', e);
+            }
+          };
+          reader.readAsDataURL(blob);
+        })
+        .catch(e => console.warn('이미지 캐시 실패:', e));
+    }
+    
+    /* ============================================== */
+    /*  🎯 메인 콘텐츠 로드                              */
+    /* ============================================== */
+    
+    window.onload = function() {
+      domReady = true;
+      markLoadingStep('dom');
+
+      // 로딩 콘텐츠 - 백그라운드에서 캐시 갱신만, 화면 표시는 안 함
+      getLoadingContentFromSupabase()
+        .then(function(list) {
+          if (list && list.length > 0) {
+            try {
+              localStorage.setItem(LOADING_LIST_CACHE_KEY, JSON.stringify(list));
+            } catch (e) {}
+            
+            // 🎯 만약 아직 화면에 콘텐츠가 표시 안 됐다면 (캐시 없었던 경우)
+            //    이때 처음 한 번만 표시
+            if (!isLoadingContentDisplayed) {
+              const picked = list[Math.floor(Math.random() * list.length)];
+              displayLoadingContent(picked);
+              isLoadingContentDisplayed = true;
+            }
+            
+            // 백그라운드 이미지 캐싱
+            list.forEach(item => {
+              if (!getCachedImage(item.id) && item.imageUrl) {
+                cacheImageAsBase64(item.id, item.imageUrl);
+              }
+            });
+          }
+          loadingContentReady = true;
+          markLoadingStep('loadingContent');
+        })
+        .catch(function(e){
+          console.error('로딩 콘텐츠 실패:', e);
+          loadingContentReady = true;
+          markLoadingStep('loadingContent');
+        });
+      
+      getCheckedMediaFromSupabase()
+        .then(onMediaLoaded)
+        .catch(onError);
+      
+      getMenuListFromSupabase()
+        .then(onMenuLoaded)
+        .catch(function(e){
+          console.error('메뉴 로드 실패:', e);
+          menuReady = true;
+          markLoadingStep('menu');
+        });
+      
+      cachedWebAppUrl = '';
+      webAppUrlReady = true;
+      markLoadingStep('webAppUrl');
+      
+      initParallax();
+      initMenuVisibility();
+      
+      setTimeout(function() {
+        tryHideLoadingOverlay(true);
+      }, MAX_LOADING_TIME);
+    };
+    
+    /* ============================================== */
+    /*  🎯 로딩 화면 숨김                                */
+    /* ============================================== */
+    
+    function tryHideLoadingOverlay(force) {
+      const elapsed = Date.now() - loadingStartTime;
+      const overlay = document.getElementById('loading-overlay');
+      
+      if (overlay.classList.contains('lock')) return;
+      
+      if (force) {
+        if (isInitialPageReady()) {
+          setLoadingProgress(100);
+          overlay.classList.add('hidden');
+        }
+        return;
+      }
+      
+      if (isInitialPageReady() && elapsed >= MIN_LOADING_TIME) {
+        setLoadingProgress(100);
+        overlay.classList.add('hidden');
+      } else if (isInitialPageReady() && elapsed < MIN_LOADING_TIME) {
+        setTimeout(function() {
+          if (!overlay.classList.contains('lock')) {
+            setLoadingProgress(100);
+            overlay.classList.add('hidden');
+          }
+        }, MIN_LOADING_TIME - elapsed);
+      }
+    }
+    
+    /* ============================================== */
+    /*  🎯 메뉴 클릭 - 페이지 이동                       */
+    /*    🔑 현재 표시 중인 콘텐츠 그대로 유지하면서 이동  */
+    /* ============================================== */
+    
+  function onMenuClick(name) {
+    const pageMap = {
+      '전체 수업': 'roadmap_supabase_test.html',
+      '학과별 자료': 'Curriculum_full_supabase_test.html',
+      '학과 커리큘럼': 'Curriculum_full_supabase_test.html',
+      '특강/세미나': 'seminar.html',
+      '수업별 준비물': 'item_supabase_test.html',
+      '방학 특강': 'vacation.html'
+    };
+    
+    const targetPage = pageMap[name];
+    if (!targetPage) return;
+    
+    const overlay = document.getElementById('loading-overlay');
+    const textEl = document.getElementById('loading-text');
+    
+    // 🎯 1단계: 페이지 이동 잠금
+    setLoadingProgress(0);
+    overlay.classList.add('lock');
+    overlay.classList.remove('hidden');
+    
+    // 🎯 2단계: 콘텐츠 처리
+    if (overlay.classList.contains('hidden') || !isLoadingContentDisplayed) {
+      // 로딩 화면이 사라진 상태였음 → 새 콘텐츠 표시
+      try {
+        const raw = localStorage.getItem(LOADING_LIST_CACHE_KEY);
+        if (raw) {
+          const list = JSON.parse(raw);
+          if (list.length > 0) {
+            const picked = list[Math.floor(Math.random() * list.length)];
+            displayLoadingContent(picked);  // 이 안에서 wipe 재시작됨
+            isLoadingContentDisplayed = true;
+          }
+        }
+      } catch (e) {}
+      overlay.classList.remove('hidden');
+    } else {
+      // 🎯 로딩 화면이 보이는 상태였음 - 콘텐츠는 그대로 두고 wipe만 재시작!
+      textEl.classList.remove('animate');
+      void textEl.offsetWidth;  // 리플로우 강제 (애니메이션 재시작 트릭)
+      textEl.classList.add('animate');
+    }
+    setLoadingProgress(25);
+    
+    // 🎯 3단계: wipe 완료 시점에 페이지 이동
+    const navigate = function() {
+      window.top.location.href = './' + targetPage;
+    };
+    
+    requestAnimationFrame(function() { setLoadingProgress(100); });
+    setTimeout(navigate, 2500);
+  }
+    
+    function toggleMenu() {
+      const menuArea = document.getElementById('menu-area');
+      menuArea.classList.toggle('open');
+      if (menuArea.classList.contains('open')) {
+        menuArea.classList.add('visible');
+      }
+    }
+    
+    /* ============================================== */
+    /*  메뉴 시스템                                       */
+    /* ============================================== */
+    
+    function onMenuLoaded(menus) {
+      if (!menus || menus.length === 0) {
+        menuReady = true;
+        markLoadingStep('menu');
+        return;
+      }
+      const leftContainer = document.getElementById('menu-left');
+      const rightContainer = document.getElementById('menu-right');
+      const leftMenus = menus.filter(m => m.direction === 'left').sort((a, b) => b.order - a.order);
+      const rightMenus = menus.filter(m => m.direction === 'right').sort((a, b) => a.order - b.order);
+      leftMenus.forEach(menu => leftContainer.appendChild(createMenuItem(menu)));
+      rightMenus.forEach(menu => rightContainer.appendChild(createMenuItem(menu)));
+      menuReady = true;
+      markLoadingStep('menu');
+    }
+    
+    function createMenuItem(menu) {
+      const div = document.createElement('div');
+      div.className = 'menu-item';
+      div.textContent = menu.name;
+      div.onclick = function() { onMenuClick(menu.name); };
+      return div;
+    }
+    
+    function initMenuVisibility() {
+      const menuArea = document.getElementById('menu-area');
+      const SHOW_ZONE = 0.75;
+      const HIDE_ZONE = 0.60;
+      
+      document.addEventListener('mousemove', function(e) {
+        const h = window.innerHeight;
+        const yRatio = e.clientY / h;
+        if (menuArea.classList.contains('open')) {
+          menuArea.classList.add('visible');
+          return;
+        }
+        if (yRatio >= SHOW_ZONE) menuArea.classList.add('visible');
+        else if (yRatio < HIDE_ZONE) menuArea.classList.remove('visible');
+      });
+      
+      document.addEventListener('mouseleave', function() {
+        if (!menuArea.classList.contains('open')) menuArea.classList.remove('visible');
+      });
+    }
+    
+    /* ============================================== */
+    /*  미디어 및 패럴랙스                                */
+    /* ============================================== */
+    
+    function initParallax() {
+      const container = document.getElementById('media-container');
+      document.addEventListener('mousemove', function(e) {
+        const w = window.innerWidth;
+        const h = window.innerHeight;
+        const xRatio = (e.clientX / w) * 2 - 1;
+        const yRatio = (e.clientY / h) * 2 - 1;
+        const moveX = -xRatio * MAX_PARALLAX;
+        const moveY = -yRatio * MAX_PARALLAX;
+        container.style.setProperty('--parallax-x', moveX + '%');
+        container.style.setProperty('--parallax-y', moveY + '%');
+      });
+      document.addEventListener('mouseleave', function() {
+        container.style.setProperty('--parallax-x', '0%');
+        container.style.setProperty('--parallax-y', '0%');
+      });
+      window.addEventListener('blur', function() {
+        container.style.setProperty('--parallax-x', '0%');
+        container.style.setProperty('--parallax-y', '0%');
+      });
+    }
+    
+    function onMediaLoaded(list) {
+      mediaList = list || [];
+      mediaReady = true;
+      markLoadingStep('media');
+      
+      if (mediaList.length === 0) {
+        document.getElementById('media-container').innerHTML = 
+          '<div class="message">체크된 미디어가 없습니다.</div>';
+        firstMediaPlayable = true;
+        markLoadingStep('firstMedia');
+        tryHideLoadingOverlay();
+        return;
+      }
+      renderMedia(0);
+    }
+    
+    function onError(err) {
+      document.getElementById('media-container').innerHTML = 
+        '<div class="message error">오류: ' + (err.message || err) + '</div>';
+      mediaReady = true;
+      firstMediaPlayable = true;
+      markLoadingStep('media');
+      markLoadingStep('firstMedia');
+      tryHideLoadingOverlay();
+    }
+    
+    function getCoverSize() {
+      const w = window.innerWidth * 1.1;
+      const h = window.innerHeight * 1.1;
+      const videoRatio = 16 / 9;
+      if (w / h > videoRatio) return { width: w, height: w / videoRatio };
+      return { width: h * videoRatio, height: h };
+    }
+    
+    function renderMedia(index) {
+      currentIndex = index;
+      const media = mediaList[index];
+      const container = document.getElementById('media-container');
+      const caption = document.getElementById('caption');
+      const isSlideshow = mediaList.length > 1;
+      
+      if (slideTimer) {
+        clearTimeout(slideTimer);
+        slideTimer = null;
+      }
+      
+      let html = '';
+      
+      switch (media.type) {
+        case 'youtube': {
+          const ytId = extractYouTubeId(media.url);
+          if (ytId) {
+            const size = getCoverSize();
+            const params = ['autoplay=1','mute=1','controls=0','rel=0','showinfo=0',
+                            'modestbranding=1','iv_load_policy=3','playsinline=1',
+                            'loop=1','playlist=' + ytId,'disablekb=1'].join('&');
+            html = '<div class="iframe-wrapper" style="width:' + size.width + 'px;height:' + size.height + 'px;">' +
+                   '<iframe width="' + size.width + '" height="' + size.height + '" ' +
+                   'src="https://www.youtube.com/embed/' + ytId + '?' + params + '" ' +
+                   'frameborder="0" allow="autoplay; encrypted-media" allowfullscreen></iframe></div>';
+          }
+          break;
+        }
+        case 'vimeo': {
+          const vmId = extractVimeoId(media.url);
+          if (vmId) {
+            const size = getCoverSize();
+            html = '<div class="iframe-wrapper" style="width:' + size.width + 'px;height:' + size.height + 'px;">' +
+                   '<iframe width="' + size.width + '" height="' + size.height + '" ' +
+                   'src="https://player.vimeo.com/video/' + vmId + '?autoplay=1&muted=1&loop=1&background=1&controls=0" ' +
+                   'frameborder="0" allow="autoplay; fullscreen" allowfullscreen></iframe></div>';
+          }
+          break;
+        }
+        case 'video':
+          html = '<video id="localvideo" src="' + escapeHtml(media.url) + '" autoplay muted playsinline loop></video>';
+          break;
+        case 'gdrive-video': {
+          const driveId = extractDriveId(media.url);
+          const videoSrc = 'https://drive.google.com/uc?export=download&id=' + driveId;
+          html = '<video id="localvideo" src="' + videoSrc + '" autoplay muted playsinline loop></video>';
+          break;
+        }
+        case 'gdrive-image': {
+          const driveId = extractDriveId(media.url);
+          html = '<img src="https://drive.google.com/thumbnail?id=' + driveId + '&sz=w2000" alt="media">';
+          break;
+        }
+        case 'gdrive': {
+          const driveId = extractDriveId(media.url);
+          if (driveId) {
+            const size = getCoverSize();
+            html = '<div class="iframe-wrapper" style="width:' + size.width + 'px;height:' + size.height + 'px;">' +
+                   '<iframe width="' + size.width + '" height="' + size.height + '" ' +
+                   'src="https://drive.google.com/file/d/' + driveId + '/preview" ' +
+                   'allow="autoplay" allowfullscreen></iframe></div>';
+          } else {
+            html = '<img src="' + escapeHtml(media.url) + '" alt="media">';
+          }
+          break;
+        }
+        case 'image':
+        default:
+          html = '<img src="' + escapeHtml(media.url) + '" alt="media">';
+          break;
+      }
+      
+      container.innerHTML = html;
+      
+      if (index === 0) {
+        const videoEl = container.querySelector('video');
+        const imgEl = container.querySelector('img');
+        const iframeEl = container.querySelector('iframe');
+        
+        if (videoEl) {
+          videoEl.addEventListener('canplay', function() {
+            firstMediaPlayable = true;
+            markLoadingStep('firstMedia');
+            tryHideLoadingOverlay();
+          });
+          setTimeout(function() {
+            if (!firstMediaPlayable) {
+              firstMediaPlayable = true;
+              markLoadingStep('firstMedia');
+              tryHideLoadingOverlay();
+            }
+          }, 3000);
+        } else if (imgEl) {
+          imgEl.addEventListener('load', function() {
+            firstMediaPlayable = true;
+            markLoadingStep('firstMedia');
+            tryHideLoadingOverlay();
+          });
+          imgEl.addEventListener('error', function() {
+            firstMediaPlayable = true;
+            markLoadingStep('firstMedia');
+            tryHideLoadingOverlay();
+          });
+        } else if (iframeEl) {
+          setTimeout(function() {
+            firstMediaPlayable = true;
+            markLoadingStep('firstMedia');
+            tryHideLoadingOverlay();
+          }, 2000);
+        } else {
+          firstMediaPlayable = true;
+          markLoadingStep('firstMedia');
+          tryHideLoadingOverlay();
+        }
+      }
+      
+      if (media.captionHtml) {
+        const convertedHtml = media.captionHtml.replace(/class="cursive"/g, 'class="red-highlight"');
+        const lines = convertedHtml.split(/<br\s*\/?>/i);
+        caption.innerHTML = lines
+          .map((line, i) => {
+            const lineClass = i < 3 ? ('line-' + (i + 1)) : 'line-other';
+            const cleanedLine = line.replace(/<span class="korean">([^<]*)<\/span>/g, '$1');
+            return '<div class="caption-line ' + lineClass + '">' + cleanedLine + '</div>';
+          })
+          .join('');
+      } else {
+        caption.innerHTML = '';
+      }
+      
+      container.classList.remove('fade-in');
+      void container.offsetWidth;
+      container.classList.add('fade-in');
+      
+      if (isSlideshow) scheduleNext(media.type);
+    }
+    
+    function scheduleNext(type) {
+      if (type === 'video' || type === 'gdrive-video') {
+        slideTimer = setTimeout(goNext, 30000);
+        return;
+      }
+      const duration = (type === 'youtube' || type === 'vimeo' || type === 'gdrive') ? 30000 : IMAGE_DURATION;
+      slideTimer = setTimeout(goNext, duration);
+    }
+    
+    function goNext() {
+      renderMedia((currentIndex + 1) % mediaList.length);
+    }
+    
+    window.addEventListener('resize', function() {
+      if (mediaList.length > 0) renderMedia(currentIndex);
+    });
+    
+    document.addEventListener('keydown', function(e) {
+      if (e.key === 'Escape') {
+        document.getElementById('menu-area').classList.remove('open');
+      }
+      if (mediaList.length < 2) return;
+      if (e.key === 'ArrowRight') goNext();
+      if (e.key === 'ArrowLeft') {
+        renderMedia((currentIndex - 1 + mediaList.length) % mediaList.length);
+      }
+    });
+    
+    function extractYouTubeId(url) {
+      const match = url.match(/(?:youtube\.com\/(?:watch\?v=|embed\/|v\/)|youtu\.be\/)([^&?\/\s]+)/);
+      return match ? match[1] : null;
+    }
+    function extractVimeoId(url) {
+      const match = url.match(/vimeo\.com\/(?:video\/)?(\d+)/);
+      return match ? match[1] : null;
+    }
+    function extractDriveId(url) {
+      const match = url.match(/(?:\/d\/|id=)([a-zA-Z0-9_-]+)/);
+      return match ? match[1] : null;
+    }
+    function escapeHtml(str) {
+      const div = document.createElement('div');
+      div.textContent = str;
+      return div.innerHTML;
+    }
+  </script>
+</body>
+</html>

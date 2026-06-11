@@ -421,6 +421,10 @@
       if (raw.includes('vimeo.com')) return 'vimeo';
       // 확장자가 명확한 영상
       if (/\.(mp4|webm|mov|ogg)(\?|#|$)/.test(raw)) return 'video';
+      // Apps Script 원본의 detectMediaType과 일치시킴 — 확장자 없는 video host들
+      if (raw.includes('pexels.com') && raw.includes('/download/video/')) return 'video';
+      if (raw.includes('pixabay.com') && raw.includes('/videos/')) return 'video';
+      if (raw.includes('coverr.co')) return 'video';
       // 확장자가 명확한 이미지
       if (/\.(jpe?g|png|gif|webp|bmp|svg|avif)(\?|#|$)/.test(raw)) return 'image';
       // Google Drive — 클라이언트에서는 MIME 검사 불가. 메인 페이지 배경은 영상이

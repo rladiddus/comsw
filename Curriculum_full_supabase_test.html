@@ -4329,15 +4329,23 @@
       return [];
     }
 
-    async function fetchSupabaseRowsForSheet(sheetName) {
+    function getSupabaseSourceId(sourceKey) {
+      const sources = (window.COMSW_SUPABASE_CONFIG && window.COMSW_SUPABASE_CONFIG.sources) || {};
+      return sources[sourceKey] || sourceKey || 'main';
+    }
+
+    async function fetchSupabaseRowsForSheet(sheetName, sourceId) {
+      const source = sourceId || getSupabaseSourceId('main');
+      const cacheKey = source + '::' + sheetName;
       if (window.ComswSupabase && typeof window.ComswSupabase.fetchSheetRows === 'function') {
-        return window.ComswSupabase.fetchSheetRows(sheetName);
+        return window.ComswSupabase.fetchSheetRows(sheetName, source);
       }
-      if (supabaseSheetCache[sheetName]) return supabaseSheetCache[sheetName];
+      if (supabaseSheetCache[cacheKey]) return supabaseSheetCache[cacheKey];
 
       const endpoint = SUPABASE_URL.replace(/\/+$/, '') + '/rest/v1/' + SUPABASE_RAW_TABLE;
       const url = endpoint
-        + '?select=sheet_name,row_number,data'
+        + '?select=source_id,sheet_name,row_number,data'
+        + '&source_id=eq.' + encodeURIComponent(source)
         + '&sheet_name=eq.' + encodeURIComponent(sheetName)
         + '&order=row_number.asc';
 
@@ -4353,8 +4361,8 @@
       }
 
       const rows = await res.json();
-      supabaseSheetCache[sheetName] = rows || [];
-      return supabaseSheetCache[sheetName];
+      supabaseSheetCache[cacheKey] = rows || [];
+      return supabaseSheetCache[cacheKey];
     }
 
     async function getDepartmentListFromSupabase() {
@@ -4531,7 +4539,7 @@
     }
 
     async function getInstructorCurriculumFromSupabase(deptName, instructorName, subjectName) {
-      const rows = await fetchSupabaseRowsForSheet(deptName);
+      const rows = await fetchSupabaseRowsForSheet(deptName, getSupabaseSourceId('instructorCurriculum'));
       const weeks = [];
       const targetInst = normalizeText(instructorName);
       const targetSubj = normalizeText(subjectName);
@@ -4556,7 +4564,7 @@
     }
 
     async function getAllInstructorCurriculumFromSupabase(deptName, instructorName) {
-      const rows = await fetchSupabaseRowsForSheet(deptName);
+      const rows = await fetchSupabaseRowsForSheet(deptName, getSupabaseSourceId('instructorCurriculum'));
       const items = [];
       const targetInst = normalizeText(instructorName);
 
@@ -4583,7 +4591,7 @@
     }
 
     async function getRecruitmentListFromSupabase(deptName) {
-      const rows = await fetchSupabaseRowsForSheet(deptName);
+      const rows = await fetchSupabaseRowsForSheet(deptName, getSupabaseSourceId('recruitment'));
       return rows.map(function(row) {
         const values = getRawValues(row);
         return {

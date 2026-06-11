@@ -39,15 +39,22 @@
     return [];
   }
 
-  async function fetchSheetRows(sheetName) {
-    if (cache[sheetName]) return cache[sheetName];
+  function defaultSourceId() {
+    return (cfg.sources && cfg.sources.main) || 'main';
+  }
+
+  async function fetchSheetRows(sheetName, sourceId) {
+    const source = normalizeText(sourceId) || defaultSourceId();
+    const cacheKey = source + '::' + sheetName;
+    if (cache[cacheKey]) return cache[cacheKey];
     if (!cfg.url || !cfg.anonKey || !cfg.rawTable) {
       throw new Error('Supabase 설정이 비어 있습니다.');
     }
 
     const endpoint = cfg.url.replace(/\/+$/, '') + '/rest/v1/' + cfg.rawTable;
     const url = endpoint
-      + '?select=sheet_name,row_number,data'
+      + '?select=source_id,sheet_name,row_number,data'
+      + '&source_id=eq.' + encodeURIComponent(source)
       + '&sheet_name=eq.' + encodeURIComponent(sheetName)
       + '&order=row_number.asc';
 
@@ -62,8 +69,8 @@
       throw new Error('Supabase HTTP ' + res.status + ' / ' + await res.text());
     }
 
-    cache[sheetName] = await res.json();
-    return cache[sheetName];
+    cache[cacheKey] = await res.json();
+    return cache[cacheKey];
   }
 
   function splitMultiValue(value) {
@@ -91,7 +98,11 @@
     splitMultiValue: splitMultiValue,
     coursePrepCategoryKey: coursePrepCategoryKey,
     clearCache: function(sheetName) {
-      if (sheetName) delete cache[sheetName];
+      if (sheetName) {
+        Object.keys(cache).forEach(function(key) {
+          if (key.endsWith('::' + sheetName)) delete cache[key];
+        });
+      }
       else Object.keys(cache).forEach(function(key) { delete cache[key]; });
     }
   };

@@ -840,13 +840,20 @@
       return list;
     }
 
-    async function fetchSupabaseRowsForSheet(sheetName) {
+    function getSupabaseSourceId(sourceKey) {
+      const sources = (window.COMSW_SUPABASE_CONFIG && window.COMSW_SUPABASE_CONFIG.sources) || {};
+      return sources[sourceKey] || sourceKey || 'main';
+    }
+
+    async function fetchSupabaseRowsForSheet(sheetName, sourceId) {
+      const source = sourceId || getSupabaseSourceId('main');
       if (window.ComswSupabase && typeof window.ComswSupabase.fetchSheetRows === 'function') {
-        return window.ComswSupabase.fetchSheetRows(sheetName);
+        return window.ComswSupabase.fetchSheetRows(sheetName, source);
       }
       const endpoint = SUPABASE_URL.replace(/\/+$/, '') + '/rest/v1/' + SUPABASE_RAW_TABLE;
       const url = endpoint
-        + '?select=sheet_name,row_number,data'
+        + '?select=source_id,sheet_name,row_number,data'
+        + '&source_id=eq.' + encodeURIComponent(source)
         + '&sheet_name=eq.' + encodeURIComponent(sheetName)
         + '&order=row_number.asc';
 

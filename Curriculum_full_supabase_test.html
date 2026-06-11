@@ -4593,10 +4593,12 @@
         });
         if (!matched) return;
 
+        const externalSubjects = subjectsByInstructor[curriculumMatchKey(name)] || [];
+
         instructors.push({
           name: name,
           depts: depts,
-          subjects: mergeSubjectLists(subjects, subjectsByInstructor[curriculumMatchKey(name)] || []),
+          subjects: externalSubjects.length ? externalSubjects : subjects,
           career: career,
           message: message,
           img: img ? convertDriveUrl(img) : ''

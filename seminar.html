@@ -51,6 +51,7 @@
       pointer-events: none;
       transition: opacity 0.35s ease;
       overflow: hidden;
+      z-index: 1;  /* indicator(z-index 1000)보다 항상 아래에 두어 동적 appendChild 후에도 가리지 않음 */
     }
     .slide-page.active {
       opacity: 1;
@@ -347,7 +348,9 @@
     /* 페이지 인디케이터: scale-container 안 1920×1080 좌표계 기준.
        신청 버튼 끝(top 832 + 높이 69 = 901)에서 80px 떨어진 y=981 위치,
        가로는 중앙 정렬. transform: scale도 슬라이드와 같이 적용되어
-       항상 신청 버튼 아래에 일정한 거리로 따라간다. */
+       항상 신청 버튼 아래에 일정한 거리로 따라간다.
+       z-index를 slide-page(1)보다 명시적으로 높게 두어, slide-page들이
+       DOM 순서상 뒤에 동적으로 appendChild되어도 indicator가 가려지지 않음. */
     #page-indicator {
       position: absolute;
       top: 981px;
@@ -355,7 +358,7 @@
       transform: translateX(-50%);
       display: flex;
       gap: 14px;
-      z-index: 300;
+      z-index: 1000;
       pointer-events: none;
     }
     .page-dot {

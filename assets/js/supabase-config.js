@@ -5,8 +5,7 @@
     rawTable: 'raw_sheet_rows',
     // Apps Script Web App 발행 URL (.../exec).
     // seminar.html이 doPost 경유로 신청 데이터를 시트에 추가할 때 사용.
-    // 발행 후 사용자 입력 필요 — 비워두면 신청 버튼이 endpoint 미설정 토스트를 띄움.
-    appsScriptApplyUrl: '',
+    appsScriptApplyUrl: 'https://script.google.com/macros/s/AKfycbzqjt_Fo7Tii8Eimyz_x30L7PzaA4NGMukk47vDEqtjGSGqUH3E1taPZj1OCTJNs2tH/exec',
     sources: {
       main: 'main',
       recruitment: 'recruitment',

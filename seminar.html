@@ -84,7 +84,7 @@
     .seminar-footer {
       left: 65px;
       top: 1002px;
-      font-size: 32px;
+      font-size: 19px;
       font-weight: 200;
       letter-spacing: -0.07em;
     }
@@ -344,10 +344,14 @@
     /* ============================================== */
     /*  페이지 인디케이터                                  */
     /* ============================================== */
+    /* 페이지 인디케이터: scale-container 안 1920×1080 좌표계 기준.
+       신청 버튼 끝(top 832 + 높이 69 = 901)에서 80px 떨어진 y=981 위치,
+       가로는 중앙 정렬. transform: scale도 슬라이드와 같이 적용되어
+       항상 신청 버튼 아래에 일정한 거리로 따라간다. */
     #page-indicator {
-      position: fixed;
+      position: absolute;
+      top: 981px;
       left: 50%;
-      bottom: 30px;
       transform: translateX(-50%);
       display: flex;
       gap: 14px;
@@ -586,14 +590,14 @@
   <div class="slide-view">
     <div id="scale-container">
       <!-- 동적으로 .slide-page들이 들어감 -->
+      <!-- 페이지 인디케이터: 슬라이드 좌표계 안에 두어 신청 버튼과 같은 1920×1080
+           좌표로 위치 잡고 스케일도 같이 적용되도록 함. -->
+      <div id="page-indicator"></div>
     </div>
   </div>
 
   <!-- 빈 상태 -->
   <div class="seminar-empty" id="seminar-empty">특강 정보를 불러오는 중...</div>
-
-  <!-- 페이지 인디케이터 -->
-  <div id="page-indicator"></div>
 
   <!-- 슬라이드 네비 (↑/↓) -->
   <div id="slide-nav">

@@ -868,11 +868,64 @@
         return;
       }
 
-      // ⚠️ GitHub Pages 정적 사이트는 Supabase anon key로 데이터 쓰기를 할 수 없다.
-      //    (시트의 "특강 신청" 행 추가는 service_role 권한이 필요하다.)
-      //    따라서 이 환경에서는 신청 제출을 막고 안내 토스트만 띄운다.
-      //    실제 신청은 학원 내 키오스크의 Apps Script 페이지에서 진행해야 한다.
-      showToast('현재 페이지에서는 신청이 불가합니다. 학원 내 키오스크에서 신청해 주세요.', true, 5000);
+      // GitHub Pages → Apps Script Web App(doPost)으로 신청 전송.
+      //  - Content-Type을 text/plain으로 보내면 CORS preflight가 발생하지 않아
+      //    별도 CORS 설정 없이 Apps Script가 응답을 돌려줄 수 있다.
+      //  - Apps Script doPost는 body에서 JSON 문자열을 파싱한 뒤 applySeminar()를
+      //    실행해 시트("특강 신청자 명단")에 행을 추가하고 H열 카운트를 반환한다.
+      const APPLY_ENDPOINT = (window.COMSW_SUPABASE_CONFIG && window.COMSW_SUPABASE_CONFIG.appsScriptApplyUrl) || '';
+      if (!APPLY_ENDPOINT) {
+        showToast('신청 endpoint가 설정되지 않았습니다. (supabase-config.js의 appsScriptApplyUrl 확인)', true, 5000);
+        return;
+      }
+
+      isApplying = true;
+      btn.disabled = true;
+      const originalText = btn.textContent;
+      btn.textContent = '신청 중...';
+
+      fetch(APPLY_ENDPOINT, {
+        method: 'POST',
+        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+        body: JSON.stringify({
+          action: 'apply_seminar',
+          title: seminar.title,
+          name: name,
+          phone: phone
+        })
+      })
+        .then(function(res) {
+          if (!res.ok) throw new Error('HTTP ' + res.status);
+          return res.json();
+        })
+        .then(function(res) {
+          isApplying = false;
+          btn.disabled = false;
+          btn.textContent = originalText;
+
+          if (res && res.ok) {
+            // 화면 카운트 갱신 (서버가 반환한 applied 우선, 없으면 +1)
+            const newApplied = (typeof res.applied === 'number') ? res.applied : (seminar.applied + 1);
+            seminar.applied = newApplied;
+            const appliedEl = slide.querySelector('.value-applied');
+            if (appliedEl) appliedEl.textContent = '(' + newApplied + '명 신청 중)';
+
+            nameInput.value = '';
+            phoneInput.value = '';
+
+            showToast('신청을 완료했습니다. 특강 전 안내문자를 발송하겠습니다.', false, 5000);
+            launchEmojiFireworks();
+          } else {
+            const msg = (res && res.error) ? res.error : '신청 처리 중 오류가 발생했습니다.';
+            showToast(msg, true);
+          }
+        })
+        .catch(function(err) {
+          isApplying = false;
+          btn.disabled = false;
+          btn.textContent = originalText;
+          showToast('오류: ' + (err && err.message ? err.message : err), true);
+        });
     }
 
     /* ============================================== */

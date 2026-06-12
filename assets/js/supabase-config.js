@@ -3,6 +3,10 @@
     url: 'https://bpdxbqsvkvvybrtgvrnf.supabase.co',
     anonKey: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJwZHhicXN2a3Z2eWJydGd2cm5mIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODEwNzYxOTgsImV4cCI6MjA5NjY1MjE5OH0.AL1W970ZqrkVMAg8ij1XJMrT91Y1AntsI7phmcSYHzg',
     rawTable: 'raw_sheet_rows',
+    // Apps Script Web App 발행 URL (.../exec).
+    // seminar.html이 doPost 경유로 신청 데이터를 시트에 추가할 때 사용.
+    // 발행 후 사용자 입력 필요 — 비워두면 신청 버튼이 endpoint 미설정 토스트를 띄움.
+    appsScriptApplyUrl: '',
     sources: {
       main: 'main',
       recruitment: 'recruitment',

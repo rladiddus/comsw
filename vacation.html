@@ -1,89 +1,1430 @@
 <!DOCTYPE html>
-<html lang="ko">
+<html>
 <head>
+  <base target="_top">
   <meta charset="utf-8">
-  <title>방학 특강 - 준비 중</title>
   <link rel="icon" href="data:,">
-  <link rel="stylesheet" as="style" crossorigin
-        href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable.min.css" />
+  <link rel="stylesheet" as="style" crossorigin href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable.min.css" />
+  <link href="https://fonts.googleapis.com/css2?family=Great+Vibes&display=swap" rel="stylesheet">
+  <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/rladiddus/comsw@main/assets/fonts/paperlogy.css">
+  <script src="./assets/js/supabase-config.js"></script>
+  <script src="./assets/js/supabase-client.js"></script>
   <style>
+    :root {
+      --accent-orange: #fa491d;
+      --pill-bg-idle:  #595959;
+      --pill-bg-hover: #fa491d;
+    }
     * { margin: 0; padding: 0; box-sizing: border-box; }
     html, body {
-      height: 100vh;
-      width: 100%;
-      font-family: 'Pretendard Variable', 'Pretendard', sans-serif;
-      background: #000;
-      color: #f6f6f6;
+      width: 100%; height: 100vh;
+      background: #f6f6f6;
+      font-family: 'Pretendard Variable', 'Pretendard', -apple-system, sans-serif;
+      color: #1a1a1a;
       overflow: hidden;
-      letter-spacing: -0.03em;
+      outline: none;
     }
-    .center {
+
+    /* ============================================== */
+    /*  슬라이드 컨테이너 (1920×1080 → 화면 스케일)       */
+    /* ============================================== */
+    .slide-view {
+      position: absolute;
+      top: 0; left: 0; right: 0; bottom: 0;
+      overflow: hidden;
+    }
+    #scale-container {
+      position: absolute;
+      transform-origin: top left;
+      width: 1920px;
+      height: 1080px;
+      background: #f6f6f6;
+    }
+
+    /* ============================================== */
+    /*  배경 이미지 + 흰색 50% 오버레이                   */
+    /* ============================================== */
+    .vacation-bg {
+      position: absolute;
+      top: var(--viewport-top, 0px);
+      left: var(--viewport-left, 0px);
+      width: var(--viewport-width, 1920px);
+      height: var(--viewport-height, 1080px);
+      object-fit: cover;
+      object-position: center center;
+      z-index: 0;
+      pointer-events: none;
+      user-select: none;
+    }
+    .vacation-bg-overlay {
+      position: absolute;
+      top: var(--viewport-top, 0px);
+      left: var(--viewport-left, 0px);
+      width: var(--viewport-width, 1920px);
+      height: var(--viewport-height, 1080px);
+      background: #ffffff;
+      opacity: 0.5;
+      z-index: 1;
+      pointer-events: none;
+    }
+
+    /* ============================================== */
+    /*  타이틀 (시트 이름 그대로)                        */
+    /* ============================================== */
+    .vacation-title {
+      position: absolute;
+      top: 182px;
+      left: 0;
+      right: 0;
+      text-align: center;
+      font-size: 56px;
+      font-weight: 600;
+      letter-spacing: -0.03em;
+      color: #0056B8;
+      line-height: 1;
+      z-index: 2;
+    }
+    .vacation-title-box {
+      display: inline-block;
+      padding: 30px;
+      background: rgba(255, 255, 255, 0.65);
+      border-radius: 20px;
+    }
+
+    /* ============================================== */
+    /*  푸터                                              */
+    /* ============================================== */
+    .vacation-footer {
+      position: absolute;
+      left: 65px;
+      top: 1002px;
+      font-size: 32px;
+      font-weight: 200;
+      letter-spacing: -0.07em;
+      color: #000;
+      z-index: 2;
+    }
+
+    /* ============================================== */
+    /*  알약 그리드 (flex-wrap + gap 8px, 화면 중앙 정렬)   */
+    /* ============================================== */
+    .vacation-pills-wrapper {
+      position: absolute;
+      top: 200px;
+      left: 230px;
+      right: 230px;
+      bottom: 100px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 2;
+    }
+    .vacation-pills {
+      display: flex;
+      flex-direction: column;
+      flex-wrap: nowrap;
+      gap: 8px;
+      justify-content: center;
+      align-items: center;
+      width: 100%;
+      max-width: none;
+    }
+    .vacation-pill-row {
+      display: flex;
+      flex-wrap: nowrap;
+      gap: 8px;
+      justify-content: center;
+      align-items: center;
+    }
+
+    .vacation-pill {
+      position: relative;
+      height: 71px;
+      padding: 0 36px;
+      background: rgba(89, 89, 89, 0.8);
+      color: #ffffff;
+      border-radius: 77px;
+      font-size: 39px;
+      font-weight: 400;
+      letter-spacing: -0.07em;
+      line-height: 71px;
+      white-space: nowrap;
+      cursor: pointer;
+      user-select: none;
+      transform: translate(0, 0);
+      transform-origin: center center;
+      margin: 0;
+      transition: background-color 0.18s ease,
+                  font-weight 0.18s ease;
+      will-change: padding, height, line-height, margin, font-size;
+    }
+    .vacation-pill.active {
+      background: rgba(250, 73, 29, 0.8);
+      font-weight: 700;
+    }
+
+    /* ============================================== */
+    /*  스프링 진동 keyframes - 다른 알약이 밀려나는 효과 */
+    /*    --push-x / --push-y CSS 변수로 목표 위치 받음   */
+    /*    1초 동안 오버슈트 → 되돌아옴 → 다시 살짝 → 수렴 */
+    /* ============================================== */
+    @keyframes vacation-pill-spring {
+      0% {
+        transform: translate(var(--from-x, 0px), var(--from-y, 0px)) scale(1);
+      }
+      45% {
+        transform: translate(calc(var(--push-x) * 1.16), calc(var(--push-y) * 1.16)) scale(1);
+      }
+      68% {
+        transform: translate(calc(var(--push-x) * 1.04), calc(var(--push-y) * 1.04)) scale(1);
+      }
+      84% {
+        transform: translate(calc(var(--push-x) * 1.08), calc(var(--push-y) * 1.08)) scale(1);
+      }
+      94% {
+        transform: translate(calc(var(--push-x) * 1.015), calc(var(--push-y) * 1.015)) scale(1);
+      }
+      100% {
+        transform: translate(var(--push-x), var(--push-y)) scale(1);
+      }
+    }
+    .vacation-pill.pushed {
+      animation: vacation-pill-spring 0.62s cubic-bezier(0.22, 0.61, 0.36, 1) both;
+      animation-delay: var(--spring-delay, 0ms);
+    }
+
+    /* 활성 알약은 실제 박스 크기/여백이 출렁이며 주변 알약을 레이아웃으로 밀어낸다 */
+    @keyframes vacation-pill-expand {
+      0% {
+        height: 71px;
+        line-height: 71px;
+        padding-left: 36px;
+        padding-right: 36px;
+        margin: 0;
+        font-size: 39px;
+      }
+      42% {
+        height: 90px;
+        line-height: 90px;
+        padding-left: 64px;
+        padding-right: 64px;
+        margin: 0 13px;
+        font-size: 46px;
+      }
+      65% {
+        height: 82px;
+        line-height: 82px;
+        padding-left: 52px;
+        padding-right: 52px;
+        margin: 0 7px;
+        font-size: 43px;
+      }
+      82% {
+        height: 86px;
+        line-height: 86px;
+        padding-left: 58px;
+        padding-right: 58px;
+        margin: 0 10px;
+        font-size: 44px;
+      }
+      100% {
+        height: 84px;
+        line-height: 84px;
+        padding-left: 54px;
+        padding-right: 54px;
+        margin: 0 9px;
+        font-size: 44px;
+      }
+    }
+    .vacation-pill.active {
+      animation: vacation-pill-expand 0.58s cubic-bezier(0.22, 0.61, 0.36, 1) both;
+      z-index: 10;
+    }
+
+    /* 빈 상태 / 로딩 / 에러 */
+    .vacation-empty {
+      width: 100%;
+      text-align: center;
+      font-size: 28px;
+      color: #999;
+      padding: 80px 20px;
+    }
+
+    /* ============================================== */
+    /*  커리큘럼 팝업 (1920×1080 스케일 슬라이드)         */
+    /* ============================================== */
+    .curriculum-popup {
+      position: fixed;
+      top: 0; left: 0;
+      width: 100vw; height: 100vh;
+      background: #f6f6f6;
+      z-index: 800;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.25s ease;
+    }
+    .curriculum-popup.visible {
+      opacity: 1;
+      pointer-events: auto;
+    }
+    .curriculum-popup-slide-view {
+      position: absolute;
+      top: 0; left: 0; right: 0; bottom: 0;
+      overflow: hidden;
+    }
+    #curriculum-popup-scale {
+      position: absolute;
+      transform-origin: top left;
+      width: 1920px;
+      height: 1080px;
+      background: #f6f6f6;
+    }
+
+    /* 제목 (예: "포토1 방학특강") */
+    .popup-title {
+      position: absolute;
+      left: 129px;
+      top: 82px;
+      font-size: 94px;
+      font-weight: 700;
+      letter-spacing: -0.03em;
+      color: #000;
+      line-height: 1;
+      white-space: nowrap;
+      margin: 0;
+    }
+    .popup-title-label {
+      margin-left: 16px;
+      font-weight: 700;
+    }
+
+    /* 주황 선 (정보 행 길이에 맞춰 JS에서 width 갱신) */
+    .popup-orange-line {
+      position: absolute;
+      left: 129px;
+      top: 194px;
+      height: 3px;
+      background: #fa491d;
+      width: 850px;
+      transition: width 0.18s ease;
+    }
+
+    /* 정보 행: 선생님 | 시간 | 준비물 */
+    .popup-info-row {
+      position: absolute;
+      left: 129px;
+      top: 211px;
+      display: flex;
+      gap: 80px;
+      align-items: flex-start;
+      white-space: nowrap;
+      font-size: 39px;
+      font-weight: 200;
+      letter-spacing: -0.07em;
+      color: #000;
+      line-height: 1;
+    }
+    .popup-info-row > span {
+      display: inline-block;
+    }
+
+    /* 카드 그리드 */
+    .popup-cards {
+      position: absolute;
+      left: 129px;
+      right: 129px;
+      top: 332px;
+      bottom: 130px;
+      display: flex;
+      gap: 38px;
+      justify-content: center;
+      align-items: flex-start;
+    }
+    .popup-card {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      width: 387px;
+      max-width: 387px;
+    }
+    .popup-card-image {
+      width: 387px;
+      height: 375px;
+      border-radius: 22px;
+      background-color: #d9d9d9;
+      background-size: cover;
+      background-position: center center;
+      background-repeat: no-repeat;
+    }
+    .popup-card-image.empty {
+      background-color: #e6e6e6;
+    }
+    .popup-card-curriculum {
+      width: 387px;
+      margin-top: 22px;
+      font-size: 24px;
+      font-weight: 400;
+      letter-spacing: -0.04em;
+      color: #1a1a1a;
+      line-height: 1.4;
+      text-align: left;
+      white-space: pre-wrap;
+      word-break: keep-all;
+    }
+    .popup-card-curriculum.empty {
+      color: #bbb;
+    }
+
+    /* 팝업 푸터 */
+    .popup-footer {
+      position: absolute;
+      left: 65px;
+      top: 1002px;
+      font-size: 32px;
+      font-weight: 200;
+      letter-spacing: -0.07em;
+      color: #000;
+    }
+
+    /* 닫기 버튼 (우상단) */
+    .popup-close-btn {
+      position: absolute;
+      top: 40px;
+      right: 40px;
+      width: 64px;
+      height: 64px;
+      border-radius: 50%;
+      background: rgba(0, 0, 0, 0.08);
+      border: none;
+      color: #1a1a1a;
+      font-size: 36px;
+      line-height: 1;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 20;
+      transition: background 0.18s ease;
+    }
+    .popup-close-btn:hover {
+      background: rgba(0, 0, 0, 0.16);
+    }
+
+    /* 좌우 네비게이션 버튼 */
+    .popup-nav-btn {
+      position: absolute;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 72px;
+      height: 72px;
+      border-radius: 50%;
+      background: rgba(0, 0, 0, 0.08);
+      border: none;
+      color: #1a1a1a;
+      font-size: 44px;
+      line-height: 1;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 20;
+      transition: background 0.18s ease, opacity 0.18s ease;
+    }
+    .popup-nav-btn:hover {
+      background: rgba(0, 0, 0, 0.16);
+    }
+    .popup-nav-btn.prev { left: 40px; }
+    .popup-nav-btn.next { right: 40px; }
+    .popup-nav-btn[disabled] {
+      opacity: 0.25;
+      cursor: default;
+    }
+
+    /* 변형 카운터 (1 / 4) */
+    .popup-counter {
+      position: absolute;
+      left: 0;
+      right: 0;
+      top: 1010px;
+      text-align: center;
+      font-size: 26px;
+      font-weight: 300;
+      letter-spacing: -0.05em;
+      color: #555;
+    }
+
+    /* ============================================== */
+    /*  좌하단 < 버튼                                    */
+    /* ============================================== */
+    .back-btn {
+      position: fixed;
+      bottom: 30px;
+      left: 30px;
+      z-index: 500;
+      width: 48px; height: 48px;
+      padding: 0;
+      background: #2a2a2a;
+      border: none;
+      border-radius: 50%;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      opacity: 0;
+      pointer-events: none;
+      transform: translateY(60px);
+      transition: opacity 0.3s ease,
+                  transform 0.4s cubic-bezier(0.4, 0, 0.2, 1),
+                  background 0.2s ease;
+    }
+    .back-btn.visible {
+      opacity: 1;
+      pointer-events: auto;
+      transform: translateY(0);
+    }
+    .back-btn:hover { background: #444; }
+    .back-btn svg {
+      width: 20px;
+      height: 20px;
+      stroke: #f6f6f6;
+      fill: none;
+      stroke-width: 2.5;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+    }
+
+    /* ============================================== */
+    /*  로딩 오버레이                                     */
+    /* ============================================== */
+    #loading-overlay {
+      position: fixed;
+      top: 0; left: 0;
+      width: 100vw; height: 100vh;
+      z-index: 9999;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.3s ease-out;
+      background: #000;
+    }
+    #loading-overlay.active { opacity: 1; pointer-events: auto; }
+    #loading-overlay.lock   { opacity: 1 !important; pointer-events: auto !important; }
+    #loading-bg {
+      position: absolute;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+      object-fit: cover;
+    }
+    #loading-dim {
+      position: absolute;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+      background: rgba(0, 0, 0, 0.4);
+    }
+    #loading-text-wrapper {
       position: absolute;
       top: 50%; left: 50%;
       transform: translate(-50%, -50%);
+      z-index: 2;
+      width: 90vw;
       text-align: center;
-      width: min(90vw, 600px);
     }
-    .label {
-      font-size: 14px;
-      letter-spacing: 0.3em;
-      color: #fa491d;
-      font-weight: 700;
-      margin-bottom: 20px;
-    }
-    h1 {
-      font-size: clamp(36px, 5.5vw, 64px);
-      font-weight: 700;
-      line-height: 1.15;
-      margin-bottom: 24px;
-    }
-    p {
-      font-size: clamp(15px, 1.7vw, 19px);
-      font-weight: 300;
-      line-height: 1.6;
-      color: #cccccc;
-      margin-bottom: 48px;
-      word-break: keep-all;
-    }
-    a.back {
+    .wipe-text {
+      font-family: 'Paperlogy', 'Great Vibes', cursive;
+      font-weight: 800;
+      font-size: clamp(1.25rem, 3.5vw, 3rem);
+      line-height: 1.2;
+      position: relative;
       display: inline-block;
-      padding: 14px 32px;
-      border: 1.5px solid #fa491d;
-      border-radius: 999px;
-      color: #fa491d;
-      font-size: 16px;
-      font-weight: 600;
-      text-decoration: none;
-      transition: background 0.18s ease, color 0.18s ease;
+      color: rgba(255, 255, 255, 0.5);
     }
-    a.back:hover {
-      background: #fa491d;
-      color: #ffffff;
-    }
-    .hint {
+    .wipe-text::after {
+      content: attr(data-text);
       position: absolute;
-      bottom: 24px;
-      left: 0; right: 0;
-      text-align: center;
-      font-size: 12px;
-      letter-spacing: 0.15em;
-      color: #555;
+      top: 0; left: 0;
+      width: 100%;
+      color: rgba(255, 255, 255, 1);
+      clip-path: inset(0 100% 0 0);
+    }
+    .wipe-text.animate::after {
+      animation: wipeIn 2.5s cubic-bezier(0.65, 0, 0.35, 1) forwards;
+    }
+    @keyframes wipeIn {
+      0%   { clip-path: inset(0 100% 0 0); }
+      100% { clip-path: inset(0 0 0 0); }
     }
   </style>
 </head>
 <body>
-  <div class="center">
-    <div class="label">UNDER CONSTRUCTION</div>
-    <h1>방학 특강</h1>
-    <p>이 페이지의 GitHub Pages 버전은 아직 준비 중입니다.<br>곧 정식 페이지로 교체될 예정이에요.</p>
-    <a href="./index.html" class="back">← 메인으로 돌아가기</a>
+  <div class="slide-view">
+    <div id="scale-container">
+      <!-- 배경 이미지 + 흰색 50% 오버레이 -->
+      <img class="vacation-bg" id="vacation-bg" src="" alt="">
+      <div class="vacation-bg-overlay" id="vacation-bg-overlay"></div>
+
+      <!-- 상단 타이틀 (시트 이름) -->
+      <h1 class="vacation-title"><span class="vacation-title-box" id="vacation-title">방학 특강</span></h1>
+
+      <!-- 알약 그리드 -->
+      <div class="vacation-pills-wrapper">
+        <div class="vacation-pills" id="vacation-pills">
+          <div class="vacation-empty">불러오는 중...</div>
+        </div>
+      </div>
+
+      <!-- 푸터 -->
+      <div class="vacation-footer">SBS ACADEMY COMPUTER ART SUWON</div>
+    </div>
   </div>
-  <div class="hint">ESC: back to main</div>
+
+  <!-- 좌하단 메인으로 -->
+  <button class="back-btn" id="back-btn" onclick="goHome()" title="메인으로 (ESC)">
+    <svg viewBox="0 0 24 24"><polyline points="15 6 9 12 15 18"></polyline></svg>
+  </button>
+
+  <!-- 커리큘럼 팝업 -->
+  <div class="curriculum-popup" id="curriculum-popup" aria-hidden="true">
+    <div class="curriculum-popup-slide-view">
+      <div id="curriculum-popup-scale">
+        <button class="popup-close-btn" id="popup-close-btn" title="닫기 (ESC)">&times;</button>
+        <button class="popup-nav-btn prev" id="popup-prev-btn" title="이전 (←)">&#8249;</button>
+        <button class="popup-nav-btn next" id="popup-next-btn" title="다음 (→)">&#8250;</button>
+
+        <!-- 제목 -->
+        <h2 class="popup-title">
+          <span class="popup-title-subject" id="popup-title-subject"></span><span class="popup-title-label">방학특강</span>
+        </h2>
+
+        <!-- 주황 선 -->
+        <div class="popup-orange-line" id="popup-orange-line"></div>
+
+        <!-- 정보 행 -->
+        <div class="popup-info-row" id="popup-info-row">
+          <span class="popup-teacher" id="popup-teacher"></span>
+          <span class="popup-time"    id="popup-time"></span>
+          <span class="popup-supplies" id="popup-supplies"></span>
+        </div>
+
+        <!-- 카드 그리드 -->
+        <div class="popup-cards" id="popup-cards"></div>
+
+        <!-- 변형 카운터 -->
+        <div class="popup-counter" id="popup-counter"></div>
+
+        <!-- 푸터 -->
+        <div class="popup-footer">SBS ACADEMY COMPUTER ART SUWON</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 로딩 오버레이 -->
+  <div id="loading-overlay">
+    <img id="loading-bg" src="" alt="">
+    <div id="loading-dim"></div>
+    <div id="loading-text-wrapper">
+      <span class="wipe-text" id="loading-text" data-text=""></span>
+    </div>
+  </div>
+
   <script>
-    document.addEventListener('keydown', function(e) {
-      if (e.key === 'Escape') window.location.href = './index.html';
+    /* ============================================== */
+    /*  상태 / 상수                                      */
+    /* ============================================== */
+    const LOADING_CACHE_KEY = 'loading_image_cache_v1';
+    const LOADING_LIST_CACHE_KEY = 'loading_list_cache_v1';
+    const PUSH_GAP = 20;          // 활성 알약 가장자리에서 다른 알약까지의 간격
+    const CHAIN_GAP = 8;          // 2차/3차로 밀린 알약끼리는 기존 gap 유지
+    const ACTIVE_SCALE = 1.2;     // 호버된 알약 확대 배율
+    const PUSH_ITERATIONS = 8;     // 밀림이 옆 알약으로 이어지도록 반복 계산
+
+    let cachedWebAppUrl = null;
+    let isNavigating = false;
+
+    /* ============================================== */
+    /*  스케일 (1920×1080 → viewport)                    */
+    /* ============================================== */
+    function applyScale() {
+      const view = document.querySelector('.slide-view');
+      const container = document.getElementById('scale-container');
+      if (!view || !container) return;
+      const vw = view.clientWidth;
+      const vh = view.clientHeight;
+      const sx = vw / 1920;
+      const sy = vh / 1080;
+      const scale = Math.min(sx, sy);
+      const offsetX = (vw - 1920 * scale) / 2;
+      const offsetY = (vh - 1080 * scale) / 2;
+      container.style.transform =
+        'translate(' + offsetX + 'px, ' + offsetY + 'px) scale(' + scale + ')';
+      container.style.setProperty('--viewport-left', (-offsetX / scale) + 'px');
+      container.style.setProperty('--viewport-top', (-offsetY / scale) + 'px');
+      container.style.setProperty('--viewport-width', (vw / scale) + 'px');
+      container.style.setProperty('--viewport-height', (vh / scale) + 'px');
+    }
+    window.addEventListener('resize', applyScale);
+
+    /* ============================================== */
+    /*  HTML escape                                       */
+    /* ============================================== */
+    function escapeHtml(str) {
+      return String(str == null ? '' : str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+    }
+    function chunkSubjects(subjects) {
+      const pattern = [3, 4, 4, 3, 2];
+      const rows = [];
+      let index = 0;
+      for (let i = 0; i < pattern.length && index < subjects.length; i++) {
+        rows.push(subjects.slice(index, index + pattern[i]));
+        index += pattern[i];
+      }
+      while (index < subjects.length) {
+        rows.push(subjects.slice(index, index + 4));
+        index += 4;
+      }
+      return rows;
+    }
+
+    /* ============================================== */
+    /*  알약 렌더링                                       */
+    /* ============================================== */
+    function renderPills(data) {
+      const titleEl   = document.getElementById('vacation-title');
+      const pillsEl   = document.getElementById('vacation-pills');
+      const bgEl      = document.getElementById('vacation-bg');
+      const bgOverlay = document.getElementById('vacation-bg-overlay');
+
+      if (data && data.title) titleEl.textContent = data.title;
+      else                    titleEl.textContent = '방학 특강';
+
+      // 배경 이미지 적용 (URL이 있을 때만 보이게, 없으면 오버레이도 숨김)
+      if (data && data.imageUrl) {
+        bgEl.src = data.imageUrl;
+        bgEl.style.display = '';
+        bgOverlay.style.display = '';
+      } else {
+        bgEl.removeAttribute('src');
+        bgEl.style.display = 'none';
+        bgOverlay.style.display = 'none';
+      }
+
+      if (data && data.error) {
+        pillsEl.innerHTML = '<div class="vacation-empty" style="color:#c00;">'
+          + escapeHtml(data.error) + '</div>';
+        return;
+      }
+      const subjects = (data && data.subjects) || [];
+      if (subjects.length === 0) {
+        pillsEl.innerHTML = '<div class="vacation-empty">등록된 방학특강이 없습니다.</div>';
+        return;
+      }
+
+      pillsEl.innerHTML = chunkSubjects(subjects).map(function(row) {
+        return '<div class="vacation-pill-row">'
+          + row.map(function(name) {
+            return '<div class="vacation-pill" data-name="' + escapeHtml(name) + '">'
+              + escapeHtml(name) + '</div>';
+          }).join('')
+          + '</div>';
+      }).join('');
+
+      bindPillEvents();
+    }
+
+    /* ============================================== */
+    /*  스프링 호버 효과 - 다른 알약 밀어내기              */
+    /* ============================================== */
+    let activePill = null;
+    let pillRectCache = [];    // 기본 위치 캐시 (push 안 된 상태)
+
+    /* 모든 알약의 기본 위치/크기 캐시 (alay 추가 직후 1회 + resize 시 갱신) */
+    function refreshPillRects() {
+      const pills = document.querySelectorAll('.vacation-pill');
+      pillRectCache = [];
+      pills.forEach(function(pill) {
+        // 현재 transform 값을 제거한 상태로 측정해야 정확
+        const prevTransform = pill.style.transform;
+        pill.style.transform = 'translate(0, 0) scale(1)';
+        const r = pill.getBoundingClientRect();
+        pill.style.transform = prevTransform;
+        pillRectCache.push({
+          el: pill,
+          cx: r.left + r.width / 2,
+          cy: r.top + r.height / 2,
+          w: r.width,
+          h: r.height
+        });
+      });
+    }
+
+    function bindPillEvents() {
+      const pills = document.querySelectorAll('.vacation-pill');
+      pills.forEach(function(pill) {
+        pill.addEventListener('mouseenter', function() {
+          setActivePill(pill);
+        });
+        pill.addEventListener('mouseleave', function() {
+          if (activePill === pill) clearActivePill();
+        });
+        pill.addEventListener('click', function() {
+          const name = pill.getAttribute('data-name');
+          if (name) openCurriculumPopup(name);
+        });
+      });
+      // 알약 영역 밖으로 마우스 나가면 active 해제
+      const wrapper = document.querySelector('.vacation-pills-wrapper');
+      if (wrapper) {
+        wrapper.addEventListener('mouseleave', function() {
+          clearActivePill();
+        });
+      }
+      refreshPillRects();
+    }
+
+    function setActivePill(pill) {
+      if (activePill === pill) return;
+
+      // 1) 이전 활성 알약/밀려난 알약 모두 정리
+      if (activePill) {
+        activePill.classList.remove('active');
+      }
+      document.querySelectorAll('.vacation-pill.pushed').forEach(function(p) {
+        p.classList.remove('pushed');
+        p.style.transform = '';
+        p.style.removeProperty('--from-x');
+        p.style.removeProperty('--from-y');
+        p.style.removeProperty('--push-x');
+        p.style.removeProperty('--push-y');
+        p.style.removeProperty('--spring-delay');
+      });
+
+      activePill = pill;
+      pill.classList.add('active');
+
+      // 2) 활성 알약 정보 (확대 후의 가장자리 박스)
+      const active = pillRectCache.find(function(r) { return r.el === pill; });
+      if (!active) return;
+
+      const scaleW = active.w * ACTIVE_SCALE;
+      const scaleH = active.h * ACTIVE_SCALE;
+      // 활성 알약의 "여유 박스" = 확대 후 크기 + 좌우상하 PUSH_GAP
+      const guardLeft   = active.cx - scaleW / 2 - PUSH_GAP;
+      const guardRight  = active.cx + scaleW / 2 + PUSH_GAP;
+      const guardTop    = active.cy - scaleH / 2 - PUSH_GAP;
+      const guardBottom = active.cy + scaleH / 2 + PUSH_GAP;
+
+      // 3) 다른 알약들을 여유 박스 밖으로 밀어냄
+      pillRectCache.forEach(function(other) {
+        if (other.el === pill) return;
+
+        // other의 본래 박스
+        const oL = other.cx - other.w / 2;
+        const oR = other.cx + other.w / 2;
+        const oT = other.cy - other.h / 2;
+        const oB = other.cy + other.h / 2;
+
+        // 가드 박스와의 겹침 검사
+        const overlapsX = oR > guardLeft && oL < guardRight;
+        const overlapsY = oB > guardTop && oT < guardBottom;
+        if (!overlapsX || !overlapsY) return;
+
+        // 가드 박스 바깥으로 가장 가까운 방향으로 밀기
+        // X 방향
+        const pushLeft  = oR - guardLeft;       // 왼쪽으로 밀어야 할 거리
+        const pushRight = guardRight - oL;      // 오른쪽으로 밀어야 할 거리
+        let dx = 0;
+        if (pushLeft < pushRight) dx = -pushLeft;
+        else                       dx =  pushRight;
+
+        // Y 방향
+        const pushUp   = oB - guardTop;
+        const pushDown = guardBottom - oT;
+        let dy = 0;
+        if (pushUp < pushDown) dy = -pushUp;
+        else                    dy =  pushDown;
+
+        // 더 작게 미는 축만 적용 (큰 축은 0으로) → 한 방향으로만 밀려나서 자연스러움
+        if (Math.abs(dx) < Math.abs(dy)) dy = 0;
+        else                              dx = 0;
+
+        // 스프링 애니메이션 적용
+        other.el.style.setProperty('--from-x', '0px');
+        other.el.style.setProperty('--from-y', '0px');
+        other.el.style.setProperty('--push-x', dx + 'px');
+        other.el.style.setProperty('--push-y', dy + 'px');
+
+        // 이전 애니메이션 강제 재시작
+        other.el.classList.remove('pushed');
+        // reflow 강제 후 다시 추가
+        void other.el.offsetWidth;
+        other.el.classList.add('pushed');
+      });
+    }
+
+    function setActivePill(pill) {
+      if (activePill === pill) return;
+
+      if (activePill) {
+        activePill.classList.remove('active');
+      }
+      document.querySelectorAll('.vacation-pill.pushed').forEach(function(p) {
+        p.classList.remove('pushed');
+        p.style.transform = '';
+        p.style.removeProperty('--from-x');
+        p.style.removeProperty('--from-y');
+        p.style.removeProperty('--push-x');
+        p.style.removeProperty('--push-y');
+        p.style.removeProperty('--spring-delay');
+      });
+
+      activePill = pill;
+      pill.classList.add('active');
+
+      const active = pillRectCache.find(function(r) { return r.el === pill; });
+      if (!active) return;
+
+      const nodes = pillRectCache.map(function(r, index) {
+        const isActive = r.el === pill;
+        const scale = isActive ? ACTIVE_SCALE : 1;
+        return {
+          el: r.el,
+          index: index,
+          cx: r.cx,
+          cy: r.cy,
+          w: r.w * scale,
+          h: r.h * scale,
+          dx: 0,
+          dy: 0,
+          fixed: isActive
+        };
+      });
+
+      for (let step = 0; step < PUSH_ITERATIONS; step++) {
+        let moved = false;
+        for (let i = 0; i < nodes.length; i++) {
+          for (let j = i + 1; j < nodes.length; j++) {
+            const a = nodes[i];
+            const b = nodes[j];
+            const ax = a.cx + a.dx;
+            const ay = a.cy + a.dy;
+            const bx = b.cx + b.dx;
+            const by = b.cy + b.dy;
+            const pairGap = (a.fixed || b.fixed) ? PUSH_GAP : CHAIN_GAP;
+            const overlapX = (a.w + b.w) / 2 + pairGap - Math.abs(bx - ax);
+            const overlapY = (a.h + b.h) / 2 + pairGap - Math.abs(by - ay);
+            if (overlapX <= 0 || overlapY <= 0) continue;
+
+            const dirX = bx === ax ? (b.index > a.index ? 1 : -1) : (bx > ax ? 1 : -1);
+            const dirY = by === ay ? (b.index > a.index ? 1 : -1) : (by > ay ? 1 : -1);
+            let pushX = 0;
+            let pushY = 0;
+            if (overlapX < overlapY) pushX = overlapX * dirX;
+            else                     pushY = overlapY * dirY;
+
+            if (a.fixed && !b.fixed) {
+              b.dx += pushX;
+              b.dy += pushY;
+            } else if (!a.fixed && b.fixed) {
+              a.dx -= pushX;
+              a.dy -= pushY;
+            } else if (!a.fixed && !b.fixed) {
+              a.dx -= pushX / 2;
+              a.dy -= pushY / 2;
+              b.dx += pushX / 2;
+              b.dy += pushY / 2;
+            }
+            moved = true;
+          }
+        }
+        if (!moved) break;
+      }
+
+      nodes.forEach(function(node) {
+        if (node.fixed) return;
+        if (Math.abs(node.dx) < 0.5 && Math.abs(node.dy) < 0.5) return;
+
+        node.el.style.setProperty('--from-x', '0px');
+        node.el.style.setProperty('--from-y', '0px');
+        node.el.style.setProperty('--push-x', node.dx + 'px');
+        node.el.style.setProperty('--push-y', node.dy + 'px');
+        const distanceFromActive = Math.hypot(node.cx - active.cx, node.cy - active.cy);
+        const delay = Math.min(110, Math.round(distanceFromActive / 18));
+        node.el.style.setProperty('--spring-delay', delay + 'ms');
+
+        node.el.classList.remove('pushed');
+        void node.el.offsetWidth;
+        node.el.classList.add('pushed');
+      });
+    }
+
+    function clearActivePill() {
+      if (activePill) {
+        activePill.classList.remove('active');
+        activePill = null;
+      }
+      document.querySelectorAll('.vacation-pill.pushed').forEach(function(p) {
+        p.classList.remove('pushed');
+        // 부드럽게 원위치로 (CSS transition: transform 0.6s 적용됨)
+        p.style.transform = 'translate(0, 0) scale(1)';
+        // 다음 push 위해 변수 제거
+        setTimeout(function() {
+          p.style.removeProperty('--from-x');
+          p.style.removeProperty('--from-y');
+          p.style.removeProperty('--push-x');
+          p.style.removeProperty('--push-y');
+          p.style.removeProperty('--spring-delay');
+          p.style.transform = '';
+        }, 600);
+      });
+    }
+
+    function resetPillMotionState() {
+      document.querySelectorAll('.vacation-pill.pushed').forEach(function(p) {
+        p.classList.remove('pushed');
+        p.style.transform = '';
+        p.style.removeProperty('--from-x');
+        p.style.removeProperty('--from-y');
+        p.style.removeProperty('--push-x');
+        p.style.removeProperty('--push-y');
+        p.style.removeProperty('--spring-delay');
+      });
+    }
+
+    function setActivePill(pill) {
+      if (activePill === pill) return;
+      if (activePill) activePill.classList.remove('active');
+      resetPillMotionState();
+      activePill = pill;
+      pill.classList.add('active');
+    }
+
+    function clearActivePill() {
+      if (activePill) {
+        activePill.classList.remove('active');
+        activePill = null;
+      }
+      resetPillMotionState();
+    }
+
+    /* ============================================== */
+    /*  ESC + 좌하단 호버 버튼                            */
+    /* ============================================== */
+    window.addEventListener('keydown', function(e) {
+      if (e.key === 'Escape') {
+        if (popupOpen) {
+          closeCurriculumPopup();
+        } else {
+          goHome();
+        }
+        e.preventDefault();
+      } else if (popupOpen) {
+        if (e.key === 'ArrowRight') {
+          nextVariant();
+          e.preventDefault();
+        } else if (e.key === 'ArrowLeft') {
+          prevVariant();
+          e.preventDefault();
+        }
+      }
     });
+    document.addEventListener('mousemove', function(e) {
+      const HOVER_CORNER = 200;
+      const inLeftBottom = (e.clientX < HOVER_CORNER) && (e.clientY > window.innerHeight - HOVER_CORNER);
+      const backBtn = document.getElementById('back-btn');
+      if (inLeftBottom) backBtn.classList.add('visible');
+      else backBtn.classList.remove('visible');
+    });
+    document.addEventListener('mouseleave', function() {
+      document.getElementById('back-btn').classList.remove('visible');
+    });
+
+    /* 윈도우 리사이즈 시 알약 위치 캐시 재계산 (스케일 변경 대응) */
+    window.addEventListener('resize', function() {
+      clearActivePill();
+      setTimeout(refreshPillRects, 100);
+    });
+
+    /* ============================================== */
+    /*  Supabase 헬퍼 — Apps Script getXxx 대체            */
+    /* ============================================== */
+    const VACATION_MENU_NAME = '방학 특강';
+
+    function _vacGetRaw(row) {
+      // supabase-client.js가 동일한 row 구조를 받아서 values 배열을 반환
+      return window.ComswSupabase
+        ? window.ComswSupabase.getRawValues(row)
+        : ((row && row.data && row.data.values) || []);
+    }
+    function _vacNorm(v) {
+      if (v === null || v === undefined) return '';
+      return String(v).replace(/[​‌‍﻿ ]/g, '').trim();
+    }
+    function _vacConvertDriveUrl(url) {
+      return window.ComswSupabase
+        ? window.ComswSupabase.convertDriveUrl(url)
+        : _vacNorm(url);
+    }
+
+    /** 메인 페이지 시트에서 E열="방학 특강" 행을 찾아 I열(탭이름), J열(배경이미지) 반환 */
+    async function _vacGetDataInfo() {
+      const cfg = window.COMSW_SUPABASE_CONFIG || {};
+      const mainRows = await window.ComswSupabase.fetchSheetRows(cfg.sheets.main || '메인 페이지');
+      const target = VACATION_MENU_NAME.replace(/\s+/g, '');
+      for (let i = 0; i < mainRows.length; i++) {
+        const vals = _vacGetRaw(mainRows[i]);
+        const eVal = _vacNorm(vals[4]);  // E열 = 인덱스 4
+        if (!eVal) continue;
+        if (eVal.replace(/\s+/g, '') === target) {
+          const iVal = _vacNorm(vals[8]);  // I열 = 인덱스 8
+          const jVal = _vacNorm(vals[9]);  // J열 = 인덱스 9
+          return {
+            tabName: iVal,
+            imageUrl: jVal ? _vacConvertDriveUrl(jVal) : ''
+          };
+        }
+      }
+      return { tabName: '', imageUrl: '' };
+    }
+
+    /** 방학특강 알약 목록 반환 (서버의 getVacationSeminarSubjects와 동일 출력) */
+    async function getVacationSeminarSubjectsFromSupabase() {
+      const info = await _vacGetDataInfo();
+      if (!info.tabName) {
+        return { title: '', subjects: [], imageUrl: '', error: '"방학 특강" 행 또는 I열을 찾지 못했습니다.' };
+      }
+      // 데이터 시트 탭은 instructor_curriculum 소스에 있음
+      const rows = await window.ComswSupabase.fetchSheetRows(
+        info.tabName,
+        (window.COMSW_SUPABASE_CONFIG.sources && window.COMSW_SUPABASE_CONFIG.sources.instructorCurriculum) || 'instructor_curriculum'
+      );
+      const seen = {};
+      const subjects = [];
+      for (let i = 0; i < rows.length; i++) {
+        const vals = _vacGetRaw(rows[i]);
+        const bVal = _vacNorm(vals[1]);  // B열
+        if (!bVal) continue;
+        // 끝 숫자 제거: "포토샵1"/"포토샵 2" → "포토샵"
+        const stripped = bVal.replace(/\s*\d+$/, '').trim();
+        if (!stripped) continue;
+        if (seen[stripped]) continue;
+        seen[stripped] = true;
+        subjects.push(stripped);
+      }
+      return { title: info.tabName, subjects: subjects, imageUrl: info.imageUrl };
+    }
+
+    /** baseName과 매칭되는 모든 variant 블록 반환 (서버의 getVacationSubjectDetail과 동일 출력) */
+    async function getVacationSubjectDetailFromSupabase(baseName) {
+      if (!baseName) return { baseName: '', variants: [], error: 'baseName 없음' };
+      const info = await _vacGetDataInfo();
+      if (!info.tabName) {
+        return { baseName: baseName, variants: [], error: '"방학 특강" 행 또는 I열을 찾지 못했습니다.' };
+      }
+      const rows = await window.ComswSupabase.fetchSheetRows(
+        info.tabName,
+        (window.COMSW_SUPABASE_CONFIG.sources && window.COMSW_SUPABASE_CONFIG.sources.instructorCurriculum) || 'instructor_curriculum'
+      );
+      // Supabase 동기화 시 fillMergedValues_()가 이미 forward-fill했으므로,
+      // 클라이언트는 각 행의 A~I열을 그대로 신뢰하면 됨.
+      // 단, B열의 연속 동일값 구간이 "블록(variant)"이므로 인접 행을 묶는다.
+      const targetBase = baseName.replace(/\s+/g, '');
+      const blocks = [];
+      let blockStart = -1;
+      let blockB = '';
+      for (let i = 0; i < rows.length; i++) {
+        const vals = _vacGetRaw(rows[i]);
+        const bVal = _vacNorm(vals[1]);
+        if (!bVal) {
+          if (blockStart >= 0) blocks.push({ startIdx: blockStart, endIdx: i - 1, bVal: blockB });
+          blockStart = -1; blockB = '';
+          continue;
+        }
+        if (blockStart < 0 || bVal !== blockB) {
+          if (blockStart >= 0) blocks.push({ startIdx: blockStart, endIdx: i - 1, bVal: blockB });
+          blockStart = i; blockB = bVal;
+        }
+      }
+      if (blockStart >= 0) blocks.push({ startIdx: blockStart, endIdx: rows.length - 1, bVal: blockB });
+
+      const matched = blocks.filter(function(blk) {
+        const stripped = blk.bVal.replace(/\s*\d+$/, '').trim();
+        return stripped.replace(/\s+/g, '') === targetBase;
+      });
+
+      const variants = matched.map(function(blk) {
+        const startVals = _vacGetRaw(rows[blk.startIdx]);
+        const steps = [];
+        for (let r = blk.startIdx; r <= blk.endIdx; r++) {
+          const vals = _vacGetRaw(rows[r]);
+          let img = _vacNorm(vals[5]);   // F열: 이미지
+          const curric = _vacNorm(vals[4]); // E열: 커리큘럼
+          if (img) {
+            try { img = _vacConvertDriveUrl(img); } catch (ce) {}
+          }
+          steps.push({ image: img, curriculum: curric });
+        }
+        return {
+          subjectFull: blk.bVal,
+          teacher:     _vacNorm(startVals[0]),  // A열
+          time:        _vacNorm(startVals[8]),  // I열
+          supplies:    _vacNorm(startVals[7]),  // H열
+          steps:       steps
+        };
+      });
+
+      return { baseName: baseName, variants: variants };
+    }
+
+    /* ============================================== */
+    /*  데이터 로드                                       */
+    /* ============================================== */
+    window.onload = function() {
+      applyScale();
+
+      // 방학특강 데이터
+      getVacationSeminarSubjectsFromSupabase()
+        .then(function(data) { renderPills(data || {}); })
+        .catch(function(err) {
+          renderPills({
+            title: '방학 특강',
+            subjects: [],
+            error: '오류: ' + (err && err.message ? err.message : err)
+          });
+        });
+    };
+
+    /* ============================================== */
+    /*  메인으로 이동                                     */
+    /* ============================================== */
+    function getCachedImage(id) {
+      try {
+        const raw = localStorage.getItem(LOADING_CACHE_KEY);
+        if (!raw) return null;
+        const cache = JSON.parse(raw);
+        return cache[id] || null;
+      } catch (e) { return null; }
+    }
+    function showLoadingAndNavigate(targetUrl) {
+      if (isNavigating) return;
+      isNavigating = true;
+
+      const overlay = document.getElementById('loading-overlay');
+      const bg = document.getElementById('loading-bg');
+      const textEl = document.getElementById('loading-text');
+
+      let picked = null;
+      try {
+        const raw = localStorage.getItem(LOADING_LIST_CACHE_KEY);
+        if (raw) {
+          const list = JSON.parse(raw);
+          if (list.length > 0) picked = list[Math.floor(Math.random() * list.length)];
+        }
+      } catch (e) {}
+
+      if (picked) {
+        const cachedImage = getCachedImage(picked.id);
+        bg.src = cachedImage || picked.imageUrl;
+        textEl.textContent = picked.text || '';
+        textEl.setAttribute('data-text', picked.text || '');
+        if (typeof applyLoadingFont === 'function') applyLoadingFont(textEl, picked);
+      } else {
+        textEl.textContent = '';
+        textEl.setAttribute('data-text', '');
+        if (typeof applyLoadingFont === 'function') applyLoadingFont(textEl, null);
+      }
+
+      overlay.classList.add('active');
+      overlay.classList.add('lock');
+
+      textEl.classList.remove('animate');
+      void textEl.offsetWidth;
+      textEl.classList.add('animate');
+
+      setTimeout(function() { window.top.location.href = targetUrl; }, 2500);
+    }
+    function goHome() {
+      // GitHub Pages 정적 사이트는 메인 URL이 고정되어 있다.
+      // 짧은 로딩 오버레이를 보여주고 ./index.html로 이동.
+      showLoadingAndNavigate('./index.html');
+    }
+
+    /* ============================================== */
+    /*  커리큘럼 팝업 로직                                */
+    /* ============================================== */
+    let currentDetail = null;
+    let currentVariantIdx = 0;
+    let popupOpen = false;
+    let wheelLockUntil = 0;
+
+    function openCurriculumPopup(baseName) {
+      if (!baseName) return;
+      // 즉시 팝업을 비어있는 상태로 표시 (로딩 느낌)
+      const popup = document.getElementById('curriculum-popup');
+      document.getElementById('popup-title-subject').textContent = baseName;
+      document.getElementById('popup-teacher').textContent  = '';
+      document.getElementById('popup-time').textContent     = '';
+      document.getElementById('popup-supplies').textContent = '';
+      document.getElementById('popup-cards').innerHTML =
+        '<div class="vacation-empty" style="width:100%;">불러오는 중...</div>';
+      document.getElementById('popup-counter').textContent = '';
+      popup.classList.add('visible');
+      popup.setAttribute('aria-hidden', 'false');
+      popupOpen = true;
+      applyPopupScale();
+
+      getVacationSubjectDetailFromSupabase(baseName)
+        .then(function(data) {
+          if (!popupOpen) return;
+          currentDetail = data || { variants: [] };
+          currentVariantIdx = 0;
+          if (!currentDetail.variants || currentDetail.variants.length === 0) {
+            document.getElementById('popup-cards').innerHTML =
+              '<div class="vacation-empty" style="width:100%;color:#c00;">'
+              + escapeHtml(currentDetail.error || '커리큘럼 정보가 없습니다.')
+              + '</div>';
+            document.getElementById('popup-counter').textContent = '';
+            updateNavButtonsState();
+            return;
+          }
+          renderVariant();
+        })
+        .catch(function(err) {
+          if (!popupOpen) return;
+          document.getElementById('popup-cards').innerHTML =
+            '<div class="vacation-empty" style="width:100%;color:#c00;">'
+            + escapeHtml('오류: ' + (err && err.message ? err.message : err))
+            + '</div>';
+        });
+    }
+
+    function closeCurriculumPopup() {
+      popupOpen = false;
+      const popup = document.getElementById('curriculum-popup');
+      popup.classList.remove('visible');
+      popup.setAttribute('aria-hidden', 'true');
+      currentDetail = null;
+      currentVariantIdx = 0;
+    }
+
+    function applyPopupScale() {
+      const view = document.querySelector('.curriculum-popup-slide-view');
+      const container = document.getElementById('curriculum-popup-scale');
+      if (!view || !container) return;
+      const vw = view.clientWidth;
+      const vh = view.clientHeight;
+      if (vw <= 0 || vh <= 0) return;
+      const scale = Math.min(vw / 1920, vh / 1080);
+      const offsetX = (vw - 1920 * scale) / 2;
+      const offsetY = (vh - 1080 * scale) / 2;
+      container.style.transform =
+        'translate(' + offsetX + 'px, ' + offsetY + 'px) scale(' + scale + ')';
+    }
+
+    function renderVariant() {
+      if (!currentDetail || !currentDetail.variants) return;
+      const v = currentDetail.variants[currentVariantIdx];
+      if (!v) return;
+
+      document.getElementById('popup-title-subject').textContent = v.subjectFull || '';
+      document.getElementById('popup-teacher').textContent  = v.teacher  ? (v.teacher + ' 선생님') : '';
+      document.getElementById('popup-time').textContent     = v.time     || '';
+      document.getElementById('popup-supplies').textContent = v.supplies || '';
+
+      const steps = v.steps || [];
+      const cardsEl = document.getElementById('popup-cards');
+      if (steps.length === 0) {
+        cardsEl.innerHTML = '<div class="vacation-empty" style="width:100%;">커리큘럼 정보가 없습니다.</div>';
+      } else {
+        cardsEl.innerHTML = steps.map(function(step) {
+          const hasImg = !!step.image;
+          const imgStyle = hasImg
+            ? ' style="background-image: url(\'' + String(step.image).replace(/'/g, "%27").replace(/"/g, '%22') + '\');"'
+            : '';
+          const hasCur = !!step.curriculum;
+          return '<div class="popup-card">'
+            + '<div class="popup-card-image' + (hasImg ? '' : ' empty') + '"' + imgStyle + '></div>'
+            + '<div class="popup-card-curriculum' + (hasCur ? '' : ' empty') + '">'
+            +   (hasCur ? escapeHtml(step.curriculum).replace(/\n/g, '<br>') : '&nbsp;')
+            + '</div>'
+            + '</div>';
+        }).join('');
+      }
+
+      // 카운터
+      const total = currentDetail.variants.length;
+      const counterEl = document.getElementById('popup-counter');
+      counterEl.textContent = total > 1 ? ((currentVariantIdx + 1) + ' / ' + total) : '';
+
+      updateNavButtonsState();
+      // 정보 행 길이에 맞춰 주황선 너비 갱신
+      requestAnimationFrame(updateOrangeLineWidth);
+    }
+
+    function updateOrangeLineWidth() {
+      const row  = document.getElementById('popup-info-row');
+      const line = document.getElementById('popup-orange-line');
+      if (!row || !line) return;
+      const rowWidth = Math.max(row.scrollWidth || 0, row.offsetWidth || 0);
+      if (rowWidth > 0) line.style.width = rowWidth + 'px';
+    }
+
+    function updateNavButtonsState() {
+      const prev = document.getElementById('popup-prev-btn');
+      const next = document.getElementById('popup-next-btn');
+      if (!currentDetail || !currentDetail.variants || currentDetail.variants.length <= 1) {
+        if (prev) prev.setAttribute('disabled', '');
+        if (next) next.setAttribute('disabled', '');
+        return;
+      }
+      if (currentVariantIdx <= 0) prev.setAttribute('disabled', '');
+      else                         prev.removeAttribute('disabled');
+      if (currentVariantIdx >= currentDetail.variants.length - 1) next.setAttribute('disabled', '');
+      else                                                          next.removeAttribute('disabled');
+    }
+
+    function nextVariant() {
+      if (!currentDetail || !currentDetail.variants) return;
+      if (currentVariantIdx < currentDetail.variants.length - 1) {
+        currentVariantIdx++;
+        renderVariant();
+      }
+    }
+    function prevVariant() {
+      if (!currentDetail || !currentDetail.variants) return;
+      if (currentVariantIdx > 0) {
+        currentVariantIdx--;
+        renderVariant();
+      }
+    }
+
+    // 휠 (수평/수직 모두 받음, 디바운스 350ms)
+    window.addEventListener('wheel', function(e) {
+      if (!popupOpen) return;
+      const now = (new Date()).getTime();
+      if (now < wheelLockUntil) { e.preventDefault(); return; }
+      const dx = e.deltaX || 0;
+      const dy = e.deltaY || 0;
+      const useDelta = Math.abs(dy) >= Math.abs(dx) ? dy : dx;
+      if (Math.abs(useDelta) < 5) return;
+      if (useDelta > 0) nextVariant();
+      else              prevVariant();
+      wheelLockUntil = now + 350;
+      e.preventDefault();
+    }, { passive: false });
+
+    // 팝업 리사이즈 대응
+    window.addEventListener('resize', function() {
+      if (popupOpen) applyPopupScale();
+    });
+
+    // 닫기/네비 버튼
+    document.getElementById('popup-close-btn').addEventListener('click', closeCurriculumPopup);
+    document.getElementById('popup-prev-btn').addEventListener('click', prevVariant);
+    document.getElementById('popup-next-btn').addEventListener('click', nextVariant);
   </script>
 </body>
 </html>

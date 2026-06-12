@@ -2785,6 +2785,10 @@
 
     box.innerHTML = '<div class="curriculum-box-empty">커리큘럼을 불러오는 중...</div>';
     lb.classList.add('visible');
+    // 🎯 ESC 우선순위용 글로벌 플래그
+    //   visible 클래스 체크가 타이밍/상속 문제로 false가 되는 케이스를 대비해
+    //   명시적인 boolean 상태를 함께 둔다. ESC 핸들러는 이 플래그를 먼저 본다.
+    window._instructorCurriculumOpen = true;
 
     // 🎯 강사 라이트박스에 curriculum-open 클래스 → 강사 사진 블러 처리
     document.getElementById('instructor-lightbox').classList.add('curriculum-open');
@@ -2800,6 +2804,8 @@
 
   function closeInstructorCurriculum() {
     document.getElementById('instructor-curriculum-lightbox').classList.remove('visible');
+    // 🎯 ESC 우선순위 플래그 해제
+    window._instructorCurriculumOpen = false;
 
     // 🎯 강사 사진 블러 해제
     document.getElementById('instructor-lightbox').classList.remove('curriculum-open');
@@ -5443,13 +5449,22 @@
     }
     
     document.addEventListener('keydown', function(e) {
-          // 🎯 강사 커리큘럼 라이트박스가 열려있으면 우선
-          const instructorCurriculumOpen = document.getElementById('instructor-curriculum-lightbox').classList.contains('visible');
+          // 🎯 강사 커리큘럼 라이트박스가 열려있으면 무조건 우선
+          //   - window._instructorCurriculumOpen 플래그를 1순위로 본다.
+          //     visible 클래스 체크가 타이밍/상속/CSS 차이로 false가 되는 케이스를 대비.
+          //   - capture 단계 + stopImmediatePropagation으로 다른 ESC 핸들러가
+          //     같은 ESC에 끼어들어 강사 라이트박스까지 닫는 사이드이펙트 차단.
+          const curriculumLb = document.getElementById('instructor-curriculum-lightbox');
+          const instructorCurriculumOpen = !!window._instructorCurriculumOpen
+            || (curriculumLb && curriculumLb.classList.contains('visible'));
           if (instructorCurriculumOpen && e.key === 'Escape') {
             closeInstructorCurriculum();
+            e.preventDefault();
+            e.stopPropagation();
+            e.stopImmediatePropagation();
             return;
           }
-          
+
           // 🎯 강사 상세 라이트박스 (X 버튼과 동일하게 force=true로 통째로 닫기)
           const instructorLightboxOpen = document.getElementById('instructor-lightbox').classList.contains('visible');
           if (instructorLightboxOpen && e.key === 'Escape') {
@@ -5487,7 +5502,7 @@
               goToSlide(currentSlideIndex - 1);
             }
           }
-        }); 
+        }, true);  // 🎯 capture 단계: window 등록 ESC 핸들러보다 먼저 발동
 
         /* ============================================== */
         /*  🎯 강사 라이트박스 이벤트 등록                   */

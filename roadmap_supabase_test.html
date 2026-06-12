@@ -792,7 +792,13 @@
         rowsBySubject[subjectName].push(values);
       });
 
+      // Supabase 동기화 시 fillMergedValues_()가 C/G/J/K/L 같은 병합 셀을 forward-fill하기
+      // 때문에, 원본 시트에서 한 과목이 4행 병합으로 표현되어 있으면 4행 모두 동일 값으로
+      // 저장되어 표 팝업에 4번 중복 표시되는 문제가 있다 (Apps Script 원본은 빈 셀 자연
+      // 스킵으로 1번만 보였음).
+      // → 같은 (name, duration, content, program, level) 키는 한 번만 push되도록 dedupe.
       const subjects = [];
+      const seenKeys = {};
       selectedSubjects.forEach(function(subjectName) {
         const rows = rowsBySubject[subjectName] || [];
         rows.forEach(function(values) {
@@ -801,6 +807,9 @@
           const program = normalizeText(values[10]);  // K열
           const level = normalizeText(values[11]);    // L열
           if (!duration && !content && !program && !level) return;
+          const dedupeKey = subjectName + '|' + duration + '|' + content + '|' + program + '|' + level;
+          if (seenKeys[dedupeKey]) return;
+          seenKeys[dedupeKey] = true;
 
           subjects.push({
             name: subjectName,

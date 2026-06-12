@@ -1134,7 +1134,14 @@
       }
 
       // 각 선택 과목에 대해 G/J/K/L열 데이터 누적 (시트 A=0이므로 G=6, J=9, K=10, L=11)
+      //
+      // Supabase 동기화 시 fillMergedValues_()가 시트의 병합 셀을 forward-fill하기 때문에,
+      // 원본 시트에서 C/G/J/K/L 한 셀이 4행 병합되어 있으면 4행 모두 동일 값으로 저장된다.
+      // Apps Script 원본은 "빈 셀 자연 스킵" 메커니즘으로 1행만 채택했지만, Supabase에서는
+      // 그 가드가 무력화되어 4번 중복 표시되는 문제가 있다.
+      // → 같은 (name, duration, content, program, level) 키는 한 번만 push되도록 dedupe.
       const subjects = [];
+      const seenKeys = {};
       selectedSubjects.forEach(function(subjectName) {
         const idxs = subjectRanges[subjectName] || [];
         idxs.forEach(function(idx) {
@@ -1144,6 +1151,9 @@
           const program  = _curNorm(vals[10]);  // K열
           const level    = _curNorm(vals[11]);  // L열
           if (!duration && !content && !program && !level) return;
+          const dedupeKey = subjectName + '|' + duration + '|' + content + '|' + program + '|' + level;
+          if (seenKeys[dedupeKey]) return;
+          seenKeys[dedupeKey] = true;
           subjects.push({
             name: subjectName,
             duration: duration,

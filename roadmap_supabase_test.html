@@ -107,15 +107,11 @@
       color: transparent;
     }
     .roadmap-logo.logo-placeholder.missing-logo {
-      border: 2px dashed rgba(61, 103, 183, 0.35);
-      border-radius: 12px;
-      color: var(--roadmap-blue);
-      font-size: 16px;
-      font-weight: 700;
-      letter-spacing: 0;
+      border: none;
+      color: transparent;
     }
     .roadmap-logo.logo-placeholder.missing-logo::after {
-      content: 'LOGO IMAGE';
+      content: '';
     }
     .roadmap-logo img {
       display: block;
@@ -1160,8 +1156,15 @@
             logoWrap.classList.add('missing-logo');
             return;
           }
-          logoWrap.classList.remove('missing-logo');
+          logoWrap.classList.remove('logo-placeholder', 'missing-logo');
           logo.style.display = 'block';
+          logo.onload = function() {
+            logoWrap.classList.remove('logo-placeholder', 'missing-logo');
+          };
+          logo.onerror = function() {
+            logo.style.display = 'none';
+            logoWrap.classList.add('missing-logo');
+          };
           logo.src = url;
         })
         .catch(function() {

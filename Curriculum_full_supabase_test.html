@@ -5039,6 +5039,7 @@
     function loadCurriculum(deptName) {
       const container = document.getElementById('scale-container');
       container.innerHTML = '';
+      ensurePageIndicator();
       document.getElementById('slide-empty').style.display = 'block';
       document.getElementById('slide-empty').textContent = '데이터를 불러오는 중...';
       
@@ -5092,9 +5093,27 @@
     /*  🎯 모든 카테고리 슬라이드 통합 생성              */
     /* ============================================== */
 
+    function ensurePageIndicator() {
+      const container = document.getElementById('scale-container');
+      if (!container) return null;
+
+      let panel = document.getElementById('page-indicator');
+      if (!panel) {
+        panel = document.createElement('div');
+        panel.id = 'page-indicator';
+      }
+
+      if (panel.parentElement !== container) {
+        container.appendChild(panel);
+      }
+
+      return panel;
+    }
+
     function buildAllSlides(deptName, curriculumData, categoryList) {
       const container = document.getElementById('scale-container');
       container.innerHTML = '';
+      ensurePageIndicator();
       slides = [];
       currentSlideIndex = 0;
       
@@ -5175,7 +5194,8 @@
     }
     
     function buildIndicator(count) {
-      const panel = document.getElementById('page-indicator');
+      const panel = ensurePageIndicator();
+      if (!panel) return;
       panel.innerHTML = '';
       for (let i = 0; i < count; i++) {
         const dot = document.createElement('div');
@@ -5542,5 +5562,4 @@
   <script src="./assets/js/footer-menu.js"></script>
 </body>
 </html>
-
 

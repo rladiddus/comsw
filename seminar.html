@@ -699,14 +699,32 @@
     /* ============================================== */
     /*  슬라이드 생성                                     */
     /* ============================================== */
+    function ensurePageIndicator() {
+      const container = document.getElementById('scale-container');
+      if (!container) return null;
+
+      let panel = document.getElementById('page-indicator');
+      if (!panel) {
+        panel = document.createElement('div');
+        panel.id = 'page-indicator';
+      }
+
+      if (panel.parentElement !== container) {
+        container.appendChild(panel);
+      }
+
+      return panel;
+    }
+
     function buildSlides() {
       const container = document.getElementById('scale-container');
       container.innerHTML = '';
+      const indicator = ensurePageIndicator();
 
       if (!seminarList || seminarList.length === 0) {
         document.getElementById('seminar-empty').textContent = '등록된 특강이 없습니다.';
         document.getElementById('seminar-empty').style.display = 'block';
-        document.getElementById('page-indicator').innerHTML = '';
+        if (indicator) indicator.innerHTML = '';
         return;
       }
 
@@ -804,7 +822,8 @@
     }
 
     function buildIndicator(count) {
-      const ind = document.getElementById('page-indicator');
+      const ind = ensurePageIndicator();
+      if (!ind) return;
       ind.innerHTML = '';
       if (count <= 1) return;
       for (let i = 0; i < count; i++) {

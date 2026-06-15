@@ -283,7 +283,6 @@
       const rawSrc = img.getAttribute('src') || '';
       addUrl(src);
       addUrl(rawSrc);
-      img.setAttribute('crossorigin', 'anonymous');
     });
     bgElements.forEach(function(el) {
       const bg = window.getComputedStyle(el).backgroundImage;
@@ -322,11 +321,11 @@
           crossorigin: img.getAttribute('crossorigin')
         });
         img.removeAttribute('srcset');
+        img.setAttribute('crossorigin', 'anonymous');
         img.setAttribute('src', replacement);
+        img.style.visibility = 'visible';
+        img.style.display = img.style.display === 'none' ? 'block' : img.style.display;
       }
-      img.setAttribute('crossorigin', 'anonymous');
-      img.style.visibility = 'visible';
-      img.style.display = img.style.display === 'none' && replacement ? 'block' : img.style.display;
     });
 
     Array.prototype.slice.call(root.querySelectorAll('*')).forEach(function(el) {

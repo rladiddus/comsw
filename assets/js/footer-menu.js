@@ -23,6 +23,10 @@
     'item_supabase_test.html':             '수업별 준비물',
     'vacation.html':                       '방학 특강'
   };
+  PAGE_TO_MENU['roadmap.html'] = PAGE_TO_MENU['roadmap_supabase_test.html'];
+  PAGE_TO_MENU['Curriculum_full.html'] = PAGE_TO_MENU['Curriculum_full_supabase_test.html'];
+  PAGE_TO_MENU['Curriculum_onepage.html'] = PAGE_TO_MENU['Curriculum_onepage_supabase_test.html'];
+  PAGE_TO_MENU['item.html'] = PAGE_TO_MENU['item_supabase_test.html'];
   // 메뉴 이름 → 페이지 파일명 (클릭 시 이동용)
   const MENU_TO_PAGE = {};
   Object.keys(PAGE_TO_MENU).forEach(function(p) {

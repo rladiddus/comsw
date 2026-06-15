@@ -1,0 +1,973 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <base target="_top">
+  <meta charset="utf-8">
+  <link rel="stylesheet" as="style" crossorigin href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable.min.css" />
+  <link href="https://fonts.googleapis.com/css2?family=Great+Vibes&display=swap" rel="stylesheet">
+  <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/rladiddus/comsw@main/assets/fonts/paperlogy.css">
+  <script src="./assets/js/supabase-config.js"></script>
+  <script src="./assets/js/supabase-client.js"></script>
+  <style>
+    :root {
+      --accent-orange: #fa491d;
+      --inactive-gray: #cecdcd;
+      --inactive-fg:   #7c7c7c;
+    }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html, body {
+      width: 100%; height: 100vh;
+      background: #f6f6f6;
+      font-family: 'Pretendard Variable', 'Pretendard', -apple-system, sans-serif;
+      color: #1a1a1a;
+      overflow: hidden;
+      outline: none;
+    }
+
+    /* ============================================== */
+    /*  슬라이드 컨테이너 (1920×1080 기준 → 화면 스케일)  */
+    /* ============================================== */
+    .slide-view {
+      position: absolute;
+      top: 0; left: 0;
+      right: 0; bottom: 0;
+      overflow: hidden;
+    }
+    #scale-container {
+      position: absolute;
+      transform-origin: top left;
+      width: 1920px;
+      height: 1080px;
+      background: #f6f6f6;
+    }
+
+    /* ============================================== */
+    /*  상단 탭 (교재 / 준비물 / AI툴)                    */
+    /*  - 흰 박스 위쪽에 매달려 있는 형태                  */
+    /*  - 활성: 주황 배경 + 흰글씨 + 더 크게               */
+    /* ============================================== */
+    .item-tabs {
+      position: absolute;
+      top: 60px;
+      left: 250px;
+      width: 1475px;
+      height: 140px;
+      display: flex;
+      align-items: flex-end;
+      gap: 6px;
+      z-index: 1;
+    }
+    .item-tab {
+      position: relative;
+      flex: 0 0 200px;
+      height: 90px;
+      background: var(--inactive-gray);
+      color: var(--inactive-fg);
+      font-family: inherit;
+      font-weight: 700;
+      font-size: 38px;
+      letter-spacing: -0.03em;
+      border: none;
+      border-radius: 25px 25px 0 0;   /* 위쪽 모서리만 둥글게 */
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: background 0.25s ease,
+                  color 0.25s ease,
+                  height 0.25s ease,
+                  font-size 0.25s ease,
+                  transform 0.25s ease;
+      padding: 0 24px;
+      white-space: nowrap;
+    }
+    .item-tab.active {
+      background: var(--accent-orange);
+      color: #ffffff;
+      height: 130px;
+      font-size: 50px;
+      transform: translateY(-4px);
+      z-index: 2;
+    }
+
+    /* ============================================== */
+    /*  메인 흰 박스 (탭 콘텐츠)                          */
+    /* ============================================== */
+    .item-panel {
+      position: absolute;
+      left: 230px;
+      top: 193px;
+      width: 1475px;
+      height: 775px;
+      background: #ffffff;
+      border-radius: 29px;
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.06);
+      overflow: hidden;
+      z-index: 2;
+    }
+
+    /* 표 헤더 (상단 고정) */
+    .item-header-row {
+      position: absolute;
+      left: 70px;
+      right: 70px;
+      top: 0;
+      padding: 56px 0 0;
+      display: flex;
+      z-index: 3;
+      background: #ffffff;   /* 스크롤 시 데이터가 비치지 않게 */
+    }
+    .item-header-cell {
+      flex: 1;
+      text-align: center;
+      font-weight: 700;
+      font-size: 44px;
+      letter-spacing: -0.03em;
+      color: #111;
+      position: relative;
+      padding-bottom: 36px;
+    }
+    /* 헤더 셀 아래 주황 구분선 (각 컬럼에 따로) */
+    .item-header-cell::after {
+      content: '';
+      position: absolute;
+      left: 12%;
+      right: 12%;
+      bottom: 24px;
+      height: 3px;
+      background: var(--accent-orange);
+      border-radius: 1.5px;
+    }
+
+    /* 표 본문 (스크롤 영역) */
+    .item-body-scroll {
+      position: absolute;
+      left: 0;
+      right: 0;
+      top: 132px;   /* 헤더 + 구분선 영역 아래 */
+      bottom: 0;
+      overflow-y: auto;
+      overflow-x: hidden;
+      padding: 20px 0 40px;   /* 첫 행 hover 박스(border-radius 18px)가 헤더에 안 닿도록 여유 */
+      /* 스크롤바 숨김 */
+      scrollbar-width: none;
+      -ms-overflow-style: none;
+    }
+    .item-body-scroll::-webkit-scrollbar {
+      display: none;
+    }
+
+    /* 데이터 행 */
+    .item-row {
+      display: flex;
+      align-items: center;
+      width: calc(100% - 140px);
+      margin: 0 auto;
+      min-height: 74px;
+      padding: 14px 0;
+      border-radius: 18px;
+      transition: background-color 0.15s ease;
+    }
+    .item-row:hover {
+      background-color: #F9DACB;
+    }
+    .item-cell {
+      flex: 1;
+      text-align: center;
+      font-weight: 400;
+      font-size: 38px;
+      letter-spacing: -0.03em;
+      color: #111;
+      line-height: 1.3;
+      padding: 0 20px;
+      word-break: keep-all;
+    }
+    .item-header-row.textbook-layout .item-header-cell:nth-child(1),
+    .item-row.textbook-layout .item-cell:nth-child(1) {
+      flex: 0 1 280px;
+    }
+    .item-header-row.textbook-layout .item-header-cell:nth-child(2),
+    .item-row.textbook-layout .item-cell:nth-child(2) {
+      flex: 1 1 auto;
+      min-width: 0;
+    }
+    .item-header-row.textbook-layout .item-header-cell:nth-child(3),
+    .item-row.textbook-layout .item-cell:nth-child(3) {
+      flex: 0 1 250px;
+    }
+    .item-header-row.supply-layout .item-header-cell:nth-child(1),
+    .item-row.supply-layout .item-cell:nth-child(1) {
+      flex: 0 0 360px;
+      white-space: nowrap;
+    }
+    .item-header-row.supply-layout .item-header-cell:nth-child(2),
+    .item-row.supply-layout .item-cell:nth-child(2) {
+      flex: 1 1 auto;
+      min-width: 0;
+    }
+    .item-cell.supply-content {
+      line-height: 1.22;
+      word-break: keep-all;
+    }
+
+    /* 빈 상태 */
+    .item-empty {
+      text-align: center;
+      padding: 80px 20px;
+      color: #999;
+      font-size: 26px;
+    }
+
+    /* ============================================== */
+    /*  교재 탭 - 교재명 셀 (호버 시 이미지 툴팁 / 클릭 시 링크) */
+    /* ============================================== */
+    .item-cell.textbook-title {
+      cursor: pointer;
+      transition: color 0.18s ease;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .item-cell.textbook-title:hover {
+      color: var(--accent-orange);
+    }
+
+    /* 마우스 따라다니는 이미지 툴팁 */
+    #item-image-tooltip {
+      position: fixed;
+      z-index: 9999;
+      pointer-events: none;
+      opacity: 0;
+      transition: opacity 0.18s ease;
+      background: #ffffff;
+      border-radius: 30px;
+      box-shadow: 6px 7px 14px rgba(0, 0, 0, 0.25);
+      padding: 18px;
+      transform: translate(20px, 20px);
+    }
+    #item-image-tooltip.visible {
+      opacity: 1;
+    }
+    #item-image-tooltip img {
+      display: block;
+      max-width: 260px;
+      max-height: 360px;
+      width: auto;
+      height: auto;
+      object-fit: contain;
+    }
+
+    /* ============================================== */
+    /*  AI툴 탭 - 도구 이름 토큰들 (각각 클릭/호버 대상)    */
+    /* ============================================== */
+    .ai-tools-cell {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px 0;
+      justify-content: center;
+      align-items: center;
+    }
+    .ai-tool-token {
+      cursor: pointer;
+      color: #111;
+      font-weight: 400;
+      font-size: 38px;
+      letter-spacing: -0.03em;
+      transition: color 0.18s ease;
+    }
+    .ai-tool-token:hover {
+      color: var(--accent-orange);
+      text-decoration: none;
+    }
+    .ai-tool-comma {
+      font-size: 38px;
+      color: #111;
+      margin-right: 10px;
+    }
+
+    /* 마우스 따라다니는 텍스트 툴팁 (F열) */
+    #item-text-tooltip {
+      position: fixed;
+      z-index: 9999;
+      pointer-events: none;
+      opacity: 0;
+      transition: opacity 0.18s ease;
+      background: var(--accent-orange);
+      color: #ffffff;
+      padding: 10px 22px;
+      border-radius: 50px;
+      font-size: 22px;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      white-space: nowrap;
+      box-shadow: 0 4px 16px rgba(0, 0, 0, 0.18);
+      transform: translate(18px, 18px);
+    }
+    #item-text-tooltip.visible {
+      opacity: 1;
+    }
+
+    /* ============================================== */
+    /*  좌하단 < 버튼 (호버 시 등장)                      */
+    /* ============================================== */
+    .back-btn {
+      position: fixed;
+      bottom: 30px;
+      left: 30px;
+      z-index: 500;
+      width: 48px; height: 48px;
+      padding: 0;
+      background: #2a2a2a;
+      border: none;
+      border-radius: 50%;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      opacity: 0;
+      pointer-events: none;
+      transform: translateY(60px);
+      transition: opacity 0.3s ease,
+                  transform 0.4s cubic-bezier(0.4, 0, 0.2, 1),
+                  background 0.2s ease;
+    }
+    .back-btn.visible {
+      opacity: 1;
+      pointer-events: auto;
+      transform: translateY(0);
+    }
+    .back-btn:hover { background: #444; }
+    .back-btn svg {
+      width: 20px;
+      height: 20px;
+      stroke: #f6f6f6;
+      fill: none;
+      stroke-width: 2.5;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+    }
+
+    /* ============================================== */
+    /*  로딩 오버레이 (메인 페이지 이동용)                  */
+    /* ============================================== */
+    #loading-overlay {
+      position: fixed;
+      top: 0; left: 0;
+      width: 100vw; height: 100vh;
+      z-index: 9999;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.3s ease-out;
+      background: #000;
+    }
+    #loading-overlay.active { opacity: 1; pointer-events: auto; }
+    #loading-overlay.lock   { opacity: 1 !important; pointer-events: auto !important; }
+    #loading-bg {
+      position: absolute;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+      object-fit: cover;
+    }
+    #loading-dim {
+      position: absolute;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+      background: rgba(0, 0, 0, 0.4);
+    }
+    #loading-text-wrapper {
+      position: absolute;
+      top: 50%; left: 50%;
+      transform: translate(-50%, -50%);
+      z-index: 2;
+      width: 90vw;
+      text-align: center;
+    }
+    .wipe-text {
+      font-family: 'Paperlogy', 'Great Vibes', cursive;
+      font-weight: 800;
+      font-size: clamp(1.25rem, 3.5vw, 3rem);
+      line-height: 1.2;
+      position: relative;
+      display: inline-block;
+      color: rgba(255, 255, 255, 0.5);
+    }
+    .wipe-text::after {
+      content: attr(data-text);
+      position: absolute;
+      top: 0; left: 0;
+      width: 100%;
+      color: rgba(255, 255, 255, 1);
+      clip-path: inset(0 100% 0 0);
+    }
+    .wipe-text.animate::after {
+      animation: wipeIn 2.5s cubic-bezier(0.65, 0, 0.35, 1) forwards;
+    }
+    @keyframes wipeIn {
+      0%   { clip-path: inset(0 100% 0 0); }
+      100% { clip-path: inset(0 0 0 0); }
+    }
+  </style>
+</head>
+<body>
+  <div class="slide-view">
+    <div id="scale-container">
+      <!-- 상단 탭 -->
+      <div class="item-tabs">
+        <button class="item-tab active" data-tab="textbook">교재</button>
+        <button class="item-tab" data-tab="supply">준비물</button>
+        <button class="item-tab" data-tab="ai">AI툴</button>
+      </div>
+
+      <!-- 메인 흰 박스 -->
+      <div class="item-panel">
+        <!-- 표 헤더 (탭별 동적 렌더) -->
+        <div class="item-header-row" id="item-header-row"></div>
+        <!-- 표 본문 (스크롤) -->
+        <div class="item-body-scroll" id="item-body-scroll"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 좌하단 메인으로 -->
+  <button class="back-btn" id="back-btn" onclick="goHome()" title="메인으로 (ESC)">
+    <svg viewBox="0 0 24 24"><polyline points="15 6 9 12 15 18"></polyline></svg>
+  </button>
+
+  <!-- 이미지 툴팁 (교재 탭) -->
+  <div id="item-image-tooltip"><img src="" alt=""></div>
+  <!-- 텍스트 툴팁 (AI툴 탭) -->
+  <div id="item-text-tooltip"></div>
+
+  <!-- 로딩 오버레이 -->
+  <div id="loading-overlay">
+    <img id="loading-bg" src="" alt="">
+    <div id="loading-dim"></div>
+    <div id="loading-text-wrapper">
+      <span class="wipe-text" id="loading-text" data-text=""></span>
+    </div>
+  </div>
+
+  <script>
+    /* ============================================== */
+    /*  상태                                              */
+    /* ============================================== */
+    const LOADING_CACHE_KEY = 'loading_image_cache_v1';
+    const LOADING_LIST_CACHE_KEY = 'loading_list_cache_v1';
+
+    let cachedWebAppUrl = null;
+    let isNavigating = false;
+
+    let allItems = [];      // [{ subject, category, content, link, image, pill }, ...]
+    let activeTab = 'textbook';  // 'textbook' | 'supply' | 'ai'
+
+    /*
+     * Supabase 테스트 설정
+     * - 브라우저용 테스트 파일이므로 service_role 키를 절대 넣지 않는다.
+     * - SUPABASE_ANON_KEY에는 Supabase의 Publishable key 또는 Legacy anon key를 넣는다.
+     */
+    const SUPABASE_URL = window.COMSW_SUPABASE_CONFIG.url;
+    const SUPABASE_ANON_KEY = window.COMSW_SUPABASE_CONFIG.anonKey;
+    const SUPABASE_RAW_TABLE = window.COMSW_SUPABASE_CONFIG.rawTable;
+    const COURSE_PREP_SHEET_NAMES = [
+      '수업별 준비물(AI/교재 등)',
+      '수업별 준비몰(AI/교재 등)'
+    ];
+
+    /* ============================================== */
+    /*  HTML escape                                       */
+    /* ============================================== */
+    function escapeHtml(str) {
+      return String(str == null ? '' : str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+    }
+    function escapeAttr(s) { return escapeHtml(s); }
+    function normalizeText(v) {
+      if (v === null || v === undefined) return '';
+      return String(v).replace(/[\u200B\u200C\u200D\uFEFF\u00A0]/g, '').trim();
+    }
+    function categoryKey(value) {
+      const v = normalizeText(value).replace(/\s+/g, '');
+      if (v === '교재명' || v === '교재') return 'textbook';
+      if (v === '준비물') return 'supply';
+      if (v.toUpperCase() === 'AI툴'.toUpperCase()
+          || v.toLowerCase() === 'aitool'
+          || v === 'AI도구') return 'ai';
+      return '';
+    }
+    function convertDriveUrl(url) {
+      const raw = normalizeText(url);
+      if (!raw) return '';
+
+      let match = raw.match(/\/file\/d\/([^/]+)/);
+      if (match && match[1]) {
+        return 'https://drive.google.com/thumbnail?id=' + match[1] + '&sz=w1000';
+      }
+
+      match = raw.match(/[?&]id=([^&]+)/);
+      if (match && match[1] && raw.indexOf('drive.google.com') !== -1) {
+        return 'https://drive.google.com/thumbnail?id=' + match[1] + '&sz=w1000';
+      }
+
+      return raw;
+    }
+    function formatSupplyContent(text) {
+      const raw = String(text == null ? '' : text).trim();
+      const chars = Array.from(raw);
+      if (chars.length <= 35) return escapeHtml(raw);
+
+      let splitAt = 35;
+      const minSplit = Math.max(18, Math.floor(chars.length * 0.35));
+      for (let i = Math.min(35, chars.length - 1); i >= minSplit; i--) {
+        if (/[\s,，、/·]/.test(chars[i])) {
+          splitAt = i + 1;
+          break;
+        }
+      }
+
+      const first = chars.slice(0, splitAt).join('').replace(/[\s,，、/·]+$/g, '').trim();
+      const second = chars.slice(splitAt).join('').replace(/^[\s,，、/·]+/g, '').trim();
+      return escapeHtml(first) + '<br>' + escapeHtml(second);
+    }
+
+    /* ============================================== */
+    /*  스케일 (1920×1080 → viewport)                    */
+    /* ============================================== */
+    function applyScale() {
+      const view = document.querySelector('.slide-view');
+      const container = document.getElementById('scale-container');
+      if (!view || !container) return;
+      const vw = view.clientWidth;
+      const vh = view.clientHeight;
+      const sx = vw / 1920;
+      const sy = vh / 1080;
+      const scale = Math.min(sx, sy);
+      const offsetX = (vw - 1920 * scale) / 2;
+      const offsetY = (vh - 1080 * scale) / 2;
+      container.style.transform =
+        'translate(' + offsetX + 'px, ' + offsetY + 'px) scale(' + scale + ')';
+    }
+    window.addEventListener('resize', applyScale);
+
+    /* ============================================== */
+    /*  탭 전환                                           */
+    /* ============================================== */
+    document.querySelectorAll('.item-tab').forEach(function(btn) {
+      btn.addEventListener('click', function() {
+        const tab = btn.dataset.tab;
+        if (tab === activeTab) return;
+        activeTab = tab;
+        document.querySelectorAll('.item-tab').forEach(function(b) {
+          if (b.dataset.tab === tab) b.classList.add('active');
+          else b.classList.remove('active');
+        });
+        renderTab();
+      });
+    });
+
+    /* ============================================== */
+    /*  렌더링                                            */
+    /* ============================================== */
+    function renderTab() {
+      hideImageTooltip();
+      hideTextTooltip();
+
+      const headerEl = document.getElementById('item-header-row');
+      const bodyEl = document.getElementById('item-body-scroll');
+      const items = allItems.filter(function(it) { return it.category === activeTab; });
+      headerEl.className = 'item-header-row';
+
+      if (activeTab === 'textbook') {
+        headerEl.classList.add('textbook-layout');
+        headerEl.innerHTML =
+            '<div class="item-header-cell">과목명</div>'
+          + '<div class="item-header-cell">교재명</div>'
+          + '<div class="item-header-cell">정가</div>';
+        if (items.length === 0) {
+          bodyEl.innerHTML = '<div class="item-empty">등록된 교재가 없습니다.</div>';
+          return;
+        }
+        bodyEl.innerHTML = items.map(function(it) {
+          const titleAttrs = ''
+            + ' data-image="' + escapeAttr(it.image || '') + '"'
+            + (it.link ? ' data-link="' + escapeAttr(it.link) + '"' : '');
+          return '<div class="item-row textbook-layout">'
+            +   '<div class="item-cell">' + escapeHtml(it.subject) + '</div>'
+            +   '<div class="item-cell textbook-title"' + titleAttrs + '>'
+            +     escapeHtml(it.content) + '</div>'
+            +   '<div class="item-cell">' + escapeHtml(it.pill) + '</div>'
+            + '</div>';
+        }).join('');
+        bindTextbookCells();
+      }
+      else if (activeTab === 'supply') {
+        headerEl.classList.add('supply-layout');
+        headerEl.innerHTML =
+            '<div class="item-header-cell">과목명</div>'
+          + '<div class="item-header-cell">준비물</div>';
+        if (items.length === 0) {
+          bodyEl.innerHTML = '<div class="item-empty">등록된 준비물이 없습니다.</div>';
+          return;
+        }
+        bodyEl.innerHTML = items.map(function(it) {
+          return '<div class="item-row supply-layout">'
+            +   '<div class="item-cell">' + escapeHtml(it.subject) + '</div>'
+            +   '<div class="item-cell supply-content">' + formatSupplyContent(it.content) + '</div>'
+            + '</div>';
+        }).join('');
+      }
+      else if (activeTab === 'ai') {
+        headerEl.innerHTML =
+            '<div class="item-header-cell">과목명</div>'
+          + '<div class="item-header-cell">AI툴</div>';
+        if (items.length === 0) {
+          bodyEl.innerHTML = '<div class="item-empty">등록된 AI툴이 없습니다.</div>';
+          return;
+        }
+        const grouped = [];
+        const groupedMap = {};
+        items.forEach(function(it) {
+          const subject = it.subject || '';
+          if (!groupedMap[subject]) {
+            groupedMap[subject] = { subject: subject, tools: [] };
+            grouped.push(groupedMap[subject]);
+          }
+          String(it.content || '')
+            .split(/[,，]/)
+            .map(function(s) { return s.trim(); })
+            .filter(Boolean)
+            .forEach(function(tool) {
+              groupedMap[subject].tools.push({
+                text: tool,
+                tooltip: it.pill || '',
+                link: it.link || ''
+              });
+            });
+        });
+        bodyEl.innerHTML = grouped.map(function(group) {
+          const tokens = group.tools.map(function(tool, idx) {
+            const tooltipAttr = tool.tooltip ? ' data-tooltip="' + escapeAttr(tool.tooltip) + '"' : '';
+            const linkAttr = tool.link ? ' data-link="' + escapeAttr(tool.link) + '"' : '';
+            return '<span class="ai-tool-token"' + tooltipAttr + linkAttr + '>'
+              + escapeHtml(tool.text) + '</span>'
+              + (idx < group.tools.length - 1 ? '<span class="ai-tool-comma">,</span>' : '');
+          }).join('');
+          return '<div class="item-row">'
+            +   '<div class="item-cell">' + escapeHtml(group.subject) + '</div>'
+            +   '<div class="item-cell ai-tools-cell">' + (tokens || '&nbsp;') + '</div>'
+            + '</div>';
+        }).join('');
+        bindAiTokens();
+      }
+    }
+
+    /* ============================================== */
+    /*  교재 탭 - 셀 이벤트 (호버 이미지, 클릭 링크)       */
+    /* ============================================== */
+    function bindTextbookCells() {
+      const bodyEl = document.getElementById('item-body-scroll');
+      bodyEl.querySelectorAll('.textbook-title').forEach(function(cell) {
+        const image = cell.dataset.image || '';
+        const link  = cell.dataset.link  || '';
+        if (image) {
+          cell.addEventListener('mouseenter', function() { showImageTooltip(image); });
+          cell.addEventListener('mousemove',  function(e) { moveImageTooltip(e); });
+          cell.addEventListener('mouseleave', function() { hideImageTooltip(); });
+        }
+        if (link) {
+          cell.addEventListener('click', function() {
+            window.open(link, '_blank', 'noopener');
+          });
+        }
+      });
+    }
+
+    /* ============================================== */
+    /*  AI툴 탭 - 토큰 이벤트                             */
+    /* ============================================== */
+    function bindAiTokens() {
+      const bodyEl = document.getElementById('item-body-scroll');
+      bodyEl.querySelectorAll('.ai-tool-token').forEach(function(tok) {
+        const tooltip = tok.dataset.tooltip || '';
+        const link    = tok.dataset.link    || '';
+        if (tooltip) {
+          tok.addEventListener('mouseenter', function() { showTextTooltip(tooltip); });
+          tok.addEventListener('mousemove',  function(e) { moveTextTooltip(e); });
+          tok.addEventListener('mouseleave', function() { hideTextTooltip(); });
+        }
+        if (link) {
+          tok.addEventListener('click', function() {
+            window.open(link, '_blank', 'noopener');
+          });
+        }
+      });
+    }
+
+    /* ============================================== */
+    /*  이미지 툴팁 (마우스 따라다님)                      */
+    /* ============================================== */
+    function showImageTooltip(imageUrl) {
+      const el = document.getElementById('item-image-tooltip');
+      const img = el.querySelector('img');
+      img.src = imageUrl;
+      img.onerror = function() { hideImageTooltip(); };
+      el.classList.add('visible');
+    }
+    function moveImageTooltip(e) {
+      const el = document.getElementById('item-image-tooltip');
+      const tooltipW = 300;
+      const tooltipH = 400;
+      let x = e.clientX + 20;
+      let y = e.clientY + 20;
+      // 화면 경계 보정
+      if (x + tooltipW > window.innerWidth)  x = e.clientX - tooltipW - 20;
+      if (y + tooltipH > window.innerHeight) y = e.clientY - tooltipH - 20;
+      el.style.left = x + 'px';
+      el.style.top  = y + 'px';
+      el.style.transform = 'translate(0, 0)';   // 본 transform 제거
+    }
+    function hideImageTooltip() {
+      document.getElementById('item-image-tooltip').classList.remove('visible');
+    }
+
+    /* ============================================== */
+    /*  텍스트 툴팁 (마우스 따라다님)                      */
+    /* ============================================== */
+    function showTextTooltip(text) {
+      const el = document.getElementById('item-text-tooltip');
+      el.textContent = text;
+      el.classList.add('visible');
+    }
+    function moveTextTooltip(e) {
+      const el = document.getElementById('item-text-tooltip');
+      const rect = el.getBoundingClientRect();
+      const tooltipW = rect.width || 200;
+      const tooltipH = rect.height || 50;
+      let x = e.clientX + 18;
+      let y = e.clientY + 18;
+      if (x + tooltipW > window.innerWidth)  x = e.clientX - tooltipW - 18;
+      if (y + tooltipH > window.innerHeight) y = e.clientY - tooltipH - 18;
+      el.style.left = x + 'px';
+      el.style.top  = y + 'px';
+      el.style.transform = 'translate(0, 0)';
+    }
+    function hideTextTooltip() {
+      document.getElementById('item-text-tooltip').classList.remove('visible');
+    }
+
+    /* ============================================== */
+    /*  키보드 (ESC = 메인으로) / 좌하단 호버              */
+    /* ============================================== */
+    window.addEventListener('keydown', function(e) {
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        goHome();
+      } else if (e.key === 'ArrowRight' || e.key === 'ArrowDown') {
+        // 다음 탭으로
+        const order = ['textbook', 'supply', 'ai'];
+        const idx = order.indexOf(activeTab);
+        if (idx >= 0 && idx < order.length - 1) selectTab(order[idx + 1]);
+      } else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') {
+        const order = ['textbook', 'supply', 'ai'];
+        const idx = order.indexOf(activeTab);
+        if (idx > 0) selectTab(order[idx - 1]);
+      }
+    });
+    function selectTab(tab) {
+      if (tab === activeTab) return;
+      activeTab = tab;
+      document.querySelectorAll('.item-tab').forEach(function(b) {
+        if (b.dataset.tab === tab) b.classList.add('active');
+        else b.classList.remove('active');
+      });
+      renderTab();
+    }
+
+    /* ============================================== */
+    /*  Supabase 데이터 로드                             */
+    /* ============================================== */
+    function showLoadError(message) {
+      const bodyEl = document.getElementById('item-body-scroll');
+      bodyEl.innerHTML = '<div class="item-empty" style="color:#c00;">오류: '
+        + escapeHtml(message) + '</div>';
+    }
+
+    function getRawValues(row) {
+      const data = row && row.data ? row.data : {};
+      if (Array.isArray(data.values)) return data.values;
+      if (data.row && typeof data.row === 'object') {
+        return Object.keys(data.row).map(function(key) { return data.row[key]; });
+      }
+      return [];
+    }
+
+    function normalizeSupabaseItemRows(rows) {
+      const list = [];
+      let curSubject = '';
+      let curCategory = '';
+
+      rows.forEach(function(row) {
+        const values = getRawValues(row);
+        const cellA = normalizeText(values[0]);
+        const cellB = normalizeText(values[1]);
+        const cellC = normalizeText(values[2]);
+        const cellD = normalizeText(values[3]);
+        const cellE = normalizeText(values[4]);
+        const cellF = normalizeText(values[5]);
+
+        if (cellA) curSubject = cellA;
+        if (cellB) curCategory = cellB;
+        if (!curSubject) return;
+
+        const cat = categoryKey(curCategory);
+        if (!cat) return;
+        if (!cellC && !cellD && !cellE && !cellF) return;
+
+        list.push({
+          subject: curSubject,
+          category: cat,
+          content: cellC,
+          link: cellD,
+          image: cellE ? convertDriveUrl(cellE) : '',
+          pill: cellF
+        });
+      });
+
+      return list;
+    }
+
+    function getSupabaseSourceId(sourceKey) {
+      const sources = (window.COMSW_SUPABASE_CONFIG && window.COMSW_SUPABASE_CONFIG.sources) || {};
+      return sources[sourceKey] || sourceKey || 'main';
+    }
+
+    async function fetchSupabaseRowsForSheet(sheetName, sourceId) {
+      const source = sourceId || getSupabaseSourceId('main');
+      if (window.ComswSupabase && typeof window.ComswSupabase.fetchSheetRows === 'function') {
+        return window.ComswSupabase.fetchSheetRows(sheetName, source);
+      }
+      const endpoint = SUPABASE_URL.replace(/\/+$/, '') + '/rest/v1/' + SUPABASE_RAW_TABLE;
+      const url = endpoint
+        + '?select=source_id,sheet_name,row_number,data'
+        + '&source_id=eq.' + encodeURIComponent(source)
+        + '&sheet_name=eq.' + encodeURIComponent(sheetName)
+        + '&order=row_number.asc';
+
+      const res = await fetch(url, {
+        headers: {
+          apikey: SUPABASE_ANON_KEY,
+          Authorization: 'Bearer ' + SUPABASE_ANON_KEY
+        }
+      });
+
+      if (!res.ok) {
+        throw new Error('Supabase HTTP ' + res.status + ' / ' + await res.text());
+      }
+
+      return await res.json();
+    }
+
+    async function loadCoursePrepItemsFromSupabase() {
+      if (!SUPABASE_ANON_KEY || SUPABASE_ANON_KEY === 'PASTE_SUPABASE_ANON_OR_PUBLISHABLE_KEY_HERE') {
+        throw new Error('item_supabase_test.html의 SUPABASE_ANON_KEY에 Supabase Publishable/anon key를 넣어주세요.');
+      }
+
+      for (let i = 0; i < COURSE_PREP_SHEET_NAMES.length; i++) {
+        const rows = await fetchSupabaseRowsForSheet(COURSE_PREP_SHEET_NAMES[i]);
+        if (rows && rows.length > 0) return normalizeSupabaseItemRows(rows);
+      }
+
+      return [];
+    }
+
+    document.addEventListener('mousemove', function(e) {
+      const HOVER_CORNER = 200;
+      const inLeftBottom = (e.clientX < HOVER_CORNER) && (e.clientY > window.innerHeight - HOVER_CORNER);
+      const backBtn = document.getElementById('back-btn');
+      if (inLeftBottom) backBtn.classList.add('visible');
+      else backBtn.classList.remove('visible');
+    });
+    document.addEventListener('mouseleave', function() {
+      document.getElementById('back-btn').classList.remove('visible');
+    });
+
+    /* ============================================== */
+    /*  데이터 로드                                       */
+    /* ============================================== */
+    window.onload = function() {
+      applyScale();
+
+      loadCoursePrepItemsFromSupabase()
+        .then(function(list) {
+          allItems = list || [];
+          renderTab();
+        })
+        .catch(function(err) {
+          showLoadError(err && err.message ? err.message : err);
+        });
+    };
+
+    /* ============================================== */
+    /*  메인으로 이동 (로딩 화면 후)                       */
+    /* ============================================== */
+    function getCachedImage(id) {
+      try {
+        const raw = localStorage.getItem(LOADING_CACHE_KEY);
+        if (!raw) return null;
+        const cache = JSON.parse(raw);
+        return cache[id] || null;
+      } catch (e) { return null; }
+    }
+    function showLoadingAndNavigate(targetUrl) {
+      if (isNavigating) return;
+      isNavigating = true;
+
+      const overlay = document.getElementById('loading-overlay');
+      const bg = document.getElementById('loading-bg');
+      const textEl = document.getElementById('loading-text');
+
+      let picked = null;
+      try {
+        const raw = localStorage.getItem(LOADING_LIST_CACHE_KEY);
+        if (raw) {
+          const list = JSON.parse(raw);
+          if (list.length > 0) picked = list[Math.floor(Math.random() * list.length)];
+        }
+      } catch (e) {}
+
+      if (picked) {
+        const cachedImage = getCachedImage(picked.id);
+        bg.src = cachedImage || picked.imageUrl;
+        textEl.textContent = picked.text || '';
+        textEl.setAttribute('data-text', picked.text || '');
+        if (typeof applyLoadingFont === 'function') applyLoadingFont(textEl, picked);
+      } else {
+        textEl.textContent = '';
+        textEl.setAttribute('data-text', '');
+        if (typeof applyLoadingFont === 'function') applyLoadingFont(textEl, null);
+      }
+
+      overlay.classList.add('active');
+      overlay.classList.add('lock');
+
+      textEl.classList.remove('animate');
+      void textEl.offsetWidth;
+      textEl.classList.add('animate');
+
+      setTimeout(function() { window.top.location.href = targetUrl; }, 2500);
+    }
+    function goHome() {
+      if (cachedWebAppUrl) {
+        showLoadingAndNavigate(cachedWebAppUrl);
+      } else {
+        window.location.href = './index.html';
+      }
+    }
+  </script>
+<script src="./assets/js/footer-menu.js?v=onepage-capture-3"></script>
+</body>
+</html>

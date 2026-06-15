@@ -179,11 +179,12 @@
     return html2canvasLoader;
   }
 
-  function waitForPageAssets() {
+  function waitForPageAssets(root) {
+    root = root || document;
     const fontReady = document.fonts && document.fonts.ready
       ? document.fonts.ready.catch(function() {})
       : Promise.resolve();
-    const imageReady = Promise.all(Array.prototype.slice.call(document.images || []).map(function(img) {
+    const imageReady = Promise.all(Array.prototype.slice.call(root.querySelectorAll ? root.querySelectorAll('img') : document.images || []).map(function(img) {
       if (img.complete) return Promise.resolve();
       return new Promise(function(resolve) {
         img.addEventListener('load', resolve, { once: true });
@@ -192,6 +193,234 @@
     }));
     const timeout = new Promise(function(resolve) { setTimeout(resolve, 1800); });
     return Promise.race([Promise.all([fontReady, imageReady]), timeout]);
+  }
+
+  function getElementScale(el) {
+    if (!el) return 1;
+    const transform = window.getComputedStyle(el).transform;
+    if (!transform || transform === 'none') return 1;
+    const match = transform.match(/matrix\(([^)]+)\)/);
+    if (!match) return 1;
+    const parts = match[1].split(',').map(function(v) { return Number(v.trim()); });
+    return parts[0] || 1;
+  }
+
+  function imageToDataUrl(url) {
+    const controller = window.AbortController ? new AbortController() : null;
+    const timer = controller ? setTimeout(function() { controller.abort(); }, 2500) : null;
+    return fetch(url, {
+      mode: 'cors',
+      credentials: 'omit',
+      signal: controller ? controller.signal : undefined
+    })
+      .then(function(res) {
+        if (!res.ok) throw new Error('image fetch failed');
+        return res.blob();
+      })
+      .then(function(blob) {
+        return new Promise(function(resolve, reject) {
+          const reader = new FileReader();
+          reader.onload = function() { resolve(reader.result); };
+          reader.onerror = reject;
+          reader.readAsDataURL(blob);
+        });
+      })
+      .finally(function() {
+        if (timer) clearTimeout(timer);
+      });
+  }
+
+  async function buildImageReplacementMap(root) {
+    const map = {};
+    const imgs = Array.prototype.slice.call((root || document).querySelectorAll('img'));
+    const urls = [];
+    imgs.forEach(function(img) {
+      const src = img.currentSrc || img.src || img.getAttribute('src') || '';
+      const rawSrc = img.getAttribute('src') || '';
+      if (!src || /^data:|^blob:/i.test(src)) return;
+      if (urls.indexOf(src) === -1) urls.push(src);
+      if (rawSrc && urls.indexOf(rawSrc) === -1 && !/^data:|^blob:/i.test(rawSrc)) urls.push(rawSrc);
+      img.setAttribute('crossorigin', 'anonymous');
+    });
+
+    await Promise.all(urls.map(function(url) {
+      return imageToDataUrl(url)
+        .then(function(dataUrl) { map[url] = dataUrl; })
+        .catch(function() {});
+    }));
+    return map;
+  }
+
+  function replaceCloneImages(clonedDoc, imageMap) {
+    if (!clonedDoc || !imageMap) return;
+    Array.prototype.slice.call(clonedDoc.querySelectorAll('img')).forEach(function(img) {
+      const src = img.currentSrc || img.src || img.getAttribute('src') || '';
+      const rawSrc = img.getAttribute('src') || '';
+      const replacement = imageMap[src] || imageMap[rawSrc];
+      if (replacement) img.setAttribute('src', replacement);
+      img.setAttribute('crossorigin', 'anonymous');
+      img.style.visibility = 'visible';
+      img.style.display = img.style.display === 'none' && replacement ? 'block' : img.style.display;
+    });
+  }
+
+  function getPageKind() {
+    if (/^Curriculum_full/i.test(currentPage)) return 'curriculumFull';
+    if (/^Curriculum_onepage/i.test(currentPage)) return 'curriculumOnepage';
+    if (/^roadmap/i.test(currentPage)) return 'roadmap';
+    return 'default';
+  }
+
+  function createCurriculumFullExport() {
+    const slides = Array.prototype.slice.call(document.querySelectorAll('#scale-container .slide-page'));
+    if (slides.length <= 1) return null;
+
+    const root = document.createElement('div');
+    root.id = 'comsw-curriculum-full-export';
+    root.style.position = 'absolute';
+    root.style.left = '0';
+    root.style.top = '0';
+    root.style.width = '1920px';
+    root.style.background = '#f6f6f6';
+    root.style.zIndex = '2147483000';
+    root.style.pointerEvents = 'none';
+
+    slides.forEach(function(slide) {
+      const clone = slide.cloneNode(true);
+      clone.classList.add('active');
+      clone.style.position = 'relative';
+      clone.style.left = '0';
+      clone.style.top = '0';
+      clone.style.width = '1920px';
+      clone.style.height = '1080px';
+      clone.style.opacity = '1';
+      clone.style.pointerEvents = 'auto';
+      clone.style.transform = 'none';
+      clone.style.display = 'grid';
+      clone.style.margin = '0';
+      root.appendChild(clone);
+    });
+
+    document.body.appendChild(root);
+    return {
+      target: root,
+      width: 1920,
+      height: slides.length * 1080,
+      scale: 1,
+      cleanup: function() { root.remove(); }
+    };
+  }
+
+  function getScrollExpandedSize() {
+    const doc = document.documentElement;
+    const body = document.body;
+    let width = Math.max(doc.scrollWidth, body.scrollWidth, doc.offsetWidth, body.offsetWidth, doc.clientWidth, window.innerWidth);
+    let height = Math.max(doc.scrollHeight, body.scrollHeight, doc.offsetHeight, body.offsetHeight, doc.clientHeight, window.innerHeight);
+    const kind = getPageKind();
+    let naturalHeight = height;
+    let containerScale = 1;
+
+    if (kind === 'roadmap') {
+      const rows = document.getElementById('dept-rows');
+      const canvas = document.getElementById('canvas');
+      const scale = getElementScale(canvas);
+      containerScale = scale;
+      naturalHeight = rows ? Math.max(1080, rows.offsetTop + rows.scrollHeight) : 1080;
+      height = Math.max(height, Math.ceil(naturalHeight * scale));
+    }
+
+    if (kind === 'curriculumOnepage') {
+      const tableBody = document.getElementById('table-body');
+      const wrapper = document.getElementById('scale-wrapper');
+      const scale = getElementScale(wrapper);
+      const extra = tableBody ? Math.max(0, tableBody.scrollHeight - tableBody.clientHeight) : 0;
+      containerScale = scale;
+      naturalHeight = 1080 + extra;
+      height = Math.max(height, Math.ceil(naturalHeight * scale));
+    }
+
+    return {
+      width: width,
+      height: height,
+      naturalHeight: naturalHeight,
+      containerScale: containerScale
+    };
+  }
+
+  function getCaptureSetup() {
+    if (getPageKind() === 'curriculumFull') {
+      const exportSetup = createCurriculumFullExport();
+      if (exportSetup) return exportSetup;
+    }
+    const size = getScrollExpandedSize();
+    return {
+      kind: getPageKind(),
+      target: document.body,
+      width: size.width,
+      height: size.height,
+      naturalHeight: size.naturalHeight,
+      containerScale: size.containerScale,
+      scale: Math.min(2, window.devicePixelRatio || 1.5),
+      cleanup: function() {}
+    };
+  }
+
+  function applyCaptureCloneStyles(clonedDoc, imageMap, setup) {
+    replaceCloneImages(clonedDoc, imageMap);
+    const style = clonedDoc.createElement('style');
+    style.textContent = ''
+      + 'html, body { height: auto !important; min-height: 100% !important; overflow: visible !important; }'
+      + '#comsw-footer-menu .comsw-menu-item, #comsw-footer-menu button, button { box-shadow: none !important; filter: none !important; }'
+      + '#comsw-footer-menu { box-shadow: none !important; }'
+      + '.roadmap-rows, #dept-rows { height: auto !important; max-height: none !important; overflow: visible !important; }'
+      + '#canvas { height: auto !important; min-height: 1080px !important; }'
+      + '.curriculum-table { height: auto !important; overflow: visible !important; grid-template-rows: 70px auto !important; }'
+      + '.table-body { height: auto !important; max-height: none !important; overflow: visible !important; }'
+      + '#scale-wrapper { height: auto !important; min-height: 1080px !important; }';
+    clonedDoc.head.appendChild(style);
+
+    if (setup && setup.kind === 'roadmap') {
+      const viewport = clonedDoc.getElementById('viewport');
+      const canvas = clonedDoc.getElementById('canvas');
+      const rows = clonedDoc.getElementById('dept-rows');
+      if (viewport) {
+        viewport.style.height = setup.height + 'px';
+        viewport.style.overflow = 'visible';
+      }
+      if (canvas) {
+        canvas.style.height = setup.naturalHeight + 'px';
+        canvas.style.minHeight = setup.naturalHeight + 'px';
+      }
+      if (rows) {
+        rows.style.height = 'auto';
+        rows.style.maxHeight = 'none';
+        rows.style.overflow = 'visible';
+      }
+    }
+
+    if (setup && setup.kind === 'curriculumOnepage') {
+      const viewport = clonedDoc.getElementById('viewport');
+      const wrapper = clonedDoc.getElementById('scale-wrapper');
+      const table = clonedDoc.querySelector('.curriculum-table');
+      const tableBody = clonedDoc.getElementById('table-body');
+      if (viewport) {
+        viewport.style.height = setup.height + 'px';
+        viewport.style.overflow = 'visible';
+      }
+      if (wrapper) {
+        wrapper.style.height = setup.naturalHeight + 'px';
+        wrapper.style.minHeight = setup.naturalHeight + 'px';
+      }
+      if (table) {
+        table.style.height = 'auto';
+        table.style.overflow = 'visible';
+      }
+      if (tableBody) {
+        tableBody.style.height = 'auto';
+        tableBody.style.maxHeight = 'none';
+        tableBody.style.overflow = 'visible';
+      }
+    }
   }
 
   function getCaptureFileName() {
@@ -251,38 +480,30 @@
     button.setAttribute('title', '이미지 생성 중...');
     button.setAttribute('aria-busy', 'true');
 
+    let setup = null;
     try {
       const html2canvas = await loadHtml2Canvas();
-      await waitForPageAssets();
+      setup = getCaptureSetup();
+      await waitForPageAssets(setup.target);
+      const imageMap = await buildImageReplacementMap(setup.target);
 
-      const doc = document.documentElement;
-      const body = document.body;
-      const width = Math.max(
-        doc.scrollWidth, body.scrollWidth,
-        doc.offsetWidth, body.offsetWidth,
-        doc.clientWidth
-      );
-      const height = Math.max(
-        doc.scrollHeight, body.scrollHeight,
-        doc.offsetHeight, body.offsetHeight,
-        doc.clientHeight
-      );
-      const scale = Math.min(2, window.devicePixelRatio || 1.5);
-
-      const canvas = await html2canvas(body, {
-        backgroundColor: window.getComputedStyle(body).backgroundColor || '#ffffff',
+      const canvas = await html2canvas(setup.target, {
+        backgroundColor: window.getComputedStyle(document.body).backgroundColor || '#ffffff',
         useCORS: true,
         allowTaint: false,
         logging: false,
-        scale: scale,
+        scale: setup.scale,
         x: 0,
         y: 0,
-        width: width,
-        height: height,
-        windowWidth: width,
-        windowHeight: height,
+        width: setup.width,
+        height: setup.height,
+        windowWidth: setup.width,
+        windowHeight: setup.height,
         scrollX: 0,
         scrollY: 0,
+        onclone: function(clonedDoc) {
+          applyCaptureCloneStyles(clonedDoc, imageMap, setup);
+        },
         ignoreElements: function(el) {
           return el && el.getAttribute && el.getAttribute('data-html2canvas-ignore') === 'true';
         }
@@ -293,6 +514,7 @@
       if (window.console) console.error('[footer-menu capture]', err);
       alert('이미지 다운로드에 실패했습니다. 외부 이미지 권한(CORS)이나 영상 요소 때문에 캡처가 제한됐을 수 있습니다.');
     } finally {
+      if (setup && typeof setup.cleanup === 'function') setup.cleanup();
       button.classList.remove('is-busy');
       button.setAttribute('title', originalTitle);
       button.removeAttribute('aria-busy');

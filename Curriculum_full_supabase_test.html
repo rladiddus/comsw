@@ -312,6 +312,7 @@
       pointer-events: none;
       transition: opacity 0.35s ease;
       color: #111;
+      z-index: 1;
     }
     .slide-page.active {
       opacity: 1;
@@ -495,13 +496,13 @@
 
     #page-indicator {
       position: absolute;
-      bottom: 70px;            /* 🎯 SBS 글자 위쪽으로 올림 */
-      left: 56.7%;             /* 🎯 이미지 박스 영역 중앙 */
+      top: 1003px;             /* 🎯 footer "SBS ACADEMY ..." 텍스트 라인 (slide 1920x1080 좌표계) */
+      left: 50%;               /* 🎯 슬라이드 좌우 정중앙 */
       transform: translateX(-50%);
       display: flex;
       flex-direction: row;
       gap: 10px;
-      z-index: 200;
+      z-index: 1000;
     }
 
     .dot {
@@ -4148,12 +4149,12 @@
     <div class="panel-guide-cross br"></div>
     
     <div class="slide-view">
-      <div id="scale-container"></div>
+      <div id="scale-container">
+        <!-- 🎯 페이지 인디케이터 - footer 라인 중앙 -->
+        <div id="page-indicator"></div>
+      </div>
       <div class="slide-empty" id="slide-empty" style="display:none;">커리큘럼 데이터를 불러오는 중...</div>
     </div>
-    
-    <!-- 🎯 페이지 인디케이터 - 아래쪽 -->
-    <div id="page-indicator"></div>
     
     <!-- 🎯 슬라이드 네비게이션 (↑/↓) - 오른쪽 호버 -->
         <div id="slide-nav">

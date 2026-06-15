@@ -350,12 +350,12 @@
     (restore || []).forEach(function(item) {
       if (!item || !item.el) return;
       if (Object.prototype.hasOwnProperty.call(item, 'src')) {
-        if (item.src === null) item.el.removeAttribute('src');
-        else item.el.setAttribute('src', item.src);
-        if (item.srcset === null) item.el.removeAttribute('srcset');
-        else item.el.setAttribute('srcset', item.srcset);
         if (item.crossorigin === null) item.el.removeAttribute('crossorigin');
         else item.el.setAttribute('crossorigin', item.crossorigin);
+        if (item.srcset === null) item.el.removeAttribute('srcset');
+        else item.el.setAttribute('srcset', item.srcset);
+        if (item.src === null) item.el.removeAttribute('src');
+        else item.el.setAttribute('src', item.src);
         item.el.style.display = item.display || '';
         item.el.style.visibility = item.visibility || '';
       }
@@ -386,8 +386,9 @@
       const win = clonedDoc.defaultView || window;
       const styles = win.getComputedStyle(el);
       const rect = el.getBoundingClientRect();
-      const width = Math.ceil(rect.width || el.scrollWidth || 1);
-      const height = Math.ceil(rect.height || el.scrollHeight || 1);
+      const horizontalPad = 48;
+      const width = Math.ceil(Math.max(rect.width || 0, el.scrollWidth || 0, 1) + horizontalPad * 2);
+      const height = Math.ceil(Math.max(rect.height || 0, el.scrollHeight || 0, 1) + 12);
       const fontSize = parseFloat(styles.fontSize) || 60;
       const lineHeight = parseFloat(styles.lineHeight) || Math.round(fontSize * 1.2);
       const baseline = Math.round((height - lineHeight) / 2 + fontSize * 0.86);
@@ -400,7 +401,7 @@
         + '<stop offset="0%" stop-color="rgb(255,88,88)"/>'
         + '<stop offset="100%" stop-color="rgb(163,153,255)"/>'
         + '</linearGradient></defs>'
-        + '<text x="0" y="' + baseline + '" fill="url(#g)"'
+        + '<text x="' + horizontalPad + '" y="' + baseline + '" fill="url(#g)"'
         + ' font-family="' + escapeSvgText(fontFamily) + '"'
         + ' font-size="' + fontSize + '"'
         + ' font-weight="' + escapeSvgText(fontWeight) + '"'
@@ -416,6 +417,7 @@
       img.style.verticalAlign = 'top';
       el.textContent = '';
       el.style.background = 'none';
+      el.style.overflow = 'visible';
       el.style.webkitTextFillColor = 'initial';
       el.style.color = 'transparent';
       el.appendChild(img);
@@ -619,6 +621,13 @@
       el.style.textDecoration = 'none';
       el.style.borderBottom = 'none';
       el.style.boxShadow = 'none';
+    });
+    ['#curriculum-popup', '#lightbox-overlay'].forEach(function(selector) {
+      const el = document.querySelector(selector);
+      if (el && el.classList.contains('visible')) {
+        restore.push({ el: el, type: 'class', name: 'visible' });
+        el.classList.remove('visible');
+      }
     });
     return restore;
   }

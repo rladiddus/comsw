@@ -534,7 +534,7 @@
       + '#scale-wrapper { height: auto !important; min-height: 1080px !important; }'
       + '.subject-cell.row-hover { font-weight: inherit !important; }'
       + '.subject-name-text { --underline-width: 0px !important; }'
-      + '.subject-name-text::after, .subject-cell.col-subject.row-hover .subject-name-text::after { content: none !important; display: none !important; width: 0 !important; height: 0 !important; }'
+      + '.subject-name-text::after, .subject-cell.col-subject.row-hover .subject-name-text::after { content: "" !important; display: block !important; width: 0 !important; height: 0 !important; opacity: 0 !important; background: transparent !important; border: 0 !important; transform: translateX(-50%) scaleX(0) !important; }'
       + '.onepage-img-box, .onepage-img-box img, .dept-tab, .popup-close-btn, .lightbox-nav, .back-btn { transform: none !important; box-shadow: none !important; }';
     clonedDoc.head.appendChild(style);
 
@@ -565,6 +565,12 @@
       Array.prototype.slice.call(clonedDoc.querySelectorAll('.row-hover')).forEach(function(el) {
         el.classList.remove('row-hover');
       });
+      Array.prototype.slice.call(clonedDoc.querySelectorAll('.subject-name-text')).forEach(function(el) {
+        el.style.setProperty('--underline-width', '0px');
+        el.style.textDecoration = 'none';
+        el.style.borderBottom = 'none';
+        el.style.boxShadow = 'none';
+      });
       Array.prototype.slice.call(clonedDoc.querySelectorAll('.title-eng')).forEach(function(el) {
         el.style.display = 'inline-block';
       });
@@ -587,6 +593,46 @@
         tableBody.style.overflow = 'visible';
       }
     }
+  }
+
+  function clearOnepageHoverState(target) {
+    if (getPageKind() !== 'curriculumOnepage') return [];
+    const root = target && target.querySelectorAll ? target : document;
+    const restore = [];
+    Array.prototype.slice.call(root.querySelectorAll('.row-hover')).forEach(function(el) {
+      restore.push({ el: el, type: 'class', name: 'row-hover' });
+      el.classList.remove('row-hover');
+    });
+    Array.prototype.slice.call(root.querySelectorAll('.subject-name-text')).forEach(function(el) {
+      restore.push({
+        el: el,
+        type: 'style',
+        underlineWidth: el.style.getPropertyValue('--underline-width'),
+        textDecoration: el.style.textDecoration,
+        borderBottom: el.style.borderBottom,
+        boxShadow: el.style.boxShadow
+      });
+      el.style.setProperty('--underline-width', '0px');
+      el.style.textDecoration = 'none';
+      el.style.borderBottom = 'none';
+      el.style.boxShadow = 'none';
+    });
+    return restore;
+  }
+
+  function restoreOnepageHoverState(restore) {
+    (restore || []).forEach(function(item) {
+      if (!item || !item.el) return;
+      if (item.type === 'class') {
+        item.el.classList.add(item.name);
+      } else if (item.type === 'style') {
+        if (item.underlineWidth) item.el.style.setProperty('--underline-width', item.underlineWidth);
+        else item.el.style.removeProperty('--underline-width');
+        item.el.style.textDecoration = item.textDecoration || '';
+        item.el.style.borderBottom = item.borderBottom || '';
+        item.el.style.boxShadow = item.boxShadow || '';
+      }
+    });
   }
 
   function getCaptureFileName() {
@@ -648,10 +694,13 @@
 
     let setup = null;
     let imageRestore = null;
+    let hoverRestore = null;
     try {
       const html2canvas = await loadHtml2Canvas();
       setup = getCaptureSetup();
       await waitForPageAssets(setup.target);
+      hoverRestore = clearOnepageHoverState(setup.target);
+      await new Promise(function(resolve) { requestAnimationFrame(function() { requestAnimationFrame(resolve); }); });
       const imageMap = await buildImageReplacementMap(setup.target);
       imageRestore = applyImageMapToRoot(setup.target, imageMap, true);
       await waitForPageAssets(setup.target);
@@ -684,6 +733,7 @@
       alert('이미지 다운로드에 실패했습니다. 외부 이미지 권한(CORS)이나 영상 요소 때문에 캡처가 제한됐을 수 있습니다.');
     } finally {
       restoreImageMapChanges(imageRestore);
+      restoreOnepageHoverState(hoverRestore);
       if (setup && typeof setup.cleanup === 'function') setup.cleanup();
       button.classList.remove('is-busy');
       button.setAttribute('title', originalTitle);

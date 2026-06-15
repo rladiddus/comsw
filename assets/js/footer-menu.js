@@ -479,7 +479,10 @@
       + '#canvas { height: auto !important; min-height: 1080px !important; }'
       + '.curriculum-table { height: auto !important; overflow: visible !important; grid-template-rows: 70px auto !important; }'
       + '.table-body { height: auto !important; max-height: none !important; overflow: visible !important; }'
-      + '#scale-wrapper { height: auto !important; min-height: 1080px !important; }';
+      + '#scale-wrapper { height: auto !important; min-height: 1080px !important; }'
+      + '.subject-cell.row-hover { font-weight: inherit !important; }'
+      + '.subject-cell.col-subject.row-hover .subject-name-text::after { width: 0 !important; }'
+      + '.onepage-img-box, .onepage-img-box img, .dept-tab, .popup-close-btn, .lightbox-nav, .back-btn { transform: none !important; box-shadow: none !important; }';
     clonedDoc.head.appendChild(style);
 
     if (setup && setup.kind === 'roadmap') {
@@ -506,6 +509,12 @@
       const wrapper = clonedDoc.getElementById('scale-wrapper');
       const table = clonedDoc.querySelector('.curriculum-table');
       const tableBody = clonedDoc.getElementById('table-body');
+      Array.prototype.slice.call(clonedDoc.querySelectorAll('.row-hover')).forEach(function(el) {
+        el.classList.remove('row-hover');
+      });
+      Array.prototype.slice.call(clonedDoc.querySelectorAll('.title-eng')).forEach(function(el) {
+        el.style.display = 'inline-block';
+      });
       if (viewport) {
         viewport.style.height = setup.height + 'px';
         viewport.style.overflow = 'visible';

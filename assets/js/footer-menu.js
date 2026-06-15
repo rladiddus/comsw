@@ -205,9 +205,27 @@
     return parts[0] || 1;
   }
 
+  function getProxyImageUrl(url) {
+    if (!url || /^data:|^blob:/i.test(url)) return '';
+    return 'https://images.weserv.nl/?url=' + encodeURIComponent(url);
+  }
+
+  function getDriveImageUrl(url) {
+    const raw = String(url || '');
+    let match = raw.match(/\/(?:file\/)?d\/([a-zA-Z0-9_-]+)/);
+    if (!match) match = raw.match(/[?&]id=([a-zA-Z0-9_-]+)/);
+    return match && match[1] ? 'https://lh3.googleusercontent.com/d/' + match[1] + '=w1200' : '';
+  }
+
+  function extractCssUrl(value) {
+    const text = String(value || '');
+    const match = text.match(/url\((['"]?)(.*?)\1\)/i);
+    return match ? match[2] : '';
+  }
+
   function imageToDataUrl(url) {
     const controller = window.AbortController ? new AbortController() : null;
-    const timer = controller ? setTimeout(function() { controller.abort(); }, 2500) : null;
+    const timer = controller ? setTimeout(function() { controller.abort(); }, 5000) : null;
     return fetch(url, {
       mode: 'cors',
       credentials: 'omit',
@@ -230,38 +248,116 @@
       });
   }
 
+  function imageToDataUrlWithFallbacks(url) {
+    const proxyUrl = getProxyImageUrl(url);
+    const driveUrl = getDriveImageUrl(url);
+    const candidates = [url];
+    if (driveUrl && candidates.indexOf(driveUrl) === -1) candidates.push(driveUrl);
+    if (proxyUrl && candidates.indexOf(proxyUrl) === -1) candidates.push(proxyUrl);
+    let chain = Promise.reject();
+    candidates.forEach(function(candidate) {
+      chain = chain.catch(function() {
+        return imageToDataUrl(candidate);
+      });
+    });
+    return chain;
+  }
+
   async function buildImageReplacementMap(root) {
     const map = {};
-    const imgs = Array.prototype.slice.call((root || document).querySelectorAll('img'));
+    const targetRoot = root || document;
+    const imgs = Array.prototype.slice.call(targetRoot.querySelectorAll('img'));
+    const bgElements = Array.prototype.slice.call(targetRoot.querySelectorAll('*'));
     const urls = [];
+    function addUrl(url) {
+      if (!url || /^data:|^blob:/i.test(url)) return;
+      if (urls.indexOf(url) === -1) urls.push(url);
+    }
+
     imgs.forEach(function(img) {
       const src = img.currentSrc || img.src || img.getAttribute('src') || '';
       const rawSrc = img.getAttribute('src') || '';
-      if (!src || /^data:|^blob:/i.test(src)) return;
-      if (urls.indexOf(src) === -1) urls.push(src);
-      if (rawSrc && urls.indexOf(rawSrc) === -1 && !/^data:|^blob:/i.test(rawSrc)) urls.push(rawSrc);
+      addUrl(src);
+      addUrl(rawSrc);
       img.setAttribute('crossorigin', 'anonymous');
+    });
+    bgElements.forEach(function(el) {
+      const bg = window.getComputedStyle(el).backgroundImage;
+      addUrl(extractCssUrl(bg));
     });
 
     await Promise.all(urls.map(function(url) {
-      return imageToDataUrl(url)
-        .then(function(dataUrl) { map[url] = dataUrl; })
+      return imageToDataUrlWithFallbacks(url)
+        .then(function(dataUrl) {
+          map[url] = dataUrl;
+          const proxyUrl = getProxyImageUrl(url);
+          if (proxyUrl) map[proxyUrl] = dataUrl;
+        })
         .catch(function() {});
     }));
     return map;
   }
 
-  function replaceCloneImages(clonedDoc, imageMap) {
-    if (!clonedDoc || !imageMap) return;
-    Array.prototype.slice.call(clonedDoc.querySelectorAll('img')).forEach(function(img) {
+  function applyImageMapToRoot(root, imageMap, useComputedStyles) {
+    if (!root || !imageMap || !root.querySelectorAll) return [];
+    const restore = [];
+    const view = root.defaultView || (root.ownerDocument && root.ownerDocument.defaultView) || window;
+
+    Array.prototype.slice.call(root.querySelectorAll('img')).forEach(function(img) {
       const src = img.currentSrc || img.src || img.getAttribute('src') || '';
       const rawSrc = img.getAttribute('src') || '';
-      const replacement = imageMap[src] || imageMap[rawSrc];
-      if (replacement) img.setAttribute('src', replacement);
+      const driveSrc = getDriveImageUrl(src) || getDriveImageUrl(rawSrc);
+      const replacement = imageMap[src] || imageMap[rawSrc] || imageMap[driveSrc];
+      if (replacement) {
+        restore.push({
+          el: img,
+          src: img.getAttribute('src'),
+          srcset: img.getAttribute('srcset')
+        });
+        img.removeAttribute('srcset');
+        img.setAttribute('src', replacement);
+      }
       img.setAttribute('crossorigin', 'anonymous');
       img.style.visibility = 'visible';
       img.style.display = img.style.display === 'none' && replacement ? 'block' : img.style.display;
     });
+
+    Array.prototype.slice.call(root.querySelectorAll('*')).forEach(function(el) {
+      const rawBg = el.style && el.style.backgroundImage ? el.style.backgroundImage : '';
+      const computedBg = useComputedStyles && view ? view.getComputedStyle(el).backgroundImage : '';
+      const bgUrl = extractCssUrl(rawBg) || extractCssUrl(computedBg);
+      const driveBg = getDriveImageUrl(bgUrl);
+      const replacement = imageMap[bgUrl] || imageMap[driveBg];
+      if (replacement) {
+        restore.push({
+          el: el,
+          backgroundImage: el.style.backgroundImage
+        });
+        el.style.backgroundImage = 'url("' + replacement + '")';
+      }
+    });
+
+    return restore;
+  }
+
+  function restoreImageMapChanges(restore) {
+    (restore || []).forEach(function(item) {
+      if (!item || !item.el) return;
+      if (Object.prototype.hasOwnProperty.call(item, 'src')) {
+        if (item.src === null) item.el.removeAttribute('src');
+        else item.el.setAttribute('src', item.src);
+        if (item.srcset === null) item.el.removeAttribute('srcset');
+        else item.el.setAttribute('srcset', item.srcset);
+      }
+      if (Object.prototype.hasOwnProperty.call(item, 'backgroundImage')) {
+        item.el.style.backgroundImage = item.backgroundImage;
+      }
+    });
+  }
+
+  function replaceCloneImages(clonedDoc, imageMap) {
+    if (!clonedDoc || !imageMap) return;
+    applyImageMapToRoot(clonedDoc, imageMap, true);
   }
 
   function getPageKind() {
@@ -481,11 +577,14 @@
     button.setAttribute('aria-busy', 'true');
 
     let setup = null;
+    let imageRestore = null;
     try {
       const html2canvas = await loadHtml2Canvas();
       setup = getCaptureSetup();
       await waitForPageAssets(setup.target);
       const imageMap = await buildImageReplacementMap(setup.target);
+      imageRestore = applyImageMapToRoot(setup.target, imageMap, true);
+      await waitForPageAssets(setup.target);
 
       const canvas = await html2canvas(setup.target, {
         backgroundColor: window.getComputedStyle(document.body).backgroundColor || '#ffffff',
@@ -514,6 +613,7 @@
       if (window.console) console.error('[footer-menu capture]', err);
       alert('이미지 다운로드에 실패했습니다. 외부 이미지 권한(CORS)이나 영상 요소 때문에 캡처가 제한됐을 수 있습니다.');
     } finally {
+      restoreImageMapChanges(imageRestore);
       if (setup && typeof setup.cleanup === 'function') setup.cleanup();
       button.classList.remove('is-busy');
       button.setAttribute('title', originalTitle);

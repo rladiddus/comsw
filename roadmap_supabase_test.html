@@ -569,6 +569,7 @@
     const ROADMAP_SHEET_NAME = '로드맵';
     const CURRICULUM_SHEET_NAME = '컴수원_전체수업';
     const MAIN_PAGE_SHEET_NAME = '메인 페이지';
+    const ROADMAP_LOGO_FALLBACK_URL = 'https://drive.google.com/file/d/1CuNfRi9sYc4r-K-VtQwC7JMn0PC0y0DE/view?usp=drive_link';
 
     function setLoadingProgress(percent) {
       document.documentElement.style.setProperty('--loading-progress', Math.max(0, Math.min(100, percent)) + '%');
@@ -745,10 +746,14 @@
     }
 
     async function loadRoadmapLogoFromSupabase() {
-      const rows = await fetchSupabaseRowsForSheet(MAIN_PAGE_SHEET_NAME);
-      const row2 = rows.find(function(row) { return Number(row.row_number) === 2; }) || rows[0];
-      const values = getRawValues(row2);
-      return convertDriveUrl(values[9]); // J열
+      try {
+        const rows = await fetchSupabaseRowsForSheet(MAIN_PAGE_SHEET_NAME);
+        const row2 = rows.find(function(row) { return Number(row.row_number) === 2; }) || rows[0];
+        const values = getRawValues(row2);
+        return convertDriveUrl(values[9]) || convertDriveUrl(ROADMAP_LOGO_FALLBACK_URL); // J열
+      } catch (e) {
+        return convertDriveUrl(ROADMAP_LOGO_FALLBACK_URL);
+      }
     }
 
     async function loadCurriculumSimpleByDeptFromSupabase(deptName) {
@@ -1151,25 +1156,29 @@
 
       loadRoadmapLogoFromSupabase()
         .then(function(url) {
-          if (!url) {
-            logo.style.display = 'none';
-            logoWrap.classList.add('missing-logo');
-            return;
-          }
+          url = url || convertDriveUrl(ROADMAP_LOGO_FALLBACK_URL);
           logoWrap.classList.remove('logo-placeholder', 'missing-logo');
           logo.style.display = 'block';
+          logo.style.visibility = 'visible';
           logo.onload = function() {
             logoWrap.classList.remove('logo-placeholder', 'missing-logo');
+            logo.style.display = 'block';
+            logo.style.visibility = 'visible';
           };
           logo.onerror = function() {
-            logo.style.display = 'none';
+            logo.onerror = null;
+            logo.src = convertDriveUrl(ROADMAP_LOGO_FALLBACK_URL);
+            logo.style.display = 'block';
+            logo.style.visibility = 'visible';
             logoWrap.classList.add('missing-logo');
           };
           logo.src = url;
         })
         .catch(function() {
-          logo.style.display = 'none';
-          logoWrap.classList.add('missing-logo');
+          logoWrap.classList.remove('logo-placeholder', 'missing-logo');
+          logo.style.display = 'block';
+          logo.style.visibility = 'visible';
+          logo.src = convertDriveUrl(ROADMAP_LOGO_FALLBACK_URL);
         });
     }
 
@@ -1287,6 +1296,6 @@
       }
     }
   </script>
-<script src="./assets/js/footer-menu.js?v=cf33b08"></script>
+<script src="./assets/js/footer-menu.js?v=logo-restore-1"></script>
 </body>
 </html>

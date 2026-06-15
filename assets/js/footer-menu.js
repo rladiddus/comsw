@@ -312,7 +312,10 @@
         restore.push({
           el: img,
           src: img.getAttribute('src'),
-          srcset: img.getAttribute('srcset')
+          srcset: img.getAttribute('srcset'),
+          display: img.style.display,
+          visibility: img.style.visibility,
+          crossorigin: img.getAttribute('crossorigin')
         });
         img.removeAttribute('srcset');
         img.setAttribute('src', replacement);
@@ -348,6 +351,10 @@
         else item.el.setAttribute('src', item.src);
         if (item.srcset === null) item.el.removeAttribute('srcset');
         else item.el.setAttribute('srcset', item.srcset);
+        if (item.crossorigin === null) item.el.removeAttribute('crossorigin');
+        else item.el.setAttribute('crossorigin', item.crossorigin);
+        item.el.style.display = item.display || '';
+        item.el.style.visibility = item.visibility || '';
       }
       if (Object.prototype.hasOwnProperty.call(item, 'backgroundImage')) {
         item.el.style.backgroundImage = item.backgroundImage;

@@ -367,6 +367,58 @@
     applyImageMapToRoot(clonedDoc, imageMap, true);
   }
 
+  function escapeSvgText(text) {
+    return String(text || '')
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
+  }
+
+  function replaceGradientTextWithSvg(clonedDoc, selector) {
+    Array.prototype.slice.call(clonedDoc.querySelectorAll(selector)).forEach(function(el) {
+      const text = el.textContent || '';
+      if (!text.trim()) return;
+      const win = clonedDoc.defaultView || window;
+      const styles = win.getComputedStyle(el);
+      const rect = el.getBoundingClientRect();
+      const width = Math.ceil(rect.width || el.scrollWidth || 1);
+      const height = Math.ceil(rect.height || el.scrollHeight || 1);
+      const fontSize = parseFloat(styles.fontSize) || 60;
+      const lineHeight = parseFloat(styles.lineHeight) || Math.round(fontSize * 1.2);
+      const baseline = Math.round((height - lineHeight) / 2 + fontSize * 0.86);
+      const letterSpacing = styles.letterSpacing === 'normal' ? '0' : styles.letterSpacing;
+      const fontFamily = styles.fontFamily || 'Pretendard, sans-serif';
+      const fontWeight = styles.fontWeight || '700';
+      const svg = ''
+        + '<svg xmlns="http://www.w3.org/2000/svg" width="' + width + '" height="' + height + '" viewBox="0 0 ' + width + ' ' + height + '">'
+        + '<defs><linearGradient id="g" x1="0%" y1="0%" x2="100%" y2="0%">'
+        + '<stop offset="0%" stop-color="rgb(255,88,88)"/>'
+        + '<stop offset="100%" stop-color="rgb(163,153,255)"/>'
+        + '</linearGradient></defs>'
+        + '<text x="0" y="' + baseline + '" fill="url(#g)"'
+        + ' font-family="' + escapeSvgText(fontFamily) + '"'
+        + ' font-size="' + fontSize + '"'
+        + ' font-weight="' + escapeSvgText(fontWeight) + '"'
+        + ' letter-spacing="' + escapeSvgText(letterSpacing) + '">'
+        + escapeSvgText(text)
+        + '</text></svg>';
+      const img = clonedDoc.createElement('img');
+      img.setAttribute('alt', text);
+      img.setAttribute('src', 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svg));
+      img.style.display = 'inline-block';
+      img.style.width = width + 'px';
+      img.style.height = height + 'px';
+      img.style.verticalAlign = 'top';
+      el.textContent = '';
+      el.style.background = 'none';
+      el.style.webkitTextFillColor = 'initial';
+      el.style.color = 'transparent';
+      el.appendChild(img);
+    });
+  }
+
   function getPageKind() {
     if (/^Curriculum_full/i.test(currentPage)) return 'curriculumFull';
     if (/^Curriculum_onepage/i.test(currentPage)) return 'curriculumOnepage';
@@ -481,7 +533,8 @@
       + '.table-body { height: auto !important; max-height: none !important; overflow: visible !important; }'
       + '#scale-wrapper { height: auto !important; min-height: 1080px !important; }'
       + '.subject-cell.row-hover { font-weight: inherit !important; }'
-      + '.subject-cell.col-subject.row-hover .subject-name-text::after { width: 0 !important; }'
+      + '.subject-name-text { --underline-width: 0px !important; }'
+      + '.subject-name-text::after, .subject-cell.col-subject.row-hover .subject-name-text::after { content: none !important; display: none !important; width: 0 !important; height: 0 !important; }'
       + '.onepage-img-box, .onepage-img-box img, .dept-tab, .popup-close-btn, .lightbox-nav, .back-btn { transform: none !important; box-shadow: none !important; }';
     clonedDoc.head.appendChild(style);
 
@@ -515,6 +568,7 @@
       Array.prototype.slice.call(clonedDoc.querySelectorAll('.title-eng')).forEach(function(el) {
         el.style.display = 'inline-block';
       });
+      replaceGradientTextWithSvg(clonedDoc, '.title-eng');
       if (viewport) {
         viewport.style.height = setup.height + 'px';
         viewport.style.overflow = 'visible';

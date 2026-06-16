@@ -507,11 +507,83 @@
     };
   }
 
+  function getActivePopup() {
+    const kind = getPageKind();
+    if (kind === 'curriculumOnepage') {
+      const lightbox = document.getElementById('lightbox-overlay');
+      if (lightbox && lightbox.classList.contains('visible')) {
+        return { kind: 'curriculumOnepageLightbox', target: lightbox };
+      }
+      const popup = document.getElementById('curriculum-popup');
+      if (popup && popup.classList.contains('visible')) {
+        const panel = popup.querySelector('.curriculum-popup-panel') || popup;
+        return { kind: 'curriculumOnepagePopup', target: panel };
+      }
+    }
+    if (kind === 'roadmap') {
+      const popup = document.getElementById('curriculum-popup');
+      if (popup && popup.classList.contains('visible')) {
+        const panel = popup.querySelector('.curriculum-popup-panel') || popup;
+        return { kind: 'roadmapPopup', target: panel };
+      }
+    }
+    return null;
+  }
+
+  function preparePopupForCapture(info) {
+    const restore = [];
+    function patch(el, prop, value) {
+      if (!el) return;
+      restore.push({ el: el, prop: prop, value: el.style[prop] });
+      el.style[prop] = value;
+    }
+
+    if (info.kind === 'roadmapPopup') {
+      const panel = info.target;
+      patch(panel, 'maxHeight', 'none');
+      patch(panel, 'height', 'auto');
+      patch(panel, 'overflow', 'visible');
+      const body = document.getElementById('curriculum-popup-body');
+      patch(body, 'maxHeight', 'none');
+      patch(body, 'overflow', 'visible');
+      const scroll = panel.querySelector('.roadmap-curriculum-scroll');
+      patch(scroll, 'maxHeight', 'none');
+      patch(scroll, 'overflowY', 'visible');
+      patch(scroll, 'overflowX', 'visible');
+    }
+
+    return function restoreAll() {
+      restore.forEach(function(r) {
+        if (r.value) r.el.style[r.prop] = r.value;
+        else r.el.style.removeProperty(r.prop.replace(/([A-Z])/g, '-$1').toLowerCase());
+      });
+    };
+  }
+
   function getCaptureSetup() {
     if (getPageKind() === 'curriculumFull') {
       const exportSetup = createCurriculumFullExport();
       if (exportSetup) return exportSetup;
     }
+
+    const popupInfo = getActivePopup();
+    if (popupInfo) {
+      const restore = preparePopupForCapture(popupInfo);
+      // 강제 reflow로 scroll 영역 풀린 height 측정 정확하게
+      void popupInfo.target.offsetHeight;
+      const rect = popupInfo.target.getBoundingClientRect();
+      const width = Math.ceil(Math.max(popupInfo.target.scrollWidth, rect.width));
+      const height = Math.ceil(Math.max(popupInfo.target.scrollHeight, rect.height));
+      return {
+        kind: popupInfo.kind,
+        target: popupInfo.target,
+        width: width,
+        height: height,
+        scale: Math.min(2, window.devicePixelRatio || 1.5),
+        cleanup: function() { restore(); }
+      };
+    }
+
     const size = getScrollExpandedSize();
     return {
       kind: getPageKind(),
@@ -559,6 +631,51 @@
         rows.style.height = 'auto';
         rows.style.maxHeight = 'none';
         rows.style.overflow = 'visible';
+      }
+    }
+
+    if (setup && (setup.kind === 'curriculumOnepagePopup'
+                || setup.kind === 'curriculumOnepageLightbox'
+                || setup.kind === 'roadmapPopup')) {
+      const popup = clonedDoc.getElementById('curriculum-popup');
+      if (popup) {
+        popup.classList.add('visible');
+        popup.style.opacity = '1';
+        popup.style.visibility = 'visible';
+      }
+      const lightbox = clonedDoc.getElementById('lightbox-overlay');
+      if (lightbox && setup.kind === 'curriculumOnepageLightbox') {
+        lightbox.classList.add('visible');
+        lightbox.style.opacity = '1';
+        lightbox.style.visibility = 'visible';
+      }
+      const panel = clonedDoc.querySelector('.curriculum-popup-panel');
+      if (panel) {
+        panel.style.transform = 'none';
+        panel.style.position = 'relative';
+        panel.style.top = 'auto';
+        panel.style.left = 'auto';
+        panel.style.right = 'auto';
+        panel.style.bottom = 'auto';
+        panel.style.margin = '0';
+        if (setup.kind === 'roadmapPopup') {
+          panel.style.maxHeight = 'none';
+          panel.style.height = 'auto';
+          panel.style.overflow = 'visible';
+        }
+      }
+      if (setup.kind === 'roadmapPopup') {
+        const body = clonedDoc.getElementById('curriculum-popup-body');
+        if (body) {
+          body.style.maxHeight = 'none';
+          body.style.overflow = 'visible';
+        }
+        const scroll = clonedDoc.querySelector('.roadmap-curriculum-scroll');
+        if (scroll) {
+          scroll.style.maxHeight = 'none';
+          scroll.style.overflowY = 'visible';
+          scroll.style.overflowX = 'visible';
+        }
       }
     }
 
@@ -711,11 +828,20 @@
       const html2canvas = await loadHtml2Canvas();
       setup = getCaptureSetup();
       await waitForPageAssets(setup.target);
-      hoverRestore = clearOnepageHoverState(setup.target);
+      // 본문(curriculumOnepage 페이지) 캡처일 때만 호버 클리어 — popup 캡처 시 popup의 visible 유지
+      if (setup.kind === 'curriculumOnepage') {
+        hoverRestore = clearOnepageHoverState(setup.target);
+      }
       await new Promise(function(resolve) { requestAnimationFrame(function() { requestAnimationFrame(resolve); }); });
       const imageMap = await buildImageReplacementMap(setup.target);
       imageRestore = applyImageMapToRoot(setup.target, imageMap, true);
       await waitForPageAssets(setup.target);
+
+      const isPopupCapture = setup.kind === 'curriculumOnepagePopup'
+        || setup.kind === 'curriculumOnepageLightbox'
+        || setup.kind === 'roadmapPopup';
+      const windowW = isPopupCapture ? window.innerWidth : setup.width;
+      const windowH = isPopupCapture ? window.innerHeight : setup.height;
 
       const canvas = await html2canvas(setup.target, {
         backgroundColor: window.getComputedStyle(document.body).backgroundColor || '#ffffff',
@@ -727,8 +853,8 @@
         y: 0,
         width: setup.width,
         height: setup.height,
-        windowWidth: setup.width,
-        windowHeight: setup.height,
+        windowWidth: windowW,
+        windowHeight: windowH,
         scrollX: 0,
         scrollY: 0,
         onclone: function(clonedDoc) {

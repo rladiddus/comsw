@@ -1108,12 +1108,30 @@
           .map(_curNorm)
           .filter(Boolean);
       }
+      // 로드맵 A열 ↔ 탭 학과명 매칭.
+      //  1) 완전 일치를 우선 사용(기존 동작 유지 — 정상 학과는 영향 없이 1행만 채택).
+      //  2) 완전 일치 행이 하나도 없으면 "학과"를 뗀 키워드로 부분 일치 폴백.
+      //     예) 자격증학과 → 키워드 "자격증" → 로드맵의 "사무자격증","디자인자격증",
+      //         "건축/기계자격증" 행을 모두 수집해 과목을 시트 순서대로 이어붙인다.
+      //     (양방향 포함: A열이 키워드를 포함하거나 키워드가 A열을 포함. 1글자 키워드는 오매칭 방지로 제외)
+      const deptKeyword = _curNorm(deptName).replace(/학과$/, '').trim();
+      const hasExactDept = roadmapRows.some(function(row) {
+        return _curNorm(_curRaw(row)[0]) === deptName;
+      });
+      const useFuzzyDept = !hasExactDept && deptKeyword.length >= 2;
+      function roadmapRowMatches(aVal) {
+        if (!aVal) return false;
+        if (aVal === deptName) return true;
+        if (!useFuzzyDept) return false;
+        return aVal.indexOf(deptKeyword) !== -1 || deptKeyword.indexOf(aVal) !== -1;
+      }
+
       const selectedSubjects = [];
       const selectedSet = {};
       for (let i = 0; i < roadmapRows.length; i++) {
         const vals = _curRaw(roadmapRows[i]);
         const aVal = _curNorm(vals[0]);
-        if (aVal !== deptName) continue;
+        if (!roadmapRowMatches(aVal)) continue;
         for (let c = 1; c < vals.length; c++) {
           splitRoadmapSubjects(vals[c]).forEach(function(name) {
             if (selectedSet[name]) return;
@@ -1121,7 +1139,8 @@
             selectedSubjects.push(name);
           });
         }
-        break;
+        // 완전 일치 모드는 1행만 사용(기존 동작). 폴백 모드는 여러 학과 행을 모두 모은다.
+        if (!useFuzzyDept) break;
       }
 
       // 컴수원_전체수업의 C열(인덱스 2)에서 과목별 행 인덱스 모음 (병합은 sync 시 forward-fill됨)

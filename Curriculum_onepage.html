@@ -1256,7 +1256,10 @@
       // 리사이즈
       window.addEventListener('resize', applyPageScale);
       window.addEventListener('resize', applyPopupSlideScale);
-      window.addEventListener('resize', updateSubjectUnderlineWidths);
+      window.addEventListener('resize', function() {
+        fitSubjectNames();
+        updateSubjectUnderlineWidths();
+      });
       
       // 마우스 호버 감지 (백 버튼)
       initHoverDetection();
@@ -1442,7 +1445,33 @@
         });
       });
 
+      fitSubjectNames();
       updateSubjectUnderlineWidths();
+      // 웹폰트(Pretendard)가 늦게 로드되면 글자 너비가 달라지므로 로드 후 한 번 더 보정
+      if (document.fonts && document.fonts.ready) {
+        document.fonts.ready.then(function() {
+          fitSubjectNames();
+          updateSubjectUnderlineWidths();
+        }).catch(function() {});
+      }
+    }
+
+    // 과목명(첫 열, 165px 고정)이 열 너비보다 길면 옆 열/구분선에 가려 잘리므로,
+    // 셀 폭에 맞게 폰트 크기를 자동 축소한다. (텍스트 너비는 폰트 크기에 비례하므로 1패스 비례 계산)
+    function fitSubjectNames() {
+      const BASE = 22;   // .subject-cell 기본 폰트 크기(px)
+      const MIN = 11;    // 가독성 하한
+      document.querySelectorAll('.subject-cell.col-subject').forEach(function(cell) {
+        const span = cell.querySelector('.subject-name-text');
+        if (!span) return;
+        span.style.fontSize = BASE + 'px';          // 측정 전 기준 크기로 리셋
+        const avail = cell.clientWidth - 10;         // 좌우 5px 여백(열 경계와 안 닿게)
+        const natural = span.scrollWidth;            // 기준 크기에서의 자연 너비
+        if (avail > 0 && natural > avail) {
+          const size = Math.max(MIN, Math.floor(BASE * avail / natural));
+          span.style.fontSize = size + 'px';
+        }
+      });
     }
 
     function updateSubjectUnderlineWidths() {

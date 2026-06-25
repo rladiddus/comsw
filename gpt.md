@@ -2115,4 +2115,15 @@
 - 반영:
   - commit: `46ec894 fix(onepage): roadmap dept match falls back to keyword (자격증학과)`
   - `git push origin main` 성공.
-- 후속 후보: `roadmap.html`의 학과 클릭 팝업도 동일하게 로드맵 기반이라 같은 폴백이 필요할 수 있음(미적용).
+- 후속 후보: `roadmap.html`의 학과 클릭 팝업도 동일하게 로드맵 기반이라 같은 폴백이 필요할 수 있음(미적용 — 사용자가 roadmap은 기존대로 유지 결정).
+
+### `Curriculum_onepage.html` 긴 과목명 자동 글자 크기 축소
+
+- 작업 전 이 `gpt.md` 파일을 확인했다.
+- 증상: 과목명 첫 열(`grid-template-columns: 165px ...` 고정폭, `word-break: keep-all`, 기본 22px)에서 `전산응용건축제도기능사`처럼 긴 과목명이 열 너비를 넘어 옆 열 흰 배경/166px 세로 구분선에 가려 잘림.
+- 수정: `fitSubjectNames()` 추가. `.subject-cell.col-subject` 각 셀의 `.subject-name-text` 자연 너비(`scrollWidth`)를 기준 폰트(22px)에서 측정하고, 셀 폭(`clientWidth - 10`)을 넘으면 `폰트 = floor(22 * 가용폭/자연폭)`로 비례 축소(하한 11px). 텍스트 너비는 폰트 크기에 비례하므로 1패스로 정확히 맞춤. `clientWidth/scrollWidth`는 CSS transform scale에 영향받지 않아 1920 좌표계에서 일관됨.
+- 호출 위치: `bindSubjectRows()`(렌더 직후, `updateSubjectUnderlineWidths()` 앞), `document.fonts.ready`(웹폰트 Pretendard 로드 후 재보정), `resize`. 짧은 과목명은 22px 유지.
+- 검증: `node scripts/check-syntax.js` 통과. 함수 배선(정의/호출 4지점) 확인.
+- 반영:
+  - commit: `8ca27ae feat(onepage): auto-shrink long subject names to fit column`
+  - `git push origin main` 성공.

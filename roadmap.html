@@ -423,6 +423,9 @@
       background: #edf5f7;
       font-weight: 800;
     }
+    .roadmap-curriculum-cell.subject .roadmap-subject-name {
+      display: inline-block;
+    }
     .roadmap-curriculum-cell.content {
       justify-content: center;
       text-align: center;
@@ -1136,7 +1139,7 @@
         + '<div class="roadmap-curriculum-header">학습수준</div>';
       const rowHtml = subjects.map(function(subject) {
         return ''
-          + '<div class="roadmap-curriculum-cell subject">' + escapeHtml(subject.name) + '</div>'
+          + '<div class="roadmap-curriculum-cell subject"><span class="roadmap-subject-name">' + escapeHtml(subject.name) + '</span></div>'
           + '<div class="roadmap-curriculum-cell">' + escapeHtml(subject.duration) + '</div>'
           + '<div class="roadmap-curriculum-cell content">' + escapeHtml(subject.content) + '</div>'
           + '<div class="roadmap-curriculum-cell">' + escapeHtml(subject.program) + '</div>'
@@ -1148,6 +1151,30 @@
         + '<div class="roadmap-curriculum-scroll">'
         + '<div class="roadmap-curriculum-table">' + rowHtml + '</div>'
         + '</div>';
+
+      // 과목명이 첫 열(145px)보다 길면 잘리므로 셀 폭에 맞게 폰트 자동 축소
+      fitRoadmapSubjectNames();
+      if (document.fonts && document.fonts.ready) {
+        document.fonts.ready.then(fitRoadmapSubjectNames).catch(function() {});
+      }
+    }
+
+    // 팝업 과목명(첫 열, 145px 고정)이 열 너비보다 길면 잘리므로 셀 폭에 맞게 폰트 크기를 자동 축소.
+    // (텍스트 너비는 폰트 크기에 비례하므로 1패스 비례 계산. clientWidth/scrollWidth는 transform scale 무관.)
+    function fitRoadmapSubjectNames() {
+      const BASE = 16;   // .roadmap-curriculum-cell 기본 폰트 크기(px)
+      const MIN = 11;    // 가독성 하한
+      document.querySelectorAll('#curriculum-popup-body .roadmap-curriculum-cell.subject').forEach(function(cell) {
+        const span = cell.querySelector('.roadmap-subject-name');
+        if (!span) return;
+        span.style.fontSize = BASE + 'px';     // 측정 전 기준 크기로 리셋
+        const avail = cell.clientWidth - 10;   // 좌우 5px 여백(열 경계와 안 닿게)
+        const natural = span.scrollWidth;      // 기준 크기에서의 자연 너비
+        if (avail > 0 && natural > avail) {
+          const size = Math.max(MIN, Math.floor(BASE * avail / natural));
+          span.style.fontSize = size + 'px';
+        }
+      });
     }
 
     function closeCurriculumPopup() {

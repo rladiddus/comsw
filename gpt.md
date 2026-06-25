@@ -2127,3 +2127,14 @@
 - 반영:
   - commit: `8ca27ae feat(onepage): auto-shrink long subject names to fit column`
   - `git push origin main` 성공.
+
+### `Curriculum_onepage.html` 학과 전환 시 과목내용 스크롤 맨 위로 리셋
+
+- 작업 전 이 `gpt.md` 파일을 확인했다.
+- 증상: 과목내용을 스크롤한 상태에서 다른 학과 탭을 누르면 스크롤 위치가 유지되어, 다시 맨 위로 올려야 했음.
+- 원인: `selectDept()`가 `#table-body`(스크롤 컨테이너, `.table-body { overflow-y:auto }`)에 로딩 메시지를 넣은 직후, 캐시된 데이터라 같은 태스크에서 곧바로 `renderCurriculum()`이 본문을 채운다. 두 innerHTML 사이에 레이아웃 reflow가 없어 이전 `scrollTop`이 0으로 클램프되지 못하고, 새 긴 콘텐츠에 그대로 유지됨.
+- 수정: `renderCurriculum()`에서 표 본문 innerHTML을 채운 직후 `body.scrollTop = 0;` 추가. 학과 전환마다 항상 맨 위에서 시작.
+- 검증: `node scripts/check-syntax.js` 통과.
+- 반영:
+  - commit: `bcc2031 fix(onepage): reset table scroll to top on dept switch`
+  - `git push origin main` 성공.

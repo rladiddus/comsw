@@ -2138,3 +2138,17 @@
 - 반영:
   - commit: `bcc2031 fix(onepage): reset table scroll to top on dept switch`
   - `git push origin main` 성공.
+
+### `roadmap.html` 학과 팝업 표의 긴 과목명 자동 글자 크기 축소
+
+- 작업 전 이 `gpt.md` 파일을 확인했다.
+- 증상: roadmap 학과 클릭 팝업(`#curriculum-popup`) 표에서 과목명 첫 열(`grid-template-columns: 145px ...` 고정폭, `.roadmap-curriculum-cell.subject` 16px/800)이 길면(`전산응용건축제도기능사` 등) 잘림. (onepage와 동일 패턴, 팝업 버전.)
+- 수정: onepage의 `fitSubjectNames()`와 같은 방식 적용.
+  - `renderCurriculumPopup()`에서 과목명을 `<span class="roadmap-subject-name">`(inline-block)로 감쌈.
+  - `fitRoadmapSubjectNames()` 추가: `#curriculum-popup-body .roadmap-curriculum-cell.subject`의 span 자연 너비를 16px 기준으로 재고, `cell.clientWidth - 10`을 넘으면 `폰트 = floor(16 * 가용폭/자연폭)`(하한 11px)로 비례 축소.
+  - 호출: 팝업 본문 렌더 직후 + `document.fonts.ready` 후 재보정. 팝업은 `openCurriculumPopup()`에서 `visible` 클래스가 렌더보다 먼저 붙어 측정 시 레이아웃이 잡혀 있음.
+- 운영 영향: roadmap의 학과 매칭/팝업 데이터 로직은 변경 없음(사용자가 roadmap 데이터 로직은 기존 유지 결정). 표시(폰트 크기)만 보정.
+- 검증: `node scripts/check-syntax.js` 통과. 배선(정의/호출/CSS/span) 확인.
+- 반영:
+  - commit: `d99bc5f feat(roadmap): auto-shrink long subject names in dept popup table`
+  - `git push origin main` 성공.

@@ -1,0 +1,21 @@
+name: syntax-check
+
+# 배포(GitHub Pages) 전 JS/HTML 인라인 스크립트 구문 검사.
+# 구문 오류가 있으면 실패해 빨간 X로 표시된다.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Run syntax check
+        run: node scripts/check-syntax.js

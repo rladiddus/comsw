@@ -2062,3 +2062,42 @@
   - commit: `e6648f6 footer-menu: capture popup when open, expand roadmap popup scroll area`
   - `git push origin main` 성공.
   - 배포 폴링 후 `assets/js/footer-menu.js` 응답에 `getActivePopup` 함수 포함된 것 확인.
+
+## 2026-06-25
+
+### `gpt.md` 작업 기록 파일 GitHub(comsw) 저장소 업로드
+
+- 진행 중 프로젝트(`rladiddus/comsw`) 전체 파일을 검토하기 위해 저장소를 clone해 18개 파일을 모두 읽었다.
+- 작업 기록 `gpt.md`를 같은 `comsw` 저장소 루트에 업로드했다.
+  - commit: `5d6e895 docs: add gpt.md 작업 기록 (development work log)`
+  - `git push origin main` 성공.
+- 이후로는 작업 전 읽기 / 작업 후 기록을 모두 이 GitHub 저장소의 `gpt.md` 기준으로 수행한다.
+
+### test용 HTML 파일 `test/` 폴더로 정리
+
+- 작업 전 이 `gpt.md` 파일을 확인했다.
+- `*_supabase_test.html` 4개를 `git mv`로 `test/` 폴더로 이동(rename으로 git 이력 보존):
+  - `roadmap_supabase_test.html`, `Curriculum_full_supabase_test.html`, `Curriculum_onepage_supabase_test.html`, `item_supabase_test.html`.
+- 이동한 파일 내부의 루트 기준 상대경로를 한 단계 위로 보정: `./assets/...` → `../assets/...`, `./index.html` → `../index.html`.
+- `test/README.md`를 추가해 보관용 사본임을 설명. footer-menu의 메뉴 이동은 루트 기준(`./`)이라 test 폴더 안에서의 메뉴 이동은 보장하지 않음(보관용)을 명시.
+- 운영 영향 점검: 운영 페이지/메인 메뉴 네비게이션은 모두 루트 운영 파일명(`MENU_TO_PAGE`)만 사용하고, `footer-menu.js`의 test 파일명 매핑(`PAGE_TO_MENU`)은 현재 페이지 자기인식용 키일 뿐이라 이동 동작에 영향 없음.
+- 반영:
+  - commit: `6832627 chore: move supabase test pages into test/ folder`
+  - `git push origin main` 성공.
+
+### 배포 전 자동 문법 검사(GitHub Actions) 추가
+
+- 작업 전 이 `gpt.md` 파일을 확인했다.
+- 기존 로그에 반복되던 "node 미설치로 구문 검사 못 함" 한계를 해소하기 위해 CI 문법 검사를 추가했다.
+- 현재 상태 전수 검증: node로 `assets/js/*.js` 3개 + 모든 `*.html`의 인라인 `<script>`를 검사 → 전부 통과.
+- 신규 파일:
+  - `scripts/check-syntax.js` — 의존성 없이 Node 내장 모듈만으로 독립 `.js`와 HTML 인라인 스크립트 구문 검사. 오류 시 종료코드 1. 로컬에서도 `node scripts/check-syntax.js`로 실행 가능.
+  - `.github/workflows/syntax-check.yml` — `push`/`pull_request`(main) 시 자동 실행.
+- 반영:
+  - commit: `0245f43 ci: add pre-deploy syntax check (GitHub Actions)`
+  - `git push origin main` 성공.
+
+### 보안 점검 (세부는 별도 처리)
+
+- 작업 전 이 `gpt.md` 파일을 확인했다.
+- Supabase 공개 접근 범위를 점검했다. 발견된 보안 관련 항목은 사용자와 별도로 다루기로 했고, 이 공개 로그에는 세부 내용을 남기지 않는다(사용자 결정으로 처리 보류).

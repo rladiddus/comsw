@@ -1,0 +1,5544 @@
+﻿﻿<!DOCTYPE html>
+<html>
+<head>
+  <base target="_top">
+  <meta charset="utf-8">
+  <link rel="stylesheet" as="style" crossorigin href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable.min.css" />
+  <link href="https://fonts.googleapis.com/css2?family=Great+Vibes&family=Monomaniac+One&display=swap" rel="stylesheet">
+  <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/rladiddus/comsw@main/assets/fonts/paperlogy.css">
+  <script src="./assets/js/supabase-config.js"></script>
+  <script src="./assets/js/supabase-client.js"></script>
+  <style>
+    :root {
+      --accent-orange: #FF512F;
+      --text-gray: #555;
+    }
+    
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html, body {
+      width: 100%; height: 100vh;
+      overflow: hidden;
+      background: #2a2a2a;
+      font-family: 'Pretendard Variable', 'Pretendard', -apple-system, sans-serif;
+      color: #fff;
+    }
+    
+    /* ============================================== */
+    /*  가이드 라인                                       */
+    /* ============================================== */
+    
+    .guide-h {
+      position: fixed;
+      left: 0; right: 0;
+      height: 1px;
+      background: rgba(255, 255, 255, 0.25);
+      z-index: 5;
+      pointer-events: none;
+    }
+    .guide-h.top    { top: 40px; }
+    .guide-h.bottom { bottom: 40px; }
+    
+    .guide-v {
+      position: fixed;
+      top: 0; bottom: 0;
+      width: 1px;
+      background: rgba(255, 255, 255, 0.25);
+      z-index: 5;
+      pointer-events: none;
+    }
+    .guide-v.left   { left: 40px; }
+    .guide-v.right {
+      right: 40px;
+      transition: right 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    body.panel-open .guide-v.right {
+      right: calc(75vw + 40px);
+    }
+    /* 🎯 확대 상태에서는 오른쪽 가이드선 화면 밖으로 */
+    body.panel-fullscreen .guide-v.right {
+      right: calc(100vw + 40px);
+    }
+    
+    .guide-cross {
+      position: fixed;
+      width: 14px; height: 14px;
+      z-index: 6;
+      pointer-events: none;
+    }
+    .guide-cross::before,
+    .guide-cross::after {
+      content: '';
+      position: absolute;
+      background: rgba(255, 255, 255, 0.7);
+    }
+    .guide-cross::before {
+      top: 50%; left: 0;
+      width: 100%; height: 3px;
+      transform: translateY(-50%);
+    }
+    .guide-cross::after {
+      top: 0; left: 50%;
+      width: 3px; height: 100%;
+      transform: translateX(-50%);
+    }
+    .guide-cross.tl { top: 40px; left: 40px; transform: translate(-50%, -50%); }
+    .guide-cross.bl { bottom: 40px; left: 40px; transform: translate(-50%, 50%); }
+    .guide-cross.tr,
+    .guide-cross.br {
+      transition: right 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    .guide-cross.tr { top: 40px; right: 40px; transform: translate(50%, -50%); }
+    .guide-cross.br { bottom: 40px; right: 40px; transform: translate(50%, 50%); }
+    body.panel-open .guide-cross.tr,
+    body.panel-open .guide-cross.br {
+      right: calc(75vw + 40px);
+    }
+    body.panel-fullscreen .guide-cross.tr,
+    body.panel-fullscreen .guide-cross.br {
+      right: calc(100vw + 40px);
+    }
+    
+    /* ============================================== */
+    /*  학과 목록                                         */
+    /* ============================================== */
+    
+    #departments {
+      position: fixed;
+      top: 50%;
+      left: 6.4vw;
+      transform: translateY(-50%);
+      z-index: 10;
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 12px;
+      list-style: none;
+    }
+    
+    .dept-item {
+      cursor: pointer;
+      list-style: none;
+      font-family: 'Pretendard Variable', 'Pretendard', sans-serif;
+      font-weight: 300;
+      font-size: 20px;
+      color: rgba(255, 255, 255, 0.7);
+      letter-spacing: -0.02em;
+      line-height: 1.2;
+      transition: 
+        font-size 0.25s cubic-bezier(0.4, 0, 0.2, 1),
+        font-weight 0.25s cubic-bezier(0.4, 0, 0.2, 1),
+        color 0.2s ease;
+      transform-origin: left center;
+    }
+    
+    .dept-item:hover,
+    .dept-item.active {
+      font-size: 40px;
+      font-weight: 700;
+      color: #ffffff;
+    }
+    
+    /* ============================================== */
+    /*  학과 설명                                         */
+    /* ============================================== */
+    
+    #dept-description {
+      position: fixed;
+      /* 🎯 피그마 좌표 (1920×1080 기준)
+         이미지 영역: left 765, top 277, w 769, h 510 → 가운데 (1149.5, 532) */
+      left: 59.87vw;            /* (765 + 769/2) / 1920 = 59.87% */
+      top: 49.26vh;             /* (277 + 510/2) / 1080 = 49.26% */
+      transform: translate(-50%, -50%);
+      z-index: 8;
+      width: 40.05vw;           /* 769 / 1920 */
+      max-width: 900px;
+      aspect-ratio: 769 / 510;  /* 피그마 비율 유지 */
+      opacity: 0;
+      transition: opacity 0.3s ease;
+      pointer-events: none;
+    }
+    #dept-description.visible { opacity: 1; }
+
+    .dept-description-image-layer {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      border-radius: 8px;
+    }
+    /* 왼쪽은 선명하게 유지되는 원본 이미지 */
+    #dept-description-image {
+      z-index: 1;
+    }
+    /* blur 레이어는 구조만 남기고 표시하지 않음 */
+    #dept-description-image-blur {
+      display: none !important;
+    }
+    #dept-description-image[src=""],
+    #dept-description-image:not([src]),
+    #dept-description-image-blur[src=""],
+    #dept-description-image-blur:not([src]) {
+      display: none;
+    }
+
+    /* 학과 설명 텍스트 (이미지 위에 흰글씨 + 검정 그림자) */
+    #dept-description-text {
+      position: absolute;
+      left: 38%;             /* 이미지 중심보다 살짝 왼쪽에서 시작 */
+      bottom: 0;
+      width: 105%;           /* 이미지 오른쪽 밖으로 자연스럽게 확장 */
+      transform: none;
+      text-align: left;
+      font-family: 'Pretendard Variable', 'Pretendard', sans-serif;
+      font-weight: 400;
+      font-size: clamp(0.77rem, 1.3125vw, 1.575rem);
+      line-height: 1.4;
+      color: #ffffff;
+      letter-spacing: -0.02em;
+      white-space: pre-line;
+      text-shadow: -4px 0 5.5px rgba(0, 0, 0, 0.59),
+                   0 2px 6px rgba(0, 0, 0, 0.45);
+      word-break: keep-all;
+      z-index: 3;
+    }
+    #dept-description-text:empty {
+      display: none;
+    }
+    
+    /* ============================================== */
+    /*  슬라이드 패널                                     */
+    /* ============================================== */
+    
+    #slide-panel {
+      position: fixed;
+      top: 0; right: 0; bottom: 0;
+      width: 75vw;
+      background: #f6f6f6;
+      z-index: 100;
+      transform: translateX(100%);
+      transition: transform 0.6s cubic-bezier(0.4, 0, 0.2, 1),
+                  width 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+      overflow: hidden;
+    }
+    #slide-panel.open { transform: translateX(0); }
+    
+    /* 🎯 확대 상태 */
+    #slide-panel.fullscreen { width: 100vw; }
+    
+    /* 패널 내부 가이드 */
+    .panel-guide-h {
+      position: absolute;
+      left: 0; right: 0;
+      height: 1px;
+      background: rgba(0, 0, 0, 0.15);
+      pointer-events: none;
+      z-index: 5;
+    }
+    .panel-guide-h.top    { top: 40px; }
+    .panel-guide-h.bottom { bottom: 40px; }
+    
+    .panel-guide-v {
+      position: absolute;
+      top: 0; bottom: 0;
+      width: 1px;
+      background: rgba(0, 0, 0, 0.15);
+      pointer-events: none;
+      z-index: 5;
+    }
+    .panel-guide-v.left  { left: 40px; }
+    .panel-guide-v.right { right: 40px; }
+    
+    .panel-guide-cross {
+      position: absolute;
+      width: 14px; height: 14px;
+      pointer-events: none;
+      z-index: 6;
+    }
+    .panel-guide-cross::before,
+    .panel-guide-cross::after {
+      content: '';
+      position: absolute;
+      background: rgba(0, 0, 0, 0.5);
+    }
+    .panel-guide-cross::before {
+      top: 50%; left: 0;
+      width: 100%; height: 3px;
+      transform: translateY(-50%);
+    }
+    .panel-guide-cross::after {
+      top: 0; left: 50%;
+      width: 3px; height: 100%;
+      transform: translateX(-50%);
+    }
+    .panel-guide-cross.tl { top: 40px; left: 40px; transform: translate(-50%, -50%); }
+    .panel-guide-cross.tr { top: 40px; right: 40px; transform: translate(50%, -50%); }
+    .panel-guide-cross.bl { bottom: 40px; left: 40px; transform: translate(-50%, 50%); }
+    .panel-guide-cross.br { bottom: 40px; right: 40px; transform: translate(50%, 50%); }
+    
+    /* ============================================== */
+    /*  슬라이드 콘텐츠                                   */
+    /* ============================================== */
+    
+    .slide-view {
+      position: absolute;
+      top: 40px;
+      left: 40px;
+      right: 40px;
+      bottom: 40px;
+      overflow: hidden;
+    }
+    
+    #scale-container {
+      position: absolute;
+      transform-origin: top left;
+      width: 1920px;
+      height: 1080px;
+    }
+    
+    .slide-page {
+      width: 1920px;
+      height: 1080px;
+      background-color: #F6F6F6;
+      padding: 60px 100px;
+      display: grid;
+      grid-template-rows: auto 1fr auto;
+      overflow: hidden;
+      position: absolute;
+      top: 0; left: 0;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.35s ease;
+      color: #111;
+      z-index: 1;
+    }
+    .slide-page.active {
+      opacity: 1;
+      pointer-events: all;
+    }
+    
+    .slide-header {
+      display: flex;
+      justify-content: space-between;
+      padding-bottom: 16px;
+      margin-bottom: 100px;
+    }
+    .slide-header .dept-eng,
+    .slide-header .fixed-title {
+      font-weight: 900;
+      font-size: 28px;
+      letter-spacing: 0.5px;
+      color: #111;
+      text-transform: uppercase;
+    }
+    
+    .main-body {
+      display: grid;
+      grid-template-columns: 340px 1fr;
+      gap: 80px;
+      align-items: start;
+    }
+    
+    .title-area {
+      position: relative;
+      padding-left: 24px;
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
+    }
+    .orange-circle {
+      width: 110px; height: 110px;
+      background-color: var(--accent-orange);
+      border-radius: 50%;
+      position: absolute;
+      left: 0; top: 0;
+      z-index: 1;
+    }
+    .subject-title {
+      font-weight: 900;
+      font-size: 64px;
+      line-height: 1.15;
+      color: #111;
+      position: relative;
+      z-index: 2;
+      white-space: nowrap;
+      display: block;
+      max-width: 310px;
+      overflow: hidden;
+    }
+    .subject-sub {
+      font-size: 64px;
+      font-weight: 900;
+      line-height: 1.15;
+      color: #111;
+      position: relative;
+      z-index: 2;
+      white-space: nowrap;
+    }
+    .page-badge {
+      font-size: 28px;
+      font-weight: 700;
+      color: #aaa;
+      letter-spacing: 0.3px;
+      margin-top: 10px;
+      position: relative;
+      z-index: 2;
+    }
+    
+    .weeks-container {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 30px;
+      width: 100%;
+    }
+    .weeks-container.cols-3 {
+      display: flex;
+      justify-content: space-between;
+      gap: 30px;
+    }
+    .weeks-container.cols-3 .week-card {
+      width: calc(25% - 22px);
+      flex-shrink: 0;
+    }
+    
+    .week-card {
+      display: flex;
+      flex-direction: column;
+    }
+    
+  .img-box {
+      width: 100%;
+      aspect-ratio: 269 / 391;
+      background-color: #eaeaea;
+      border-top-right-radius: 30px;
+      border-bottom-left-radius: 30px;
+      overflow: hidden;
+      margin-bottom: 20px;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      box-shadow: 0 6px 15px rgba(0,0,0,0.08);
+      position: relative;
+      cursor: pointer;                              /* 🎯 손가락 커서 */
+      transition: box-shadow 0.3s ease;
+    }
+    .img-box:hover {
+      box-shadow: 0 10px 25px rgba(0,0,0,0.15);    /* 🎯 호버 시 그림자 강조 */
+    }
+    .img-box img {
+      width: 100%; height: 100%;
+      object-fit: cover;
+      transform: scale(1);
+      transition: transform 0.5s ease;
+      pointer-events: none;                         /* 🎯 이미지가 이벤트 가로채지 않게 */
+    }
+    .img-box:hover img { transform: scale(1.1); }
+    .no-img-text {
+      font-size: 16px;
+      color: #aaa;
+      font-weight: 500;
+      pointer-events: none;                         /* 🎯 텍스트도 이벤트 가로채지 않게 */
+    }
+    
+    /* 🎯 박스 전체를 덮는 투명 오버레이 - 클릭/호버 영역 통일 */
+    .img-box-overlay {
+      position: absolute;
+      top: 0; left: 0;
+      width: 100%;
+      height: 100%;
+      z-index: 10;
+      cursor: pointer;
+      background: transparent;
+    }
+    
+    .week-label {
+      font-size: 26px;
+      font-weight: 800;
+      margin-bottom: 10px;
+      color: #111;
+    }
+    .week-divider {
+      width: 100%;
+      height: 3px;
+      background-color: var(--accent-orange);
+      border-radius: 2px;
+      margin-bottom: 14px;
+    }
+    .week-content {
+      font-size: 18px;
+      color: var(--text-gray);
+      line-height: 1.6;
+      word-break: keep-all;
+      font-weight: 500;
+    }
+    
+    .slide-footer {
+      padding-top: 24px;
+      margin-top: 20px;
+      font-size: 20px;
+      font-weight: 300;
+      color: #777777;
+      letter-spacing: 0.5px;
+    }
+    
+    /* ============================================== */
+    /*  🎯 페이지 인디케이터 - 이미지 박스 중앙 정렬       */
+    /* ============================================== */
+
+    /* 슬라이드 콘텐츠의 이미지 박스 영역 중앙에 맞춤 */
+    /* main-body의 grid-template-columns: 340px 1fr (gap: 80px) */
+    /* → 좌측 타이틀 영역 + gap 이후 이미지들이 시작 */
+    /* 패널 padding: 60px 100px → 슬라이드는 왼쪽에서 100px부터 */
+    /* 이미지 박스 영역의 중심은 = (100 + 340 + 80 + (1920-540) / 2) ≈ 1090 (1920 기준) */
+    /* 즉, 슬라이드 전체의 약 56.7% 위치 */
+
+    #page-indicator {
+      position: absolute;
+      top: 1003px;             /* 🎯 footer "SBS ACADEMY ..." 텍스트 라인 (slide 1920x1080 좌표계) */
+      left: 50%;               /* 🎯 슬라이드 좌우 정중앙 */
+      transform: translateX(-50%);
+      display: flex;
+      flex-direction: row;
+      gap: 10px;
+      z-index: 1000;
+    }
+
+    .dot {
+      width: 8px; height: 8px;
+      border-radius: 50%;
+      background: rgba(0,0,0,0.2);
+      cursor: pointer;
+      transition: background 0.2s, transform 0.2s;
+    }
+    .dot.active {
+      background: var(--accent-orange);
+      transform: scale(1.3);
+    }
+    
+    /* ============================================== */
+    /*  🎯 첫/끝 페이지 네비게이션 (↑/↓)                 */
+    /*    호버: 화면 오른쪽 100px 영역에서 등장          */
+    /* ============================================== */
+
+    #slide-nav {
+      position: fixed;
+      right: 60px;
+      top: 50%;
+      transform: translate(0, -50%);
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      z-index: 200;
+      opacity: 0.8;
+      pointer-events: auto;
+    }
+
+    /* ============================================== */
+    /*  🎯 슬라이드 네비게이션 버튼 - SVG 화살표           */
+    /* ============================================== */
+
+    .slide-nav-btn {
+      width: 44px;
+      height: 44px;
+      border-radius: 50%;
+      background: rgba(0,0,0,0.08);
+      border: none;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      cursor: pointer;
+      color: #111;
+      padding: 0;
+      transition: background 0.2s ease, transform 0.15s ease;
+    }
+    .slide-nav-btn:hover {
+      background: rgba(0,0,0,0.15);
+      transform: scale(1.08);
+    }
+    .slide-nav-btn:disabled {
+      opacity: 0.3;
+      cursor: not-allowed;
+    }
+
+    /* 🎯 SVG 화살표 (>) - 회전으로 ↑/↓ 표현 */
+    .nav-svg-arrow {
+      width: 18px;
+      height: 18px;
+      fill: none;
+      stroke: #111;
+      stroke-width: 2.5;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+    }
+    .nav-svg-arrow.nav-up {
+      transform: rotate(-90deg);
+    }
+    .nav-svg-arrow.nav-down {
+      transform: rotate(90deg);
+    }
+    /* 호버 효과 - 회전 유지하면서 살짝 확대 */
+    .nav-up:hover {
+      transform: rotate(-90deg) scale(1.08);
+    }
+    .nav-down:hover {
+      transform: rotate(90deg) scale(1.08);
+    }
+    
+    .slide-empty {
+      position: absolute;
+      top: 50%; left: 50%;
+      transform: translate(-50%, -50%);
+      color: #aaa;
+      font-size: 18px;
+    }
+    
+    /* ← 왼쪽 하단 (< 모양) */
+    .back-btn {
+      position: fixed;
+      bottom: 60px;
+      left: 60px;
+      z-index: 500;
+      width: 48px; height: 48px;
+      padding: 0;
+      background: #f6f6f6;
+      color: #2a2a2a;
+      border: none;
+      border-radius: 50%;
+      
+      /* 🎯 폰트 관련 제거 (SVG로 변경) */
+      
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      
+      opacity: 0.8;
+      pointer-events: auto;
+      transform: none;
+      transition: opacity 0.3s ease,
+                  transform 0.4s cubic-bezier(0.4, 0, 0.2, 1),
+                  background 0.4s ease,
+                  color 0.4s ease;
+    }
+    .back-btn.visible {
+      opacity: 1;
+      pointer-events: auto;
+      transform: translateY(0);
+    }
+    .back-btn:hover {
+      background: #fff;
+    }
+
+    /* 🎯 확대 상태에서 < 버튼 색상 반전 */
+    body.panel-fullscreen .back-btn {
+      background: #2a2a2a;
+      color: #f6f6f6;
+    }
+    body.panel-fullscreen .back-btn:hover {
+      background: #444;
+    }
+
+    /* 🎯 SVG 화살표 - 완벽 중앙 정렬 */
+    .back-svg-arrow {
+      width: 18px;
+      height: 18px;
+      fill: none;
+      stroke: currentColor;    /* 🎯 버튼 color를 따라감 */
+      stroke-width: 2.5;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+    }
+    
+    /* × 오른쪽 하단 */
+    .close-btn {
+      position: fixed;
+      bottom: 60px;
+      right: 60px;
+      z-index: 500;
+      width: 48px; height: 48px;
+      padding: 0;
+      background: #2a2a2a;
+      color: #f6f6f6;
+      border: none;
+      border-radius: 50%;
+      font-size: 20px;
+      font-weight: 900;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      
+      opacity: 0;
+      pointer-events: none;
+      transform: translateY(60px);
+      transition: opacity 0.3s ease,
+                  transform 0.4s cubic-bezier(0.4, 0, 0.2, 1),
+                  background 0.2s ease;
+    }
+    .close-btn.visible {
+      opacity: 1;
+      pointer-events: auto;
+      transform: translateY(0);
+    }
+    .close-btn:hover { background: #444; }
+    
+    /* 🎯 확대 버튼 - × 왼쪽 */
+    .expand-btn {
+      position: fixed;
+      bottom: 60px;
+      right: 120px;        /* close-btn (60px + 48px width) + 12px gap */
+      z-index: 500;
+      width: 48px; height: 48px;
+      padding: 0;
+      background: #2a2a2a;
+      color: #f6f6f6;
+      border: none;
+      border-radius: 50%;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      
+      opacity: 0;
+      pointer-events: none;
+      transform: translateY(60px);
+      transition: opacity 0.3s ease,
+                  transform 0.4s cubic-bezier(0.4, 0, 0.2, 1),
+                  background 0.2s ease;
+    }
+    .expand-btn.visible {
+      opacity: 1;
+      pointer-events: auto;
+      transform: translateY(0);
+    }
+    .expand-btn:hover { background: #444; }
+    
+    .expand-btn svg {
+      width: 20px;
+      height: 20px;
+      stroke: #f6f6f6;
+      fill: none;
+      stroke-width: 2.5;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+    }
+    
+    /* ============================================== */
+    /*  로딩 화면                                         */
+    /* ============================================== */
+    
+    #loading-overlay {
+      position: fixed;
+      top: 0; left: 0;
+      width: 100vw; height: 100vh;
+      z-index: 9999;
+      background: #000;
+      opacity: 1;
+      pointer-events: auto;
+      transition: opacity 0.6s ease-out;
+    }
+    #loading-overlay.hidden {
+      opacity: 0;
+      pointer-events: none;
+    }
+    #loading-overlay.lock {
+      opacity: 1 !important;
+      pointer-events: auto !important;
+    }
+    #loading-bg {
+      position: absolute;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+      object-fit: cover;
+    }
+    #loading-dim {
+      position: absolute;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+      background: rgba(0, 0, 0, 0.4);
+    }
+    #loading-text-wrapper {
+      position: absolute;
+      top: 50%; left: 50%;
+      transform: translate(-50%, -50%);
+      z-index: 2;
+      width: 90vw;
+      text-align: center;
+    }
+    .wipe-text {
+      font-family: 'Paperlogy', 'Great Vibes', cursive;
+      font-weight: 800;
+      font-size: clamp(1.25rem, 3.5vw, 3rem);
+      line-height: 1.2;
+      position: relative;
+      display: inline-block;
+      color: rgba(255, 255, 255, 0.5);
+    }
+    .wipe-text::after {
+      content: attr(data-text);
+      position: absolute;
+      top: 0; left: 0;
+      width: 100%;
+      color: rgba(255, 255, 255, 1);
+      clip-path: inset(0 calc(100% - var(--loading-progress, 0%)) 0 0);
+      transition: clip-path 0.35s cubic-bezier(0.65, 0, 0.35, 1);
+    }
+    .wipe-text.animate::after {
+      transition-duration: 0.35s;
+    }
+    @keyframes wipeIn {
+      0%   { clip-path: inset(0 100% 0 0); }
+      100% { clip-path: inset(0 0 0 0); }
+    }
+
+    /* ============================================== */
+    /*  🎯 라이트박스 (썸네일 확대 보기)                 */
+    /* ============================================== */
+    
+    /* 썸네일 커서 변경 */
+    .img-box {
+      cursor: pointer;
+    }
+    
+    #lightbox-overlay {
+        position: fixed;
+        top: 0; left: 0;
+        width: 100vw; height: 100vh;
+        z-index: 1200;          /* 🎯 강사 라이트박스(1000) + 강사 커리큘럼 박스(1100) 위에 떠야 함 */
+        background: rgba(0, 0, 0, 0.7);
+        backdrop-filter: blur(50px);
+        -webkit-backdrop-filter: blur(50px);
+        opacity: 0;
+        visibility: hidden;                            /* 🎯 완전히 숨김 (자식 포함) */
+        pointer-events: none;
+        transition: opacity 0.3s ease,
+                    visibility 0s linear 0.3s;         /* 🎯 페이드 후 숨김 */
+      }
+      #lightbox-overlay.visible {
+        opacity: 1;
+        visibility: visible;                           /* 🎯 표시 */
+        pointer-events: auto;
+        transition: opacity 0.3s ease,
+                    visibility 0s linear 0s;           /* 🎯 즉시 표시 */
+      }
+  
+    /* 🎯 콘텐츠 컨테이너 - 화면 중앙 고정 정렬 */
+    #lightbox-content {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      display: flex;
+      align-items: center;
+      gap: 80px;          /* 이미지와 텍스트 사이 간격 */
+    }
+    
+    /* 좌측 이미지 영역 (1:1 비율, 높이 70vh) */
+    .lightbox-media-wrapper {
+      width: 70vh;
+      height: 70vh;
+      max-width: 45vw;
+      aspect-ratio: 1 / 1;
+      background: #2a2a2a;
+      border-radius: 8px;
+      overflow: hidden;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+      position: relative;
+    }
+
+    .lightbox-media-wrapper img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+
+    .lightbox-media-wrapper .no-img {
+      color: #aaa;
+      font-size: 18px;
+    }
+    
+    /* 🎯 유튜브 iframe */
+    .lightbox-media-wrapper iframe {
+      width: 100%;
+      height: 100%;
+      border: none;
+      pointer-events: none;     /* 평소엔 비활성 (호버 시 활성) */
+      transition: opacity 0.2s ease;
+    }
+    .lightbox-media-wrapper:hover iframe {
+      pointer-events: auto;     /* 호버 시 활성 → 컨트롤 등장 */
+    }
+    /* 🎯 유튜브용 호버 감지 오버레이 */
+    .youtube-hover-trigger {
+      position: absolute;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+      z-index: 2;
+      cursor: pointer;
+      transition: opacity 0.2s ease;
+    }
+    .lightbox-media-wrapper:hover .youtube-hover-trigger {
+      opacity: 0;
+      pointer-events: none;
+    }
+    
+    /* 우측 텍스트 영역 (반응형 너비) */
+    .lightbox-text {
+      width: min(35vw, 560px);
+      flex-shrink: 0;
+      color: #fff;
+    }
+    .lightbox-title {
+      display: flex;
+      align-items: baseline;
+      gap: 20px;
+      font-size: 36px;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      margin-bottom: 24px;
+      padding-bottom: 24px;
+      border-bottom: 3px solid var(--accent-orange);
+    }
+    .lightbox-subject {
+      color: #fff;
+    }
+    .lightbox-week {
+      color: #fff;
+    }
+    .lightbox-content {
+      font-size: 22px;
+      line-height: 1.7;
+      color: rgba(255, 255, 255, 0.9);
+      word-break: keep-all;
+      font-weight: 400;
+    }
+    
+    /* 좌우 네비게이션 버튼 */
+    .lightbox-nav {
+      position: fixed;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 56px;
+      height: 56px;
+      border-radius: 50%;
+      background: rgba(255, 255, 255, 0.1);
+      border: none;
+      color: #fff;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 1001;
+      transition: background 0.2s ease, transform 0.15s ease;
+    }
+    .lightbox-nav:hover {
+      background: rgba(255, 255, 255, 0.2);
+      transform: translateY(-50%) scale(1.08);
+    }
+    .lightbox-nav:disabled {
+      opacity: 0.3;
+      cursor: not-allowed;
+    }
+    .lightbox-nav.prev { left: 40px; }
+    .lightbox-nav.next { right: 40px; }
+    
+    .lightbox-nav svg {
+      width: 24px;
+      height: 24px;
+      stroke: #fff;
+      fill: none;
+      stroke-width: 2.5;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+    }
+
+  </style>
+  <!-- 🎯 카테고리별 페이지 모듈 include -->
+  <!-- ============================================== -->
+<!--  🎯 커리큘럼 카테고리 페이지 (기존 디자인 유지) -->
+<!-- ============================================== -->
+
+<script>
+  /**
+   * 커리큘럼 카테고리 - 학과의 과목별/주차별 슬라이드들을 생성
+   * @param {string} deptName - 학과명 (예: "시각편집학과")
+   * @param {string} engHeader - 영문 헤더 (예: "VISUAL EDITING")
+   * @param {Array} subjects - 과목 배열 (서버에서 받은 데이터)
+   * @returns {Array<HTMLElement>} 생성된 슬라이드 요소 배열
+   */
+  function createCurriculumPages(deptName, engHeader, subjects) {
+    const slides = [];
+    
+    // 🎯 라이트박스용 - 학과 전체 주차를 평탄화한 배열 만들기
+    // [{ subjectName, week: {title, content, img} }, ...]
+    window.flatWeeksForLightbox = [];
+    if (subjects && subjects.length > 0) {
+      subjects.forEach(subject => {
+        subject.weeks.forEach(week => {
+          window.flatWeeksForLightbox.push({
+            subjectName: subject.subjectName,
+            week: week
+          });
+        });
+      });
+    }
+    
+    if (!subjects || subjects.length === 0) {
+      const emptySlide = document.createElement('div');
+      emptySlide.className = 'slide-page';
+      emptySlide.innerHTML = ''
+        + '<div class="slide-header">'
+        + '<span class="dept-eng">' + escapeHtml(engHeader || '') + '</span>'
+        + '<span class="fixed-title">학과 전체 과목 커리큘럼</span>'
+        + '</div>'
+        + '<div class="main-body">'
+        + '<div style="grid-column: 1 / -1; text-align: center; padding: 100px; color: #999;">커리큘럼 데이터가 없습니다.</div>'
+        + '</div>'
+        + '<div class="slide-footer">SBS ACADEMY COMPUTER ART SUWON</div>';
+      slides.push(emptySlide);
+      return slides;
+    }
+    
+    subjects.forEach(subject => {
+      const weeks = subject.weeks;
+      if (weeks.length <= 4) {
+        const slide = makeCurriculumSlide(engHeader, subject, weeks, '');
+        slides.push(slide);
+      } else {
+        const chunks = chunkWeeks(weeks, 3);
+        chunks.forEach((chunk, idx) => {
+          const label = (idx + 1) + ' / ' + chunks.length;
+          const slide = makeCurriculumSlide(engHeader, subject, chunk, label);
+          slides.push(slide);
+        });
+      }
+    });
+    
+    return slides;
+  }
+  
+  function chunkWeeks(weeks, size) {
+    const result = [];
+    for (let i = 0; i < weeks.length; i += size) {
+      result.push(weeks.slice(i, i + size));
+    }
+    return result;
+  }
+  
+  function makeCurriculumSlide(engHeader, subject, weekChunk, pageLabel) {
+    const slide = document.createElement('div');
+    slide.className = 'slide-page';
+    
+    const isCols3 = weekChunk.length === 3;
+    const containerClass = 'weeks-container' + (isCols3 ? ' cols-3' : '');
+    const badgeHTML = pageLabel
+      ? '<span class="page-badge">' + escapeHtml(pageLabel) + '</span>'
+      : '';
+    
+    // 🎯 준비물/교재/AI툴 데이터가 있는 과목이면 "커리큘럼" 옆에 외부링크 아이콘 표시
+    const prepData = getCoursePrepForSubject(subject.subjectName);
+    const prepIconHTML = prepData ? buildCoursePrepIconHTML(subject.subjectName) : '';
+
+    slide.innerHTML = ''
+      + '<div class="slide-header">'
+      + '<span class="dept-eng">' + escapeHtml(engHeader || '') + '</span>'
+      + '<span class="fixed-title">학과 전체 과목 커리큘럼</span>'
+      + '</div>'
+      + '<div class="main-body">'
+      + '<div class="title-area">'
+      + '<div class="orange-circle"></div>'
+      + '<span class="subject-title">' + escapeHtml(subject.subjectName) + '</span>'
+      + '<span class="subject-sub-wrap">'
+      +   '<span class="subject-sub">커리큘럼</span>'
+      +   prepIconHTML
+      + '</span>'
+      + badgeHTML
+      + '</div>'
+      + '<div class="' + containerClass + '">'
+      + makeWeeksHTML(weekChunk, subject.subjectName)
+      + '</div>'
+      + '</div>'
+      + '<div class="slide-footer">SBS ACADEMY COMPUTER ART SUWON</div>';
+    
+    setTimeout(() => {
+      const titleEl = slide.querySelector('.subject-title');
+      if (titleEl) fitTitleSize(titleEl);
+    }, 0);
+
+    // 🎯 준비물 아이콘 클릭 → 팝업 열기
+    setTimeout(() => {
+      const iconBtn = slide.querySelector('.course-prep-icon');
+      if (iconBtn) {
+        iconBtn.addEventListener('click', function(e) {
+          e.stopPropagation();
+          const subjName = iconBtn.dataset.subject;
+          openCoursePrepPopup(subjName);
+        });
+      }
+    }, 0);
+    
+    // 🎯 썸네일 클릭 이벤트 등록
+        setTimeout(() => {
+          const imgBoxes = slide.querySelectorAll('.img-box');
+          imgBoxes.forEach(box => {
+            box.addEventListener('click', function(e) {
+              // 🎯 currentTarget으로 확실하게 img-box 요소 참조
+              const target = e.currentTarget;
+              const subjectName = target.dataset.subject;
+              const weekTitle = target.dataset.week;
+              
+              if (!subjectName || !weekTitle) {
+                console.warn('[Lightbox] dataset missing', target);
+                return;
+              }
+              
+              // 평탄화 배열에서 인덱스 찾기
+              const idx = window.flatWeeksForLightbox.findIndex(item =>
+                item.subjectName === subjectName && item.week.title === weekTitle
+              );
+              if (idx >= 0) {
+                openLightbox(idx);
+              } else {
+                console.warn('[Lightbox] index not found:', subjectName, weekTitle);
+              }
+            });
+          });
+        }, 0);
+    
+    return slide;
+  }
+  
+    function makeWeeksHTML(weekChunk, subjectName) {
+      return weekChunk.map(week => {
+        let mediaHTML;
+        if (week.img) {
+          // 🎯 img 태그 + 클릭 가로채기 방지용 오버레이
+          mediaHTML = '<img src="' + escapeAttr(week.img) + '" onerror="this.style.display=\'none\';this.nextElementSibling.style.display=\'block\';">'
+                    + '<span class="no-img-text" style="display:none;">참고 이미지 없음</span>'
+                    + '<div class="img-box-overlay"></div>';
+        } else {
+          mediaHTML = '<span class="no-img-text">참고 이미지 없음</span>'
+                    + '<div class="img-box-overlay"></div>';
+        }
+        
+        // 🎯 img-box에 data 속성 추가 (라이트박스용)
+        return '<div class="week-card">'
+          + '<div class="img-box" data-subject="' + escapeAttr(subjectName) + '" data-week="' + escapeAttr(week.title) + '">' + mediaHTML + '</div>'
+          + '<div class="week-label">' + escapeHtml(week.title) + '</div>'
+          + '<div class="week-divider"></div>'
+          + '<div class="week-content">' + escapeHtml(week.content) + '</div>'
+          + '</div>';
+      }).join('');
+    }
+  
+  function fitTitleSize(el) {
+    let fontSize = 64;
+    el.style.fontSize = fontSize + 'px';
+    while (el.scrollWidth > 310 && fontSize > 20) {
+      fontSize -= 2;
+      el.style.fontSize = fontSize + 'px';
+    }
+  }
+
+  /* ============================================== */
+  /*  🎯 준비물/교재/AI툴 아이콘 + 팝업                  */
+  /* ============================================== */
+
+  function normalizeCoursePrepSubjectName(value) {
+    return String(value == null ? '' : value)
+      .replace(/[\u200B\u200C\u200D\uFEFF\u00A0]/g, '')
+      .replace(/[～〜]/g, '~')
+      .replace(/\s+/g, '')
+      .trim()
+      .toLowerCase();
+  }
+
+  function getCoursePrepIndex() {
+    const prepMap = window.coursePreparations || {};
+    const cache = window._coursePreparationsIndex;
+    if (cache && cache.source === prepMap) return cache.index;
+
+    const index = {};
+    Object.keys(prepMap).forEach(function(subjectName) {
+      const key = normalizeCoursePrepSubjectName(subjectName);
+      if (key && !index[key]) index[key] = prepMap[subjectName];
+    });
+
+    window._coursePreparationsIndex = {
+      source: prepMap,
+      index: index
+    };
+    return index;
+  }
+
+  function getCoursePrepForSubject(subjectName) {
+    const key = normalizeCoursePrepSubjectName(subjectName);
+    if (!key) return null;
+    return getCoursePrepIndex()[key] || null;
+  }
+
+  /* "커리큘럼" 글자 옆에 들어갈 외부링크 SVG 아이콘 HTML */
+  function buildCoursePrepIconHTML(subjectName) {
+    return ''
+      + '<button type="button" class="course-prep-icon" '
+      +   'data-subject="' + escapeAttr(subjectName) + '" '
+      +   'title="과목 준비물 보기">'
+      +   '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none">'
+      +     '<path d="M14.9849 2C14.4327 2 13.9849 2.44771 13.9849 3C13.9849 3.55228 14.4327 4 14.9849 4L18.5858 4L10.2929 12.2929C9.90237 12.6834 9.90237 13.3166 10.2929 13.7071C10.6834 14.0976 11.3166 14.0976 11.7071 13.7071L20 5.41422L20 9.01503C20 9.56732 20.4477 10.015 21 10.015C21.5523 10.015 22 9.56732 22 9.01504L22 3C22 2.44772 21.5523 2 21 2L14.9849 2Z" fill="currentColor"/>'
+      +     '<path d="M4 8C4 7.44772 4.44772 7 5 7H11.3333C11.8856 7 12.3333 6.55228 12.3333 6C12.3333 5.44772 11.8856 5 11.3333 5H5C3.34315 5 2 6.34315 2 8V19C2 20.6569 3.34315 22 5 22H16C17.6569 22 19 20.6569 19 19V13.2619C19 12.7096 18.5523 12.2619 18 12.2619C17.4477 12.2619 17 12.7096 17 13.2619V19C17 19.5523 16.5523 20 16 20H5C4.44772 20 4 19.5523 4 19V8Z" fill="currentColor"/>'
+      +   '</svg>'
+      + '</button>';
+  }
+
+  /* 🎯 데이터가 늦게 도착했을 때, 이미 빌드된 커리큘럼 슬라이드들에 아이콘을 보강
+     - subject-sub-wrap에 .course-prep-icon이 없는 경우에만 추가 */
+  function injectMissingPrepIcons() {
+    document.querySelectorAll('.slide-page .title-area').forEach(function(area) {
+      const titleEl = area.querySelector('.subject-title');
+      if (!titleEl) return;
+      const subjectName = titleEl.textContent || '';
+      if (!subjectName || !getCoursePrepForSubject(subjectName)) return;
+
+      const wrap = area.querySelector('.subject-sub-wrap');
+      if (!wrap) return;
+      if (wrap.querySelector('.course-prep-icon')) return;  // 이미 있음
+
+      // 아이콘 추가 + 클릭 이벤트
+      wrap.insertAdjacentHTML('beforeend', buildCoursePrepIconHTML(subjectName));
+      const iconBtn = wrap.querySelector('.course-prep-icon');
+      if (iconBtn) {
+        iconBtn.addEventListener('click', function(e) {
+          e.stopPropagation();
+          openCoursePrepPopup(iconBtn.dataset.subject);
+        });
+      }
+    });
+  }
+
+  /* 팝업 열기 - 한 과목의 모든 카테고리(교재명/준비물/AI툴)를 한 팝업에 표시 */
+  function openCoursePrepPopup(subjectName) {
+    const prep = getCoursePrepForSubject(subjectName);
+    if (!prep) return;
+
+    // 팝업 wrapper 보장 (한 번만 body에 추가)
+    let overlay = document.getElementById('course-prep-overlay');
+    if (!overlay) {
+      overlay = document.createElement('div');
+      overlay.id = 'course-prep-overlay';
+      overlay.className = 'course-prep-overlay';
+      overlay.innerHTML = '<div class="course-prep-box" id="course-prep-box"></div>';
+      document.body.appendChild(overlay);
+
+      // 바깥 클릭으로 닫기
+      overlay.addEventListener('click', function(e) {
+        if (e.target === overlay) closeCoursePrepPopup();
+      });
+    }
+
+    // 본문 채우기
+    const box = overlay.querySelector('.course-prep-box');
+    box.innerHTML = buildCoursePrepBoxHTML(subjectName, prep);
+    overlay.classList.add('visible');
+
+    // ESC 핸들러 (한 번만 등록)
+    if (!window._coursePrepEscInit) {
+      window._coursePrepEscInit = true;
+      window.addEventListener('keydown', function(e) {
+        if (e.key !== 'Escape') return;
+        const o = document.getElementById('course-prep-overlay');
+        if (o && o.classList.contains('visible')) {
+          closeCoursePrepPopup();
+          e.stopPropagation();
+          e.stopImmediatePropagation();
+        }
+      }, true);
+    }
+  }
+
+  function closeCoursePrepPopup() {
+    const overlay = document.getElementById('course-prep-overlay');
+    if (overlay) overlay.classList.remove('visible');
+  }
+
+  function coursePrepItems(value) {
+    if (!value) return [];
+    return Array.isArray(value) ? value : [value];
+  }
+
+  function prepTitleHTML(subjectName, suffix) {
+    const titleText = subjectName + ' ' + suffix;
+    const len = titleText.replace(/\s+/g, '').length;
+    let fontSize = 44;
+    if (len >= 18) fontSize = 32;
+    else if (len >= 15) fontSize = 36;
+    else if (len >= 12) fontSize = 40;
+    return '<h3 class="prep-title" style="font-size:' + fontSize + 'px;">' + escapeHtml(titleText) + '</h3>';
+  }
+
+  /* 팝업 박스 내용 구성 - B열 카테고리별로 섹션 */
+  function buildCoursePrepBoxHTML(subjectName, prep) {
+    let html = ''
+      + '<button type="button" class="course-prep-close" aria-label="닫기" '
+      +   'onclick="closeCoursePrepPopup()">×</button>';
+
+    // (A) 교재명
+    if (prep.textbook) {
+      const items = coursePrepItems(prep.textbook);
+      const itemHtml = items.map(function(t) {
+        const imgHtml = t.image
+          ? '<img class="prep-image" src="' + escapeAttr(t.image) + '" alt="" '
+            + 'onerror="this.style.display=\'none\';">'
+          : '';
+        const linkOpen  = t.link ? '<a class="prep-image-link" href="' + escapeAttr(t.link) + '" target="_blank" rel="noopener">' : '';
+        const linkClose = t.link ? '</a>' : '';
+        return ''
+          + '<div class="prep-item">'
+          +   (imgHtml ? ('<div class="prep-image-wrap">' + linkOpen + imgHtml + linkClose + '</div>') : '')
+          +   (t.text ? '<div class="prep-text-medium">' + escapeHtml(t.text) + '</div>' : '')
+          +   (t.pill ? '<div class="prep-pill prep-pill-big">' + escapeHtml(t.pill) + '</div>' : '')
+          + '</div>';
+      }).join('');
+      html += ''
+        + '<section class="course-prep-section section-textbook">'
+        +   prepTitleHTML(subjectName, '교재명')
+        +   '<div class="prep-divider"></div>'
+        +   itemHtml
+        + '</section>';
+    }
+
+    // (B) 준비물
+    if (prep.supply) {
+      const items = coursePrepItems(prep.supply);
+      // C열에 콤마/줄바꿈/괄호로 줄 분리
+      const lines = items
+        .map(function(t) { return String(t.text || ''); })
+        .join('\n')
+        .split(/\r?\n|(?=\()/)
+        .map(function(s){ return s.trim(); })
+        .filter(Boolean);
+      const linesHtml = lines.length > 0
+        ? lines.map(function(line){ return '<p class="supply-line">' + escapeHtml(line) + '</p>'; }).join('')
+        : '';
+      html += ''
+        + '<section class="course-prep-section section-supply">'
+        +   prepTitleHTML(subjectName, '준비물')
+        +   '<div class="prep-divider"></div>'
+        +   '<div class="prep-supply-text">' + linesHtml + '</div>'
+        + '</section>';
+    }
+
+    // (C) AI 툴
+    if (prep.ai) {
+      const items = coursePrepItems(prep.ai);
+      const rowsHtml = items.map(function(t) {
+        const imgHtml = t.image
+          ? '<img class="ai-logo" src="' + escapeAttr(t.image) + '" alt="" '
+            + 'onerror="this.style.display=\'none\';">'
+          : '';
+        const linkOpen  = t.link ? '<a class="ai-link" href="' + escapeAttr(t.link) + '" target="_blank" rel="noopener">' : '';
+        const linkClose = t.link ? '</a>' : '';
+        const pillText = t.pill || t.text || '';
+        const pillHtml = pillText
+          ? '<span class="prep-pill prep-pill-small">' + escapeHtml(pillText) + '</span>'
+          : '';
+        return ''
+          + '<div class="ai-row">'
+          +   (imgHtml ? (linkOpen + imgHtml + linkClose) : '')
+          +   pillHtml
+          + '</div>';
+      }).join('');
+      html += ''
+        + '<section class="course-prep-section section-ai">'
+        +   prepTitleHTML(subjectName, 'AI 툴')
+        +   '<div class="prep-divider"></div>'
+        +   '<div class="ai-scroll">' + rowsHtml + '</div>'
+        + '</section>';
+    }
+
+    return html;
+  }
+</script>
+
+<style>
+  /* "커리큘럼" 옆 아이콘 */
+  .subject-sub-wrap {
+    display: inline-flex;
+    align-items: flex-end;
+    gap: 14px;
+  }
+  .course-prep-icon {
+    background: transparent;
+    border: none;
+    padding: 4px;
+    cursor: pointer;
+    color: #FA491D;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 42px;
+    height: 42px;
+    border-radius: 8px;
+    transition: background 0.18s ease, transform 0.18s ease;
+  }
+  .course-prep-icon:hover {
+    background: rgba(0, 0, 0, 0.06);
+    transform: translateY(-1px);
+  }
+  .course-prep-icon svg {
+    width: 42px;
+    height: 42px;
+    display: block;
+  }
+
+  /* 팝업 오버레이 */
+  .course-prep-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 9000;
+    background: rgba(0, 0, 0, 0.45);
+    backdrop-filter: blur(2px);
+    -webkit-backdrop-filter: blur(2px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+    transition: opacity 0.25s ease,
+                visibility 0s linear 0.25s;
+  }
+  .course-prep-overlay.visible {
+    opacity: 1;
+    visibility: visible;
+    pointer-events: auto;
+    transition: opacity 0.25s ease,
+                visibility 0s linear 0s;
+  }
+
+  /* 팝업 박스 (피그마: 550 × 변동, radius 50, shadow) */
+  .course-prep-box {
+    position: relative;
+    background: #ffffff;
+    width: min(550px, 90vw);
+    max-height: 88vh;
+    overflow-y: auto;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+    border-radius: 50px;
+    box-shadow: 6px 7px 14px rgba(0, 0, 0, 0.25);
+    padding: 40px 50px;
+    transform: scale(0.96);
+    transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+    color: #111;
+  }
+  .course-prep-overlay.visible .course-prep-box {
+    transform: scale(1);
+  }
+  .course-prep-box::-webkit-scrollbar {
+    width: 0;
+    height: 0;
+  }
+  .course-prep-close {
+    position: absolute;
+    top: 18px;
+    right: 22px;
+    width: 44px;
+    height: 44px;
+    background: transparent;
+    border: none;
+    border-radius: 50%;
+    cursor: pointer;
+    font-size: 36px;
+    font-weight: 300;
+    line-height: 1;
+    color: #888;
+    transition: background 0.2s ease, color 0.2s ease;
+  }
+  .course-prep-close:hover {
+    background: #f3f3f3;
+    color: #111;
+  }
+
+  /* 섹션 (교재명/준비물/AI툴) */
+  .course-prep-section {
+    text-align: center;
+    padding: 14px 0 26px;
+  }
+  .course-prep-section + .course-prep-section {
+    border-top: 1px dashed #d2d2d2;
+    margin-top: 6px;
+    padding-top: 26px;
+  }
+  .prep-title {
+    font-size: 44px;
+    font-weight: 700;
+    letter-spacing: -0.03em;
+    color: #111;
+    margin: 0 0 16px;
+    line-height: 1.15;
+  }
+  .prep-divider {
+    width: 85%;
+    height: 3px;
+    background: var(--accent-orange);
+    border-radius: 1.5px;
+    margin: 0 auto 24px;
+  }
+  .prep-item + .prep-item {
+    margin-top: 28px;
+    padding-top: 24px;
+    border-top: 1px dashed #d2d2d2;
+  }
+
+  /* 교재명 섹션 */
+  .section-textbook .prep-image-wrap {
+    display: flex;
+    justify-content: center;
+    margin-bottom: 18px;
+  }
+  .section-textbook .prep-image-link {
+    display: inline-block;
+    transition: transform 0.2s ease;
+  }
+  .section-textbook .prep-image-link:hover {
+    transform: scale(1.03);
+  }
+  .section-textbook .prep-image {
+    display: block;
+    max-width: 280px;
+    max-height: 380px;
+    width: auto;
+    height: auto;
+    object-fit: contain;
+    border-radius: 6px;
+  }
+  .prep-text-medium {
+    font-size: 26px;
+    font-weight: 500;
+    color: #111;
+    margin: 10px 0 18px;
+    letter-spacing: -0.02em;
+    word-break: keep-all;
+    line-height: 1.4;
+  }
+  .prep-pill {
+    display: inline-block;
+    background: var(--accent-orange);
+    color: #ffffff;
+    border-radius: 76px;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    line-height: 1;
+    white-space: nowrap;
+  }
+  .prep-pill-big {
+    padding: 18px 36px;
+    font-size: 32px;
+  }
+  .prep-pill-small {
+    padding: 12px 26px;
+    font-size: 26px;
+  }
+
+  /* 준비물 섹션 */
+  .section-supply .prep-supply-text {
+    margin-top: 10px;
+  }
+  .section-supply .supply-line {
+    font-size: 36px;
+    font-weight: 500;
+    color: #111;
+    margin: 4px 0;
+    letter-spacing: -0.02em;
+    line-height: 1.3;
+    word-break: keep-all;
+  }
+
+  /* AI 툴 섹션 */
+  .section-ai {
+    display: flex;
+    flex-direction: column;
+    max-height: calc(88vh - 80px);
+    overflow: hidden;
+  }
+  .section-ai .prep-title,
+  .section-ai .prep-divider {
+    flex: 0 0 auto;
+  }
+  .section-ai .ai-scroll {
+    flex: 1 1 auto;
+    min-height: 0;
+    max-height: calc(88vh - 220px);
+    overflow-y: auto;
+    overflow-x: hidden;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+    padding: 2px 0;
+  }
+  .section-ai .ai-scroll::-webkit-scrollbar {
+    width: 0;
+    height: 0;
+  }
+  .section-ai .ai-row {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    align-items: center;
+    gap: 22px;
+    margin-bottom: 16px;
+    width: 100%;
+  }
+  .section-ai .ai-row:last-child {
+    margin-bottom: 0;
+  }
+  .section-ai .ai-link {
+    display: inline-flex;
+    justify-self: center;
+    transition: transform 0.2s ease;
+  }
+  .section-ai .ai-link:hover {
+    transform: scale(1.04);
+  }
+  .section-ai .ai-logo {
+    display: block;
+    max-width: 220px;
+    max-height: 100px;
+    object-fit: contain;
+  }
+  .section-ai .prep-pill-small {
+    justify-self: end;
+  }
+  .prep-text-small {
+    font-size: 22px;
+    font-weight: 500;
+    color: #555;
+    letter-spacing: -0.02em;
+    line-height: 1.4;
+    word-break: keep-all;
+    margin-top: 6px;
+  }
+</style>
+
+  <!-- ============================================== -->
+<!--  🎯 학과 강사소개 카테고리 페이지                 -->
+<!--   - 강사 목록                                    -->
+<!--   - 강사 상세 (라이트박스 1단계)                  -->
+<!--   - 강사 개인 커리큘럼 (라이트박스 2단계)         -->
+<!-- ============================================== -->
+
+<style>
+  /* ============================================== */
+  /*  🎯 강사소개 메인 페이지 (피그마 디자인 반영)     */
+  /* ============================================== */
+  
+  /* 강사소개 페이지는 전용 레이아웃 사용 (기존 main-body 무시)
+     position은 `.slide-page`의 absolute를 그대로 상속받게 둔다.
+     (relative로 두면 2번째 이후 페이지가 flow에 따라 첫 페이지 아래(y=1080)에
+      쌓여 active 토글로도 같은 자리에 보이지 않게 되는 버그가 있었음) */
+  .instructor-page {
+    overflow: hidden;
+  }
+  
+  .instructor-page .main-body {
+    display: block;
+    position: relative;
+    width: 100%;
+    height: 100%;
+  }
+  
+
+  
+  /* ============================================== */
+  /*  🎯 강사소개 메인 페이지 (피그마 디자인 반영)     */
+  /*    1920×1080 기준 좌표 - 슬라이드 컨테이너에서 사용 */
+  /* ============================================== */
+  
+  /* 🎯 큰 빈 주황 원 (좌측 상단, 화면 밖으로 살짝 걸침) */
+  .instructor-bg-circle {
+    position: absolute;
+    width: 526px;
+    height: 526px;
+    border-radius: 50%;
+    border: 10px solid var(--accent-orange);
+    background: transparent;
+    left: -198px;             /* 🎯 피그마 좌표 그대로 (화면 밖으로 198px) */
+    top: -68px;               /* 🎯 글자는 유지, 원형만 100px 내림 */
+    z-index: 1;
+  }
+
+  /* 🎯 학과명 (예: "시각편집학과") - 커리큘럼 페이지 .subject-title과 동일 스펙 */
+  .instructor-title-dept {
+    position: absolute;
+    left: 24px;               /* 🎯 커리큘럼 페이지의 .title-area padding-left(24px)와 동일하게 */
+    top: 0px;                 /* 🎯 .main-body 시작점에 맞춤 (커리큘럼 페이지 글자와 동일 라인) */
+    z-index: 3;
+    color: #111;
+    font-family: 'Pretendard Variable', 'Pretendard', sans-serif;
+    font-weight: 900;         /* 🎯 커리큘럼 페이지와 동일 */
+    font-size: 64px;          /* 🎯 기본 64px (JS fitTitleSize로 max-width 310px에 맞게 동적 축소) */
+    line-height: 1.15;        /* 🎯 커리큘럼 페이지와 동일 */
+    letter-spacing: -0.02em;
+    max-width: 310px;         /* 🎯 커리큘럼 페이지와 동일 */
+    white-space: nowrap;      /* 🎯 줄바꿈 방지 (긴 학과명은 폰트 사이즈가 줄어듦) */
+    overflow: hidden;
+  }
+
+  /* 🎯 페이지 번호 (학과 커리큘럼의 .page-badge와 동일 스타일) - "강사 소개" 아래 */
+  .instructor-page-badge {
+    position: absolute;
+    left: 24px;
+    top: 154px;               /* "강사 소개" (top 70 + 64px) 아래에 약간의 여백 */
+    font-size: 28px;
+    font-weight: 700;
+    color: #aaa;
+    letter-spacing: 0.3px;
+    z-index: 3;
+  }
+
+  /* 🎯 "강사 소개" (학과명 아래) - 커리큘럼 페이지 .subject-sub와 동일 스펙 */
+  .instructor-title-sub {
+    position: absolute;
+    left: 24px;               /* 🎯 학과명과 동일 좌측 정렬 */
+    top: 70px;                /* 🎯 학과명 바로 아래 (줄 간격 더 좁힘) */
+    z-index: 3;
+    color: #111;
+    font-family: 'Pretendard Variable', 'Pretendard', sans-serif;
+    font-weight: 900;         /* 🎯 커리큘럼 페이지와 동일 */
+    font-size: 64px;          /* 🎯 커리큘럼 페이지 .subject-sub와 동일 */
+    line-height: 1.15;        /* 🎯 커리큘럼 페이지와 동일 */
+    letter-spacing: -0.02em;
+    white-space: nowrap;
+  }
+
+  /* 🎯 가로선 (강사 영역 하단, 사진 하단과 일치) */
+  .instructor-line {
+    position: absolute;
+    top: 560px;               /* 🎯 가로선 100px 내림 */
+    left: 507px;              /* 🎯 피그마 좌표 (왼쪽 빈 영역 후 시작) */
+    right: 0;
+    height: 1px;
+    background: #000;
+    z-index: 5;
+  }
+
+  /* 가로선 왼쪽 끝의 주황 원 (점) */
+  .instructor-dot {
+    position: absolute;
+    top: 546px;               /* 🎯 가로선보다 약간 위 (주황 점 100px 내림) */
+    left: 484px;              /* 🎯 가로선 시작 약간 전 */
+    width: 27px;
+    height: 27px;
+    border-radius: 50%;
+    background: var(--accent-orange);
+    z-index: 6;
+  }
+
+  /* 🎯 강사 카드 컨테이너 - 가로선 위에 사진 하단이 닿도록 */
+  .instructor-list {
+    position: absolute;
+    top: 142px;               /* 🎯 강사 사진 100px 내림 */
+    left: 625px;              /* 🎯 강사 영역 좌측 한계 (1명/2명일 때 중앙·분산용) */
+    right: 80px;              /* 🎯 강사 영역 우측 한계 */
+    height: 418px;            /* 🎯 사진 영역 높이 (142 → 560) */
+    display: flex;
+    align-items: flex-end;    /* 사진 하단을 가로선에 맞춤 */
+    justify-content: space-between;  /* 기본: 3명 분산 */
+    gap: 60px;
+    z-index: 3;
+  }
+
+  /* 🎯 강사 수에 따른 유동 배치 */
+  .instructor-list.count-1 {
+    justify-content: center;   /* 1명: 정중앙 */
+    gap: 0;
+  }
+  .instructor-list.count-2 {
+    justify-content: space-around;  /* 2명: 좌우 여백 두고 더 벌려서 배치 */
+    gap: 0;
+  }
+  .instructor-list.count-3 {
+    justify-content: space-between; /* 3명: 양끝까지 분산 */
+    gap: 0;
+  }
+  
+  .instructor-card {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    cursor: pointer;
+    position: relative;
+    height: 100%;             /* 카드도 사진 영역 높이만큼 */
+    justify-content: flex-end;
+  }
+  
+  /* 강사 사진 - 피그마 기준 약 384~444px 너비, 418~420px 높이 */
+  .instructor-photo-box {
+    width: auto;
+    height: 418px;            /* 🎯 피그마 사진 높이 */
+    overflow: visible;
+    display: flex;
+    align-items: flex-end;
+    justify-content: center;
+    position: relative;
+  }
+
+  .instructor-photo-box img {
+    height: 100%;
+    width: auto;
+    object-fit: contain;
+    object-position: bottom;
+    filter: grayscale(100%);
+    transition: filter 0.3s ease;
+    pointer-events: none;
+    display: block;
+  }
+  .instructor-photo-box .no-photo {
+    width: 200px;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #aaa;
+    font-size: 14px;
+    background: rgba(0,0,0,0.05);
+    pointer-events: none;
+  }
+  
+  /* 강사 이름 - 가로선 아래 (피그마: top 771px → 사진 하단에서 약 16px 아래) */
+  .instructor-name {
+    position: absolute;
+    top: calc(100% + 16px);   /* 🎯 사진 하단에서 16px 아래 = 가로선 아래 */
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: 31px;
+    font-weight: 700;
+    color: #aaa;
+    transition: color 0.3s ease;
+    pointer-events: none;
+    white-space: nowrap;
+    letter-spacing: -0.02em;
+  }
+  
+  /* 강사 카드 전체 호버 효과 */
+  .instructor-card:hover .instructor-photo-box img {
+    filter: grayscale(0%);
+  }
+  .instructor-card:hover .instructor-name {
+    color: #111;
+  }
+  
+  /* 카드 클릭 영역 오버레이 (사진 + 이름 영역 포괄) */
+  .instructor-card-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: calc(100% + 80px);   /* 사진 + 이름 영역까지 덮음 */
+    z-index: 10;
+    cursor: pointer;
+  }
+  
+  /* ============================================== */
+  /*  🎯 강사 한마디 툴팁 (마우스 따라다님)            */
+  /* ============================================== */
+  
+  #instructor-tooltip {
+    position: fixed;
+    z-index: 1500;
+    background: rgba(255, 255, 255, 0.92);
+    color: #222;
+    padding: 16px 22px;
+    border-radius: 12px;
+    font-size: 18px;
+    font-weight: 500;
+    line-height: 1.5;
+    max-width: 280px;
+    pointer-events: none;
+    opacity: 0;
+    transform: translate(15px, 15px);
+    transition: opacity 0.2s ease;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.15);
+    word-break: keep-all;
+  }
+  #instructor-tooltip.visible {
+    opacity: 1;
+  }
+  
+  /* ============================================== */
+  /*  🎯 강사 상세 라이트박스 (피그마 디자인 반영)     */
+  /*    기본: 활성 슬라이드(.slide-page) 안에 부착     */
+  /*    확대: 전체 화면(fixed)                         */
+  /* ============================================== */
+
+  #instructor-lightbox {
+    /* 🎯 기본 상태: slide-panel(우측 75vw)의 영역 전체를 덮음 (가이드선까지 침범)
+       slide-panel은 right:0/width:75vw → 좌측 시작 = 25vw */
+    position: fixed;
+    top: 0;
+    left: 25vw;
+    right: 0;
+    bottom: 0;
+    z-index: 1000;
+    background: #000;          /* 백드롭 이미지 못 받았을 때 베이스 */
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+    transition: opacity 0.3s ease,
+                top 0.4s cubic-bezier(0.4, 0, 0.2, 1),
+                left 0.4s cubic-bezier(0.4, 0, 0.2, 1),
+                right 0.4s cubic-bezier(0.4, 0, 0.2, 1),
+                bottom 0.4s cubic-bezier(0.4, 0, 0.2, 1),
+                visibility 0s linear 0.3s;
+    overflow: hidden;
+    /* 🎯 컨테이너 쿼리 활성화 - 자식이 cqw/cqh로 라이트박스 크기에 비례 */
+    container-type: size;
+  }
+  #instructor-lightbox.visible {
+    opacity: 1;
+    visibility: visible;
+    pointer-events: auto;
+    transition: opacity 0.3s ease,
+                top 0.4s cubic-bezier(0.4, 0, 0.2, 1),
+                left 0.4s cubic-bezier(0.4, 0, 0.2, 1),
+                right 0.4s cubic-bezier(0.4, 0, 0.2, 1),
+                bottom 0.4s cubic-bezier(0.4, 0, 0.2, 1),
+                visibility 0s linear 0s;
+  }
+  /* 🎯 slide-panel이 fullscreen 상태(학과 네비 가려짐, width: 100vw)일 때
+     라이트박스도 좌측 끝까지 펼침 */
+  body.panel-fullscreen #instructor-lightbox {
+    left: 0;
+  }
+  /* 🎯 라이트박스 자체 확대(전체 화면) - 화면 100vw × 100vh 전체
+     (이 규칙이 마지막이라 body.panel-fullscreen보다 우선됨) */
+  #instructor-lightbox.fullscreen {
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+  }
+
+  /* 🎯 우하단 확대/축소 토글 버튼 + 닫기 버튼 (라이트박스 내부에 부착) */
+  .instructor-expand-btn,
+  .instructor-close-btn {
+    position: absolute;
+    bottom: 30px;
+    z-index: 50;
+    width: 48px;
+    height: 48px;
+    padding: 0;
+    background: #2a2a2a;
+    color: #f6f6f6;
+    border: none;
+    border-radius: 50%;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0;
+    pointer-events: none;
+    transform: translateY(60px);
+    transition: opacity 0.3s ease,
+                transform 0.4s cubic-bezier(0.4, 0, 0.2, 1),
+                background 0.2s ease;
+  }
+  .instructor-close-btn {
+    right: 30px;
+    font-size: 22px;
+    font-weight: 900;
+  }
+  .instructor-expand-btn {
+    right: 90px;             /* 닫기 버튼(30+48) + 12px gap */
+  }
+  .instructor-expand-btn.visible,
+  .instructor-close-btn.visible {
+    opacity: 1;
+    pointer-events: auto;
+    transform: translateY(0);
+  }
+  .instructor-expand-btn:hover,
+  .instructor-close-btn:hover {
+    background: #444;
+  }
+  .instructor-expand-btn svg {
+    width: 20px;
+    height: 20px;
+    stroke: #f6f6f6;
+    fill: none;
+    stroke-width: 2.5;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+  }
+
+  /* 🎯 강사 사진 블러 백드롭 (전체 화면) */
+  .instructor-detail-backdrop {
+    position: absolute;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
+    background-size: cover;
+    background-position: center;
+    filter: blur(25px);
+    transform: scale(1.1);     /* 블러 가장자리 비침 방지 */
+    z-index: 0;
+  }
+
+  /* 🎯 어두운 오버레이 (검정 70%) */
+  .instructor-detail-dark-overlay {
+    position: absolute;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
+    background: rgba(0, 0, 0, 0.7);
+    z-index: 1;
+  }
+
+  /* 🎯 우측 반투명 흰색 패널 (피그마: left 1387px, width 533px)
+     단위: 라이트박스 기준 % (1920×1080 환산) */
+  .instructor-detail-panel {
+    position: absolute;
+    top: 0;
+    left: 72.24%;              /* 1387/1920 */
+    width: 27.76%;             /* 533/1920 */
+    height: 100%;
+    background: rgba(255, 255, 255, 0.45);
+    z-index: 2;
+  }
+
+  /* 🎯 강사 사진 (중앙~우측, 크게 컬러)
+     피그마: left 955px, top 307px, w 711px, h 774px */
+  .instructor-detail-photo {
+    position: absolute;
+    left: 49.74%;              /* 955/1920 */
+    top: 28.43%;               /* 307/1080 */
+    width: 37.03%;             /* 711/1920 */
+    height: 71.67%;            /* 774/1080 */
+    z-index: 3;
+    overflow: hidden;
+    cursor: default;
+    transition: filter 0.3s ease;
+  }
+  /* 🎯 커리큘럼 팝업이 떠 있는 동안 강사 사진 블러 처리 */
+  #instructor-lightbox.curriculum-open .instructor-detail-photo {
+    filter: blur(10px);
+  }
+  .instructor-detail-photo img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    object-position: top center;
+    pointer-events: none;
+  }
+  .instructor-detail-photo .no-photo {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #aaa;
+    font-size: 18px;
+    background: rgba(255,255,255,0.05);
+  }
+
+  /* 🎯 좌상단 - 강사명 + 구분선 + 경력
+     피그마 강사명: top 233px, left 231px
+     단위: 라이트박스 기준 % / cqh (라이트박스 크기에 비례) */
+  .instructor-detail-info {
+    position: absolute;
+    top: 21.57%;               /* 233/1080 */
+    left: 12.03%;              /* 231/1920 */
+    z-index: 4;
+    width: 37.76%;             /* 725/1920 (경력 영역 너비) */
+    color: #fff;
+    pointer-events: auto;
+  }
+  .instructor-detail-name {
+    font-size: 6.3cqh;         /* 68px / 1080 (cqh = 컨테이너 높이 1%) */
+    font-weight: 600;
+    color: #f6f6f6;
+    letter-spacing: -0.07em;
+    line-height: 1;
+    white-space: nowrap;
+  }
+  .instructor-detail-divider {
+    width: 100%;
+    height: 0.46cqh;           /* 5/1080 ≈ 0.46% */
+    min-height: 3px;           /* 너무 얇아지지 않게 */
+    background: var(--accent-orange);
+    margin-top: 1.5cqh;
+    margin-bottom: 1.7cqh;
+    border: none;
+  }
+  .instructor-detail-career {
+    font-size: 2.36cqh;        /* 기존 4.72cqh의 절반 (≈ 25.5px / 1080) */
+    font-weight: 300;
+    color: #fff;
+    letter-spacing: -0.07em;
+    line-height: 1.4;
+    white-space: pre-line;
+    word-break: keep-all;
+  }
+
+  /* 🎯 우측 상단 - 과목 버튼들
+     피그마: top 233px, 첫 버튼 left 1445px, 너비 201px, 높이 53px */
+  .instructor-subjects {
+    position: absolute;
+    top: 21.57%;               /* 233/1080 */
+    right: 3%;                 /* 라이트박스 우측 끝에서 안쪽 */
+    z-index: 4;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1.5cqh;
+    max-width: 24%;
+    justify-content: flex-end;
+    pointer-events: auto;
+  }
+  .subject-btn {
+    min-width: 10.47cqw;       /* 201px / 1920 (cqw = 컨테이너 너비 1%) */
+    height: 4.9cqh;            /* 53px / 1080 */
+    padding: 0 1.8cqw;
+    border-radius: 3.15cqh;    /* 34px / 1080 */
+    background: #fff;
+    color: #111;
+    font-size: 3cqh;           /* 36px → 살짝 작게(버튼 높이 대비) */
+    font-weight: 700;
+    border: none;
+    cursor: pointer;
+    transition: background 0.25s ease, color 0.25s ease, transform 0.15s ease;
+    letter-spacing: -0.02em;
+    white-space: nowrap;
+    line-height: 1;
+  }
+  .subject-btn:hover {
+    background: var(--accent-orange);  /* 🎯 호버: 주황 배경 + 흰 글씨 (크기 변화 없음) */
+    color: #fff;
+  }
+  .subject-btn.active {
+    background: var(--accent-orange);  /* 🎯 클릭(=선택된 상태): 동일 */
+    color: #fff;
+  }
+  /* 🎯 active 상태에서도 다른 버튼 호버는 동일하게 주황+흰글씨 */
+  .subject-btn.active:hover {
+    background: var(--accent-orange);
+    color: #fff;
+  }
+  
+  /* ============================================== */
+  /*  🎯 강사 커리큘럼 라이트박스 (피그마 디자인 반영) */
+  /*    피그마 박스: left 41px / top 179px / 1388×781px */
+  /* ============================================== */
+
+  #instructor-curriculum-lightbox {
+    position: fixed;
+    top: 0; left: 0;
+    width: 100vw; height: 100vh;
+    z-index: 1100;
+    background: transparent;        /* 🎯 강사 라이트박스 위에 떠 있으므로 배경 없음 */
+    opacity: 0;
+    visibility: hidden;
+    /* 🎯 빈 공간은 클릭 통과 → 그 아래 강사 라이트박스로 전달 (과목 버튼 즉시 클릭 가능) */
+    pointer-events: none;
+    transition: opacity 0.3s ease,
+                visibility 0s linear 0.3s;
+  }
+  #instructor-curriculum-lightbox.visible {
+    opacity: 1;
+    visibility: visible;
+    /* visible이어도 빈 공간 pointer-events는 none 유지, 박스에만 auto */
+    transition: opacity 0.3s ease,
+                visibility 0s linear 0s;
+  }
+
+  /* 🎯 흰색 둥근 박스 (화면 중앙 정렬, 내부 커리큘럼도 중앙 배치) */
+  .instructor-curriculum-box {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    transform: translate(calc(-50% - 100px), -50%);
+    width: 72.29vw;                 /* 1388/1920 */
+    height: calc(72.31vh + 140px);  /* 기존 높이에서 100px 추가 확장 */
+    max-height: calc(100vh - 80px);
+    background: rgba(255, 255, 255, 0.9);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    border-radius: 15px;
+    box-shadow: 5px 5px 4px rgba(0, 0, 0, 0.25);
+    padding: 6vh 3.39vw;
+    box-sizing: border-box;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    /* 🎯 박스만 클릭 받음 (빈 공간은 그 아래 강사 라이트박스로 통과) */
+    pointer-events: auto;
+  }
+
+  .instructor-curriculum-weeks {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 3.18vw;                    /* 카드 간격 (피그마: 약 61px) */
+    width: 100%;
+  }
+  /* 카드 수가 3개 이하일 때도 4열 그리드 유지 */
+  .instructor-curriculum-weeks.cols-3 .week-card-mini:nth-child(4),
+  .instructor-curriculum-weeks.cols-2 .week-card-mini:nth-child(n+3),
+  .instructor-curriculum-weeks.cols-1 .week-card-mini:nth-child(n+2) {
+    visibility: hidden;
+  }
+
+  .week-card-mini {
+    display: flex;
+    flex-direction: column;
+  }
+  /* 🎯 참고 이미지 (피그마: 269×391, 좌하단·우상단 30px radius) */
+  .week-card-mini .img-box-mini {
+    width: 100%;
+    aspect-ratio: 269 / 391;
+    background-color: #eaeaea;
+    border-top-right-radius: 30px;
+    border-bottom-left-radius: 30px;
+    overflow: hidden;
+    margin-bottom: 24px;            /* 피그마: 이미지 하단 ~ 주차 라벨 = 677→693 */
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    position: relative;
+    cursor: pointer;                /* 🎯 클릭 가능 표시 */
+    transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1),
+                box-shadow 0.25s ease;
+  }
+  /* 🎯 카드 호버 효과 - 살짝 커짐 */
+  .week-card-mini .img-box-mini:hover {
+    transform: scale(1.04);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+  }
+  .week-card-mini .img-box-mini img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+  .week-card-mini .no-img-text {
+    font-size: 16px;
+    color: #aaa;
+  }
+  /* 🎯 주차 라벨 (피그마: 32px Bold black) */
+  .week-card-mini .week-label {
+    font-size: 2.96vh;              /* 32/1080 */
+    font-weight: 700;
+    color: #111;
+    margin-bottom: 8px;
+    letter-spacing: -0.02em;
+  }
+  /* 🎯 주황 구분선 (피그마: width 269px, 1080~1100 부근) */
+  .week-card-mini .week-divider {
+    width: 100%;
+    height: 3px;
+    background: var(--accent-orange);
+    margin-bottom: 12px;
+  }
+  /* 🎯 커리큘럼 내용 (피그마: 24px Regular black) */
+  .week-card-mini .week-content {
+    font-size: 2.22vh;              /* 24/1080 */
+    color: #111;
+    line-height: 1.5;
+    word-break: keep-all;
+    font-weight: 400;
+    letter-spacing: -0.02em;
+  }
+
+  .curriculum-box-empty {
+    text-align: center;
+    padding: 80px 20px;
+    color: #999;
+    font-size: 18px;
+  }
+</style>
+
+<script>
+  /* ============================================== */
+  /*  🎯 강사소개 메인 페이지 생성 (3명씩 페이지 분할)  */
+  /* ============================================== */
+  
+  /**
+   * 강사소개 카테고리의 슬라이드들을 생성 (여러 페이지 가능)
+   * 반환 형식이 단일 슬라이드가 아닌 배열로 변경됨
+   */
+  function createInstructorPages(deptName, engHeader, categoryName) {
+    // 임시로 첫 페이지 1개만 만들어서 반환하고, 나중에 강사 데이터 받으면 페이지 추가
+    const firstSlide = makeInstructorPageShell(deptName, engHeader, 0, 1);
+    
+    // 강사 데이터 로드 - 끝나면 추가 페이지 생성 + 인디케이터 재구성
+    getInstructorListFromSupabase(deptName)
+      .then(function(instructors) {
+        handleInstructorDataLoaded(deptName, engHeader, instructors || []);
+      })
+      .catch(function(err) {
+        const listEl = firstSlide.querySelector('.instructor-list');
+        if (listEl) listEl.innerHTML = '<div style="color:#c00;">오류: ' + (err.message || err) + '</div>';
+      });
+    
+    return [firstSlide];
+  }
+  
+  /* 강사 슬라이드 1개의 외형 만들기 (제목/원/가로선/빈 강사 목록 영역) */
+  function makeInstructorPageShell(deptName, engHeader, pageIdx, totalPages) {
+    const slide = document.createElement('div');
+    slide.className = 'slide-page instructor-page';
+    slide.dataset.instructorPage = pageIdx;
+    slide.dataset.dept = deptName;
+
+    // 🎯 페이지 번호 - 학과 커리큘럼과 같은 스타일/위치 (좌측 타이틀 아래)
+    const badgeHTML = totalPages > 1
+      ? '<div class="instructor-page-badge">' + (pageIdx + 1) + ' / ' + totalPages + '</div>'
+      : '';
+    
+      slide.innerHTML = ''
+      + '<div class="slide-header">'
+      + '<span class="dept-eng">' + escapeHtml(engHeader || '') + '</span>'
+      + '<span class="fixed-title">학과 전체 과목 커리큘럼</span>'
+      + '</div>'
+      + '<div class="main-body">'
+      // 🎯 큰 빈 주황 원 (좌측 상단)
+      + '<div class="instructor-bg-circle"></div>'
+      // 🎯 학과명 (분리)
+      + '<div class="instructor-title-dept">' + escapeHtml(deptName) + '</div>'
+      // 🎯 "강사 소개" (분리)
+      + '<div class="instructor-title-sub">강사 소개</div>'
+      // 🎯 가로선 + 주황 점 (분리)
+      + '<div class="instructor-line"></div>'
+      + '<div class="instructor-dot"></div>'
+      // 페이지 번호 (여러 페이지일 때만)
+      + badgeHTML
+      // 강사 카드 목록
+      + '<div class="instructor-list">'
+      + (pageIdx === 0 ? '<div style="color:#999;">강사 정보를 불러오는 중...</div>' : '')
+      + '</div>'
+      + '</div>'
+      + '<div class="slide-footer">SBS ACADEMY COMPUTER ART SUWON</div>';
+
+    // 🎯 학과명이 길어도 줄바꿈 없이 폰트 크기 자동 축소 (커리큘럼 페이지와 동일 방식)
+    setTimeout(() => {
+      const titleEl = slide.querySelector('.instructor-title-dept');
+      if (titleEl && typeof fitTitleSize === 'function') fitTitleSize(titleEl);
+    }, 0);
+
+    return slide;
+  }
+  
+  /* 강사 데이터 받은 후 처리 - 페이지 추가 + 강사 카드 렌더링 */
+  function handleInstructorDataLoaded(deptName, engHeader, instructors) {
+    if (typeof activeDeptName !== 'undefined' && activeDeptName !== deptName) {
+      return;
+    }
+
+    // 전역 저장
+    window.currentInstructorsByDept = window.currentInstructorsByDept || {};
+    window.currentInstructorsByDept[deptName] = instructors;
+
+    // 이 학과의 첫 강사 페이지(보통 placeholder page=0)를 우선 찾고,
+    // 없으면 이 학과의 어느 강사 페이지든 첫 위치를 사용한다.
+    // 두 번째 보정 후 이전 응답이 이미 페이지를 교체해버린 경우에도 안전하게 다시 처리하기 위함.
+    let firstSlideIdx = slides.findIndex(s =>
+      s.classList.contains('instructor-page')
+        && s.dataset.instructorPage === '0'
+        && s.dataset.dept === deptName
+    );
+    if (firstSlideIdx < 0) {
+      firstSlideIdx = slides.findIndex(s =>
+        s.classList.contains('instructor-page') && s.dataset.dept === deptName
+      );
+    }
+    if (firstSlideIdx < 0) return;
+
+    const container = document.getElementById('scale-container');
+    const activeSlideBefore = slides[currentSlideIndex] || null;
+    const oldInstructorSlides = slides.filter(s =>
+      s.classList.contains('instructor-page') && s.dataset.dept === deptName
+    );
+    const activeWasInstructor = oldInstructorSlides.includes(activeSlideBefore);
+    const activeOldPage = activeWasInstructor
+      ? Math.max(0, parseInt(activeSlideBefore.dataset.instructorPage || '0', 10) || 0)
+      : 0;
+
+    // 기존 강사소개 페이지 구간을 통째로 제거해서 DOM/slides 불일치 방지
+    for (let i = slides.length - 1; i >= 0; i--) {
+      const s = slides[i];
+      if (s.classList.contains('instructor-page') && s.dataset.dept === deptName) {
+        if (s.parentNode === container) container.removeChild(s);
+        slides.splice(i, 1);
+      }
+    }
+
+    const newInstructorSlides = [];
+
+    if (instructors.length === 0) {
+      const emptySlide = makeInstructorPageShell(deptName, engHeader, 0, 1);
+      const listEl = emptySlide.querySelector('.instructor-list');
+      if (listEl) listEl.innerHTML = '<div style="color:#999;">등록된 강사가 없습니다.</div>';
+      newInstructorSlides.push(emptySlide);
+    } else {
+      // 🎯 페이지 분할 - 3명까지는 한 페이지, 4명 이상은 2명씩 분할
+      const instructorsPerPage = instructors.length > 3 ? 2 : 3;
+      const totalPages = Math.max(1, Math.ceil(instructors.length / instructorsPerPage));
+
+      for (let p = 0; p < totalPages; p++) {
+        const start = p * instructorsPerPage;
+        const pageList = instructors.slice(start, start + instructorsPerPage);
+        const pageSlide = makeInstructorPageShell(deptName, engHeader, p, totalPages);
+        renderInstructorCards(pageSlide, deptName, pageList, start);
+        newInstructorSlides.push(pageSlide);
+      }
+    }
+
+    const insertAtIdx = Math.min(firstSlideIdx, slides.length);
+    const refNode = slides[insertAtIdx] || null;
+    newInstructorSlides.forEach(slide => {
+      container.insertBefore(slide, refNode);
+    });
+    slides.splice(insertAtIdx, 0, ...newInstructorSlides);
+
+    if (activeWasInstructor) {
+      currentSlideIndex = insertAtIdx + Math.min(activeOldPage, newInstructorSlides.length - 1);
+    } else {
+      const activeIdx = slides.indexOf(activeSlideBefore);
+      currentSlideIndex = activeIdx >= 0 ? activeIdx : Math.min(insertAtIdx, slides.length - 1);
+    }
+
+    slides.forEach((slide, idx) => {
+      if (idx === currentSlideIndex) slide.classList.add('active');
+      else slide.classList.remove('active');
+    });
+    
+    // 인디케이터 + 네비게이션 재구성
+    buildIndicator(slides.length);
+    updateIndicator();
+    updateNavButtons();
+  }
+  
+  /* 한 페이지에 강사 카드 3개 렌더링 */
+  function renderInstructorCards(slide, deptName, pageInstructors, startIdx) {
+    const listEl = slide.querySelector('.instructor-list');
+    if (!listEl) return;
+
+    // 🎯 강사 수에 따른 배치 클래스 적용 (count-1 / count-2 / count-3)
+    listEl.classList.remove('count-1', 'count-2', 'count-3');
+    const cnt = Math.min(pageInstructors.length, 3);
+    if (cnt >= 1) listEl.classList.add('count-' + cnt);
+
+    listEl.innerHTML = pageInstructors.map((inst, i) => {
+      const globalIdx = startIdx + i;
+      const photoHTML = inst.img
+        ? '<img src="' + escapeAttr(inst.img) + '" onerror="this.style.display=\'none\';this.nextElementSibling.style.display=\'block\';">'
+          + '<span class="no-photo" style="display:none;">사진 없음</span>'
+        : '<span class="no-photo">사진 없음</span>';
+
+      return '<div class="instructor-card" data-dept="' + escapeAttr(deptName) + '" data-idx="' + globalIdx + '">'
+        + '<div class="instructor-photo-box">'
+        + photoHTML
+        + '</div>'
+        + '<div class="instructor-name">' + escapeHtml(inst.name) + ' 선생님</div>'
+        + '<div class="instructor-card-overlay"></div>'
+        + '</div>';
+    }).join('');
+    
+    // 카드 이벤트 등록
+    listEl.querySelectorAll('.instructor-card').forEach(card => {
+      const dept = card.dataset.dept;
+      const idx = parseInt(card.dataset.idx, 10);
+      const instData = window.currentInstructorsByDept[dept][idx];
+      if (!instData) return;
+      
+      // 클릭 → 강사 상세
+      card.addEventListener('click', function() {
+        openInstructorLightbox(dept, idx);
+      });
+      
+      // 사진 위에서만 툴팁
+      const photoBox = card.querySelector('.instructor-photo-box');
+      const overlay = card.querySelector('.instructor-card-overlay');
+      
+      overlay.addEventListener('mousemove', function(e) {
+        const photoRect = photoBox.getBoundingClientRect();
+        const inPhotoArea = e.clientX >= photoRect.left
+          && e.clientX <= photoRect.right
+          && e.clientY >= photoRect.top
+          && e.clientY <= photoRect.bottom;
+        
+        if (inPhotoArea && instData.message) {
+          showInstructorTooltip(e, instData.message);
+        } else {
+          hideInstructorTooltip();
+        }
+      });
+      
+      overlay.addEventListener('mouseleave', function() {
+        hideInstructorTooltip();
+      });
+    });
+  }
+  
+  /* ============================================== */
+  /*  🎯 한마디 툴팁                                    */
+  /* ============================================== */
+  
+  function showInstructorTooltip(e, message) {
+    let tooltip = document.getElementById('instructor-tooltip');
+    if (!tooltip) {
+      tooltip = document.createElement('div');
+      tooltip.id = 'instructor-tooltip';
+      document.body.appendChild(tooltip);
+    }
+    tooltip.textContent = message;
+    
+    // 화면 경계 체크
+    const tooltipWidth = 300;
+    const tooltipHeight = 100;
+    let x = e.clientX + 15;
+    let y = e.clientY + 15;
+    
+    if (x + tooltipWidth > window.innerWidth) {
+      x = e.clientX - tooltipWidth - 15;
+    }
+    if (y + tooltipHeight > window.innerHeight) {
+      y = e.clientY - tooltipHeight - 15;
+    }
+    
+    tooltip.style.left = x + 'px';
+    tooltip.style.top = y + 'px';
+    tooltip.classList.add('visible');
+  }
+  
+  function hideInstructorTooltip() {
+    const tooltip = document.getElementById('instructor-tooltip');
+    if (tooltip) tooltip.classList.remove('visible');
+  }
+  
+  /* ============================================== */
+  /*  🎯 강사 상세 라이트박스                          */
+  /* ============================================== */
+  
+  let currentInstructorContext = null;  // { dept, idx, subjectIdx }
+  
+  function openInstructorLightbox(deptName, idx) {
+    const instructors = window.currentInstructorsByDept[deptName];
+    if (!instructors || !instructors[idx]) return;
+
+    hideInstructorTooltip();
+    currentInstructorContext = { dept: deptName, idx: idx, subjectIdx: -1 };
+
+    // 🎯 라이트박스에 백드롭/오버레이/우하단 버튼이 없으면 생성 (한 번만)
+    ensureInstructorLightboxBackdrop();
+    ensureInstructorLightboxButtons();
+
+    renderInstructorDetail();
+    const lb = document.getElementById('instructor-lightbox');
+    lb.classList.remove('fullscreen');  // 열 때마다 기본 크기로 시작
+    lb.classList.add('visible');
+    resetInstructorExpandIcon();
+
+    // 🎯 라이트박스 바깥(가이드선 영역) 클릭으로 닫기 + 안쪽 빈 곳 클릭으로 커리큘럼 닫기 핸들러
+    initInstructorLightboxOutsideClick();
+  }
+
+  /* 🎯 라이트박스 안에 backdrop / dark-overlay 요소가 없으면 만들어서 가장 앞에 삽입
+     (HTML 구조 수정 없이 새 디자인에 필요한 레이어를 동적으로 확보) */
+  function ensureInstructorLightboxBackdrop() {
+    const lb = document.getElementById('instructor-lightbox');
+    if (!lb) return;
+    if (!lb.querySelector('.instructor-detail-backdrop')) {
+      const backdrop = document.createElement('div');
+      backdrop.className = 'instructor-detail-backdrop';
+      backdrop.id = 'instructor-detail-backdrop';
+      lb.insertBefore(backdrop, lb.firstChild);
+    }
+    if (!lb.querySelector('.instructor-detail-dark-overlay')) {
+      const overlay = document.createElement('div');
+      overlay.className = 'instructor-detail-dark-overlay';
+      const backdrop = lb.querySelector('.instructor-detail-backdrop');
+      lb.insertBefore(overlay, backdrop.nextSibling);
+    }
+  }
+
+  /* 🎯 우하단 확대/닫기 버튼 동적 생성 + 호버 감지 등록 (한 번만) */
+  function ensureInstructorLightboxButtons() {
+    const lb = document.getElementById('instructor-lightbox');
+    if (!lb) return;
+
+    if (!lb.querySelector('.instructor-expand-btn')) {
+      const expandBtn = document.createElement('button');
+      expandBtn.className = 'instructor-expand-btn';
+      expandBtn.id = 'instructor-expand-btn';
+      expandBtn.innerHTML =
+        '<svg id="instructor-expand-icon" viewBox="0 0 24 24">'
+        + '<polyline points="4 9 4 4 9 4"></polyline>'
+        + '<polyline points="20 9 20 4 15 4"></polyline>'
+        + '<polyline points="4 15 4 20 9 20"></polyline>'
+        + '<polyline points="20 15 20 20 15 20"></polyline>'
+        + '</svg>'
+        + '<svg id="instructor-collapse-icon" viewBox="0 0 24 24" style="display:none;">'
+        + '<polyline points="4 14 10 14 10 20"></polyline>'
+        + '<polyline points="20 10 14 10 14 4"></polyline>'
+        + '<polyline points="14 20 14 14 20 14"></polyline>'
+        + '<polyline points="10 4 10 10 4 10"></polyline>'
+        + '</svg>';
+      expandBtn.addEventListener('click', function(e) {
+        e.stopPropagation();
+        toggleInstructorFullscreen();
+      });
+      lb.appendChild(expandBtn);
+    }
+    if (!lb.querySelector('.instructor-close-btn')) {
+      const closeBtn = document.createElement('button');
+      closeBtn.className = 'instructor-close-btn';
+      closeBtn.id = 'instructor-close-btn';
+      closeBtn.textContent = '×';
+      closeBtn.addEventListener('click', function(e) {
+        e.stopPropagation();
+        closeInstructorLightbox(true);  // 🎯 force=true: 라이트박스 통째로 닫음
+      });
+      lb.appendChild(closeBtn);
+    }
+
+    // 호버 감지 (라이트박스 우하단 모서리)
+    if (!lb._hoverDetectionInit) {
+      lb._hoverDetectionInit = true;
+      const HOVER_CORNER = 220;
+      lb.addEventListener('mousemove', function(e) {
+        const rect = lb.getBoundingClientRect();
+        const x = e.clientX - rect.left;
+        const y = e.clientY - rect.top;
+        const inRightBottom = (x > rect.width - HOVER_CORNER) && (y > rect.height - HOVER_CORNER);
+        const expandBtn = lb.querySelector('.instructor-expand-btn');
+        const closeBtn = lb.querySelector('.instructor-close-btn');
+        if (inRightBottom) {
+          expandBtn.classList.add('visible');
+          closeBtn.classList.add('visible');
+        } else {
+          expandBtn.classList.remove('visible');
+          closeBtn.classList.remove('visible');
+        }
+      });
+      lb.addEventListener('mouseleave', function() {
+        lb.querySelector('.instructor-expand-btn').classList.remove('visible');
+        lb.querySelector('.instructor-close-btn').classList.remove('visible');
+      });
+    }
+  }
+
+  /* 🎯 확대/축소 토글 */
+  function toggleInstructorFullscreen() {
+    const lb = document.getElementById('instructor-lightbox');
+    const expandIcon = document.getElementById('instructor-expand-icon');
+    const collapseIcon = document.getElementById('instructor-collapse-icon');
+    if (lb.classList.contains('fullscreen')) {
+      lb.classList.remove('fullscreen');
+      expandIcon.style.display = 'block';
+      collapseIcon.style.display = 'none';
+    } else {
+      lb.classList.add('fullscreen');
+      expandIcon.style.display = 'none';
+      collapseIcon.style.display = 'block';
+    }
+  }
+  function resetInstructorExpandIcon() {
+    const expandIcon = document.getElementById('instructor-expand-icon');
+    const collapseIcon = document.getElementById('instructor-collapse-icon');
+    if (expandIcon) expandIcon.style.display = 'block';
+    if (collapseIcon) collapseIcon.style.display = 'none';
+  }
+
+  /* 🎯 라이트박스 내부 클릭 → 커리큘럼 팝업이 떠 있고 팝업 박스 바깥을 클릭하면 팝업만 닫기 */
+  function initInstructorLightboxOutsideClick() {
+    const lb = document.getElementById('instructor-lightbox');
+    if (lb._outsideClickInit) return;
+    lb._outsideClickInit = true;
+    lb.addEventListener('click', function(e) {
+      const curriculumLb = document.getElementById('instructor-curriculum-lightbox');
+      if (!curriculumLb || !curriculumLb.classList.contains('visible')) return;
+      // 과목 버튼 클릭은 제외 (그건 다른 과목으로 전환되는 흐름)
+      if (e.target.closest('.subject-btn')) return;
+      // 커리큘럼 박스 안쪽 클릭은 제외
+      if (e.target.closest('.instructor-curriculum-box')) return;
+      // 우하단 확대/닫기 버튼 제외
+      if (e.target.closest('.instructor-expand-btn')) return;
+      if (e.target.closest('.instructor-close-btn')) return;
+      // 그 외 영역 클릭이면 커리큘럼만 닫기
+      closeInstructorCurriculum();
+    });
+  }
+
+  /* 🎯 closeInstructorLightbox
+     - 인자 없이 호출 (Curriculum_full의 회색 패널·빈 영역 클릭 핸들러 등): 라이트박스 전체를 닫지 않고,
+       커리큘럼이 떠있을 때만 그것만 닫음. (회색 영역 클릭으로 라이트박스 통째로 닫는 효과 제거)
+     - force=true로 호출 (우하단 X 버튼 등 명시적 닫기): 라이트박스 통째로 닫음 */
+  function closeInstructorLightbox(force) {
+    if (!force) {
+      // 🎯 명시적 닫기가 아니면: 라이트박스는 유지하고 커리큘럼만 닫음
+      const curriculumLb = document.getElementById('instructor-curriculum-lightbox');
+      if (curriculumLb && curriculumLb.classList.contains('visible')) {
+        closeInstructorCurriculum();
+      }
+      return;
+    }
+    // 🎯 force = 라이트박스 통째로 닫는 동작 (X 버튼 전용)
+    const lb = document.getElementById('instructor-lightbox');
+    lb.classList.remove('visible');
+    lb.classList.remove('fullscreen');
+    closeInstructorCurriculum();
+    hideInstructorTooltip();
+    currentInstructorContext = null;
+  }
+
+  function renderInstructorDetail() {
+    if (!currentInstructorContext) return;
+    const { dept, idx } = currentInstructorContext;
+    const inst = window.currentInstructorsByDept[dept][idx];
+    if (!inst) return;
+
+    // 🎯 백드롭에 강사 사진을 블러로 깔기
+    const backdropEl = document.getElementById('instructor-detail-backdrop');
+    if (backdropEl) {
+      backdropEl.style.backgroundImage = inst.img ? 'url("' + inst.img + '")' : 'none';
+    }
+
+    // 사진 (라이트박스 중앙~우측의 큰 컬러 사진)
+    const photoEl = document.getElementById('instructor-detail-photo');
+    photoEl.innerHTML = '';
+    if (inst.img) {
+      const img = document.createElement('img');
+      img.src = inst.img;
+      img.onerror = function() {
+        photoEl.innerHTML = '<div class="no-photo">사진 없음</div>';
+      };
+      photoEl.appendChild(img);
+    } else {
+      photoEl.innerHTML = '<div class="no-photo">사진 없음</div>';
+    }
+
+    // 🎯 큰 강사 사진에 호버하면 메인 페이지처럼 한마디 툴팁 표시
+    photoEl.onmousemove = function(e) {
+      if (inst.message) showInstructorTooltip(e, inst.message);
+    };
+    photoEl.onmouseleave = function() {
+      hideInstructorTooltip();
+    };
+
+    // 🎯 강사명 + "선생님" (피그마: "김민주 선생님" 형태)
+    document.getElementById('instructor-detail-name').textContent = inst.name + ' 선생님';
+    document.getElementById('instructor-detail-career').textContent = inst.career || '';
+    
+    // 과목 버튼들
+    const subjectsEl = document.getElementById('instructor-subjects');
+    if (inst.subjects && inst.subjects.length > 0) {
+      subjectsEl.innerHTML = inst.subjects.map((subj, sIdx) => {
+        return '<button class="subject-btn" data-subject-idx="' + sIdx + '">'
+          + escapeHtml(subj) + '</button>';
+      }).join('');
+      
+      // 과목 버튼 클릭 이벤트
+      subjectsEl.querySelectorAll('.subject-btn').forEach(btn => {
+        btn.addEventListener('click', function(e) {
+          e.stopPropagation();
+          const sIdx = parseInt(this.dataset.subjectIdx, 10);
+          selectSubject(sIdx);
+        });
+      });
+    } else {
+      subjectsEl.innerHTML = '<div style="color:rgba(255,255,255,0.7); font-size: 16px;">등록된 과목이 없습니다.</div>';
+    }
+  }
+  
+  function selectSubject(sIdx) {
+    if (!currentInstructorContext) return;
+    const { dept, idx } = currentInstructorContext;
+    const inst = window.currentInstructorsByDept[dept][idx];
+    if (!inst || !inst.subjects[sIdx]) return;
+    
+    currentInstructorContext.subjectIdx = sIdx;
+    
+    // 버튼 active 상태 업데이트
+    document.querySelectorAll('#instructor-subjects .subject-btn').forEach((b, i) => {
+      if (i === sIdx) b.classList.add('active');
+      else b.classList.remove('active');
+    });
+    
+    // 커리큘럼 라이트박스 열기
+    openInstructorCurriculum(dept, inst.name, inst.subjects[sIdx]);
+  }
+  
+  /* ============================================== */
+  /*  🎯 강사 커리큘럼 라이트박스 (흰 박스)            */
+  /* ============================================== */
+  
+  function openInstructorCurriculum(deptName, instructorName, subjectName) {
+    const lb = document.getElementById('instructor-curriculum-lightbox');
+    const box = document.getElementById('instructor-curriculum-box-content');
+
+    box.innerHTML = '<div class="curriculum-box-empty">커리큘럼을 불러오는 중...</div>';
+    lb.classList.add('visible');
+    // 🎯 ESC 우선순위용 글로벌 플래그
+    //   visible 클래스 체크가 타이밍/상속 문제로 false가 되는 케이스를 대비해
+    //   명시적인 boolean 상태를 함께 둔다. ESC 핸들러는 이 플래그를 먼저 본다.
+    window._instructorCurriculumOpen = true;
+
+    // 🎯 강사 라이트박스에 curriculum-open 클래스 → 강사 사진 블러 처리
+    document.getElementById('instructor-lightbox').classList.add('curriculum-open');
+
+    getInstructorCurriculumFromSupabase(deptName, instructorName, subjectName)
+      .then(function(data) {
+        renderInstructorCurriculum(data);
+      })
+      .catch(function(err) {
+        box.innerHTML = '<div class="curriculum-box-empty" style="color:#c00;">오류: ' + (err.message || err) + '</div>';
+      });
+  }
+
+  function closeInstructorCurriculum() {
+    document.getElementById('instructor-curriculum-lightbox').classList.remove('visible');
+    // 🎯 ESC 우선순위 플래그 해제
+    window._instructorCurriculumOpen = false;
+
+    // 🎯 강사 사진 블러 해제
+    document.getElementById('instructor-lightbox').classList.remove('curriculum-open');
+
+    // 모든 과목 버튼 active 해제
+    document.querySelectorAll('#instructor-subjects .subject-btn').forEach(b => {
+      b.classList.remove('active');
+    });
+    if (currentInstructorContext) currentInstructorContext.subjectIdx = -1;
+  }
+  
+  function renderInstructorCurriculum(data) {
+    const box = document.getElementById('instructor-curriculum-box-content');
+
+    if (data.error) {
+      box.innerHTML = '<div class="curriculum-box-empty" style="color:#c00;">' + escapeHtml(data.error) + '</div>';
+      return;
+    }
+
+    const weeks = data.weeks || [];
+    if (weeks.length === 0) {
+      box.innerHTML = '<div class="curriculum-box-empty">등록된 커리큘럼이 없습니다.</div>';
+      return;
+    }
+
+    // 🎯 현재 보고 있는 (dept, instructor, subject) 컨텍스트 캡처 (카드 클릭 시 사용)
+    const ctx = currentInstructorContext || {};
+    const inst = (ctx.dept && window.currentInstructorsByDept && window.currentInstructorsByDept[ctx.dept])
+      ? window.currentInstructorsByDept[ctx.dept][ctx.idx] : null;
+    const dept = ctx.dept || '';
+    const instructorName = inst ? inst.name : '';
+    const subjectName = (inst && ctx.subjectIdx >= 0 && inst.subjects) ? inst.subjects[ctx.subjectIdx] : '';
+
+    // 🎯 최대 4개까지 표시 (4개 이상이어도 일단 첫 4개만 - 향후 페이지 분할 가능)
+    const display = weeks.slice(0, 4);
+    const cnt = display.length;
+    const countClass = ' cols-' + Math.min(cnt, 3);
+
+    let html = '<div class="instructor-curriculum-weeks' + (cnt < 4 ? countClass : '') + '">';
+    display.forEach(week => {
+      const mediaHTML = week.img
+        ? '<img src="' + escapeAttr(week.img) + '" onerror="this.style.display=\'none\';this.nextElementSibling.style.display=\'block\';">'
+          + '<span class="no-img-text" style="display:none;">이미지 없음</span>'
+        : '<span class="no-img-text">이미지 없음</span>';
+
+      // 🎯 카드 이미지 박스에 data 속성 추가 (클릭 시 큰 라이트박스용 키)
+      html += '<div class="week-card-mini">'
+        + '<div class="img-box-mini" '
+        +    'data-dept="' + escapeAttr(dept) + '" '
+        +    'data-instructor="' + escapeAttr(instructorName) + '" '
+        +    'data-subject="' + escapeAttr(subjectName) + '" '
+        +    'data-week="' + escapeAttr(week.title) + '">'
+        + mediaHTML + '</div>'
+        + '<div class="week-label">' + escapeHtml(week.title) + '</div>'
+        + '<div class="week-divider"></div>'
+        + '<div class="week-content">' + escapeHtml(week.content) + '</div>'
+        + '</div>';
+    });
+    for (let i = cnt; i < 4; i++) {
+      html += '<div class="week-card-mini"></div>';
+    }
+    html += '</div>';
+
+    box.innerHTML = html;
+
+    if (dept && instructorName) {
+      loadInstructorFlatWeeks(dept, instructorName);
+    }
+
+    // 🎯 카드 클릭 → 큰 라이트박스 (강사의 모든 과목·주차 평탄화 데이터 기반)
+    box.querySelectorAll('.img-box-mini[data-week]').forEach(card => {
+      card.addEventListener('click', function(e) {
+        e.stopPropagation();
+        const d = this.dataset.dept;
+        const inst = this.dataset.instructor;
+        const subj = this.dataset.subject;
+        const wk = this.dataset.week;
+        if (!d || !inst || !subj || !wk) return;
+        openInstructorWeekLightbox(d, inst, subj, wk);
+      });
+    });
+  }
+
+  /* ============================================== */
+  /*  🎯 강사 라이트박스 → 카드 클릭 시 큰 라이트박스
+       (Curriculum_full의 #lightbox-overlay를 재사용)             */
+  /* ============================================== */
+
+  // 강사별로 평탄화 데이터를 캐싱 (dept|instructor 키)
+  window.instructorFlatWeeksCache = window.instructorFlatWeeksCache || {};
+  window.instructorFlatWeeksPending = window.instructorFlatWeeksPending || {};
+
+  function preloadInstructorWeekImages(items) {
+    if (!items || !items.length) return;
+    items.forEach(function(item) {
+      const src = item && item.week && item.week.img;
+      if (!src) return;
+      const img = new Image();
+      img.src = src;
+    });
+  }
+
+  function loadInstructorFlatWeeks(deptName, instructorName, onSuccess, onFailure) {
+    const key = deptName + '|' + instructorName;
+    const cached = window.instructorFlatWeeksCache[key];
+
+    if (cached) {
+      if (typeof onSuccess === 'function') onSuccess(cached);
+      return;
+    }
+
+    if (window.instructorFlatWeeksPending[key]) {
+      if (typeof onSuccess === 'function') {
+        window.instructorFlatWeeksPending[key].push(onSuccess);
+      }
+      return;
+    }
+
+    window.instructorFlatWeeksPending[key] = typeof onSuccess === 'function' ? [onSuccess] : [];
+
+    getAllInstructorCurriculumFromSupabase(deptName, instructorName)
+      .then(function(data) {
+        const items = (data && data.items) || [];
+        window.instructorFlatWeeksCache[key] = items;
+        preloadInstructorWeekImages(items);
+
+        const callbacks = window.instructorFlatWeeksPending[key] || [];
+        delete window.instructorFlatWeeksPending[key];
+        callbacks.forEach(function(cb) {
+          if (typeof cb === 'function') cb(items);
+        });
+      })
+      .catch(function(err) {
+        const callbacks = window.instructorFlatWeeksPending[key] || [];
+        delete window.instructorFlatWeeksPending[key];
+        console.warn('[InstructorWeekLightbox] 데이터 로드 실패:', err && err.message);
+        if (typeof onFailure === 'function') onFailure(err);
+        callbacks.forEach(function(cb) {
+          if (typeof cb === 'function') cb([]);
+        });
+      });
+  }
+
+  function openInstructorWeekLightbox(deptName, instructorName, subjectName, weekTitle) {
+    loadInstructorFlatWeeks(deptName, instructorName, function(items) {
+        _showInstructorWeekLightbox(items, subjectName, weekTitle);
+    });
+  }
+
+  function _showInstructorWeekLightbox(items, subjectName, weekTitle) {
+    if (!items || items.length === 0) return;
+    // 현재 클릭한 (subject, week) 인덱스 찾기
+    const idx = items.findIndex(function(it) {
+      return it.subjectName === subjectName && it.week.title === weekTitle;
+    });
+    if (idx < 0) return;
+
+    // 🎯 학과 페이지에서 사용 중인 flatWeeksForLightbox 백업 + 강사용으로 덮어씀
+    if (window._flatWeeksBackupForInstructor === undefined) {
+      window._flatWeeksBackupForInstructor = window.flatWeeksForLightbox || null;
+    }
+    window.flatWeeksForLightbox = items;
+
+    // 🎯 Curriculum_full의 기존 함수 호출 (동일한 디자인/효과)
+    if (typeof openLightbox === 'function') {
+      openLightbox(idx);
+    }
+  }
+
+  // 🎯 백업 복원은 Curriculum_full의 closeLightbox 내부에서 직접 처리 (한 줄 추가)
+  //    여기서 함수 wrap을 하지 않는 이유: 함수 선언 재할당이 strict 모드에서 문제될 수 있음
+</script>
+
+  <!-- ============================================== -->
+<!--  🎯 학과별 채용정보 카테고리 페이지                -->
+<!--   - 피그마 디자인 (node-id 183:643)              -->
+<!--   - 시트 1nADj2xWB... 학과별 탭에서 데이터 로드   -->
+<!--   - 5컬럼 테이블 (회사명/업무내용/자격요건/근무형태/급여) -->
+<!--   - 행 50px 간격, 한 페이지 초과 시 1/N, 2/N 분할 -->
+<!-- ============================================== -->
+
+<style>
+  /* ============================================== */
+  /*  채용정보 페이지 - 1920×1080 슬라이드 기준         */
+  /* ============================================== */
+  .recruitment-page .main-body {
+    display: block;
+    position: relative;
+    width: 100%;
+    height: 100%;
+  }
+
+  /* 🎯 좌측 주황 원형 */
+  .recruitment-bg-circle {
+    position: absolute;
+    width: 137px;
+    height: 137px;
+    border-radius: 50%;
+    background: var(--accent-orange);
+    left: 0;
+    top: 0;
+    z-index: 1;
+  }
+
+  /* 🎯 학과명 짧은 형식 (예: "시각편집") */
+  .recruitment-title-dept {
+    position: absolute;
+    left: 53px;
+    top: 1px;
+    z-index: 3;
+    color: #111;
+    font-family: 'Pretendard Variable', 'Pretendard', sans-serif;
+    font-weight: 800;
+    font-size: 80px;
+    line-height: 1;
+    letter-spacing: -0.02em;
+    max-width: 600px;
+    word-break: keep-all;
+  }
+
+  /* 🎯 "채용정보" */
+  .recruitment-title-sub {
+    position: absolute;
+    left: 53px;
+    top: 85px;
+    z-index: 3;
+    color: #111;
+    font-family: 'Pretendard Variable', 'Pretendard', sans-serif;
+    font-weight: 800;
+    font-size: 80px;
+    line-height: 1;
+    letter-spacing: -0.02em;
+    white-space: nowrap;
+  }
+
+  /* 🎯 페이지 인디케이터 (여러 페이지일 때만) */
+  .recruitment-page-badge {
+    position: absolute;
+    left: 53px;
+    top: 185px;
+    font-size: 28px;
+    font-weight: 700;
+    color: #aaa;
+    letter-spacing: 0.3px;
+    z-index: 3;
+  }
+
+  /* ============================================== */
+  /*  5컬럼 테이블 좌표 (피그마 1:1 매핑)               */
+  /*   - 헤더 텍스트 가운데 X / 주황 구분선 left + width */
+  /* ============================================== */
+
+  .recruitment-col-header {
+    position: absolute;
+    top: 100px;
+    height: 35px;
+    line-height: 35px;
+    font-size: 32px;
+    font-weight: 700;
+    color: #111;
+    text-align: center;
+    letter-spacing: -0.02em;
+    white-space: nowrap;
+    z-index: 3;
+  }
+  .recruitment-divider {
+    position: absolute;
+    top: 146px;
+    height: 3px;
+    background: var(--accent-orange);
+    border-radius: 1.5px;
+    z-index: 3;
+  }
+
+  /* 컬럼별 좌표 (헤더 텍스트 X 중앙) */
+  /*  - 회사명:   x=606 ~ 751 (w 145), 중앙 678.5
+      - 업무내용: x=766 ~ 1163 (w 397), 중앙 964.5 → 피그마 가운데 976.5
+      - 자격요건: x=1180 ~ 1444 (w 264), 중앙 1312
+      - 근무형태: x=1464 ~ 1707 (w 243), 중앙 1585.5
+      - 급여:    x=1727 ~ 1855 (w 128), 중앙 1791 */
+  .col-company       { left: 506px;  width: 145px; }
+  .col-worktype      { left: 666px;  width: 397px; }
+  .col-qualification { left: 1080px; width: 264px; }
+  .col-workform      { left: 1360px; width: 220px; }
+  .col-salary        { left: 1592px; width: 128px; }
+
+  /* 🎯 데이터 행 wrapper (5개 셀을 가로로 묶음, hover/click 처리 대상) */
+  .recruitment-row {
+    position: absolute;
+    left: 506px;
+    width: 1214px;
+    height: 50px;
+    z-index: 2;
+    cursor: pointer;
+    transition: background 0.15s ease;
+  }
+  .recruitment-row:hover {
+    background: rgba(250, 73, 29, 0.05);
+  }
+  .recruitment-row:hover .recruitment-cell {
+    font-weight: 700;  /* 호버 시 글자 두꺼워짐 */
+  }
+  .recruitment-row .col-company       { left: 0;    width: 145px; }
+  .recruitment-row .col-worktype      { left: 160px; width: 397px; }
+  .recruitment-row .col-qualification { left: 574px; width: 264px; }
+  .recruitment-row .col-workform      { left: 854px; width: 220px; }
+  .recruitment-row .col-salary        { left: 1086px; width: 128px; }
+
+  /* 데이터 셀 (행 wrapper 내부) */
+  .recruitment-cell {
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    height: 29px;
+    line-height: 29px;
+    font-size: 24px;
+    font-weight: 400;
+    color: #111;
+    text-align: center;
+    letter-spacing: -0.02em;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    z-index: 2;
+    transition: font-weight 0.15s ease;
+  }
+
+  /* 데이터 영역이 비어있을 때 표시 */
+  .recruitment-empty {
+    position: absolute;
+    top: 292px;
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: 28px;
+    color: #999;
+    letter-spacing: -0.02em;
+    z-index: 3;
+  }
+
+  /* ============================================== */
+  /*  🎯 채용 상세 팝업 (행 클릭 시 표시)               */
+  /* ============================================== */
+  .recruitment-popup-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 9999;
+    background: rgba(0, 0, 0, 0.72);
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+    transition: opacity 0.25s ease,
+                visibility 0s linear 0.25s;
+  }
+  .recruitment-popup-overlay.visible {
+    opacity: 1;
+    visibility: visible;
+    pointer-events: auto;
+    transition: opacity 0.25s ease,
+                visibility 0s linear 0s;
+  }
+  .recruitment-popup-box {
+    position: absolute;
+    left: auto;
+    right: max(40px, 4vw);
+    top: 50%;
+    width: min(1326px, calc(100vw - 160px));
+    min-height: min(542px, calc(100vh - 180px));
+    max-height: calc(100vh - 120px);
+    transform: translateY(-50%) scale(0.96);
+    background: #ffffff;
+    border-radius: 47px;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.18);
+    padding: 46px 64px 46px 53px;
+    box-sizing: border-box;
+    overflow: auto;
+    transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+  .recruitment-popup-overlay.visible .recruitment-popup-box {
+    transform: translateY(-50%) scale(1);
+  }
+  body.panel-fullscreen .recruitment-popup-box {
+    left: 50%;
+    right: auto;
+    transform: translate(-50%, -50%) scale(0.96);
+  }
+  body.panel-fullscreen .recruitment-popup-overlay.visible .recruitment-popup-box {
+    transform: translate(-50%, -50%) scale(1);
+  }
+
+  /* 라벨 박스 (주황, 5개) */
+  .recruitment-popup-label {
+    position: relative;
+    width: 198px;
+    min-width: 198px;
+    min-height: 66px;
+    background: var(--accent-orange);
+    border-radius: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #ffffff;
+    font-size: 40px;
+    font-weight: 700;
+    letter-spacing: -0.04em;
+    white-space: nowrap;
+  }
+
+  /* 값 텍스트 (검정, 5개) */
+  .recruitment-popup-value {
+    min-height: 66px;
+    display: flex;
+    align-items: center;
+    font-size: 28px;
+    font-weight: 400;
+    color: #111111;
+    letter-spacing: -0.03em;
+    line-height: 1.25;
+    white-space: normal;
+    overflow-wrap: anywhere;
+    word-break: keep-all;
+  }
+  .recruitment-popup-company {
+    font-size: 40px;
+    font-weight: 400;
+  }
+
+  .recruitment-popup-content {
+    display: grid;
+    grid-template-columns: 198px 1fr;
+    column-gap: 23px;
+    row-gap: 25px;
+    padding-right: 64px;
+  }
+
+  /* 우상단 닫기 버튼 */
+  .recruitment-popup-close {
+    position: absolute;
+    top: 30px;
+    right: 30px;
+    width: 56px;
+    height: 56px;
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #888;
+    font-size: 40px;
+    font-weight: 300;
+    line-height: 1;
+    transition: background 0.2s ease, color 0.2s ease;
+  }
+  .recruitment-popup-close:hover {
+    background: #f3f3f3;
+    color: #111;
+  }
+</style>
+
+<script>
+  /* ============================================== */
+  /*  🎯 채용정보 카테고리 페이지 생성 (여러 페이지 가능) */
+  /*    한 페이지당 최대 ROWS_PER_PAGE 행                */
+  /*    데이터 로드 후 페이지 수 결정 → 슬라이드 추가 갱신 */
+  /* ============================================== */
+
+  /**
+   * 채용정보 카테고리의 슬라이드들을 생성 (여러 페이지 가능)
+   * @returns {Array<HTMLElement>} 초기 슬라이드 배열 (1장만 반환, 데이터 로드 후 추가됨)
+   */
+  function createRecruitmentPages(deptName, engHeader) {
+    // 학과명 짧은 형식 (예: "시각편집학과" → "시각편집")
+    const deptShort = String(deptName || '').replace(/학과$/, '').trim();
+
+    // 임시로 첫 페이지 1개만 만들어서 반환
+    const firstSlide = makeRecruitmentPageShell(deptShort, engHeader, 0, 1);
+
+    // 데이터 로드
+    getRecruitmentListFromSupabase(deptName)
+      .then(function(list) {
+        handleRecruitmentDataLoaded(deptName, deptShort, engHeader, list || []);
+      })
+      .catch(function(err) {
+        const body = firstSlide.querySelector('.main-body');
+        if (body) {
+          const errEl = document.createElement('div');
+          errEl.className = 'recruitment-empty';
+          errEl.style.color = '#c00';
+          errEl.textContent = '오류: ' + (err && err.message ? err.message : err);
+          body.appendChild(errEl);
+        }
+      });
+
+    return [firstSlide];
+  }
+
+  /* 채용정보 슬라이드 1장 외형 생성 (헤더/푸터/타이틀/표 헤더/구분선) */
+  function makeRecruitmentPageShell(deptShort, engHeader, pageIdx, totalPages) {
+    const slide = document.createElement('div');
+    slide.className = 'slide-page recruitment-page';
+    slide.dataset.recruitmentPage = pageIdx;
+
+    const badgeHTML = totalPages > 1
+      ? '<div class="recruitment-page-badge">' + (pageIdx + 1) + ' / ' + totalPages + '</div>'
+      : '';
+
+    slide.innerHTML = ''
+      + '<div class="slide-header">'
+      + '<span class="dept-eng">' + escapeHtml(engHeader || '') + '</span>'
+      + '<span class="fixed-title">RECRUITMENT</span>'
+      + '</div>'
+      + '<div class="main-body">'
+      // 좌측 주황 원 + 학과명/채용정보
+      + '<div class="recruitment-bg-circle"></div>'
+      + '<div class="recruitment-title-dept">' + escapeHtml(deptShort) + '</div>'
+      + '<div class="recruitment-title-sub">채용정보</div>'
+      + badgeHTML
+      // 표 헤더 (5컬럼) - 각 헤더는 col-* 클래스로 좌표/너비 지정
+      + '<div class="recruitment-col-header col-company">회사명</div>'
+      + '<div class="recruitment-col-header col-worktype">업무내용</div>'
+      + '<div class="recruitment-col-header col-qualification">자격요건</div>'
+      + '<div class="recruitment-col-header col-workform">근무형태</div>'
+      + '<div class="recruitment-col-header col-salary">급여</div>'
+      // 주황 구분선 (각 컬럼별)
+      + '<div class="recruitment-divider col-company"></div>'
+      + '<div class="recruitment-divider col-worktype"></div>'
+      + '<div class="recruitment-divider col-qualification"></div>'
+      + '<div class="recruitment-divider col-workform"></div>'
+      + '<div class="recruitment-divider col-salary"></div>'
+      // 🎯 채용 상세 팝업 (초기 숨김, 행 클릭 시 visible)
+      + '<div class="recruitment-popup-overlay" data-popup>'
+      +   '<div class="recruitment-popup-box">'
+      +     '<button class="recruitment-popup-close" type="button" title="닫기">×</button>'
+      +     '<div class="recruitment-popup-label row-company">회사명</div>'
+      +     '<div class="recruitment-popup-value row-company" data-field="company"></div>'
+      +     '<div class="recruitment-popup-label row-worktype">업무내용</div>'
+      +     '<div class="recruitment-popup-value row-worktype" data-field="workType"></div>'
+      +     '<div class="recruitment-popup-label row-qualification">자격요건</div>'
+      +     '<div class="recruitment-popup-value row-qualification" data-field="qualification"></div>'
+      +     '<div class="recruitment-popup-label row-workform">근무형태</div>'
+      +     '<div class="recruitment-popup-value row-workform" data-field="workForm"></div>'
+      +     '<div class="recruitment-popup-label row-salary">급여</div>'
+      +     '<div class="recruitment-popup-value row-salary" data-field="salary"></div>'
+      +   '</div>'
+      + '</div>'
+      + '</div>'
+      + '<div class="slide-footer">SBS ACADEMY COMPUTER ART SUWON</div>';
+
+    return slide;
+  }
+
+  /* 데이터 로드 완료 후 처리 - 페이지 분할 + 행 렌더링 */
+  function handleRecruitmentDataLoaded(deptName, deptShort, engHeader, items) {
+    if (!items || items.length === 0) {
+      // 빈 경우 - 첫 슬라이드에 메시지 표시
+      const firstSlide = document.querySelector(
+        '.slide-page.recruitment-page[data-recruitment-page="0"]'
+      );
+      if (firstSlide) {
+        const body = firstSlide.querySelector('.main-body');
+        if (body) {
+          const empty = document.createElement('div');
+          empty.className = 'recruitment-empty';
+          empty.textContent = '등록된 채용정보가 없습니다.';
+          body.appendChild(empty);
+        }
+      }
+      return;
+    }
+
+    // 페이지 분할 - 한 페이지 최대 ROWS_PER_PAGE 행
+    const ROWS_PER_PAGE = 10;            // 50px × 10행
+    const ROW_START_TOP = 178;
+    const ROW_HEIGHT    = 50;
+    window._recruitmentItems = items;
+
+    const totalPages = Math.max(1, Math.ceil(items.length / ROWS_PER_PAGE));
+
+    // 첫 페이지 위치 찾기
+    const firstSlideIdx = slides.findIndex(function(s) {
+      return s.classList.contains('recruitment-page')
+        && s.dataset.recruitmentPage === '0';
+    });
+    if (firstSlideIdx < 0) return;
+
+    const container = document.getElementById('scale-container');
+    const oldFirst = slides[firstSlideIdx];
+
+    // 첫 페이지 재생성 (페이지 번호 포함)
+    const newFirst = makeRecruitmentPageShell(deptShort, engHeader, 0, totalPages);
+    if (oldFirst.classList.contains('active')) {
+      newFirst.classList.add('active');
+    }
+    container.replaceChild(newFirst, oldFirst);
+    slides[firstSlideIdx] = newFirst;
+
+    // 첫 페이지 행 렌더링
+    renderRecruitmentRows(newFirst, items.slice(0, ROWS_PER_PAGE), ROW_START_TOP, ROW_HEIGHT, 0);
+
+    // 추가 페이지 생성
+    for (let p = 1; p < totalPages; p++) {
+      const extra = makeRecruitmentPageShell(deptShort, engHeader, p, totalPages);
+      const insertAtIdx = firstSlideIdx + p;
+      const refNode = slides[insertAtIdx] || null;
+      container.insertBefore(extra, refNode);
+      slides.splice(insertAtIdx, 0, extra);
+
+      const start = p * ROWS_PER_PAGE;
+      const end = start + ROWS_PER_PAGE;
+      renderRecruitmentRows(extra, items.slice(start, end), ROW_START_TOP, ROW_HEIGHT, start);
+    }
+
+    // 인디케이터 / 네비게이션 재구성
+    buildIndicator(slides.length);
+    updateIndicator();
+    updateNavButtons();
+  }
+
+  /* 한 페이지에 채용 행들 렌더링 (각 행은 wrapper로 묶어 hover/click 처리) */
+  function renderRecruitmentRows(slide, pageItems, startTop, rowHeight, globalOffset) {
+    const body = slide.querySelector('.main-body');
+    if (!body) return;
+
+    // 팝업이 main-body의 자식이라 행은 그 앞에 삽입 (z-index도 충분히 분리됨)
+    const popup = body.querySelector('.recruitment-popup-overlay');
+
+    pageItems.forEach(function(it, i) {
+      const top = startTop + i * rowHeight;
+
+      // 행 wrapper (1920×50, hover/click 대상)
+      const row = document.createElement('div');
+      row.className = 'recruitment-row';
+      row.style.top = top + 'px';
+      row.style.height = rowHeight + 'px';
+
+      // 5개 컬럼 셀 생성 (col-* 클래스로 좌표/너비 동일하게)
+      const cellSpecs = [
+        { cls: 'col-company',       val: it.company },
+        { cls: 'col-worktype',      val: it.workType },
+        { cls: 'col-qualification', val: it.qualification },
+        { cls: 'col-workform',      val: it.workForm },
+        { cls: 'col-salary',        val: it.salary }
+      ];
+      cellSpecs.forEach(function(spec) {
+        const cell = document.createElement('div');
+        cell.className = 'recruitment-cell ' + spec.cls;
+        cell.textContent = spec.val || '';
+        row.appendChild(cell);
+      });
+
+      // 행 클릭 시 팝업 열기 - 이 슬라이드의 팝업에 값 채우고 표시
+      row.addEventListener('click', function() {
+        openRecruitmentPopup(slide, it, (globalOffset || 0) + i);
+      });
+
+      if (popup) body.insertBefore(row, popup);
+      else body.appendChild(row);
+    });
+  }
+
+  /* ============================================== */
+  /*  🎯 채용 상세 팝업 열기 / 닫기                     */
+  /* ============================================== */
+
+  function ensureRecruitmentPopup() {
+    let popup = document.getElementById('recruitment-global-popup');
+    if (popup) return popup;
+
+    popup = document.createElement('div');
+    popup.id = 'recruitment-global-popup';
+    popup.className = 'recruitment-popup-overlay';
+    popup.innerHTML = ''
+      + '<div class="recruitment-popup-box" role="dialog" aria-modal="true">'
+      +   '<button class="recruitment-popup-close" type="button" title="닫기">×</button>'
+      +   '<div class="recruitment-popup-content">'
+      +     '<div class="recruitment-popup-label">회사명</div>'
+      +     '<div class="recruitment-popup-value" data-field="company"></div>'
+      +     '<div class="recruitment-popup-label">업무내용</div>'
+      +     '<div class="recruitment-popup-value" data-field="workType"></div>'
+      +     '<div class="recruitment-popup-label">자격요건</div>'
+      +     '<div class="recruitment-popup-value" data-field="qualification"></div>'
+      +     '<div class="recruitment-popup-label">근무형태</div>'
+      +     '<div class="recruitment-popup-value" data-field="workForm"></div>'
+      +     '<div class="recruitment-popup-label">급여</div>'
+      +     '<div class="recruitment-popup-value" data-field="salary"></div>'
+      +   '</div>'
+      + '</div>';
+    popup.innerHTML = ''
+      + '<div class="recruitment-popup-box" role="dialog" aria-modal="true">'
+      +   '<button class="recruitment-popup-close" type="button" title="닫기">×</button>'
+      +   '<div class="recruitment-popup-content">'
+      +     '<div class="recruitment-popup-label">회사명</div>'
+      +     '<div class="recruitment-popup-value recruitment-popup-company" data-field="company"></div>'
+      +     '<div class="recruitment-popup-label">업무내용</div>'
+      +     '<div class="recruitment-popup-value" data-field="workType"></div>'
+      +     '<div class="recruitment-popup-label">자격요건</div>'
+      +     '<div class="recruitment-popup-value" data-field="qualification"></div>'
+      +     '<div class="recruitment-popup-label">근무형태</div>'
+      +     '<div class="recruitment-popup-value" data-field="workForm"></div>'
+      +     '<div class="recruitment-popup-label">급여</div>'
+      +     '<div class="recruitment-popup-value" data-field="salary"></div>'
+      +   '</div>'
+      + '</div>';
+    document.body.appendChild(popup);
+    return popup;
+  }
+
+  function openRecruitmentPopup(slide, item, index) {
+    const popup = ensureRecruitmentPopup();
+    window._activeRecruitmentPopup = popup;
+    window._activeRecruitmentIndex = typeof index === 'number' ? index : 0;
+    renderRecruitmentPopupItem(item || (window._recruitmentItems || [])[window._activeRecruitmentIndex]);
+    popup.classList.add('visible');
+  }
+
+  function renderRecruitmentPopupItem(item) {
+    const popup = ensureRecruitmentPopup();
+    popup.querySelectorAll('.recruitment-popup-value').forEach(function(el) {
+      const field = el.dataset.field;
+      el.textContent = (item && item[field]) ? item[field] : '';
+    });
+  }
+
+  function moveRecruitmentPopup(delta) {
+    const items = window._recruitmentItems || [];
+    if (!items.length) return;
+
+    let next = (typeof window._activeRecruitmentIndex === 'number')
+      ? window._activeRecruitmentIndex + delta
+      : 0;
+    next = Math.max(0, Math.min(items.length - 1, next));
+    if (next === window._activeRecruitmentIndex) return;
+
+    window._activeRecruitmentIndex = next;
+    renderRecruitmentPopupItem(items[next]);
+  }
+
+  function closeRecruitmentPopup(popup) {
+    if (!popup) popup = window._activeRecruitmentPopup;
+    if (!popup) return;
+    popup.classList.remove('visible');
+    if (window._activeRecruitmentPopup === popup) {
+      window._activeRecruitmentPopup = null;
+      window._activeRecruitmentIndex = -1;
+    }
+  }
+
+  /* 팝업 닫기/이동 이벤트 - 한 번만 등록 */
+  (function ensureRecruitmentPopupHandlers() {
+    if (window._recruitmentPopupHandlersInit) return;
+    window._recruitmentPopupHandlersInit = true;
+
+    document.addEventListener('click', function(e) {
+      if (e.target.closest('.recruitment-popup-close')) {
+        closeRecruitmentPopup(e.target.closest('.recruitment-popup-overlay'));
+        return;
+      }
+
+      const overlay = e.target.closest('.recruitment-popup-overlay');
+      if (overlay && overlay.classList.contains('visible')) {
+        if (e.target.closest('.recruitment-popup-box')) return;
+        closeRecruitmentPopup(overlay);
+      }
+    });
+
+    let popupWheelLocked = false;
+    window.addEventListener('wheel', function(e) {
+      const popup = window._activeRecruitmentPopup;
+      if (!popup || !popup.classList.contains('visible')) return;
+
+      e.preventDefault();
+      e.stopPropagation();
+      if (popupWheelLocked) return;
+      popupWheelLocked = true;
+      moveRecruitmentPopup(e.deltaY > 0 ? 1 : -1);
+      setTimeout(function() { popupWheelLocked = false; }, 180);
+    }, { capture: true, passive: false });
+
+    window.addEventListener('keydown', function(e) {
+      const popup = window._activeRecruitmentPopup;
+      if (!popup || !popup.classList.contains('visible')) return;
+
+      if (e.key === 'Escape') {
+        closeRecruitmentPopup(popup);
+      } else if (e.key === 'ArrowDown' || e.key === 'ArrowRight') {
+        moveRecruitmentPopup(1);
+      } else if (e.key === 'ArrowUp' || e.key === 'ArrowLeft') {
+        moveRecruitmentPopup(-1);
+      } else {
+        return;
+      }
+
+      e.preventDefault();
+      e.stopPropagation();
+      e.stopImmediatePropagation();
+    }, true);
+  })();
+</script>
+
+  <!-- ============================================== -->
+<!--  🎯 학과 공통 - 취업 프로세스 카테고리 페이지     -->
+<!--   - 피그마 디자인 (node-id 184:684 ~ 194:978)    -->
+<!--   - 5개 STEP 카드 (학과 무관 공통 내용 - 하드코딩) -->
+<!--   - STEP 네비게이션 호버 → 캐러셀 슬라이드          -->
+<!-- ============================================== -->
+
+<style>
+  /* ============================================== */
+  /*  취업 프로세스 페이지 - 1920×1080 슬라이드 기준    */
+  /* ============================================== */
+  .employment-page .main-body {
+    display: block;
+    position: relative;
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+  }
+
+  /* 🎯 좌측 주황 원형 (137×137) — main-body 좌상단 기준 */
+  .employment-bg-circle {
+    position: absolute;
+    width: 137px;
+    height: 137px;
+    border-radius: 50%;
+    background: var(--accent-orange);
+    left: 0;
+    top: 0;
+    z-index: 1;
+  }
+
+  /* 🎯 "취업 프로세스" 타이틀 한 줄 */
+  .employment-title {
+    position: absolute;
+    left: 53px;
+    top: 1px;
+    z-index: 3;
+    color: #111;
+    font-family: 'Pretendard Variable', 'Pretendard', sans-serif;
+    font-weight: 800;
+    font-size: 80px;
+    line-height: 1;
+    letter-spacing: -0.02em;
+    white-space: nowrap;
+  }
+
+  /* ============================================== */
+  /*  중앙 상단 STEP 네비게이션 (main-body 안 우측 영역)   */
+  /*    가로 라인 + 5개 점 + 5개 라벨                  */
+  /* ============================================== */
+  .step-nav-line {
+    position: absolute;
+    left: 967px;
+    top: 81.5px;          /* main-body 안 좌상단 기준 */
+    width: 447px;
+    height: 3px;
+    background: #bebebe;
+    border-radius: 1.5px;
+    z-index: 2;
+  }
+
+  .step-nav-item {
+    position: absolute;
+    z-index: 3;
+    cursor: pointer;
+    text-align: center;
+  }
+
+  /* 점 (라벨 아래에 위치) */
+  .step-nav-dot {
+    position: absolute;
+    left: 50%;
+    transform: translateX(-50%);
+    top: 35px;
+    width: 15px;
+    height: 15px;
+    border-radius: 50%;
+    background: #bebebe;
+    transition: width 0.25s ease,
+                height 0.25s ease,
+                background 0.25s ease,
+                top 0.25s ease;
+    z-index: 3;
+  }
+  .step-nav-item.active .step-nav-dot {
+    width: 29px;
+    height: 29px;
+    background: var(--accent-orange);
+    top: 27px;
+  }
+
+  /* 라벨 (STEP 1, STEP 2 …) */
+  .step-nav-label {
+    display: inline-block;
+    color: #bebebe;
+    font-family: 'Pretendard Variable', 'Pretendard', sans-serif;
+    font-weight: 700;
+    font-size: 24px;
+    letter-spacing: -0.02em;
+    white-space: nowrap;
+    transition: color 0.25s ease,
+                font-size 0.25s ease,
+                transform 0.25s ease;
+  }
+  .step-nav-item.active .step-nav-label {
+    color: #111;
+    font-size: 30px;
+    transform: translateY(-15px);  /* 🎯 활성 시 라벨이 15px 위로 떠오름 */
+  }
+
+  /* 5개 STEP 위치 (라벨 가운데 X 기준) */
+  .step-nav-item {
+    top: 41px;            /* main-body 안 좌상단 기준 */
+    width: 120px;
+    height: 65px;
+    margin-left: -60px;
+  }
+  .step-nav-item[data-step="0"] { left: 975px;   }
+  .step-nav-item[data-step="1"] { left: 1082.5px; }
+  .step-nav-item[data-step="2"] { left: 1191px;  }
+  .step-nav-item[data-step="3"] { left: 1301px;  }
+  .step-nav-item[data-step="4"] { left: 1411.5px; }
+
+  /* ============================================== */
+  /*  카드 캐러셀 (5개 카드 가로 일렬, 활성 카드 가운데)   */
+  /*    카드끼리 좌우로 약간 겹치게 배치 (overlap)        */
+  /* ============================================== */
+  .employment-cards-wrapper {
+    position: absolute;
+    left: 0;
+    top: 140px;          /* main-body 안 좌상단 기준 (카드 영역 시작) */
+    width: 1920px;
+    height: 540px;
+    /* 🎯 overflow: hidden 대신 clip-path로 좌우만 잘라냄
+       → 활성 카드가 위로 translateY(-18px) 떠올라도 윗부분이 잘리지 않음 */
+    overflow: visible;
+    clip-path: inset(-40px 0 -40px 0);
+    z-index: 2;
+  }
+
+  .employment-cards-track {
+    position: relative;
+    height: 100%;
+    transition: transform 0.55s cubic-bezier(0.4, 0, 0.2, 1);
+    /* JS에서 translateX 인라인 지정 */
+  }
+
+  /* 🎯 5개 카드: 카드 너비 418, 카드끼리 약 80px 겹침 (시작 간격 338) */
+  .employment-card {
+    position: absolute;
+    top: 22px;
+    width: 418px;
+    height: 445px;
+    transition: transform 0.5s cubic-bezier(0.4, 0, 0.2, 1),
+                box-shadow 0.4s ease,
+                filter 0.4s ease;
+    /* 🎯 비활성 카드: blur만 적용 (투명도/채도 변화 없음) */
+    filter: blur(2.5px);
+    z-index: 1;
+  }
+  /* 5개 카드 left (간격 338px = 카드 너비 418 - 겹침 80) */
+  .employment-card[data-step="0"] { left: 0px;    }
+  .employment-card[data-step="1"] { left: 338px;  }
+  .employment-card[data-step="2"] { left: 676px;  }
+  .employment-card[data-step="3"] { left: 1014px; }
+  .employment-card[data-step="4"] { left: 1352px; }
+
+  .employment-card.active {
+    transform: scale(1.06) translateY(-18px);
+    filter: none;
+    z-index: 10;
+    box-shadow: 0 24px 60px rgba(0, 0, 0, 0.18);
+  }
+
+  /* 카드 헤더 (기본 회색 → 활성 카드만 주황) */
+  .employment-card-header {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 74px;
+    background: #BEBEBE;          /* 🎯 기본(비활성) = 회색 */
+    border-radius: 12px 12px 0 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0 20px;
+    color: #ffffff;
+    font-family: 'Pretendard Variable', 'Pretendard', sans-serif;
+    font-weight: 900;
+    font-size: 28px;
+    letter-spacing: -0.03em;
+    line-height: 1.2;
+    text-align: center;
+    word-break: keep-all;
+    transition: background 0.4s ease;
+  }
+  /* 🎯 활성 카드 헤더만 주황 */
+  .employment-card.active .employment-card-header {
+    background: var(--accent-orange);
+  }
+
+  /* 카드 본문 (흰색) */
+  .employment-card-body {
+    position: absolute;
+    top: 74px;
+    left: 0;
+    width: 100%;
+    height: 371px;
+    background: #ffffff;
+    border-radius: 0 0 12px 12px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 40px 24px;
+    text-align: center;
+    color: #111111;
+    font-family: 'Pretendard Variable', 'Pretendard', sans-serif;
+    font-size: 24px;
+    font-weight: 400;
+    letter-spacing: -0.03em;
+    line-height: 1.45;
+    word-break: keep-all;
+  }
+  .employment-card-body .line {
+    display: block;
+    margin-bottom: 14px;
+  }
+  .employment-card-body .line:last-child {
+    margin-bottom: 0;
+  }
+</style>
+
+<script>
+  /* ============================================== */
+  /*  🎯 취업 프로세스 슬라이드 1장 생성                */
+  /*    5개 STEP 카드 하드코딩 (학과 무관 공통)         */
+  /* ============================================== */
+
+  /**
+   * 5개 STEP 데이터 (피그마 디자인 그대로)
+   * 학과와 무관하게 모든 학과에서 동일하게 사용.
+   */
+  const EMPLOYMENT_STEPS = [
+    {
+      title: '취업 희망기업 서칭 및 목표수립',
+      lines: [
+        '구인 사이트 등록 및 활용방법 교육',
+        '회사 리스트업',
+        '목표회사 설정',
+        '기업&직무 분석',
+        '기업 분석 및 취업전략 수립'
+      ]
+    },
+    {
+      title: '이력서, 자소서 특강 및 작성',
+      lines: [
+        '이력서, 자기소개서 특강',
+        '잘된 이력서 / 잘못된 이력서 분석',
+        '디자인 이력서 예시 체크',
+        '개별 이력서, 자기소개서 1:1 첨삭',
+        '개별 스케쥴 조율'
+      ]
+    },
+    {
+      title: '취업 이벤트',
+      lines: [
+        '실무자 세미나',
+        '실무이야기',
+        '기업체 견학 or 전시회 참관',
+        '면접 준비 특강'
+      ]
+    },
+    {
+      title: '최종 점검',
+      lines: [
+        '이력서, 자기소개서,',
+        '포트폴리오 완성도 체크'
+      ]
+    },
+    {
+      title: '사후 관리',
+      lines: [
+        '실전 대비 모의 면접 실시',
+        '1 대 1 피드백',
+        '사후 관리'
+      ]
+    }
+  ];
+
+  /* 활성 카드가 화면 중앙(약 X=960)에 오도록 track의 translateX 계산 */
+  function computeEmploymentTrackOffset(idx) {
+    // 카드 너비 418, 카드끼리 약 80px 겹침 → 시작 간격 338
+    // 활성 카드 가운데 X = idx * 338 + 209 (트랙 내부 좌표)
+    // 화면 가운데 X = 960
+    // translateX = 960 - (idx * 338 + 209) = 751 - idx * 338
+    return 751 - idx * 338;
+  }
+
+  /**
+   * 취업 프로세스 페이지 1장 생성
+   * @param {string} deptName    학과명 (좌측 타이틀에는 미사용, 우상단 영문 헤더용)
+   * @param {string} engHeader   학과 영문 헤더 (예: VISUAL EDITING)
+   * @returns {HTMLElement} 슬라이드 요소
+   */
+  function createEmploymentPage(deptName, engHeader) {
+    const slide = document.createElement('div');
+    slide.className = 'slide-page employment-page';
+    slide.dataset.category = '취업프로세스';
+
+    // 카드 HTML 생성
+    let cardsHtml = '';
+    EMPLOYMENT_STEPS.forEach(function(step, i) {
+      const linesHtml = step.lines.map(function(line) {
+        return '<span class="line">' + escapeHtml(line) + '</span>';
+      }).join('');
+      cardsHtml += ''
+        + '<div class="employment-card" data-step="' + i + '">'
+        +   '<div class="employment-card-header">' + escapeHtml(step.title) + '</div>'
+        +   '<div class="employment-card-body">' + linesHtml + '</div>'
+        + '</div>';
+    });
+
+    // STEP 네비게이션 (5개)
+    let navHtml = '';
+    for (let i = 0; i < 5; i++) {
+      navHtml += ''
+        + '<div class="step-nav-item" data-step="' + i + '">'
+        +   '<span class="step-nav-label">STEP ' + (i + 1) + '</span>'
+        +   '<span class="step-nav-dot"></span>'
+        + '</div>';
+    }
+
+    slide.innerHTML = ''
+      + '<div class="slide-header">'
+      + '<span class="dept-eng">' + escapeHtml(engHeader || '') + '</span>'
+      + '<span class="fixed-title">RECRUITMENT PROCESS</span>'
+      + '</div>'
+      + '<div class="main-body">'
+      // 좌측 주황 원 + "취업 프로세스" 타이틀 한 줄
+      + '<div class="employment-bg-circle"></div>'
+      + '<div class="employment-title">취업 프로세스</div>'
+      // 중앙 STEP 네비게이션
+      + '<div class="step-nav-line"></div>'
+      + navHtml
+      // 카드 캐러셀
+      + '<div class="employment-cards-wrapper">'
+      +   '<div class="employment-cards-track">'
+      +     cardsHtml
+      +   '</div>'
+      + '</div>'
+      + '</div>'
+      + '<div class="slide-footer">SBS ACADEMY COMPUTER ART SUWON</div>';
+
+    // 초기 활성 STEP = 0
+    setTimeout(function() {
+      setActiveEmploymentStep(slide, 0);
+    }, 0);
+
+    // STEP 네비 hover/click → 해당 STEP 활성화
+    slide.querySelectorAll('.step-nav-item').forEach(function(item) {
+      const idx = parseInt(item.dataset.step, 10);
+      // 마우스 호버
+      item.addEventListener('mouseenter', function() {
+        setActiveEmploymentStep(slide, idx);
+      });
+      // 클릭도 가능
+      item.addEventListener('click', function() {
+        setActiveEmploymentStep(slide, idx);
+      });
+    });
+
+    // 카드 자체 클릭으로도 활성화 (혹시 카드 위에서 마우스 호버 시)
+    slide.querySelectorAll('.employment-card').forEach(function(card) {
+      const idx = parseInt(card.dataset.step, 10);
+      card.addEventListener('click', function() {
+        setActiveEmploymentStep(slide, idx);
+      });
+    });
+
+    return slide;
+  }
+
+  /* 활성 STEP 변경 */
+  function setActiveEmploymentStep(slide, idx) {
+    if (!slide) return;
+    idx = Math.max(0, Math.min(4, idx | 0));
+
+    // STEP 네비 active 토글
+    slide.querySelectorAll('.step-nav-item').forEach(function(item, i) {
+      if (i === idx) item.classList.add('active');
+      else item.classList.remove('active');
+    });
+
+    // 카드 active 토글
+    slide.querySelectorAll('.employment-card').forEach(function(card, i) {
+      if (i === idx) card.classList.add('active');
+      else card.classList.remove('active');
+    });
+
+    // 트랙 translateX (활성 카드를 화면 가운데로)
+    const track = slide.querySelector('.employment-cards-track');
+    if (track) {
+      track.style.transform = 'translateX(' + computeEmploymentTrackOffset(idx) + 'px)';
+    }
+  }
+</script>
+
+  <!-- ============================================== -->
+<!--  🎯 임시 카테고리 페이지 (공통 - 옵션 A 디자인)  -->
+<!--                                                  -->
+<!--  나중에 카테고리별로 별도 파일로 분리할 예정     -->
+<!--  현재는 헤더/푸터/주황 원 유지하며 카테고리명만  -->
+<!-- ============================================== -->
+
+<script>
+  /**
+   * 임시 카테고리 페이지 생성
+   * @param {string} deptName - 학과명 (예: "시각편집학과")
+   * @param {string} engHeader - 영문 헤더 (예: "VISUAL EDITING")
+   * @param {string} categoryName - 카테고리명 (예: "학과 강사소개")
+   * @returns {HTMLElement} 생성된 슬라이드 요소
+   */
+  function createGenericCategoryPage(deptName, engHeader, categoryName) {
+    const slide = document.createElement('div');
+    slide.className = 'slide-page';
+    slide.dataset.category = categoryName;
+    
+    // 학과명에서 "학과" 제거 (예: "시각편집학과" → "시각편집")
+    const deptShort = deptName.replace(/학과$/, '').trim();
+    
+    // 카테고리명을 영문으로 표시 (우상단)
+    const categoryEngMap = {
+      '커리큘럼': '학과 전체 과목 커리큘럼',
+      '학과 강사소개': 'INSTRUCTORS',
+      '수강후기': 'REVIEWS',
+      '포트폴리오': 'PORTFOLIO',
+      '채용정보': 'RECRUITMENT',
+      '취업프로세스': 'EMPLOYMENT PROCESS',
+      '수강생 인터뷰': 'INTERVIEWS'
+    };
+    const categoryEng = categoryEngMap[categoryName] || categoryName.toUpperCase();
+    
+    slide.innerHTML = ''
+      + '<div class="slide-header">'
+      + '<span class="dept-eng">' + escapeHtml(engHeader || '') + '</span>'
+      + '<span class="fixed-title">' + escapeHtml(categoryEng) + '</span>'
+      + '</div>'
+      + '<div class="main-body">'
+      + '<div class="title-area">'
+      + '<div class="orange-circle"></div>'
+      + '<span class="subject-title">' + escapeHtml(deptShort) + '</span>'
+      + '<span class="subject-sub">' + escapeHtml(categoryName) + '</span>'
+      + '</div>'
+      + '<div class="generic-placeholder">'
+      + '<div class="placeholder-text">콘텐츠 준비 중</div>'
+      + '<div class="placeholder-sub">' + escapeHtml(categoryName) + ' 페이지의 콘텐츠가 곧 추가됩니다</div>'
+      + '</div>'
+      + '</div>'
+      + '<div class="slide-footer">SBS ACADEMY COMPUTER ART SUWON</div>';
+    
+    // subject-title 글자 크기 자동 조정
+    setTimeout(() => {
+      const titleEl = slide.querySelector('.subject-title');
+      if (titleEl) fitTitleSize(titleEl);
+    }, 0);
+    
+    return slide;
+  }
+</script>
+
+<style>
+  /* 임시 페이지 placeholder 스타일 */
+  .generic-placeholder {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    padding: 100px 50px;
+    color: #111;
+  }
+  
+  .placeholder-text {
+    font-size: 64px;
+    font-weight: 900;
+    color: #111;
+    margin-bottom: 20px;
+    letter-spacing: -0.02em;
+  }
+  
+  .placeholder-sub {
+    font-size: 22px;
+    font-weight: 500;
+    color: #888;
+    letter-spacing: -0.01em;
+  }
+</style>
+</head>
+<body>
+  <!-- 로딩 화면 -->
+  <div id="loading-overlay">
+    <img id="loading-bg" src="" alt="">
+    <div id="loading-dim"></div>
+    <div id="loading-text-wrapper">
+      <span class="wipe-text" id="loading-text" data-text=""></span>
+    </div>
+  </div>
+  
+  <!-- 가이드 -->
+  <div class="guide-h top"></div>
+  <div class="guide-h bottom"></div>
+  <div class="guide-v left"></div>
+  <div class="guide-v right"></div>
+  <div class="guide-cross tl"></div>
+  <div class="guide-cross tr"></div>
+  <div class="guide-cross bl"></div>
+  <div class="guide-cross br"></div>
+  
+  <!-- 학과 목록 -->
+  <ul id="departments"></ul>
+  
+  <!-- 학과 설명 (이미지 + 텍스트) -->
+  <div id="dept-description">
+    <img id="dept-description-image" class="dept-description-image-layer" src="" alt="">
+    <img id="dept-description-image-blur" class="dept-description-image-layer" src="" alt="">
+    <div id="dept-description-text"></div>
+  </div>
+  
+  <!-- 슬라이드 패널 -->
+  <div id="slide-panel">
+    <div class="panel-guide-h top"></div>
+    <div class="panel-guide-h bottom"></div>
+    <div class="panel-guide-v left"></div>
+    <div class="panel-guide-v right"></div>
+    <div class="panel-guide-cross tl"></div>
+    <div class="panel-guide-cross tr"></div>
+    <div class="panel-guide-cross bl"></div>
+    <div class="panel-guide-cross br"></div>
+    
+    <div class="slide-view">
+      <div id="scale-container">
+        <!-- 🎯 페이지 인디케이터 - footer 라인 중앙 -->
+        <div id="page-indicator"></div>
+      </div>
+      <div class="slide-empty" id="slide-empty" style="display:none;">커리큘럼 데이터를 불러오는 중...</div>
+    </div>
+    
+    <!-- 🎯 슬라이드 네비게이션 (↑/↓) - 오른쪽 호버 -->
+        <div id="slide-nav">
+          <button class="slide-nav-btn" id="nav-first" title="이전">
+            <svg viewBox="0 0 24 24" class="nav-svg-arrow nav-up">
+              <polyline points="9 6 15 12 9 18"></polyline>
+            </svg>
+          </button>
+          <button class="slide-nav-btn" id="nav-last" title="다음">
+            <svg viewBox="0 0 24 24" class="nav-svg-arrow nav-down">
+              <polyline points="9 6 15 12 9 18"></polyline>
+            </svg>
+          </button>
+        </div>
+      </div>
+      <!-- ⬆️ slide-panel 닫힘 -->
+      
+      <!-- 🎯 좌하단 < 버튼 (메인으로) -->
+      <button class="back-btn" id="back-btn" onclick="goHome()">
+        <svg viewBox="0 0 24 24" class="back-svg-arrow">
+          <polyline points="15 6 9 12 15 18"></polyline>
+        </svg>
+      </button>
+      
+      <!-- 🎯 우하단 확대 버튼 -->
+      <button class="expand-btn" id="expand-btn" onclick="toggleFullscreen()">
+        <!-- 평소: 모서리 4개 L자 모양 (확대 아이콘) -->
+        <svg id="expand-icon" viewBox="0 0 24 24">
+          <polyline points="4 9 4 4 9 4"></polyline>
+          <polyline points="20 9 20 4 15 4"></polyline>
+          <polyline points="4 15 4 20 9 20"></polyline>
+          <polyline points="20 15 20 20 15 20"></polyline>
+        </svg>
+        <!-- 확대 상태: 화살표 4개 안쪽 향함 (축소 아이콘) -->
+        <svg id="collapse-icon" viewBox="0 0 24 24" style="display:none;">
+          <polyline points="4 14 10 14 10 20"></polyline>
+          <polyline points="20 10 14 10 14 4"></polyline>
+          <polyline points="14 20 14 14 20 14"></polyline>
+          <polyline points="10 4 10 10 4 10"></polyline>
+        </svg>
+      </button>
+      
+      <!-- 🎯 우하단 × 버튼 (닫기) -->
+      <button class="close-btn" id="close-btn" onclick="closePanel()">×</button>
+
+<!-- 🎯 썸네일 라이트박스 (커리큘럼 이미지 확대) -->
+  <div id="lightbox-overlay">
+    <button class="lightbox-nav prev" id="lightbox-prev" title="이전 주차">
+      <svg viewBox="0 0 24 24">
+        <polyline points="15 6 9 12 15 18"></polyline>
+      </svg>
+    </button>
+    
+    <div id="lightbox-content">
+      <div class="lightbox-media-wrapper" id="lightbox-media-wrapper">
+        <!-- 동적으로 이미지 또는 iframe이 들어감 -->
+      </div>
+      <div class="lightbox-text">
+        <div class="lightbox-title">
+          <span class="lightbox-subject" id="lightbox-subject"></span>
+          <span class="lightbox-week" id="lightbox-week"></span>
+        </div>
+        <div class="lightbox-content" id="lightbox-content-text"></div>
+      </div>
+    </div>
+    
+    <button class="lightbox-nav next" id="lightbox-next" title="다음 주차">
+      <svg viewBox="0 0 24 24">
+        <polyline points="9 6 15 12 9 18"></polyline>
+      </svg>
+    </button>
+  </div>
+
+  <!-- 🎯 강사 상세 라이트박스 -->
+    <div id="instructor-lightbox">
+      <!-- 우측 1/3 반투명 패널 -->
+      <div class="instructor-detail-panel"></div>
+      
+      <!-- 강사 사진 (좌측, 크게) -->
+      <div class="instructor-detail-photo" id="instructor-detail-photo"></div>
+      
+      <!-- 중앙 - 강사명 + 경력 -->
+      <div class="instructor-detail-info">
+        <div class="instructor-detail-name" id="instructor-detail-name"></div>
+        <div class="instructor-detail-divider"></div>
+        <div class="instructor-detail-career" id="instructor-detail-career"></div>
+      </div>
+      
+      <!-- 우측 - 과목 버튼들 -->
+      <div class="instructor-subjects" id="instructor-subjects"></div>
+    </div>
+    
+    <!-- 🎯 강사 커리큘럼 라이트박스 (2단계, 흰 박스) -->
+    <div id="instructor-curriculum-lightbox">
+      <div class="instructor-curriculum-box" id="instructor-curriculum-box-content">
+        <!-- 동적으로 채워짐 -->
+      </div>
+    </div>
+
+  <script>
+    const LOADING_CACHE_KEY = 'loading_image_cache_v1';
+    const LOADING_LIST_CACHE_KEY = 'loading_list_cache_v1';
+    
+    let cachedWebAppUrl = null;
+    let isNavigating = false;
+    let isLoadingContentDisplayed = false;
+    let dataReady = false;
+    let loadingContentReady = false;
+    let webAppUrlReady = false;
+    let domReady = false;
+    const MIN_LOADING_TIME = 2500;
+    const MAX_LOADING_TIME = 8000;
+    const loadingStartTime = Date.now();
+    const loadingProgressSteps = {
+      dom: 10,
+      loadingContent: 20,
+      data: 55,
+      webAppUrl: 15
+    };
+    const loadingProgressDone = {};
+    
+    let departmentsData = [];
+    let activeDeptName = null;
+    let isFullscreen = false;
+    
+    let slides = [];
+    let currentSlideIndex = 0;
+    let supabaseSheetCache = {};
+
+    /*
+     * Supabase 테스트 설정
+     * - 브라우저 공개용 파일이므로 service_role 키를 절대 넣지 않는다.
+     * - 이 키는 읽기 전용 RLS 정책용 anon/public key다.
+     */
+    const SUPABASE_URL = window.COMSW_SUPABASE_CONFIG.url;
+    const SUPABASE_ANON_KEY = window.COMSW_SUPABASE_CONFIG.anonKey;
+    const SUPABASE_RAW_TABLE = window.COMSW_SUPABASE_CONFIG.rawTable;
+    const CURRICULUM_SHEET_NAME = '컴수원_전체수업';
+    const COURSE_PREP_SHEET_NAMES = [
+      '수업별 준비물(AI/교재 등)',
+      '수업별 준비몰(AI/교재 등)'
+    ];
+    const INSTRUCTOR_SHEET_NAME = '강사페이지';
+
+    function normalizeText(v) {
+      if (v === null || v === undefined) return '';
+      return String(v).replace(/[\u200B\u200C\u200D\uFEFF\u00A0]/g, '').trim();
+    }
+
+    function truthyCell(v) {
+      if (v === true) return true;
+      const s = normalizeText(v).toLowerCase();
+      return s === 'true' || s === 'y' || s === 'yes' || s === '1' || s === 'checked';
+    }
+
+    function convertDriveUrl(url) {
+      const raw = normalizeText(url);
+      if (!raw) return '';
+
+      let match = raw.match(/\/file\/d\/([^/]+)/);
+      if (match && match[1]) {
+        return 'https://drive.google.com/thumbnail?id=' + match[1] + '&sz=w1000';
+      }
+
+      match = raw.match(/[?&]id=([^&]+)/);
+      if (match && match[1] && raw.indexOf('drive.google.com') !== -1) {
+        return 'https://drive.google.com/thumbnail?id=' + match[1] + '&sz=w1000';
+      }
+
+      return raw;
+    }
+
+    function getRawValues(row) {
+      const data = row && row.data ? row.data : {};
+      if (Array.isArray(data.values)) return data.values;
+      if (data.row && typeof data.row === 'object') {
+        return Object.keys(data.row).map(function(key) { return data.row[key]; });
+      }
+      return [];
+    }
+
+    function getSupabaseSourceId(sourceKey) {
+      const sources = (window.COMSW_SUPABASE_CONFIG && window.COMSW_SUPABASE_CONFIG.sources) || {};
+      return sources[sourceKey] || sourceKey || 'main';
+    }
+
+    async function fetchSupabaseRowsForSheet(sheetName, sourceId) {
+      const source = sourceId || getSupabaseSourceId('main');
+      const cacheKey = source + '::' + sheetName;
+      if (window.ComswSupabase && typeof window.ComswSupabase.fetchSheetRows === 'function') {
+        return window.ComswSupabase.fetchSheetRows(sheetName, source);
+      }
+      if (supabaseSheetCache[cacheKey]) return supabaseSheetCache[cacheKey];
+
+      const endpoint = SUPABASE_URL.replace(/\/+$/, '') + '/rest/v1/' + SUPABASE_RAW_TABLE;
+      const url = endpoint
+        + '?select=source_id,sheet_name,row_number,data'
+        + '&source_id=eq.' + encodeURIComponent(source)
+        + '&sheet_name=eq.' + encodeURIComponent(sheetName)
+        + '&order=row_number.asc';
+
+      const res = await fetch(url, {
+        headers: {
+          apikey: SUPABASE_ANON_KEY,
+          Authorization: 'Bearer ' + SUPABASE_ANON_KEY
+        }
+      });
+
+      if (!res.ok) {
+        throw new Error('Supabase HTTP ' + res.status + ' / ' + await res.text());
+      }
+
+      const rows = await res.json();
+      supabaseSheetCache[cacheKey] = rows || [];
+      return supabaseSheetCache[cacheKey];
+    }
+
+    async function getDepartmentListFromSupabase() {
+      const rows = await fetchSupabaseRowsForSheet(CURRICULUM_SHEET_NAME);
+      const departments = [];
+      const seen = {};
+
+      rows.forEach(function(row) {
+        const values = getRawValues(row);
+        const name = normalizeText(values[14]);        // O열
+        const imageUrl = normalizeText(values[15]);    // P열
+        const checked = values[16];                    // Q열
+        const description = normalizeText(values[17]); // R열
+        if (!name || !truthyCell(checked) || seen[name]) return;
+        seen[name] = true;
+        departments.push({
+          name: name,
+          imageUrl: imageUrl ? convertDriveUrl(imageUrl) : '',
+          description: description
+        });
+      });
+
+      return departments;
+    }
+
+    async function getCategoryListFromSupabase() {
+      const rows = await fetchSupabaseRowsForSheet(CURRICULUM_SHEET_NAME);
+      const categories = [];
+      const seen = {};
+
+      rows.forEach(function(row) {
+        const values = getRawValues(row);
+        const name = normalizeText(values[22]); // W열
+        const checked = values[23];             // X열
+        if (!name || !truthyCell(checked) || seen[name]) return;
+        seen[name] = true;
+        categories.push({ name: name });
+      });
+
+      return categories;
+    }
+
+    async function getCurriculumByDeptFromSupabase(deptName) {
+      const rows = await fetchSupabaseRowsForSheet(CURRICULUM_SHEET_NAME);
+      const deptKeyword = normalizeText(deptName).replace(/학과$/, '').trim();
+      let engHeader = '';
+      const subjectMap = {};
+      const subjectOrder = [];
+
+      rows.forEach(function(row) {
+        const values = getRawValues(row);
+        const deptFull = normalizeText(values[14]); // O열
+        const eng = normalizeText(values[20]);      // U열
+        if (deptFull === deptName && eng && !engHeader) engHeader = eng;
+
+        const deptCell = normalizeText(values[1]);      // B열
+        const subjectName = normalizeText(values[2]);   // C열
+        const weekTitle = normalizeText(values[3]);     // D열
+        const content = normalizeText(values[5]);       // F열
+        const imageUrl = normalizeText(values[7]);      // H열
+
+        if (!deptCell || deptCell.indexOf(deptKeyword) === -1) return;
+        if (!subjectName || !weekTitle) return;
+
+        if (!subjectMap[subjectName]) {
+          subjectMap[subjectName] = {
+            subjectName: subjectName,
+            weeks: []
+          };
+          subjectOrder.push(subjectName);
+        }
+
+        subjectMap[subjectName].weeks.push({
+          title: weekTitle,
+          content: content,
+          img: imageUrl ? convertDriveUrl(imageUrl) : '',
+          mediaType: imageUrl ? 'image' : ''
+        });
+      });
+
+      return {
+        engHeader: engHeader,
+        subjects: subjectOrder.map(function(name) { return subjectMap[name]; })
+      };
+    }
+
+    function coursePrepCategoryKey(value) {
+      const v = normalizeText(value).replace(/\s+/g, '');
+      if (v === '교재명' || v === '교재') return 'textbook';
+      if (v === '준비물') return 'supply';
+      if (v.toUpperCase() === 'AI툴'.toUpperCase() || v.toLowerCase() === 'aitool' || v === 'AI도구') return 'ai';
+      return '';
+    }
+
+    async function getCoursePreparationsFromSupabase() {
+      let rows = [];
+      for (let i = 0; i < COURSE_PREP_SHEET_NAMES.length; i++) {
+        rows = await fetchSupabaseRowsForSheet(COURSE_PREP_SHEET_NAMES[i]);
+        if (rows.length) break;
+      }
+
+      const result = {};
+      let curSubject = '';
+      let curCategory = '';
+
+      rows.forEach(function(row) {
+        const values = getRawValues(row);
+        const cellA = normalizeText(values[0]);
+        const cellB = normalizeText(values[1]);
+        const cellC = normalizeText(values[2]);
+        const cellD = normalizeText(values[3]);
+        const cellE = normalizeText(values[4]);
+        const cellF = normalizeText(values[5]);
+
+        if (cellA) curSubject = cellA;
+        if (cellB) curCategory = cellB;
+        if (!curSubject) return;
+
+        const cat = coursePrepCategoryKey(curCategory);
+        if (!cat) return;
+        if (!cellC && !cellD && !cellE && !cellF) return;
+
+        if (!result[curSubject]) result[curSubject] = {};
+        if (!result[curSubject][cat]) result[curSubject][cat] = [];
+        result[curSubject][cat].push({
+          text: cellC,
+          link: cellD,
+          image: cellE ? convertDriveUrl(cellE) : '',
+          pill: cellF
+        });
+      });
+
+      return result;
+    }
+
+    function splitMultiValue(value) {
+      return normalizeText(value)
+        .split(/[,;\/\n\r]+/)
+        .map(normalizeText)
+        .filter(Boolean);
+    }
+
+    function curriculumMatchKey(value) {
+      return normalizeText(value)
+        .replace(/[~～]/g, '~')
+        .replace(/\s+/g, '')
+        .toLowerCase();
+    }
+
+    function mergeSubjectLists(primary, secondary) {
+      const merged = [];
+      const seen = {};
+      (primary || []).concat(secondary || []).forEach(function(subjectName) {
+        const clean = normalizeText(subjectName);
+        const key = curriculumMatchKey(clean);
+        if (!clean || seen[key]) return;
+        seen[key] = true;
+        merged.push(clean);
+      });
+      return merged;
+    }
+
+    function buildInstructorCurriculumRecords(rows) {
+      const records = [];
+      let currentInstructor = '';
+      let currentSubject = '';
+
+      (rows || []).forEach(function(row) {
+        const values = getRawValues(row);
+        const inst = normalizeText(values[0]);    // A열
+        const subj = normalizeText(values[1]);    // B열
+        const title = normalizeText(values[2]);   // C열
+        const content = normalizeText(values[4]); // E열
+        const img = normalizeText(values[5]);     // F열
+
+        if (inst) currentInstructor = inst;
+        if (subj) currentSubject = subj;
+        if (!currentInstructor || !currentSubject || !title) return;
+
+        records.push({
+          instructor: currentInstructor,
+          subjectName: currentSubject,
+          title: title,
+          content: content,
+          img: img ? convertDriveUrl(img) : '',
+          mediaType: img ? 'image' : ''
+        });
+      });
+
+      return records;
+    }
+
+    function buildInstructorSubjectMap(records) {
+      const map = {};
+      (records || []).forEach(function(record) {
+        const instKey = curriculumMatchKey(record.instructor);
+        if (!instKey || !record.subjectName) return;
+        if (!map[instKey]) map[instKey] = [];
+        map[instKey] = mergeSubjectLists(map[instKey], [record.subjectName]);
+      });
+      return map;
+    }
+
+    async function getInstructorListFromSupabase(deptName) {
+      const rows = await fetchSupabaseRowsForSheet(INSTRUCTOR_SHEET_NAME);
+      let subjectsByInstructor = {};
+      try {
+        const curriculumRows = await fetchSupabaseRowsForSheet(deptName, getSupabaseSourceId('instructorCurriculum'));
+        subjectsByInstructor = buildInstructorSubjectMap(buildInstructorCurriculumRecords(curriculumRows));
+      } catch (err) {
+        console.warn('강사별 커리큘럼 과목 목록 로드 실패:', err);
+      }
+      const targetDeptKey = normalizeText(deptName).replace(/\s+/g, '');
+      const instructors = [];
+
+      rows.forEach(function(row) {
+        const values = getRawValues(row);
+        const name = normalizeText(values[0]);      // A열
+        const depts = splitMultiValue(values[1]);   // B열
+        const subjects = splitMultiValue(values[2]); // C열, 정적 테스트에서는 이 값을 사용
+        const career = normalizeText(values[3]);    // D열
+        const message = normalizeText(values[4]);   // E열
+        const img = normalizeText(values[5]);       // F열
+        if (!name) return;
+
+        const matched = depts.some(function(dept) {
+          return dept.replace(/\s+/g, '') === targetDeptKey;
+        });
+        if (!matched) return;
+
+        const externalSubjects = subjectsByInstructor[curriculumMatchKey(name)] || [];
+
+        instructors.push({
+          name: name,
+          depts: depts,
+          subjects: externalSubjects.length ? externalSubjects : subjects,
+          career: career,
+          message: message,
+          img: img ? convertDriveUrl(img) : ''
+        });
+      });
+
+      return instructors;
+    }
+
+    async function getInstructorCurriculumFromSupabase(deptName, instructorName, subjectName) {
+      const rows = await fetchSupabaseRowsForSheet(deptName, getSupabaseSourceId('instructorCurriculum'));
+      const weeks = [];
+      const targetInst = curriculumMatchKey(instructorName);
+      const targetSubj = curriculumMatchKey(subjectName);
+
+      buildInstructorCurriculumRecords(rows).forEach(function(record) {
+        if (curriculumMatchKey(record.instructor) !== targetInst ||
+            curriculumMatchKey(record.subjectName) !== targetSubj) return;
+        weeks.push({
+          title: record.title,
+          content: record.content,
+          img: record.img,
+          mediaType: record.mediaType
+        });
+      });
+
+      return { weeks: weeks };
+    }
+
+    async function getAllInstructorCurriculumFromSupabase(deptName, instructorName) {
+      const rows = await fetchSupabaseRowsForSheet(deptName, getSupabaseSourceId('instructorCurriculum'));
+      const items = [];
+      const targetInst = curriculumMatchKey(instructorName);
+
+      buildInstructorCurriculumRecords(rows).forEach(function(record) {
+        if (curriculumMatchKey(record.instructor) !== targetInst) return;
+        items.push({
+          subjectName: record.subjectName,
+          week: {
+            title: record.title,
+            content: record.content,
+            img: record.img,
+            mediaType: record.mediaType
+          }
+        });
+      });
+
+      return { items: items };
+    }
+
+    async function getRecruitmentListFromSupabase(deptName) {
+      const rows = await fetchSupabaseRowsForSheet(deptName, getSupabaseSourceId('recruitment'));
+      return rows.map(function(row) {
+        const values = getRawValues(row);
+        return {
+          company: normalizeText(values[0]),       // A열
+          workType: normalizeText(values[5]),      // F열 업무내용
+          qualification: normalizeText(values[4]), // E열 자격요건
+          workForm: normalizeText(values[3]),      // D열 근무형태
+          salary: normalizeText(values[6])         // G열 급여
+        };
+      }).filter(function(item) {
+        return item.company || item.workType || item.qualification || item.workForm || item.salary;
+      });
+    }
+
+    function setLoadingProgress(percent) {
+      document.documentElement.style.setProperty('--loading-progress', Math.max(0, Math.min(100, percent)) + '%');
+    }
+
+    function markLoadingStep(step) {
+      loadingProgressDone[step] = true;
+      let progress = 0;
+      Object.keys(loadingProgressSteps).forEach(function(key) {
+        if (loadingProgressDone[key]) progress += loadingProgressSteps[key];
+      });
+      setLoadingProgress(progress);
+      tryHideLoadingOverlay();
+    }
+
+    function isInitialPageReady() {
+      return domReady && loadingContentReady && dataReady && webAppUrlReady;
+    }
+    
+    /* 페이지 진입 로딩 화면 */
+    document.addEventListener('DOMContentLoaded', function() {
+      tryDisplayCachedLoadingContent();
+    });
+    
+    function tryDisplayCachedLoadingContent() {
+      if (isLoadingContentDisplayed) return;
+      let cachedList = null;
+      try {
+        const raw = localStorage.getItem(LOADING_LIST_CACHE_KEY);
+        if (raw) cachedList = JSON.parse(raw);
+      } catch (e) {}
+      if (cachedList && cachedList.length > 0) {
+        const picked = cachedList[Math.floor(Math.random() * cachedList.length)];
+        displayLoadingContent(picked);
+        isLoadingContentDisplayed = true;
+      }
+    }
+    
+    function displayLoadingContent(item) {
+      const bg = document.getElementById('loading-bg');
+      const textEl = document.getElementById('loading-text');
+      const cachedImage = getCachedImage(item.id);
+      if (cachedImage) bg.src = cachedImage;
+      else if (item.imageUrl) bg.src = item.imageUrl;
+      textEl.textContent = item.text || '';
+      textEl.setAttribute('data-text', item.text || '');
+      if (typeof applyLoadingFont === 'function') applyLoadingFont(textEl, item);
+      textEl.classList.remove('animate');
+      void textEl.offsetWidth;
+      textEl.classList.add('animate');
+    }
+    
+    function getCachedImage(id) {
+      try {
+        const raw = localStorage.getItem(LOADING_CACHE_KEY);
+        if (!raw) return null;
+        const cache = JSON.parse(raw);
+        return cache[id] || null;
+      } catch (e) { return null; }
+    }
+    
+    window.onload = function() {
+      domReady = true;
+      markLoadingStep('dom');
+
+      getDepartmentListFromSupabase()
+        .then(onDepartmentsLoaded)
+        .catch(onError);
+
+      loadingContentReady = true;
+      markLoadingStep('loadingContent');
+      webAppUrlReady = true;
+      markLoadingStep('webAppUrl');
+
+      // 🎯 "수업별 준비몰(AI/교재 등)" 데이터 로드 → window.coursePreparations 캐싱
+      //    슬라이드 빌드 시 makeCurriculumSlide가 이 캐시를 참조해 아이콘을 출력함.
+      //    데이터가 늦게 도착하면 이미 빌드된 슬라이드에 아이콘을 동적으로 추가.
+      getCoursePreparationsFromSupabase()
+        .then(function(map) {
+          window.coursePreparations = map || {};
+          window._coursePreparationsIndex = null;
+          if (typeof injectMissingPrepIcons === 'function') {
+            injectMissingPrepIcons();
+          }
+        })
+        .catch(function(err) {
+          console.warn('[course preparations] load failed:', err && err.message ? err.message : err);
+          window.coursePreparations = {};
+          window._coursePreparationsIndex = null;
+        });
+
+      setTimeout(function() { tryHideLoadingOverlay(true); }, MAX_LOADING_TIME);
+      
+      window.addEventListener('resize', applySlideScale);
+      
+      // 🎯 마우스 호버 감지 시스템 시작
+      initHoverDetection();
+    };
+    
+    function tryHideLoadingOverlay(force) {
+      const elapsed = Date.now() - loadingStartTime;
+      const overlay = document.getElementById('loading-overlay');
+      if (overlay.classList.contains('lock')) return;
+      if (force) {
+        if (isInitialPageReady()) {
+          setLoadingProgress(100);
+          overlay.classList.add('hidden');
+        }
+        return;
+      }
+      if (isInitialPageReady() && elapsed >= MIN_LOADING_TIME) {
+        setLoadingProgress(100);
+        overlay.classList.add('hidden');
+      } else if (isInitialPageReady() && elapsed < MIN_LOADING_TIME) {
+        setTimeout(function() {
+          if (!overlay.classList.contains('lock')) {
+            setLoadingProgress(100);
+            overlay.classList.add('hidden');
+          }
+        }, MIN_LOADING_TIME - elapsed);
+      }
+    }
+    
+    /* ============================================== */
+    /*  🎯 마우스 호버 감지 - 버튼 자동 표시/숨김         */
+    /* ============================================== */
+    
+    function initHoverDetection() {
+      // 태블릿: slide-nav/back-btn은 CSS로 상시 노출
+      // close/expand 버튼은 패널이 열릴 때 openPanel에서 처리됨
+    }
+    
+    /* 학과 렌더링 */
+    function onDepartmentsLoaded(departments) {
+      departmentsData = departments || [];
+      const container = document.getElementById('departments');
+      
+      if (departmentsData.length === 0) {
+        container.innerHTML = '<li class="dept-item" style="cursor:default;">표시할 학과가 없습니다</li>';
+        dataReady = true;
+        markLoadingStep('data');
+        tryHideLoadingOverlay();
+        return;
+      }
+      
+      container.innerHTML = '';
+      departmentsData.forEach(dept => {
+        const item = document.createElement('li');
+        item.className = 'dept-item';
+        item.textContent = dept.name;
+        item.dataset.name = dept.name;
+        
+        item.addEventListener('mouseenter', function() {
+          if (activeDeptName) return;
+          showDescription(dept);   // 🎯 dept 객체 전체 전달 (이미지 + 설명)
+        });
+        item.addEventListener('mouseleave', function() {
+          if (activeDeptName) return;
+          hideDescription();
+        });
+        item.addEventListener('click', function() {
+          openPanel(dept);
+        });
+        container.appendChild(item);
+      });
+      
+      dataReady = true;
+      markLoadingStep('data');
+      tryHideLoadingOverlay();
+    }
+    
+    function onError(err) {
+      const container = document.getElementById('departments');
+      container.innerHTML = '<li class="dept-item" style="cursor:default;">오류: ' + (err.message || err) + '</li>';
+      dataReady = true;
+      markLoadingStep('data');
+      tryHideLoadingOverlay();
+    }
+    
+    /* 🎯 학과 호버 시 표시: 이미지(P열, blur 처리) + 설명 텍스트(R열) */
+    function showDescription(dept) {
+      const wrapper = document.getElementById('dept-description');
+      const img     = document.getElementById('dept-description-image');
+      const blurImg = document.getElementById('dept-description-image-blur');
+      const textEl  = document.getElementById('dept-description-text');
+      if (!wrapper || !img || !blurImg || !textEl) return;
+
+      const imageUrl   = (dept && dept.imageUrl) || '';
+      const description = (dept && dept.description) || '';
+
+      // 이미지 처리
+      if (imageUrl) {
+        img.src = imageUrl;
+        blurImg.src = imageUrl;
+        img.style.display = '';
+        blurImg.style.display = '';
+        // 이미지 로딩 실패 시 이미지 숨김 (텍스트는 그대로 표시)
+        img.onerror = function() {
+          img.style.display = 'none';
+          blurImg.style.display = 'none';
+          img.removeAttribute('src');
+          blurImg.removeAttribute('src');
+        };
+      } else {
+        img.removeAttribute('src');
+        blurImg.removeAttribute('src');
+        img.style.display = 'none';
+        blurImg.style.display = 'none';
+      }
+
+      // 텍스트
+      textEl.textContent = description;
+
+      // 둘 다 비어있으면 안 보이게
+      if (imageUrl || description) wrapper.classList.add('visible');
+      else wrapper.classList.remove('visible');
+    }
+
+    function hideDescription() {
+      document.getElementById('dept-description').classList.remove('visible');
+    }
+    
+    /* ============================================== */
+    /*  슬라이드 패널 열기/닫기                          */
+    /* ============================================== */
+    
+    function openPanel(dept) {
+      activeDeptName = dept.name;
+      
+      document.querySelectorAll('.dept-item').forEach(el => {
+        if (el.dataset.name === dept.name) el.classList.add('active');
+        else el.classList.remove('active');
+      });
+      
+      hideDescription();
+      
+      document.body.classList.add('panel-open');
+      document.getElementById('slide-panel').classList.add('open');
+      // 태블릿: 패널 열릴 때 close/expand 버튼 표시
+      document.getElementById('close-btn').classList.add('visible');
+      document.getElementById('expand-btn').classList.add('visible');
+      
+      loadCurriculum(dept.name);
+    }
+    
+    function closePanel() {
+      activeDeptName = null;
+      isFullscreen = false;
+      
+      document.querySelectorAll('.dept-item').forEach(el => el.classList.remove('active'));
+      document.body.classList.remove('panel-open');
+      document.body.classList.remove('panel-fullscreen');
+      
+      const panel = document.getElementById('slide-panel');
+      panel.classList.remove('open');
+      panel.classList.remove('fullscreen');
+      
+      // 확대 아이콘 원상복귀
+      document.getElementById('expand-icon').style.display = 'block';
+      document.getElementById('collapse-icon').style.display = 'none';
+      // 태블릿: 패널 닫힐 때 close/expand 버튼 숨김
+      document.getElementById('close-btn').classList.remove('visible');
+      document.getElementById('expand-btn').classList.remove('visible');
+    }
+    
+    /* ============================================== */
+    /*  🎯 확대/축소 토글 - 부드러운 애니메이션           */
+    /* ============================================== */
+
+    let scaleAnimFrameId = null;
+
+    function toggleFullscreen() {
+      isFullscreen = !isFullscreen;
+      const panel = document.getElementById('slide-panel');
+      const expandIcon = document.getElementById('expand-icon');
+      const collapseIcon = document.getElementById('collapse-icon');
+      
+      if (isFullscreen) {
+        panel.classList.add('fullscreen');
+        document.body.classList.add('panel-fullscreen');
+        expandIcon.style.display = 'none';
+        collapseIcon.style.display = 'block';
+      } else {
+        panel.classList.remove('fullscreen');
+        document.body.classList.remove('panel-fullscreen');
+        expandIcon.style.display = 'block';
+        collapseIcon.style.display = 'none';
+      }
+      
+      // 🎯 트랜지션 진행 중 매 프레임마다 스케일 재계산
+      smoothApplySlideScale();
+    }
+
+    function smoothApplySlideScale() {
+      // 이전 애니메이션 취소
+      if (scaleAnimFrameId) {
+        cancelAnimationFrame(scaleAnimFrameId);
+      }
+      
+      const startTime = performance.now();
+      const TRANSITION_DURATION = 600;  // CSS transition과 동일
+      
+      function tick() {
+        applySlideScale();
+        const elapsed = performance.now() - startTime;
+        
+        if (elapsed < TRANSITION_DURATION + 50) {  // 약간의 여유
+          scaleAnimFrameId = requestAnimationFrame(tick);
+        } else {
+          scaleAnimFrameId = null;
+          // 마지막에 한 번 더 정확히 맞춤
+          applySlideScale();
+        }
+      }
+      
+      scaleAnimFrameId = requestAnimationFrame(tick);
+    }
+    
+    /* ============================================== */
+    /*  🎯 학과 데이터 + 카테고리 데이터 동시 로드        */
+    /* ============================================== */
+
+    function loadCurriculum(deptName) {
+      const container = document.getElementById('scale-container');
+      container.innerHTML = '';
+      ensurePageIndicator();
+      document.getElementById('slide-empty').style.display = 'block';
+      document.getElementById('slide-empty').textContent = '데이터를 불러오는 중...';
+      
+      // 두 데이터를 병렬로 로드
+      let curriculumData = null;
+      let categoryList = null;
+      let errorOccurred = false;
+      
+      function tryBuildAll() {
+        if (curriculumData === null || categoryList === null) return;  // 둘 다 로드 완료될 때까지 대기
+        if (errorOccurred) return;
+        
+        if (!categoryList || categoryList.length === 0) {
+          document.getElementById('slide-empty').textContent = '표시할 카테고리가 없습니다.\n"컴수원_전체수업" 시트 X열 체크박스를 확인해주세요.';
+          return;
+        }
+        
+        document.getElementById('slide-empty').style.display = 'none';
+        buildAllSlides(deptName, curriculumData, categoryList);
+      }
+      
+      // 1. 커리큘럼 데이터 로드 (학과별)
+      getCurriculumByDeptFromSupabase(deptName)
+        .then(function(data) {
+          if (data.error) {
+            document.getElementById('slide-empty').textContent = data.error;
+            errorOccurred = true;
+            return;
+          }
+          curriculumData = data;
+          tryBuildAll();
+        })
+        .catch(function(err) {
+          document.getElementById('slide-empty').textContent = '오류: ' + (err.message || err);
+          errorOccurred = true;
+        });
+      
+      // 2. 카테고리 목록 로드 (전체 학과 공통)
+      getCategoryListFromSupabase()
+        .then(function(list) {
+          categoryList = list || [];
+          tryBuildAll();
+        })
+        .catch(function(err) {
+          document.getElementById('slide-empty').textContent = '카테고리 로드 오류: ' + (err.message || err);
+          errorOccurred = true;
+        });
+    }
+
+    /* ============================================== */
+    /*  🎯 모든 카테고리 슬라이드 통합 생성              */
+    /* ============================================== */
+
+    function ensurePageIndicator() {
+      const container = document.getElementById('scale-container');
+      if (!container) return null;
+
+      let panel = document.getElementById('page-indicator');
+      if (!panel) {
+        panel = document.createElement('div');
+        panel.id = 'page-indicator';
+      }
+
+      if (panel.parentElement !== container) {
+        container.appendChild(panel);
+      }
+
+      return panel;
+    }
+
+    function buildAllSlides(deptName, curriculumData, categoryList) {
+      const container = document.getElementById('scale-container');
+      container.innerHTML = '';
+      ensurePageIndicator();
+      slides = [];
+      currentSlideIndex = 0;
+      
+      const engHeader = curriculumData.engHeader || '';
+      
+      // W열 순서대로 카테고리 처리
+      categoryList.forEach(category => {
+        const catName = category.name;
+        
+        if (catName === '커리큘럼') {
+          // 🎯 커리큘럼 카테고리 - 학과의 과목별 슬라이드들 생성
+          const curriculumSlides = createCurriculumPages(
+            deptName,
+            engHeader,
+            curriculumData.subjects
+          );
+          curriculumSlides.forEach(slide => {
+            container.appendChild(slide);
+            slides.push(slide);
+          });
+        } else if (catName === '학과 강사소개') {
+          // 🎯 강사소개 카테고리 - 강사 목록 페이지들 (3명씩 분할, 배열 반환)
+          const instructorSlides = createInstructorPages(deptName, engHeader, catName);
+          instructorSlides.forEach(slide => {
+            container.appendChild(slide);
+            slides.push(slide);
+          });
+        } else if (catName === '채용정보') {
+          // 🎯 채용정보 카테고리 - 학과별 시트에서 채용공고 목록 (10행씩 분할, 배열 반환)
+          const recruitmentSlides = createRecruitmentPages(deptName, engHeader);
+          recruitmentSlides.forEach(slide => {
+            container.appendChild(slide);
+            slides.push(slide);
+          });
+        } else if (
+          // 🎯 취업 프로세스 카테고리 - 공백 유무 둘 다 안전 매칭
+          (catName || '').replace(/\s+/g, '') === '취업프로세스'
+        ) {
+          const employmentSlide = createEmploymentPage(deptName, engHeader);
+          container.appendChild(employmentSlide);
+          slides.push(employmentSlide);
+        } else {
+          // 🎯 나머지 카테고리 - 임시 페이지 생성
+          const genericSlide = createGenericCategoryPage(deptName, engHeader, catName);
+          container.appendChild(genericSlide);
+          slides.push(genericSlide);
+        }
+      });  // ← forEach 닫음
+      
+      if (slides.length > 0) {
+        slides[0].classList.add('active');
+      }
+      
+      buildIndicator(slides.length);
+      updateIndicator();
+      updateNavButtons();
+      
+      setTimeout(applySlideScale, 50);
+    }
+    
+    
+    
+    /* ============================================== */
+    /*  🎯 슬라이드 스케일링                              */
+    /*    패널 크기에 맞춰서 자동 조정                    */
+    /* ============================================== */
+    
+    function applySlideScale() {
+      const view = document.querySelector('.slide-view');
+      if (!view) return;
+      const vw = view.clientWidth;
+      const vh = view.clientHeight;
+      const scale = Math.min(vw / 1920, vh / 1080);
+      const container = document.getElementById('scale-container');
+      container.style.transform = 'scale(' + scale + ')';
+      container.style.left = ((vw - 1920 * scale) / 2) + 'px';
+      container.style.top = ((vh - 1080 * scale) / 2) + 'px';
+    }
+    
+    function buildIndicator(count) {
+      const panel = ensurePageIndicator();
+      if (!panel) return;
+      panel.innerHTML = '';
+      for (let i = 0; i < count; i++) {
+        const dot = document.createElement('div');
+        dot.className = 'dot';
+        dot.addEventListener('click', () => goToSlide(i));
+        panel.appendChild(dot);
+      }
+    }
+    
+    function updateIndicator() {
+      const dots = document.querySelectorAll('.dot');
+      dots.forEach((dot, i) => {
+        if (i === currentSlideIndex) dot.classList.add('active');
+        else dot.classList.remove('active');
+      });
+    }
+    
+    function updateNavButtons() {
+      const firstBtn = document.getElementById('nav-first');
+      const lastBtn = document.getElementById('nav-last');
+      firstBtn.disabled = currentSlideIndex === 0;
+      lastBtn.disabled = currentSlideIndex >= slides.length - 1;
+    }
+    
+    function goToSlide(idx) {
+      if (idx < 0 || idx >= slides.length) return;
+      slides[currentSlideIndex].classList.remove('active');
+      currentSlideIndex = idx;
+      slides[currentSlideIndex].classList.add('active');
+      updateIndicator();
+      updateNavButtons();
+    }
+    
+    // 🎯 첫/마지막 페이지 이동
+    document.getElementById('nav-first').addEventListener('click', () => goToSlide(currentSlideIndex - 1));
+    document.getElementById('nav-last').addEventListener('click', () => goToSlide(currentSlideIndex + 1));
+    
+    // 마우스 휠로 슬라이드 이동
+    let wheelAccum = 0;
+    let wheelTimer = null;
+    const WHEEL_THRESH = 50;
+    document.getElementById('slide-panel').addEventListener('wheel', function(e) {
+      if (!activeDeptName) return;
+      wheelAccum += e.deltaY;
+      clearTimeout(wheelTimer);
+      wheelTimer = setTimeout(() => { wheelAccum = 0; }, 200);
+      if (wheelAccum >= WHEEL_THRESH) {
+        wheelAccum = 0;
+        goToSlide(currentSlideIndex + 1);
+      } else if (wheelAccum <= -WHEEL_THRESH) {
+        wheelAccum = 0;
+        goToSlide(currentSlideIndex - 1);
+      }
+    }, { passive: true });
+    
+    function escapeHtml(str) {
+      const div = document.createElement('div');
+      div.textContent = str == null ? '' : String(str);
+      return div.innerHTML;
+    }
+    function escapeAttr(str) {
+      return String(str == null ? '' : str)
+        .replace(/&/g, '&amp;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+    }
+
+    /* ============================================== */
+      /*  🎯 라이트박스 - 썸네일 확대 보기                  */
+      /* ============================================== */
+      
+      let currentLightboxIndex = -1;
+      
+    function openLightbox(index) {
+      if (!window.flatWeeksForLightbox || window.flatWeeksForLightbox.length === 0) return;
+      if (index < 0 || index >= window.flatWeeksForLightbox.length) return;
+      
+      // 🎯 클릭한 썸네일의 호버 상태 강제 해제 (transform: scale 복귀)
+      document.querySelectorAll('.img-box img').forEach(img => {
+        img.style.transform = 'scale(1)';
+      });
+      
+      currentLightboxIndex = index;
+      renderLightbox();
+      document.getElementById('lightbox-overlay').classList.add('visible');
+    }
+      
+    function closeLightbox() {
+      document.getElementById('lightbox-overlay').classList.remove('visible');
+      currentLightboxIndex = -1;
+      // 🎯 유튜브 영상 정지 (iframe 제거)
+      const wrapper = document.getElementById('lightbox-media-wrapper');
+      wrapper.innerHTML = '';
+
+      // 🎯 모든 썸네일 호버 상태 초기화 (인라인 스타일 제거)
+      document.querySelectorAll('.img-box img').forEach(img => {
+        img.style.transform = '';
+      });
+
+      // 🎯 강사 라이트박스에서 띄운 경우 flatWeeksForLightbox 백업 복원
+      //    (category_instructor.html의 openInstructorWeekLightbox가 백업해둔 데이터 복원)
+      if (window._flatWeeksBackupForInstructor !== undefined) {
+        window.flatWeeksForLightbox = window._flatWeeksBackupForInstructor;
+        window._flatWeeksBackupForInstructor = undefined;
+      }
+    }
+      
+      /* 🎯 유튜브 URL에서 비디오 ID 추출 */
+      function extractYoutubeId(url) {
+        if (!url) return null;
+        const patterns = [
+          /(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/)([^&\n?#]+)/,
+          /(?:youtube\.com\/shorts\/)([^&\n?#]+)/
+        ];
+        for (const pattern of patterns) {
+          const match = url.match(pattern);
+          if (match && match[1]) return match[1];
+        }
+        return null;
+      }
+      
+      function renderLightbox() {
+        const item = window.flatWeeksForLightbox[currentLightboxIndex];
+        if (!item) return;
+        
+        const wrapper = document.getElementById('lightbox-media-wrapper');
+        wrapper.innerHTML = '';
+        
+        const mediaUrl = item.week.img;
+        const youtubeId = extractYoutubeId(mediaUrl);
+        
+        if (youtubeId) {
+          // 🎯 유튜브 영상
+          // autoplay=1: 자동재생 / mute=1: 음소거 / loop=1: 반복재생
+          // controls=0: 컨트롤바 숨김 (호버 트리거로 표시) / playlist={id}: loop 작동 필수
+          // playsinline=1: 모바일 인라인 재생 / rel=0: 관련 영상 안 보임
+          const embedUrl = 'https://www.youtube.com/embed/' + youtubeId 
+                        + '?autoplay=1&mute=1&loop=1&playlist=' + youtubeId
+                        + '&controls=1&playsinline=1&rel=0&modestbranding=1';
+          
+          const iframe = document.createElement('iframe');
+          iframe.src = embedUrl;
+          iframe.allow = 'autoplay; encrypted-media';
+          iframe.allowFullscreen = true;
+          wrapper.appendChild(iframe);
+          
+          // 호버 트리거 (평소엔 덮개로 컨트롤 숨김 효과)
+          const trigger = document.createElement('div');
+          trigger.className = 'youtube-hover-trigger';
+          wrapper.appendChild(trigger);
+        } else if (mediaUrl) {
+          // 🎯 일반 이미지
+          const img = document.createElement('img');
+          img.src = mediaUrl;
+          img.alt = '';
+          img.onerror = function() {
+            wrapper.innerHTML = '<span class="no-img">참고 이미지 없음</span>';
+          };
+          wrapper.appendChild(img);
+        } else {
+          // 🎯 이미지 없음
+          const noImg = document.createElement('span');
+          noImg.className = 'no-img';
+          noImg.textContent = '참고 이미지 없음';
+          wrapper.appendChild(noImg);
+        }
+        
+        document.getElementById('lightbox-subject').textContent = item.subjectName;
+        document.getElementById('lightbox-week').textContent = item.week.title;
+        document.getElementById('lightbox-content-text').textContent = item.week.content || '';
+        
+        // 좌우 버튼 상태
+        const prevBtn = document.getElementById('lightbox-prev');
+        const nextBtn = document.getElementById('lightbox-next');
+        prevBtn.disabled = currentLightboxIndex === 0;
+        nextBtn.disabled = currentLightboxIndex >= window.flatWeeksForLightbox.length - 1;
+      }
+      
+      function lightboxPrev() {
+        if (currentLightboxIndex > 0) {
+          currentLightboxIndex--;
+          renderLightbox();
+        }
+      }
+      
+      function lightboxNext() {
+        if (currentLightboxIndex < window.flatWeeksForLightbox.length - 1) {
+          currentLightboxIndex++;
+          renderLightbox();
+        }
+      }
+      
+      // 라이트박스 이벤트 등록
+      document.getElementById('lightbox-prev').addEventListener('click', function(e) {
+        e.stopPropagation();
+        lightboxPrev();
+      });
+      document.getElementById('lightbox-next').addEventListener('click', function(e) {
+        e.stopPropagation();
+        lightboxNext();
+      });
+      
+      // 🎯 실제 콘텐츠 요소들만 클릭 차단 (빈 영역은 닫기 동작)
+      document.getElementById('lightbox-media-wrapper').addEventListener('click', function(e) {
+        e.stopPropagation();
+      });
+      document.querySelector('.lightbox-text').addEventListener('click', function(e) {
+        e.stopPropagation();
+      });
+      
+      // 배경(오버레이) 클릭하면 닫기
+      document.getElementById('lightbox-overlay').addEventListener('click', function() {
+        closeLightbox();
+      });
+    
+    /* 메인으로 이동 */
+    function showLoadingAndNavigate(targetUrl) {
+      if (isNavigating) return;
+      isNavigating = true;
+      
+      const overlay = document.getElementById('loading-overlay');
+      const bg = document.getElementById('loading-bg');
+      const textEl = document.getElementById('loading-text');
+      const isOverlayVisible = !overlay.classList.contains('hidden');
+      setLoadingProgress(0);
+      
+      if (isOverlayVisible && isLoadingContentDisplayed) {
+        overlay.classList.add('lock');
+        textEl.classList.remove('animate');
+        void textEl.offsetWidth;
+        textEl.classList.add('animate');
+        setLoadingProgress(25);
+      } else {
+        let picked = null;
+        try {
+          const raw = localStorage.getItem(LOADING_LIST_CACHE_KEY);
+          if (raw) {
+            const list = JSON.parse(raw);
+            if (list.length > 0) picked = list[Math.floor(Math.random() * list.length)];
+          }
+        } catch (e) {}
+        
+        if (picked) {
+          const cachedImage = getCachedImage(picked.id);
+          bg.src = cachedImage || picked.imageUrl;
+          textEl.textContent = picked.text || '';
+          textEl.setAttribute('data-text', picked.text || '');
+          if (typeof applyLoadingFont === 'function') applyLoadingFont(textEl, picked);
+        } else {
+          textEl.textContent = '';
+          textEl.setAttribute('data-text', '');
+          if (typeof applyLoadingFont === 'function') applyLoadingFont(textEl, null);
+        }
+        
+        overlay.classList.remove('hidden');
+        overlay.classList.add('lock');
+        textEl.classList.remove('animate');
+        void textEl.offsetWidth;
+        textEl.classList.add('animate');
+        setLoadingProgress(25);
+      }
+      
+      requestAnimationFrame(function() { setLoadingProgress(100); });
+      setTimeout(function() { window.top.location.href = targetUrl; }, 2500);
+    }
+    
+    function goHome() {
+      if (cachedWebAppUrl) showLoadingAndNavigate(cachedWebAppUrl);
+      else {
+        window.location.href = './index_tablet.html';
+      }
+    }
+    
+    document.addEventListener('keydown', function(e) {
+          // 🎯 강사 커리큘럼 라이트박스가 열려있으면 무조건 우선
+          //   - window._instructorCurriculumOpen 플래그를 1순위로 본다.
+          //     visible 클래스 체크가 타이밍/상속/CSS 차이로 false가 되는 케이스를 대비.
+          //   - capture 단계 + stopImmediatePropagation으로 다른 ESC 핸들러가
+          //     같은 ESC에 끼어들어 강사 라이트박스까지 닫는 사이드이펙트 차단.
+          const curriculumLb = document.getElementById('instructor-curriculum-lightbox');
+          const instructorCurriculumOpen = !!window._instructorCurriculumOpen
+            || (curriculumLb && curriculumLb.classList.contains('visible'));
+          if (instructorCurriculumOpen && e.key === 'Escape') {
+            closeInstructorCurriculum();
+            e.preventDefault();
+            e.stopPropagation();
+            e.stopImmediatePropagation();
+            return;
+          }
+
+          // 🎯 강사 상세 라이트박스 (X 버튼과 동일하게 force=true로 통째로 닫기)
+          const instructorLightboxOpen = document.getElementById('instructor-lightbox').classList.contains('visible');
+          if (instructorLightboxOpen && e.key === 'Escape') {
+            closeInstructorLightbox(true);
+            return;
+          }
+          
+          // 🎯 일반 라이트박스 (커리큘럼 썸네일)
+          const lightboxOpen = document.getElementById('lightbox-overlay').classList.contains('visible');
+          
+          if (lightboxOpen) {
+            if (e.key === 'Escape') {
+              closeLightbox();
+            } else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') {
+              e.preventDefault();
+              lightboxPrev();
+            } else if (e.key === 'ArrowRight' || e.key === 'ArrowDown') {
+              e.preventDefault();
+              lightboxNext();
+            }
+            return;
+          }
+          
+          // 일반 슬라이드 모드
+          if (e.key === 'Escape' && activeDeptName) {
+            closePanel();
+            return;
+          }
+          if (activeDeptName && slides.length > 0) {
+            if (e.key === 'ArrowDown' || e.key === 'ArrowRight') {
+              e.preventDefault();
+              goToSlide(currentSlideIndex + 1);
+            } else if (e.key === 'ArrowUp' || e.key === 'ArrowLeft') {
+              e.preventDefault();
+              goToSlide(currentSlideIndex - 1);
+            }
+          }
+        }, true);  // 🎯 capture 단계: window 등록 ESC 핸들러보다 먼저 발동
+
+        /* ============================================== */
+        /*  🎯 강사 라이트박스 이벤트 등록                   */
+        /* ============================================== */
+        
+        // 강사 상세 라이트박스 - 빈 공간(블러 배경) 클릭 시 닫기
+        document.getElementById('instructor-lightbox').addEventListener('click', function(e) {
+          // 강사명/경력/과목 버튼 영역 클릭은 무시 (내부에서 stopPropagation)
+          // 빈 검은 영역만 닫기
+          if (e.target === e.currentTarget || e.target.classList.contains('instructor-detail-panel')) {
+            closeInstructorLightbox();
+          }
+        });
+        
+        // 강사 상세 패널 정보 영역 클릭은 차단
+        document.querySelector('.instructor-detail-info').addEventListener('click', function(e) {
+          e.stopPropagation();
+        });
+        document.getElementById('instructor-subjects').addEventListener('click', function(e) {
+          e.stopPropagation();
+        });
+        
+        // 강사 커리큘럼 라이트박스 - 흰 박스 밖 클릭 시 닫기
+        document.getElementById('instructor-curriculum-lightbox').addEventListener('click', function(e) {
+          if (e.target === e.currentTarget) {
+            closeInstructorCurriculum();
+          }
+        });
+        
+        // 흰 박스 내부 클릭은 닫기 차단
+        document.getElementById('instructor-curriculum-box-content').addEventListener('click', function(e) {
+          e.stopPropagation();
+        });
+
+
+    // 🎯 태블릿: 슬라이드 클릭/탭으로 다음 슬라이드 이동
+    (function() {
+      var slidePanel = document.getElementById('slide-panel');
+      if (!slidePanel) return;
+      
+      // 클릭으로 다음 슬라이드
+      slidePanel.addEventListener('click', function(e) {
+        if (!activeDeptName || !slides || slides.length === 0) return;
+        var SKIP = 'button,a,.img-box,#lightbox-overlay,#instructor-lightbox,#instructor-curriculum-lightbox,.slide-indicator-area,.dept-dot';
+        if (e.target.closest(SKIP)) return;
+        goToSlide(currentSlideIndex + 1);
+      });
+
+      // 터치 탭으로 다음 슬라이드 (스와이프 아님)
+      var tStartX = 0, tStartY = 0;
+      slidePanel.addEventListener('touchstart', function(e) {
+        tStartX = e.touches[0].clientX;
+        tStartY = e.touches[0].clientY;
+      }, { passive: true });
+      slidePanel.addEventListener('touchend', function(e) {
+        if (!activeDeptName || !slides || slides.length === 0) return;
+        var dx = Math.abs(e.changedTouches[0].clientX - tStartX);
+        var dy = Math.abs(e.changedTouches[0].clientY - tStartY);
+        if (dx < 20 && dy < 20) goToSlide(currentSlideIndex + 1);
+      }, { passive: true });
+    })();  </script>
+<script src="./assets/js/footer-menu-tablet.js"></script>
+</body>
+</html>
+
+
+
+

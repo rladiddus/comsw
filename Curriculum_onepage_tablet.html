@@ -1,0 +1,1955 @@
+﻿﻿<!DOCTYPE html>
+<html>
+<head>
+  <base target="_top">
+  <meta charset="utf-8">
+  <link rel="icon" href="data:,">
+  <link rel="stylesheet" as="style" crossorigin href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable.min.css" />
+  <link href="https://fonts.googleapis.com/css2?family=Great+Vibes&display=swap" rel="stylesheet">
+  <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/rladiddus/comsw@main/assets/fonts/paperlogy.css">
+  <script src="./assets/js/supabase-config.js"></script>
+  <script src="./assets/js/supabase-client.js"></script>
+  <style>
+    :root {
+      --gradient-title: linear-gradient(95deg, rgb(255, 88, 88) 25%, rgb(163, 153, 255) 121%);
+      --gradient-header-1: linear-gradient(123deg, rgb(255, 54, 54) 9%, rgb(255, 205, 205) 124%);
+      --gradient-header-2: linear-gradient(120deg, rgb(255, 117, 67) 0%, rgb(255, 205, 205) 125%);
+      --gradient-header-3: linear-gradient(98deg, rgb(255, 171, 54) 0%, rgb(255, 230, 205) 104%);
+      --gradient-header-4: linear-gradient(127deg, rgb(255, 94, 54) 9%, rgb(255, 205, 205) 124%);
+      --gradient-header-5: linear-gradient(129deg, rgb(255, 177, 67) 0%, rgb(255, 232, 205) 125%);
+      --side-bg: #f2f7f8;
+      --border-color: rgba(0,0,0,0.15);
+      --tab-inactive: #d9d9d9;
+      --tab-text-inactive: #797979;
+    }
+    
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html, body {
+      width: 100%; height: 100vh;
+      overflow: hidden;
+      background: #fff;
+      font-family: 'Pretendard Variable', 'Pretendard', -apple-system, sans-serif;
+      color: #111;
+    }
+    
+    /* ============================================== */
+    /*  🎯 메인 컨테이너 (1920x1080 기준 스케일링)     */
+    /* ============================================== */
+    
+    #page-wrapper {
+      position: absolute;
+      transform-origin: top left;
+      width: 1920px;
+      height: 1080px;
+      padding: 4px 80px 60px 80px;   /* 🎯 상단만 4px, 나머지는 그대로 */
+      background: #fff;
+    }
+    
+    /* ============================================== */
+    /*  🎯 학과 탭 메뉴 (2줄)                          */
+    /* ============================================== */
+    
+    .dept-tabs {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      margin-bottom: 30px;
+    }
+    .dept-tab-row {
+      display: flex;
+      gap: 8px;
+    }
+    .dept-tab {
+      flex: 1;
+      height: 70px;
+      background: var(--tab-inactive);
+      border: none;
+      border-top-left-radius: 12px;
+      border-top-right-radius: 12px;
+      font-family: 'Pretendard Variable', sans-serif;
+      font-weight: 600;
+      font-size: 36px;
+      color: var(--tab-text-inactive);
+      letter-spacing: -0.02em;
+      cursor: pointer;
+      transition: background 0.25s ease, color 0.25s ease, transform 0.15s ease;
+    }
+    .dept-tab:hover {
+      transform: translateY(-2px);
+    }
+    .dept-tab.active {
+      background: var(--gradient-title);
+      color: #fff;
+    }
+    
+    /* ============================================== */
+    /*  🎯 타이틀 영역                                  */
+    /* ============================================== */
+    
+    .title-area {
+      text-align: center;
+      margin-top: 30px;       /* 🎯 학과탭과의 간격 절반으로 (60 → 30) */
+      margin-bottom: 25px;    /* 🎯 표와의 간격 절반으로 (50 → 25) */
+    }
+    .title-eng {
+      display: inline-block;
+      font-family: 'Pretendard Variable', sans-serif;
+      font-weight: 700;
+      font-size: 60px;
+      letter-spacing: 0.02em;
+      background: var(--gradient-title);
+      -webkit-background-clip: text;
+      background-clip: text;
+      -webkit-text-fill-color: transparent;
+      margin-bottom: 14px;
+    }
+    .title-sub {
+      font-family: 'Pretendard Variable', sans-serif;
+      font-weight: 300;
+      font-size: 32px;
+      color: #111;
+      letter-spacing: -0.02em;
+    }
+    
+    /* ============================================== */
+    /*  🎯 커리큘럼 표                                  */
+    /* ============================================== */
+    
+    .curriculum-table {
+      width: 100%;
+      max-width: 1760px;
+      margin: 0 auto;
+      background: #fff;
+      border-radius: 8px;
+      overflow: hidden;
+      display: grid;
+      grid-template-columns: 165px 130px 1fr 240px 200px;
+      grid-template-rows: 70px 1fr;
+      gap: 4px;
+      /* 🎯 줄어든 여백 반영해 높이 재계산 */
+      /* 1080 - 상단패딩4 - 탭156 - 타이틀top30 - 타이틀115 - 타이틀bottom25 - 하단패딩60 */
+      height: calc(1080px - 4px - 156px - 30px - 115px - 25px - 60px);
+    }
+    
+    /* 헤더 셀들 */
+    .table-header {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #fff;
+      font-weight: 700;
+      font-size: 24px;
+      letter-spacing: -0.01em;
+      border-radius: 6px;
+    }
+    .table-header.col-subject { background: var(--gradient-header-1); }
+    .table-header.col-duration { background: var(--gradient-header-2); }
+    .table-header.col-content { background: var(--gradient-header-3); }
+    .table-header.col-program { background: var(--gradient-header-4); }
+    .table-header.col-level { background: var(--gradient-header-5); }
+    
+    .table-header.col-program {
+      flex-direction: column;
+      line-height: 1.1;
+    }
+    .table-header.col-program .small {
+      font-size: 16px;
+      font-weight: 500;
+      margin-top: 4px;
+    }
+    
+    /* 표 본문 (스크롤 영역) */
+    .table-body {
+      grid-column: 1 / -1;
+      display: grid;
+      grid-template-columns: 165px 130px 1fr 240px 200px;
+      gap: 0;
+      overflow-y: auto;
+      overflow-x: hidden;
+      background: #fff;
+      position: relative;
+    }
+    
+    /* 🎯 좌측 청회색 배경 - 스크롤 가능한 전체 콘텐츠 높이만큼 채움 */
+    .table-body-inner {
+      grid-column: 1 / -1;
+      display: grid;
+      grid-template-columns: 165px 130px 1fr 240px 200px;
+      gap: 0;
+      position: relative;
+      /* 🎯 min-height 제거 - 콘텐츠(과목 행)만큼만 높이 차지 */
+    }
+    .table-body-inner::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 165px;
+      height: 100%;     /* 🎯 inner의 전체 높이를 채움 (과목 개수만큼) */
+      background: var(--side-bg);
+      z-index: 0;
+    }
+    
+    /* 한 줄 (한 과목) */
+    .subject-row {
+      display: contents;
+    }
+    .subject-cell {
+      padding: 24px 18px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      font-size: 22px;
+      line-height: 1.5;
+      color: #111;
+      border-bottom: 1px solid var(--border-color);
+      word-break: keep-all;
+      position: relative;
+      z-index: 1;
+      background: #fff;
+    }
+    .subject-cell.col-subject {
+      background: transparent;  /* ::before의 청회색이 비치게 */
+      font-weight: 500;
+    }
+    .subject-cell.col-duration {
+      font-weight: 500;
+    }
+    .subject-cell.col-content {
+      text-align: left;
+      font-size: 20px;
+      padding: 24px 22px;
+      align-items: flex-start;
+      padding-top: 28px;
+      line-height: 1.6;
+      white-space: pre-line;       /* 🎯 원본 줄바꿈 그대로 표시 */
+    }
+
+    .subject-cell.col-program {
+      font-size: 19px;
+      line-height: 1.5;
+      white-space: pre-line;
+    }
+    .subject-cell.col-level {
+      font-size: 24px;
+      letter-spacing: 0.1em;
+    }
+    .subject-cell.row-hover {
+      font-weight: 800;
+    }
+    .subject-cell[data-subject] {
+      cursor: pointer;
+      transition: font-weight 0.15s ease, color 0.15s ease;
+    }
+    .subject-name-text {
+      position: relative;
+      display: inline-block;
+      line-height: inherit;
+      --underline-width: 0px;
+    }
+    .subject-name-text::after {
+      content: '';
+      position: absolute;
+      left: 50%;
+      bottom: -2px;
+      width: 0;
+      height: 2px;
+      background: #ff512f;
+      transform: translateX(-50%);
+      transition: width 0.2s ease;
+    }
+    .subject-cell.col-subject.row-hover .subject-name-text::after {
+      width: var(--underline-width);
+    }
+    
+    /* 🎯 과목명/기간 사이 세로선 - 1px 더 왼쪽 (167 → 166) */
+    .table-body-inner::after {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 166px;
+      width: 1px;
+      height: 100%;
+      background: var(--border-color);
+      z-index: 2;
+    }
+    /* 세로선들 */
+    .vline {
+      position: absolute;
+      top: 0;
+      width: 1px;
+      height: 100%;
+      background: var(--border-color);
+      z-index: 2;
+      pointer-events: none;
+    }
+    .vline.v2 { left: 300px; }                  /* 🎯 기간/과정내용 사이 - 오른쪽 1px (299 → 300) */
+    .vline.v3 { left: calc(100% - 438px); }     /* 🎯 과정내용/프로그램 사이 - 오른쪽 2px (440 → 438) */
+    .vline.v4 { left: calc(100% - 195px); }     /* 🎯 프로그램/학습수준 사이 - 오른쪽 4px (199 → 195) */
+    
+    /* 셀 자체의 우측 보더는 제거 (위 절대 위치 선으로 대체) */
+    .subject-cell {
+      border-right: none;
+    }
+    
+    /* 마지막 줄 하단선 제거 */
+    .subject-row:last-child .subject-cell {
+      border-bottom: none;
+    }
+    
+    /* 스크롤바 스타일 */
+    .table-body::-webkit-scrollbar {
+      width: 8px;
+    }
+    .table-body::-webkit-scrollbar-thumb {
+      background: rgba(0,0,0,0.15);
+      border-radius: 4px;
+    }
+    .table-body::-webkit-scrollbar-track {
+      background: transparent;
+    }
+    
+    /* 빈 상태 */
+    .empty-state {
+      grid-column: 1 / -1;
+      padding: 80px 20px;
+      text-align: center;
+      color: #999;
+      font-size: 20px;
+    }
+
+    /* ============================================== */
+    /*  과목 커리큘럼 팝업                              */
+    /* ============================================== */
+
+    #curriculum-popup {
+      position: fixed;
+      inset: 0;
+      z-index: 900;
+      background: rgba(0, 0, 0, 0.28);
+      backdrop-filter: blur(18px);
+      -webkit-backdrop-filter: blur(18px);
+      opacity: 0;
+      visibility: hidden;
+      pointer-events: none;
+      transition: opacity 0.3s ease, visibility 0s linear 0.3s;
+    }
+    #curriculum-popup.visible {
+      opacity: 1;
+      visibility: visible;
+      pointer-events: auto;
+      transition: opacity 0.3s ease, visibility 0s linear 0s;
+    }
+    .curriculum-popup-panel {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      width: min(1512px, 90vw);
+      height: min(851px, 86vh);
+      transform: translate(-50%, -50%) scale(0.96);
+      background: #f6f6f6;
+      border-radius: 8px;
+      box-shadow: 0 28px 90px rgba(0,0,0,0.38);
+      overflow: hidden;
+      transition: transform 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    #curriculum-popup.visible .curriculum-popup-panel {
+      transform: translate(-50%, -50%) scale(1);
+    }
+    .onepage-slide-view {
+      position: absolute;
+      top: 5%;
+      left: 5%;
+      right: 5%;
+      bottom: 5%;
+      overflow: hidden;
+    }
+    #onepage-scale-container {
+      position: absolute;
+      transform-origin: top left;
+      width: 1920px;
+      height: 1080px;
+    }
+    .onepage-slide-page {
+      width: 1920px;
+      height: 1080px;
+      background-color: #f6f6f6;
+      padding: 60px 100px;
+      display: grid;
+      grid-template-rows: auto 1fr auto;
+      overflow: hidden;
+      position: absolute;
+      top: 0;
+      left: 0;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.35s ease;
+      color: #111;
+    }
+    .onepage-slide-page.active {
+      opacity: 1;
+      pointer-events: auto;
+    }
+    .onepage-slide-header {
+      display: flex;
+      justify-content: space-between;
+      padding-bottom: 16px;
+      margin-bottom: 100px;
+    }
+    .onepage-slide-header .dept-eng,
+    .onepage-slide-header .fixed-title {
+      font-weight: 900;
+      font-size: 28px;
+      letter-spacing: 0.5px;
+      color: #111;
+      text-transform: uppercase;
+    }
+    .onepage-main-body {
+      display: grid;
+      grid-template-columns: 340px 1fr;
+      gap: 80px;
+      align-items: start;
+    }
+    .onepage-slide-title-area {
+      position: relative;
+      padding-left: 24px;
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
+    }
+    .onepage-orange-circle {
+      width: 110px;
+      height: 110px;
+      background-color: #ff512f;
+      border-radius: 50%;
+      position: absolute;
+      left: 0;
+      top: 0;
+      z-index: 1;
+    }
+    .onepage-subject-title,
+    .onepage-subject-sub {
+      font-weight: 900;
+      font-size: 64px;
+      line-height: 1.15;
+      color: #111;
+      position: relative;
+      z-index: 2;
+      white-space: nowrap;
+      display: block;
+      max-width: 310px;
+      overflow: hidden;
+    }
+    .onepage-page-badge {
+      font-size: 28px;
+      font-weight: 700;
+      color: #aaa;
+      letter-spacing: 0.3px;
+      margin-top: 10px;
+      position: relative;
+      z-index: 2;
+    }
+    .onepage-weeks-container {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 30px;
+      width: 100%;
+    }
+    .onepage-weeks-container.cols-3 {
+      display: flex;
+      justify-content: space-between;
+      gap: 30px;
+    }
+    .onepage-weeks-container.cols-3 .onepage-week-card {
+      width: calc(25% - 22px);
+      flex-shrink: 0;
+    }
+    .onepage-week-card {
+      display: flex;
+      flex-direction: column;
+    }
+    .onepage-img-box {
+      width: 100%;
+      aspect-ratio: 269 / 391;
+      background-color: #eaeaea;
+      border-top-right-radius: 30px;
+      border-bottom-left-radius: 30px;
+      overflow: hidden;
+      margin-bottom: 20px;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      box-shadow: 0 6px 15px rgba(0,0,0,0.08);
+      position: relative;
+      cursor: pointer;
+      transition: box-shadow 0.3s ease;
+    }
+    .onepage-img-box:hover {
+      box-shadow: 0 10px 25px rgba(0,0,0,0.15);
+    }
+    .onepage-img-box img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      transform: scale(1);
+      transition: transform 0.5s ease;
+      pointer-events: none;
+    }
+    .onepage-img-box:hover img {
+      transform: scale(1.1);
+    }
+    .onepage-no-img-text {
+      font-size: 16px;
+      color: #aaa;
+      font-weight: 500;
+      pointer-events: none;
+    }
+    .onepage-img-box-overlay {
+      position: absolute;
+      inset: 0;
+      z-index: 10;
+      cursor: pointer;
+      background: transparent;
+    }
+    .onepage-week-label {
+      font-size: 26px;
+      font-weight: 800;
+      margin-bottom: 10px;
+      color: #111;
+    }
+    .onepage-week-divider {
+      width: 100%;
+      height: 3px;
+      background-color: #ff512f;
+      border-radius: 2px;
+      margin-bottom: 14px;
+    }
+    .onepage-week-content {
+      font-size: 18px;
+      color: #555;
+      line-height: 1.6;
+      word-break: keep-all;
+      font-weight: 500;
+    }
+    .onepage-slide-footer {
+      padding-top: 24px;
+      margin-top: 20px;
+      font-size: 20px;
+      font-weight: 300;
+      color: #777;
+      letter-spacing: 0.5px;
+    }
+    #onepage-page-indicator {
+      position: absolute;
+      bottom: 3.5%;
+      left: 56.7%;
+      transform: translateX(-50%);
+      display: flex;
+      gap: 10px;
+      z-index: 20;
+    }
+    .onepage-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: rgba(0,0,0,0.2);
+      cursor: pointer;
+      transition: background 0.2s, transform 0.2s;
+    }
+    .onepage-dot.active {
+      background: #ff512f;
+      transform: scale(1.3);
+    }
+    .popup-close-btn {
+      position: absolute;
+      right: 18px;
+      bottom: 18px;
+      z-index: 30;
+      width: 48px;
+      height: 48px;
+      border: none;
+      border-radius: 50%;
+      background: #2a2a2a;
+      color: #f6f6f6;
+      font-size: 20px;
+      font-weight: 900;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: background 0.2s ease, transform 0.15s ease;
+    }
+    .popup-close-btn:hover {
+      background: #444;
+      transform: scale(1.08);
+    }
+    .popup-empty {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      color: #999;
+      font-size: 20px;
+    }
+
+    /* ============================================== */
+    /*  썸네일 라이트박스                               */
+    /* ============================================== */
+
+    #lightbox-overlay {
+      position: fixed;
+      inset: 0;
+      z-index: 1200;
+      background: rgba(0, 0, 0, 0.7);
+      backdrop-filter: blur(50px);
+      -webkit-backdrop-filter: blur(50px);
+      opacity: 0;
+      visibility: hidden;
+      pointer-events: none;
+      transition: opacity 0.3s ease, visibility 0s linear 0.3s;
+    }
+    #lightbox-overlay.visible {
+      opacity: 1;
+      visibility: visible;
+      pointer-events: auto;
+      transition: opacity 0.3s ease, visibility 0s linear 0s;
+    }
+    #lightbox-content {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      display: flex;
+      align-items: center;
+      gap: 80px;
+    }
+    .lightbox-media-wrapper {
+      width: 70vh;
+      height: 70vh;
+      max-width: 45vw;
+      aspect-ratio: 1 / 1;
+      background: #2a2a2a;
+      border-radius: 8px;
+      overflow: hidden;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+      position: relative;
+    }
+    .lightbox-media-wrapper img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+    .lightbox-media-wrapper .no-img {
+      color: #aaa;
+      font-size: 18px;
+    }
+    .lightbox-media-wrapper iframe {
+      width: 100%;
+      height: 100%;
+      border: none;
+      pointer-events: none;
+      transition: opacity 0.2s ease;
+    }
+    .lightbox-media-wrapper:hover iframe {
+      pointer-events: auto;
+    }
+    .youtube-hover-trigger {
+      position: absolute;
+      inset: 0;
+      z-index: 2;
+      cursor: pointer;
+      transition: opacity 0.2s ease;
+    }
+    .lightbox-media-wrapper:hover .youtube-hover-trigger {
+      opacity: 0;
+      pointer-events: none;
+    }
+    .lightbox-text {
+      width: min(35vw, 560px);
+      flex-shrink: 0;
+      color: #fff;
+    }
+    .lightbox-title {
+      display: flex;
+      align-items: baseline;
+      gap: 20px;
+      font-size: 36px;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      margin-bottom: 24px;
+      padding-bottom: 24px;
+      border-bottom: 3px solid #ff512f;
+    }
+    .lightbox-content {
+      font-size: 22px;
+      line-height: 1.7;
+      color: rgba(255, 255, 255, 0.9);
+      word-break: keep-all;
+      font-weight: 400;
+    }
+    .lightbox-nav {
+      position: fixed;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 56px;
+      height: 56px;
+      border-radius: 50%;
+      background: rgba(255, 255, 255, 0.1);
+      border: none;
+      color: #fff;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 1201;
+      transition: background 0.2s ease, transform 0.15s ease;
+    }
+    .lightbox-nav:hover {
+      background: rgba(255, 255, 255, 0.2);
+      transform: translateY(-50%) scale(1.08);
+    }
+    .lightbox-nav:disabled {
+      opacity: 0.3;
+      cursor: not-allowed;
+    }
+    .lightbox-nav.prev { left: 40px; }
+    .lightbox-nav.next { right: 40px; }
+    .lightbox-nav svg {
+      width: 24px;
+      height: 24px;
+      stroke: #fff;
+      fill: none;
+      stroke-width: 2.5;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+    }
+    
+    /* ============================================== */
+    /*  로딩 화면                                       */
+    /* ============================================== */
+    
+    #loading-overlay {
+      position: fixed;
+      top: 0; left: 0;
+      width: 100vw; height: 100vh;
+      z-index: 9999;
+      background: #000;
+      opacity: 1;
+      pointer-events: auto;
+      transition: opacity 0.6s ease-out;
+    }
+    #loading-overlay.hidden {
+      opacity: 0;
+      pointer-events: none;
+    }
+    #loading-overlay.lock {
+      opacity: 1 !important;
+      pointer-events: auto !important;
+    }
+    #loading-bg {
+      position: absolute;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+      object-fit: cover;
+    }
+    #loading-dim {
+      position: absolute;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+      background: rgba(0, 0, 0, 0.4);
+    }
+    #loading-text-wrapper {
+      position: absolute;
+      top: 50%; left: 50%;
+      transform: translate(-50%, -50%);
+      z-index: 2;
+      width: 90vw;
+      text-align: center;
+    }
+    .wipe-text {
+      font-family: 'Paperlogy', 'Great Vibes', cursive;
+      font-weight: 800;
+      font-size: clamp(1.25rem, 3.5vw, 3rem);
+      line-height: 1.2;
+      position: relative;
+      display: inline-block;
+      color: rgba(255, 255, 255, 0.5);
+    }
+    .wipe-text::after {
+      content: attr(data-text);
+      position: absolute;
+      top: 0; left: 0;
+      width: 100%;
+      color: rgba(255, 255, 255, 1);
+      clip-path: inset(0 calc(100% - var(--loading-progress, 0%)) 0 0);
+      transition: clip-path 0.35s cubic-bezier(0.65, 0, 0.35, 1);
+    }
+    .wipe-text.animate::after {
+      transition-duration: 0.35s;
+    }
+    @keyframes wipeIn {
+      0%   { clip-path: inset(0 100% 0 0); }
+      100% { clip-path: inset(0 0 0 0); }
+    }
+    
+    /* ============================================== */
+    /*  메인 페이지로 돌아가기 버튼                      */
+    /* ============================================== */
+    
+    .back-btn {
+      position: fixed;
+      bottom: 40px;
+      left: 40px;
+      z-index: 500;
+      width: 48px; height: 48px;
+      padding: 0;
+      background: #2a2a2a;
+      color: #fff;
+      border: none;
+      border-radius: 50%;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      
+      opacity: 0.8;
+      pointer-events: auto;
+      transform: none;
+      transition: opacity 0.3s ease,
+                  transform 0.4s cubic-bezier(0.4, 0, 0.2, 1),
+                  background 0.2s ease;
+    }
+    .back-btn.visible {
+      opacity: 1;
+      pointer-events: auto;
+      transform: translateY(0);
+    }
+    .back-btn:hover { background: #444; }
+    .back-btn svg {
+      width: 18px;
+      height: 18px;
+      fill: none;
+      stroke: currentColor;
+      stroke-width: 2.5;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+    }
+  </style>
+</head>
+<body>
+  <!-- 로딩 화면 -->
+  <div id="loading-overlay">
+    <img id="loading-bg" src="" alt="">
+    <div id="loading-dim"></div>
+    <div id="loading-text-wrapper">
+      <span class="wipe-text" id="loading-text" data-text=""></span>
+    </div>
+  </div>
+  
+  <!-- 1920×1080 컨테이너 -->
+  <div id="page-wrapper">
+    <!-- 학과 탭 -->
+    <div class="dept-tabs" id="dept-tabs">
+      <!-- JS로 채워짐 -->
+    </div>
+    
+    <!-- 타이틀 -->
+    <div class="title-area">
+      <div class="title-eng" id="title-eng">CURRICULUM</div>
+      <div class="title-sub" id="title-sub">SBS아카데미컴퓨터아트학원 교육과정안내</div>
+    </div>
+    
+    <!-- 커리큘럼 표 -->
+    <div class="curriculum-table">
+      <div class="table-header col-subject">과목명</div>
+      <div class="table-header col-duration">기간</div>
+      <div class="table-header col-content">과정내용</div>
+      <div class="table-header col-program">
+        프로그램
+        <span class="small">(준비물)</span>
+      </div>
+      <div class="table-header col-level">학습수준</div>
+      
+      <div class="table-body" id="table-body">
+        <div class="empty-state">데이터를 불러오는 중...</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 과목 커리큘럼 팝업 -->
+  <div id="curriculum-popup">
+    <div class="curriculum-popup-panel">
+      <div class="onepage-slide-view">
+        <div id="onepage-scale-container"></div>
+        <div class="popup-empty" id="popup-empty" style="display:none;">커리큘럼을 불러오는 중...</div>
+      </div>
+      <div id="onepage-page-indicator"></div>
+      <button class="popup-close-btn" id="popup-close-btn" title="닫기">×</button>
+    </div>
+  </div>
+
+  <!-- 썸네일 라이트박스 -->
+  <div id="lightbox-overlay">
+    <button class="lightbox-nav prev" id="lightbox-prev" title="이전 주차">
+      <svg viewBox="0 0 24 24">
+        <polyline points="15 6 9 12 15 18"></polyline>
+      </svg>
+    </button>
+    
+    <div id="lightbox-content">
+      <div class="lightbox-media-wrapper" id="lightbox-media-wrapper"></div>
+      <div class="lightbox-text">
+        <div class="lightbox-title">
+          <span class="lightbox-subject" id="lightbox-subject"></span>
+          <span class="lightbox-week" id="lightbox-week"></span>
+        </div>
+        <div class="lightbox-content" id="lightbox-content-text"></div>
+      </div>
+    </div>
+    
+    <button class="lightbox-nav next" id="lightbox-next" title="다음 주차">
+      <svg viewBox="0 0 24 24">
+        <polyline points="9 6 15 12 9 18"></polyline>
+      </svg>
+    </button>
+  </div>
+  
+  <!-- 메인으로 돌아가기 -->
+  <button class="back-btn" id="back-btn" onclick="goHome()">
+    <svg viewBox="0 0 24 24">
+      <polyline points="15 6 9 12 15 18"></polyline>
+    </svg>
+  </button>
+  
+  <script>
+    const LOADING_CACHE_KEY = 'loading_image_cache_v1';
+    const LOADING_LIST_CACHE_KEY = 'loading_list_cache_v1';
+    
+    let cachedWebAppUrl = null;
+    let isNavigating = false;
+    let isLoadingContentDisplayed = false;
+    let dataReady = false;
+    let loadingContentReady = false;
+    let webAppUrlReady = false;
+    let domReady = false;
+    const MIN_LOADING_TIME = 2500;
+    const MAX_LOADING_TIME = 8000;
+    const loadingStartTime = Date.now();
+    const loadingProgressSteps = {
+      dom: 10,
+      loadingContent: 20,
+      data: 55,
+      webAppUrl: 15
+    };
+    const loadingProgressDone = {};
+    
+    let departmentsList = [];      // [{name, engName}, ...]
+    let currentDeptName = null;    // 현재 선택된 학과
+    let curriculumDetailCache = {};
+    let popupSlides = [];
+    let currentPopupSlideIndex = 0;
+    let currentLightboxIndex = -1;
+    window.flatWeeksForLightbox = [];
+
+    function setLoadingProgress(percent) {
+      document.documentElement.style.setProperty('--loading-progress', Math.max(0, Math.min(100, percent)) + '%');
+    }
+
+    function markLoadingStep(step) {
+      loadingProgressDone[step] = true;
+      let progress = 0;
+      Object.keys(loadingProgressSteps).forEach(function(key) {
+        if (loadingProgressDone[key]) progress += loadingProgressSteps[key];
+      });
+      setLoadingProgress(progress);
+      tryHideLoadingOverlay();
+    }
+
+    function isInitialPageReady() {
+      return domReady && loadingContentReady && dataReady && webAppUrlReady;
+    }
+    
+    /* ============================================== */
+    /*  로딩 화면 - 메인과 동일 패턴                     */
+    /* ============================================== */
+    
+    document.addEventListener('DOMContentLoaded', function() {
+      tryDisplayCachedLoadingContent();
+    });
+    
+    function tryDisplayCachedLoadingContent() {
+      if (isLoadingContentDisplayed) return;
+      let cachedList = null;
+      try {
+        const raw = localStorage.getItem(LOADING_LIST_CACHE_KEY);
+        if (raw) cachedList = JSON.parse(raw);
+      } catch (e) {}
+      if (cachedList && cachedList.length > 0) {
+        const picked = cachedList[Math.floor(Math.random() * cachedList.length)];
+        displayLoadingContent(picked);
+        isLoadingContentDisplayed = true;
+      }
+    }
+    
+    function displayLoadingContent(item) {
+      const bg = document.getElementById('loading-bg');
+      const textEl = document.getElementById('loading-text');
+      const cachedImage = getCachedImage(item.id);
+      if (cachedImage) bg.src = cachedImage;
+      else if (item.imageUrl) bg.src = item.imageUrl;
+      textEl.textContent = item.text || '';
+      textEl.setAttribute('data-text', item.text || '');
+      if (typeof applyLoadingFont === 'function') applyLoadingFont(textEl, item);
+      textEl.classList.remove('animate');
+      void textEl.offsetWidth;
+      textEl.classList.add('animate');
+    }
+    
+    function getCachedImage(id) {
+      try {
+        const raw = localStorage.getItem(LOADING_CACHE_KEY);
+        if (!raw) return null;
+        const cache = JSON.parse(raw);
+        return cache[id] || null;
+      } catch (e) { return null; }
+    }
+    
+    function tryHideLoadingOverlay(force) {
+      const elapsed = Date.now() - loadingStartTime;
+      const overlay = document.getElementById('loading-overlay');
+      if (overlay.classList.contains('lock')) return;
+      if (force) {
+        if (isInitialPageReady()) {
+          setLoadingProgress(100);
+          overlay.classList.add('hidden');
+        }
+        return;
+      }
+      if (isInitialPageReady() && elapsed >= MIN_LOADING_TIME) {
+        setLoadingProgress(100);
+        overlay.classList.add('hidden');
+      } else if (isInitialPageReady() && elapsed < MIN_LOADING_TIME) {
+        setTimeout(function() {
+          if (!overlay.classList.contains('lock')) {
+            setLoadingProgress(100);
+            overlay.classList.add('hidden');
+          }
+        }, MIN_LOADING_TIME - elapsed);
+      }
+    }
+    
+    /* ============================================== */
+    /*  Supabase 헬퍼 — Apps Script 호출 대체              */
+    /* ============================================== */
+    function _curNorm(v) {
+      if (window.ComswSupabase) return window.ComswSupabase.normalizeText(v);
+      if (v === null || v === undefined) return '';
+      return String(v).replace(/[​‌‍﻿ ]/g, '').trim();
+    }
+    function _curRaw(row) {
+      return window.ComswSupabase
+        ? window.ComswSupabase.getRawValues(row)
+        : ((row && row.data && row.data.values) || []);
+    }
+    function _curTruthy(v) {
+      return window.ComswSupabase
+        ? window.ComswSupabase.truthyCell(v)
+        : (v === true || String(v).toLowerCase() === 'true');
+    }
+    function _curDrive(url) {
+      return window.ComswSupabase
+        ? window.ComswSupabase.convertDriveUrl(url)
+        : _curNorm(url);
+    }
+    function _curSheets() { return (window.COMSW_SUPABASE_CONFIG || {}).sheets || {}; }
+
+    // [getDepartmentListSimple]의 Supabase 대체
+    async function getDepartmentListSimpleFromSupabase() {
+      const rows = await window.ComswSupabase.fetchSheetRows(_curSheets().curriculum || '컴수원_전체수업');
+      const list = [];
+      const seen = {};
+      rows.forEach(function(row) {
+        const vals = _curRaw(row);
+        const name = _curNorm(vals[14]);   // O열: 학과명
+        const checked = vals[16];           // Q열: 체크박스
+        const eng = _curNorm(vals[20]);     // U열: 영문명
+        if (!name || !_curTruthy(checked) || seen[name]) return;
+        seen[name] = true;
+        list.push({ name: name, engName: eng });
+      });
+      return list;
+    }
+
+    // [getCurriculumSimpleByDept]의 Supabase 대체
+    //  - 로드맵 시트에서 학과 행을 찾아 선택된 과목 이름들 모으기
+    //  - 컴수원_전체수업 시트에서 그 과목들의 G(기간)/J(과정내용)/K(프로그램)/L(학습수준) 추출
+    async function getCurriculumSimpleByDeptFromSupabase(deptName) {
+      const sheets = _curSheets();
+      const fullRows = await window.ComswSupabase.fetchSheetRows(sheets.curriculum || '컴수원_전체수업');
+      const roadmapRows = await window.ComswSupabase.fetchSheetRows(sheets.roadmap || '로드맵');
+
+      // 영문 학과명 추출 (O=14, U=20)
+      let engName = '';
+      fullRows.forEach(function(row) {
+        const vals = _curRaw(row);
+        if (_curNorm(vals[14]) === deptName && !engName) engName = _curNorm(vals[20]);
+      });
+
+      // 로드맵에서 학과 영역 찾고 같은 행의 B열 이후 셀들에서 과목명 split
+      function splitRoadmapSubjects(value) {
+        return _curNorm(value)
+          .split(/[,\n\r]+|\s+\/\s+/g)
+          .map(_curNorm)
+          .filter(Boolean);
+      }
+      // 로드맵 A열 ↔ 탭 학과명 매칭.
+      //  1) 완전 일치를 우선 사용(기존 동작 유지 — 정상 학과는 영향 없이 1행만 채택).
+      //  2) 완전 일치 행이 하나도 없으면 "학과"를 뗀 키워드로 부분 일치 폴백.
+      //     예) 자격증학과 → 키워드 "자격증" → 로드맵의 "사무자격증","디자인자격증",
+      //         "건축/기계자격증" 행을 모두 수집해 과목을 시트 순서대로 이어붙인다.
+      //     (양방향 포함: A열이 키워드를 포함하거나 키워드가 A열을 포함. 1글자 키워드는 오매칭 방지로 제외)
+      const deptKeyword = _curNorm(deptName).replace(/학과$/, '').trim();
+      const hasExactDept = roadmapRows.some(function(row) {
+        return _curNorm(_curRaw(row)[0]) === deptName;
+      });
+      const useFuzzyDept = !hasExactDept && deptKeyword.length >= 2;
+      function roadmapRowMatches(aVal) {
+        if (!aVal) return false;
+        if (aVal === deptName) return true;
+        if (!useFuzzyDept) return false;
+        return aVal.indexOf(deptKeyword) !== -1 || deptKeyword.indexOf(aVal) !== -1;
+      }
+
+      const selectedSubjects = [];
+      const selectedSet = {};
+      for (let i = 0; i < roadmapRows.length; i++) {
+        const vals = _curRaw(roadmapRows[i]);
+        const aVal = _curNorm(vals[0]);
+        if (!roadmapRowMatches(aVal)) continue;
+        for (let c = 1; c < vals.length; c++) {
+          splitRoadmapSubjects(vals[c]).forEach(function(name) {
+            if (selectedSet[name]) return;
+            selectedSet[name] = true;
+            selectedSubjects.push(name);
+          });
+        }
+        // 완전 일치 모드는 1행만 사용(기존 동작). 폴백 모드는 여러 학과 행을 모두 모은다.
+        if (!useFuzzyDept) break;
+      }
+
+      // 컴수원_전체수업의 C열(인덱스 2)에서 과목별 행 인덱스 모음 (병합은 sync 시 forward-fill됨)
+      const subjectRanges = {};
+      for (let i = 0; i < fullRows.length; i++) {
+        const vals = _curRaw(fullRows[i]);
+        const c = _curNorm(vals[2]);
+        if (!c) continue;
+        if (!subjectRanges[c]) subjectRanges[c] = [];
+        subjectRanges[c].push(i);
+      }
+
+      // 각 선택 과목에 대해 G/J/K/L열 데이터 누적 (시트 A=0이므로 G=6, J=9, K=10, L=11)
+      //
+      // Supabase 동기화 시 fillMergedValues_()가 시트의 병합 셀을 forward-fill하기 때문에,
+      // 원본 시트에서 C/G/J/K/L 한 셀이 4행 병합되어 있으면 4행 모두 동일 값으로 저장된다.
+      // Apps Script 원본은 "빈 셀 자연 스킵" 메커니즘으로 1행만 채택했지만, Supabase에서는
+      // 그 가드가 무력화되어 4번 중복 표시되는 문제가 있다.
+      // → 같은 (name, duration, content, program, level) 키는 한 번만 push되도록 dedupe.
+      const subjects = [];
+      const seenKeys = {};
+      selectedSubjects.forEach(function(subjectName) {
+        const idxs = subjectRanges[subjectName] || [];
+        idxs.forEach(function(idx) {
+          const vals = _curRaw(fullRows[idx]);
+          const duration = _curNorm(vals[6]);   // G열
+          const content  = _curNorm(vals[9]);   // J열
+          const program  = _curNorm(vals[10]);  // K열
+          const level    = _curNorm(vals[11]);  // L열
+          if (!duration && !content && !program && !level) return;
+          const dedupeKey = subjectName + '|' + duration + '|' + content + '|' + program + '|' + level;
+          if (seenKeys[dedupeKey]) return;
+          seenKeys[dedupeKey] = true;
+          subjects.push({
+            name: subjectName,
+            duration: duration,
+            content: content,
+            program: program,
+            level: level
+          });
+        });
+      });
+
+      return { engName: engName, subjects: subjects };
+    }
+
+    // [getCurriculumByDept]의 Supabase 대체 (서브젝트 팝업용 — 주차별 상세)
+    //  Curriculum_full_supabase_test와 동일한 로직: O열==deptName인 학과의
+    //  B열(학과 키워드) 매칭 + C열(과목명) + D열(주차) + F열(내용) + H열(이미지)
+    async function getCurriculumByDeptFromSupabase(deptName) {
+      const rows = await window.ComswSupabase.fetchSheetRows(_curSheets().curriculum || '컴수원_전체수업');
+      const deptKeyword = _curNorm(deptName).replace(/학과$/, '').trim();
+      let engHeader = '';
+      const subjectMap = {};
+      const subjectOrder = [];
+
+      rows.forEach(function(row) {
+        const vals = _curRaw(row);
+        const deptFull = _curNorm(vals[14]);    // O열
+        const eng = _curNorm(vals[20]);          // U열
+        if (deptFull === deptName && eng && !engHeader) engHeader = eng;
+
+        const deptCell = _curNorm(vals[1]);       // B열
+        const subjectName = _curNorm(vals[2]);    // C열
+        const weekTitle = _curNorm(vals[3]);      // D열
+        const content = _curNorm(vals[5]);        // F열
+        const imageUrl = _curNorm(vals[7]);       // H열
+
+        if (!deptCell || deptCell.indexOf(deptKeyword) === -1) return;
+        if (!subjectName || !weekTitle) return;
+
+        if (!subjectMap[subjectName]) {
+          subjectMap[subjectName] = { subjectName: subjectName, weeks: [] };
+          subjectOrder.push(subjectName);
+        }
+        subjectMap[subjectName].weeks.push({
+          title: weekTitle,
+          content: content,
+          img: imageUrl ? _curDrive(imageUrl) : '',
+          mediaType: imageUrl ? 'image' : ''
+        });
+      });
+
+      return {
+        engHeader: engHeader,
+        subjects: subjectOrder.map(function(name) { return subjectMap[name]; })
+      };
+    }
+
+    /* ============================================== */
+    /*  페이지 초기화                                   */
+    /* ============================================== */
+
+    window.onload = function() {
+      domReady = true;
+      markLoadingStep('dom');
+
+      // 학과 목록 로드 (Supabase)
+      getDepartmentListSimpleFromSupabase()
+        .then(onDeptListLoaded)
+        .catch(onError);
+
+      // 로딩 콘텐츠 / 웹앱 URL은 GitHub Pages 환경에서는 별도 fetch 안 함.
+      // 로딩 wipe 진행만 정상으로 흘러가도록 즉시 ready 처리.
+      loadingContentReady = true;
+      markLoadingStep('loadingContent');
+      webAppUrlReady = true;
+      markLoadingStep('webAppUrl');
+      
+      // 최대 로딩 시간
+      setTimeout(function() { tryHideLoadingOverlay(true); }, MAX_LOADING_TIME);
+      
+      // 리사이즈
+      window.addEventListener('resize', applyPageScale);
+      window.addEventListener('resize', applyPopupSlideScale);
+      window.addEventListener('resize', function() {
+        fitSubjectNames();
+        updateSubjectUnderlineWidths();
+      });
+      
+      // 마우스 호버 감지 (백 버튼)
+      initHoverDetection();
+      initSubjectPopupEvents();
+    };
+    
+    function initHoverDetection() {
+      // 태블릿: back-btn 상시 노출 (CSS로 처리됨)
+    }
+    
+    function onError(err) {
+      const tabsEl = document.getElementById('dept-tabs');
+      tabsEl.innerHTML = '<div style="color:#c00;">오류: ' + (err.message || err) + '</div>';
+      dataReady = true;
+      markLoadingStep('data');
+      tryHideLoadingOverlay();
+    }
+    
+    /* ============================================== */
+    /*  학과 탭 렌더링                                  */
+    /* ============================================== */
+    
+    function onDeptListLoaded(list) {
+      departmentsList = list || [];
+      
+      if (departmentsList.length === 0) {
+        document.getElementById('dept-tabs').innerHTML = '<div style="color:#999;">표시할 학과가 없습니다.</div>';
+        dataReady = true;
+        markLoadingStep('data');
+        tryHideLoadingOverlay();
+        return;
+      }
+      
+      renderDeptTabs();
+      
+      // 첫 번째 학과 자동 선택
+      selectDept(departmentsList[0].name);
+    }
+    
+    function renderDeptTabs() {
+      const tabsEl = document.getElementById('dept-tabs');
+      
+      // 9개 학과를 2줄로 분할 (위 5개, 아래 4개)
+      const firstRow = departmentsList.slice(0, 5);
+      const secondRow = departmentsList.slice(5);
+      
+      function rowHTML(row) {
+        return '<div class="dept-tab-row">'
+          + row.map(d =>
+              '<button class="dept-tab" data-dept="' + escapeAttr(d.name) + '">'
+              + escapeHtml(d.name) + '</button>'
+            ).join('')
+          + '</div>';
+      }
+      
+      tabsEl.innerHTML = rowHTML(firstRow) + (secondRow.length > 0 ? rowHTML(secondRow) : '');
+      
+      // 이벤트 등록
+      tabsEl.querySelectorAll('.dept-tab').forEach(btn => {
+        btn.addEventListener('click', function() {
+          selectDept(this.dataset.dept);
+        });
+      });
+    }
+    
+    function selectDept(deptName) {
+      closeSubjectPopup();
+      currentDeptName = deptName;
+      
+      // active 상태 업데이트
+      document.querySelectorAll('.dept-tab').forEach(btn => {
+        if (btn.dataset.dept === deptName) btn.classList.add('active');
+        else btn.classList.remove('active');
+      });
+      
+      // 🎯 영문 타이틀과 부제는 이미 가지고 있는 데이터로 즉시 갱신 (로딩 대기 없음)
+      const dept = departmentsList.find(d => d.name === deptName);
+      const engName = dept ? (dept.engName || '') : '';
+      document.getElementById('title-eng').textContent =
+        (engName ? engName + ' ' : '') + 'CURRICULUM';
+      document.getElementById('title-sub').textContent =
+        'SBS아카데미컴퓨터아트학원 ' + deptName + ' 교육과정안내';
+      
+      // 표 영역 로딩 표시
+      const body = document.getElementById('table-body');
+      body.innerHTML = '<div class="empty-state">커리큘럼을 불러오는 중...</div>';
+      
+      // 커리큘럼 데이터 로드 (표 내용만) - Supabase
+      getCurriculumSimpleByDeptFromSupabase(deptName)
+        .then(function(data) {
+          renderCurriculum(deptName, data);
+          dataReady = true;
+          markLoadingStep('data');
+          tryHideLoadingOverlay();
+        })
+        .catch(function(err) {
+          body.innerHTML = '<div class="empty-state" style="color:#c00;">오류: ' + (err.message || err) + '</div>';
+          dataReady = true;
+          markLoadingStep('data');
+          tryHideLoadingOverlay();
+        });
+    }
+    
+    /* ============================================== */
+    /*  커리큘럼 표 렌더링                              */
+    /* ============================================== */
+    
+    function renderCurriculum(deptName, data) {
+      if (data.error) {
+        document.getElementById('table-body').innerHTML =
+          '<div class="empty-state" style="color:#c00;">' + escapeHtml(data.error) + '</div>';
+        return;
+      }
+      
+      // 🎯 타이틀은 selectDept에서 이미 갱신됨 (즉시 반영)
+      // 단, 서버에서 받은 영문명이 더 정확할 수 있으니 한 번 더 보정
+      if (data.engName) {
+        document.getElementById('title-eng').textContent = data.engName + ' CURRICULUM';
+      }
+      
+      // 표 본문 렌더링
+      const body = document.getElementById('table-body');
+      const subjects = data.subjects || [];
+      
+      if (subjects.length === 0) {
+        body.innerHTML = '<div class="empty-state">등록된 과목이 없습니다.</div>';
+        return;
+      }
+      
+      // 🎯 inner 박스로 감싸서 세로 배경 + 세로선이 콘텐츠 높이만큼 늘어나도록
+      const rowsHTML = subjects.map(s => {
+        const subjectAttr = escapeAttr(s.name);
+        return '<div class="subject-row" data-subject="' + subjectAttr + '">'
+          + '<div class="subject-cell col-subject" data-subject="' + subjectAttr + '"><span class="subject-name-text">' + escapeHtml(s.name) + '</span></div>'
+          + '<div class="subject-cell col-duration" data-subject="' + subjectAttr + '">' + escapeHtml(s.duration) + '</div>'
+          + '<div class="subject-cell col-content" data-subject="' + subjectAttr + '">' + escapeHtml(s.content) + '</div>'
+          + '<div class="subject-cell col-program" data-subject="' + subjectAttr + '">' + escapeHtml(s.program) + '</div>'
+          + '<div class="subject-cell col-level" data-subject="' + subjectAttr + '">' + escapeHtml(s.level) + '</div>'
+          + '</div>';
+      }).join('');
+      
+      body.innerHTML = '<div class="table-body-inner">'
+        + '<div class="vline v2"></div>'
+        + '<div class="vline v3"></div>'
+        + '<div class="vline v4"></div>'
+        + rowsHTML
+        + '</div>';
+
+      // 학과 전환 시 과목내용 스크롤을 항상 맨 위에서 시작 (이전 스크롤 위치 유지 방지)
+      body.scrollTop = 0;
+
+      bindSubjectRows();
+    }
+
+    /* ============================================== */
+    /*  과목 상세 커리큘럼 팝업                         */
+    /* ============================================== */
+
+    function bindSubjectRows() {
+      const cells = document.querySelectorAll('.subject-cell[data-subject]');
+      cells.forEach(cell => {
+        const subjectName = cell.dataset.subject;
+        cell.addEventListener('mouseenter', function() {
+          setSubjectRowHover(subjectName, true);
+        });
+        cell.addEventListener('mouseleave', function() {
+          setSubjectRowHover(subjectName, false);
+        });
+      });
+
+      cells.forEach(cell => {
+        cell.addEventListener('click', function() {
+          openSubjectPopup(this.dataset.subject);
+        });
+      });
+
+      fitSubjectNames();
+      updateSubjectUnderlineWidths();
+      // 웹폰트(Pretendard)가 늦게 로드되면 글자 너비가 달라지므로 로드 후 한 번 더 보정
+      if (document.fonts && document.fonts.ready) {
+        document.fonts.ready.then(function() {
+          fitSubjectNames();
+          updateSubjectUnderlineWidths();
+        }).catch(function() {});
+      }
+    }
+
+    // 과목명(첫 열, 165px 고정)이 열 너비보다 길면 옆 열/구분선에 가려 잘리므로,
+    // 셀 폭에 맞게 폰트 크기를 자동 축소한다. (텍스트 너비는 폰트 크기에 비례하므로 1패스 비례 계산)
+    function fitSubjectNames() {
+      const BASE = 22;   // .subject-cell 기본 폰트 크기(px)
+      const MIN = 11;    // 가독성 하한
+      document.querySelectorAll('.subject-cell.col-subject').forEach(function(cell) {
+        const span = cell.querySelector('.subject-name-text');
+        if (!span) return;
+        span.style.fontSize = BASE + 'px';          // 측정 전 기준 크기로 리셋
+        const avail = cell.clientWidth - 10;         // 좌우 5px 여백(열 경계와 안 닿게)
+        const natural = span.scrollWidth;            // 기준 크기에서의 자연 너비
+        if (avail > 0 && natural > avail) {
+          const size = Math.max(MIN, Math.floor(BASE * avail / natural));
+          span.style.fontSize = size + 'px';
+        }
+      });
+    }
+
+    function updateSubjectUnderlineWidths() {
+      document.querySelectorAll('.subject-name-text').forEach(el => {
+        const range = document.createRange();
+        range.selectNodeContents(el);
+        const rects = Array.from(range.getClientRects()).filter(rect => rect.width > 0);
+        const lastRect = rects[rects.length - 1];
+        const width = lastRect ? Math.ceil(lastRect.width) : Math.ceil(el.getBoundingClientRect().width);
+        el.style.setProperty('--underline-width', width + 'px');
+        range.detach();
+      });
+    }
+
+    function setSubjectRowHover(subjectName, isHovered) {
+      document.querySelectorAll('.subject-cell[data-subject="' + cssEscape(subjectName) + '"]').forEach(cell => {
+        cell.classList.toggle('row-hover', isHovered);
+      });
+    }
+
+    function cssEscape(value) {
+      if (window.CSS && CSS.escape) return CSS.escape(value);
+      return String(value).replace(/"/g, '\\"');
+    }
+
+    function initSubjectPopupEvents() {
+      const popup = document.getElementById('curriculum-popup');
+      const panel = popup.querySelector('.curriculum-popup-panel');
+      document.getElementById('popup-close-btn').addEventListener('click', closeSubjectPopup);
+      popup.addEventListener('click', function(e) {
+        if (e.target === popup) closeSubjectPopup();
+      });
+      panel.addEventListener('click', function(e) {
+        e.stopPropagation();
+      });
+
+      popup.addEventListener('wheel', function(e) {
+        if (!popup.classList.contains('visible') || popupSlides.length <= 1) return;
+        if (Math.abs(e.deltaY) < 20) return;
+        e.preventDefault();
+        goToPopupSlide(currentPopupSlideIndex + (e.deltaY > 0 ? 1 : -1));
+      }, { passive: false });
+
+      document.getElementById('lightbox-prev').addEventListener('click', function(e) {
+        e.stopPropagation();
+        lightboxPrev();
+      });
+      document.getElementById('lightbox-next').addEventListener('click', function(e) {
+        e.stopPropagation();
+        lightboxNext();
+      });
+      document.getElementById('lightbox-media-wrapper').addEventListener('click', function(e) {
+        e.stopPropagation();
+      });
+      document.querySelector('.lightbox-text').addEventListener('click', function(e) {
+        e.stopPropagation();
+      });
+      document.getElementById('lightbox-overlay').addEventListener('click', closeLightbox);
+
+      document.addEventListener('keydown', function(e) {
+        const lightboxOpen = document.getElementById('lightbox-overlay').classList.contains('visible');
+        if (lightboxOpen) {
+          if (e.key === 'Escape') closeLightbox();
+          else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') {
+            e.preventDefault();
+            lightboxPrev();
+          } else if (e.key === 'ArrowRight' || e.key === 'ArrowDown') {
+            e.preventDefault();
+            lightboxNext();
+          }
+          return;
+        }
+
+        const popupOpen = popup.classList.contains('visible');
+        if (!popupOpen) return;
+        if (e.key === 'Escape') closeSubjectPopup();
+        else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') {
+          e.preventDefault();
+          goToPopupSlide(currentPopupSlideIndex - 1);
+        } else if (e.key === 'ArrowRight' || e.key === 'ArrowDown') {
+          e.preventDefault();
+          goToPopupSlide(currentPopupSlideIndex + 1);
+        }
+      });
+    }
+
+    function openSubjectPopup(subjectName) {
+      if (!currentDeptName || !subjectName) return;
+      showPopupLoading();
+
+      if (curriculumDetailCache[currentDeptName]) {
+        buildSubjectPopup(subjectName, curriculumDetailCache[currentDeptName]);
+        return;
+      }
+
+      getCurriculumByDeptFromSupabase(currentDeptName)
+        .then(function(data) {
+          curriculumDetailCache[currentDeptName] = data;
+          buildSubjectPopup(subjectName, data);
+        })
+        .catch(function(err) {
+          showPopupMessage('오류: ' + (err.message || err), true);
+        });
+    }
+
+    function showPopupLoading() {
+      const popup = document.getElementById('curriculum-popup');
+      document.getElementById('onepage-scale-container').innerHTML = '';
+      document.getElementById('onepage-page-indicator').innerHTML = '';
+      showPopupMessage('커리큘럼을 불러오는 중...', false);
+      popup.classList.add('visible');
+    }
+
+    function showPopupMessage(message, isError) {
+      const empty = document.getElementById('popup-empty');
+      empty.style.display = 'block';
+      empty.style.color = isError ? '#c00' : '#999';
+      empty.textContent = message;
+    }
+
+    function buildSubjectPopup(subjectName, data) {
+      if (data.error) {
+        showPopupMessage(data.error, true);
+        return;
+      }
+
+      const subjects = data.subjects || [];
+      const selected = subjects.find(s => s.subjectName === subjectName)
+        || subjects.find(s => String(s.subjectName || '').trim() === String(subjectName || '').trim());
+
+      if (!selected) {
+        showPopupMessage('해당 과목의 상세 커리큘럼이 없습니다.', false);
+        return;
+      }
+
+      document.getElementById('popup-empty').style.display = 'none';
+      window.flatWeeksForLightbox = (selected.weeks || []).map(week => ({
+        subjectName: selected.subjectName,
+        week: week
+      }));
+
+      popupSlides = createOnepageCurriculumSlides(data.engHeader || '', selected);
+      currentPopupSlideIndex = 0;
+
+      const container = document.getElementById('onepage-scale-container');
+      container.innerHTML = '';
+      popupSlides.forEach((slide, idx) => {
+        if (idx === 0) slide.classList.add('active');
+        container.appendChild(slide);
+      });
+
+      buildPopupIndicator(popupSlides.length);
+      applyPopupSlideScale();
+      document.getElementById('curriculum-popup').classList.add('visible');
+    }
+
+    function createOnepageCurriculumSlides(engHeader, subject) {
+      const weeks = subject.weeks || [];
+      if (weeks.length <= 4) return [makeOnepageCurriculumSlide(engHeader, subject, weeks, '')];
+
+      return chunkWeeks(weeks, 3).map((chunk, idx, chunks) => {
+        return makeOnepageCurriculumSlide(engHeader, subject, chunk, (idx + 1) + ' / ' + chunks.length);
+      });
+    }
+
+    function chunkWeeks(weeks, size) {
+      const result = [];
+      for (let i = 0; i < weeks.length; i += size) {
+        result.push(weeks.slice(i, i + size));
+      }
+      return result;
+    }
+
+    function makeOnepageCurriculumSlide(engHeader, subject, weekChunk, pageLabel) {
+      const slide = document.createElement('div');
+      slide.className = 'onepage-slide-page';
+
+      const isCols3 = weekChunk.length === 3;
+      const badgeHTML = pageLabel ? '<span class="onepage-page-badge">' + escapeHtml(pageLabel) + '</span>' : '';
+      slide.innerHTML = ''
+        + '<div class="onepage-slide-header">'
+        + '<span class="dept-eng">' + escapeHtml(engHeader || '') + '</span>'
+        + '<span class="fixed-title">CURRICULUM</span>'
+        + '</div>'
+        + '<div class="onepage-main-body">'
+        + '<div class="onepage-slide-title-area">'
+        + '<div class="onepage-orange-circle"></div>'
+        + '<span class="onepage-subject-title">' + escapeHtml(subject.subjectName) + '</span>'
+        + '<span class="onepage-subject-sub">커리큘럼</span>'
+        + badgeHTML
+        + '</div>'
+        + '<div class="onepage-weeks-container' + (isCols3 ? ' cols-3' : '') + '">'
+        + makeOnepageWeeksHTML(weekChunk, subject.subjectName)
+        + '</div>'
+        + '</div>'
+        + '<div class="onepage-slide-footer">SBS ACADEMY COMPUTER ART SUWON</div>';
+
+      setTimeout(function() {
+        const titleEl = slide.querySelector('.onepage-subject-title');
+        if (titleEl) fitPopupTitleSize(titleEl);
+        slide.querySelectorAll('.onepage-img-box').forEach(box => {
+          box.addEventListener('click', function(e) {
+            const target = e.currentTarget;
+            const idx = window.flatWeeksForLightbox.findIndex(item =>
+              item.subjectName === target.dataset.subject && item.week.title === target.dataset.week
+            );
+            if (idx >= 0) openLightbox(idx);
+          });
+        });
+      }, 0);
+
+      return slide;
+    }
+
+    function makeOnepageWeeksHTML(weekChunk, subjectName) {
+      return weekChunk.map(week => {
+        let mediaHTML;
+        if (week.img) {
+          mediaHTML = '<img src="' + escapeAttr(week.img) + '" onerror="this.style.display=\'none\';this.nextElementSibling.style.display=\'block\';">'
+            + '<span class="onepage-no-img-text" style="display:none;">참고 이미지 없음</span>'
+            + '<div class="onepage-img-box-overlay"></div>';
+        } else {
+          mediaHTML = '<span class="onepage-no-img-text">참고 이미지 없음</span>'
+            + '<div class="onepage-img-box-overlay"></div>';
+        }
+
+        return '<div class="onepage-week-card">'
+          + '<div class="onepage-img-box" data-subject="' + escapeAttr(subjectName) + '" data-week="' + escapeAttr(week.title) + '">' + mediaHTML + '</div>'
+          + '<div class="onepage-week-label">' + escapeHtml(week.title) + '</div>'
+          + '<div class="onepage-week-divider"></div>'
+          + '<div class="onepage-week-content">' + escapeHtml(week.content) + '</div>'
+          + '</div>';
+      }).join('');
+    }
+
+    function fitPopupTitleSize(el) {
+      let fontSize = 64;
+      el.style.fontSize = fontSize + 'px';
+      while (el.scrollWidth > 310 && fontSize > 20) {
+        fontSize -= 2;
+        el.style.fontSize = fontSize + 'px';
+      }
+    }
+
+    function buildPopupIndicator(count) {
+      const indicator = document.getElementById('onepage-page-indicator');
+      indicator.innerHTML = '';
+      if (count <= 1) return;
+      for (let i = 0; i < count; i++) {
+        const dot = document.createElement('div');
+        dot.className = 'onepage-dot';
+        dot.addEventListener('click', function() { goToPopupSlide(i); });
+        indicator.appendChild(dot);
+      }
+      updatePopupIndicator();
+    }
+
+    function updatePopupIndicator() {
+      document.querySelectorAll('.onepage-dot').forEach((dot, idx) => {
+        dot.classList.toggle('active', idx === currentPopupSlideIndex);
+      });
+    }
+
+    function goToPopupSlide(idx) {
+      if (idx < 0 || idx >= popupSlides.length || idx === currentPopupSlideIndex) return;
+      popupSlides[currentPopupSlideIndex].classList.remove('active');
+      currentPopupSlideIndex = idx;
+      popupSlides[currentPopupSlideIndex].classList.add('active');
+      updatePopupIndicator();
+    }
+
+    function closeSubjectPopup() {
+      const popup = document.getElementById('curriculum-popup');
+      if (!popup) return;
+      popup.classList.remove('visible');
+      closeLightbox();
+    }
+
+    function applyPopupSlideScale() {
+      const view = document.querySelector('.onepage-slide-view');
+      const container = document.getElementById('onepage-scale-container');
+      if (!view || !container) return;
+      const vw = view.clientWidth;
+      const vh = view.clientHeight;
+      const scale = Math.min(vw / 1920, vh / 1080);
+      container.style.transform = 'scale(' + scale + ')';
+      container.style.left = ((vw - 1920 * scale) / 2) + 'px';
+      container.style.top = ((vh - 1080 * scale) / 2) + 'px';
+    }
+
+    /* ============================================== */
+    /*  썸네일 라이트박스                               */
+    /* ============================================== */
+
+    function openLightbox(index) {
+      if (!window.flatWeeksForLightbox || window.flatWeeksForLightbox.length === 0) return;
+      if (index < 0 || index >= window.flatWeeksForLightbox.length) return;
+
+      document.querySelectorAll('.onepage-img-box img').forEach(img => {
+        img.style.transform = 'scale(1)';
+      });
+
+      currentLightboxIndex = index;
+      renderLightbox();
+      document.getElementById('lightbox-overlay').classList.add('visible');
+    }
+
+    function closeLightbox() {
+      const overlay = document.getElementById('lightbox-overlay');
+      if (!overlay) return;
+      overlay.classList.remove('visible');
+      currentLightboxIndex = -1;
+      document.getElementById('lightbox-media-wrapper').innerHTML = '';
+      document.querySelectorAll('.onepage-img-box img').forEach(img => {
+        img.style.transform = '';
+      });
+    }
+
+    function extractYoutubeId(url) {
+      if (!url) return null;
+      const patterns = [
+        /(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/)([^&\n?#]+)/,
+        /(?:youtube\.com\/shorts\/)([^&\n?#]+)/
+      ];
+      for (const pattern of patterns) {
+        const match = url.match(pattern);
+        if (match && match[1]) return match[1];
+      }
+      return null;
+    }
+
+    function renderLightbox() {
+      const item = window.flatWeeksForLightbox[currentLightboxIndex];
+      if (!item) return;
+
+      const wrapper = document.getElementById('lightbox-media-wrapper');
+      wrapper.innerHTML = '';
+
+      const mediaUrl = item.week.img;
+      const youtubeId = extractYoutubeId(mediaUrl);
+
+      if (youtubeId) {
+        const embedUrl = 'https://www.youtube.com/embed/' + youtubeId
+          + '?autoplay=1&mute=1&loop=1&playlist=' + youtubeId
+          + '&controls=1&playsinline=1&rel=0&modestbranding=1';
+        const iframe = document.createElement('iframe');
+        iframe.src = embedUrl;
+        iframe.allow = 'autoplay; encrypted-media';
+        iframe.allowFullscreen = true;
+        wrapper.appendChild(iframe);
+
+        const trigger = document.createElement('div');
+        trigger.className = 'youtube-hover-trigger';
+        wrapper.appendChild(trigger);
+      } else if (mediaUrl) {
+        const img = document.createElement('img');
+        img.src = mediaUrl;
+        img.alt = '';
+        img.onerror = function() {
+          wrapper.innerHTML = '<span class="no-img">참고 이미지 없음</span>';
+        };
+        wrapper.appendChild(img);
+      } else {
+        const noImg = document.createElement('span');
+        noImg.className = 'no-img';
+        noImg.textContent = '참고 이미지 없음';
+        wrapper.appendChild(noImg);
+      }
+
+      document.getElementById('lightbox-subject').textContent = item.subjectName;
+      document.getElementById('lightbox-week').textContent = item.week.title;
+      document.getElementById('lightbox-content-text').textContent = item.week.content || '';
+
+      document.getElementById('lightbox-prev').disabled = currentLightboxIndex === 0;
+      document.getElementById('lightbox-next').disabled = currentLightboxIndex >= window.flatWeeksForLightbox.length - 1;
+    }
+
+    function lightboxPrev() {
+      if (currentLightboxIndex > 0) {
+        currentLightboxIndex--;
+        renderLightbox();
+      }
+    }
+
+    function lightboxNext() {
+      if (currentLightboxIndex < window.flatWeeksForLightbox.length - 1) {
+        currentLightboxIndex++;
+        renderLightbox();
+      }
+    }
+    
+    /* ============================================== */
+    /*  페이지 스케일링 (1920×1080 기준)                */
+    /* ============================================== */
+    
+    function applyPageScale() {
+      const wrapper = document.getElementById('page-wrapper');
+      if (!wrapper) return;
+      const vw = window.innerWidth;
+      const vh = window.innerHeight;
+      const scale = Math.min(vw / 1920, vh / 1080);
+      wrapper.style.transform = 'scale(' + scale + ')';
+      wrapper.style.left = ((vw - 1920 * scale) / 2) + 'px';
+      wrapper.style.top = ((vh - 1080 * scale) / 2) + 'px';
+    }
+    
+    // 학과 데이터 로드 후에도 한 번 더 호출
+    setTimeout(applyPageScale, 100);
+    window.addEventListener('load', applyPageScale);
+    
+    /* ============================================== */
+    /*  유틸리티                                        */
+    /* ============================================== */
+    
+    function escapeHtml(str) {
+      const div = document.createElement('div');
+      div.textContent = str == null ? '' : String(str);
+      return div.innerHTML;
+    }
+    function escapeAttr(str) {
+      return String(str == null ? '' : str)
+        .replace(/&/g, '&amp;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+    }
+    
+    /* ============================================== */
+    /*  메인으로 돌아가기                               */
+    /* ============================================== */
+    
+    function showLoadingAndNavigate(targetUrl) {
+      if (isNavigating) return;
+      isNavigating = true;
+      
+      const overlay = document.getElementById('loading-overlay');
+      const bg = document.getElementById('loading-bg');
+      const textEl = document.getElementById('loading-text');
+      const isOverlayVisible = !overlay.classList.contains('hidden');
+      setLoadingProgress(0);
+      
+      if (isOverlayVisible && isLoadingContentDisplayed) {
+        overlay.classList.add('lock');
+        textEl.classList.remove('animate');
+        void textEl.offsetWidth;
+        textEl.classList.add('animate');
+        setLoadingProgress(25);
+      } else {
+        let picked = null;
+        try {
+          const raw = localStorage.getItem(LOADING_LIST_CACHE_KEY);
+          if (raw) {
+            const list = JSON.parse(raw);
+            if (list.length > 0) picked = list[Math.floor(Math.random() * list.length)];
+          }
+        } catch (e) {}
+        
+        if (picked) {
+          const cachedImage = getCachedImage(picked.id);
+          bg.src = cachedImage || picked.imageUrl;
+          textEl.textContent = picked.text || '';
+          textEl.setAttribute('data-text', picked.text || '');
+          if (typeof applyLoadingFont === 'function') applyLoadingFont(textEl, picked);
+        } else {
+          textEl.textContent = '';
+          textEl.setAttribute('data-text', '');
+          if (typeof applyLoadingFont === 'function') applyLoadingFont(textEl, null);
+        }
+        
+        overlay.classList.remove('hidden');
+        overlay.classList.add('lock');
+        textEl.classList.remove('animate');
+        void textEl.offsetWidth;
+        textEl.classList.add('animate');
+        setLoadingProgress(25);
+      }
+      
+      requestAnimationFrame(function() { setLoadingProgress(100); });
+      setTimeout(function() { window.top.location.href = targetUrl; }, 2500);
+    }
+    
+    function goHome() {
+      // GitHub Pages 버전은 메인 URL이 고정됨
+      showLoadingAndNavigate('./index_tablet.html');
+    }
+  </script>
+<script src="./assets/js/footer-menu-tablet.js"></script>
+</body>
+</html>
+
+

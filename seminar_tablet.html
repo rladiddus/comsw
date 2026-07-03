@@ -1,0 +1,1382 @@
+﻿<!DOCTYPE html>
+<html>
+<head>
+  <base target="_top">
+  <meta charset="utf-8">
+  <link rel="icon" href="data:,">
+  <link rel="stylesheet" as="style" crossorigin href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable.min.css" />
+  <link href="https://fonts.googleapis.com/css2?family=Great+Vibes&display=swap" rel="stylesheet">
+  <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/rladiddus/comsw@main/assets/fonts/paperlogy.css">
+  <script src="./assets/js/supabase-config.js"></script>
+  <script src="./assets/js/supabase-client.js"></script>
+  <style>
+    :root {
+      --accent-orange: #fa491d;
+    }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html, body {
+      width: 100%; height: 100vh;
+      background: #f6f6f6;
+      font-family: 'Pretendard Variable', 'Pretendard', -apple-system, sans-serif;
+      color: #1a1a1a;
+      overflow: hidden;
+      outline: none;
+    }
+
+    /* ============================================== */
+    /*  슬라이드 컨테이너 (1920×1080 기준 → 화면 스케일)  */
+    /* ============================================== */
+    .slide-view {
+      position: absolute;
+      top: 40px;
+      left: 40px;
+      right: 40px;
+      bottom: 40px;
+      overflow: hidden;
+    }
+    #scale-container {
+      position: absolute;
+      transform-origin: top left;
+      width: 1920px;
+      height: 1080px;
+    }
+    .slide-page {
+      width: 1920px;
+      height: 1080px;
+      background-color: #f6f6f6;
+      position: absolute;
+      top: 0; left: 0;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.35s ease;
+      overflow: hidden;
+      z-index: 1;  /* indicator(z-index 1000)보다 항상 아래에 두어 동적 appendChild 후에도 가리지 않음 */
+    }
+    .slide-page.active {
+      opacity: 1;
+      pointer-events: auto;
+    }
+
+    /* ============================================== */
+    /*  헤더 / 푸터                                       */
+    /* ============================================== */
+    .seminar-header-left,
+    .seminar-header-right,
+    .seminar-footer {
+      position: absolute;
+      font-family: 'Pretendard Variable', 'Pretendard', sans-serif;
+      color: #000;
+    }
+    .seminar-header-left {
+      left: 65px;
+      top: 43px;
+      font-size: 32px;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+    }
+    .seminar-header-right {
+      right: 77px;
+      top: 45px;
+      font-size: 32px;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+    }
+    .seminar-footer {
+      left: 65px;
+      top: 1002px;
+      font-size: 19px;
+      font-weight: 200;
+      letter-spacing: -0.07em;
+    }
+
+    /* ============================================== */
+    /*  좌측 포스터 (그림자 박스 + 이미지 레이어)          */
+    /* ============================================== */
+    .seminar-poster-shadow {
+      position: absolute;
+      left: 291px;
+      top: 135px;
+      width: 515px;
+      height: 751px;
+      background: #d9d9d9;
+    }
+    .seminar-poster {
+      position: absolute;
+      left: 357px;
+      top: 194px;
+      width: 515px;
+      height: 751px;
+      overflow: hidden;
+      background: #eaeaea;
+      cursor: pointer;
+      transform-origin: center center;
+      transition: transform 0.24s ease, box-shadow 0.24s ease;
+      will-change: transform;
+    }
+    .seminar-poster:hover {
+      transform: scale(1.035);
+      box-shadow: 0 18px 48px rgba(0, 0, 0, 0.18);
+    }
+    .seminar-poster img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+    }
+    .seminar-poster .no-img {
+      width: 100%;
+      height: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #aaa;
+      font-size: 22px;
+    }
+
+    /* ============================================== */
+    /*  우측 텍스트 (특강명/소주제/구분선)                 */
+    /* ============================================== */
+    .seminar-title {
+      position: absolute;
+      left: 955px;
+      top: 110px;
+      width: 950px;
+      font-size: 94px;
+      font-weight: 700;
+      letter-spacing: -0.03em;
+      line-height: 1.1;
+      color: #000;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .seminar-divider {
+      position: absolute;
+      left: 955px;
+      top: 247px;
+      width: 674px;
+      height: 3px;
+      background: var(--accent-orange);
+    }
+    .seminar-subtitle {
+      position: absolute;
+      left: 955px;
+      top: 269px;
+      width: 950px;
+      font-size: 42px;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      color: #000;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    /* ============================================== */
+    /*  우측 정보 (라벨 + 값)                              */
+    /* ============================================== */
+    .seminar-label,
+    .seminar-value {
+      position: absolute;
+      color: #000;
+      letter-spacing: -0.02em;
+    }
+    .seminar-label {
+      font-size: 36px;
+      font-weight: 500;
+      left: 955px;
+      white-space: pre;
+    }
+    .seminar-value {
+      font-weight: 600;
+      white-space: nowrap;
+    }
+    .label-datetime    { top: 386px; }
+    .label-place       { top: 451px; }
+    .label-instructor  { top: 516px; }
+    .label-applicants  { top: 581px; }
+    .label-apply       { top: 665px; }
+
+    .value-datetime {
+      left: 1085px;
+      top: 386px;
+      font-size: 36px;
+    }
+    .value-place {
+      left: 1085px;
+      top: 453px;
+      font-size: 31px;
+    }
+    .value-instructor {
+      left: 1085px;
+      top: 518px;
+      font-size: 31px;
+    }
+    .value-capacity {
+      left: 1117px;
+      top: 582px;
+      font-size: 31px;
+    }
+    .value-applied {
+      left: 1231px;
+      top: 582px;
+      font-size: 31px;
+    }
+
+    /* ============================================== */
+    /*  신청 폼                                           */
+    /* ============================================== */
+    .seminar-input {
+      position: absolute;
+      left: 1099px;
+      width: 530px;
+      height: 69px;
+      background: #d9d9d9;
+      border: none;
+      border-radius: 4px;
+      padding: 0 18px;
+      font-family: inherit;
+      font-size: 29px;
+      font-weight: 400;
+      color: #1a1a1a;
+      letter-spacing: -0.02em;
+      outline: none;
+      transition: background 0.2s ease;
+    }
+    .seminar-input::placeholder {
+      color: #898989;
+    }
+    .seminar-input:focus {
+      background: #c9c9c9;
+    }
+    .seminar-input-name    { top: 650px; }
+    .seminar-input-phone   { top: 741px; }
+
+    .seminar-apply-btn {
+      position: absolute;
+      left: 1099px;
+      top: 832px;
+      width: 530px;
+      height: 69px;
+      background: var(--accent-orange);
+      border: none;
+      border-radius: 4px;
+      color: #fff;
+      font-family: inherit;
+      font-size: 24px;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      cursor: pointer;
+      transition: filter 0.2s ease, transform 0.15s ease;
+    }
+    .seminar-apply-btn:hover {
+      filter: brightness(1.06);
+    }
+    .seminar-apply-btn:active {
+      transform: scale(0.98);
+    }
+    .seminar-apply-btn:disabled {
+      filter: grayscale(0.6) brightness(0.9);
+      cursor: not-allowed;
+    }
+
+    .seminar-expired-overlay {
+      position: absolute;
+      inset: 0;
+      z-index: 80;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: rgba(0, 0, 0, 0.5);
+      color: #fff;
+      font-size: 60px;
+      font-weight: 800;
+      letter-spacing: 0;
+      text-align: center;
+      pointer-events: auto;
+    }
+    .slide-page.expired .seminar-input,
+    .slide-page.expired .seminar-apply-btn {
+      pointer-events: none;
+    }
+
+    /* ============================================== */
+    /*  좌하단 메인으로 돌아가기 버튼 (호버 시 등장)         */
+    /* ============================================== */
+    .back-btn {
+      position: fixed;
+      bottom: 60px;
+      left: 60px;
+      z-index: 500;
+      width: 48px; height: 48px;
+      padding: 0;
+      background: #2a2a2a;
+      color: #f6f6f6;
+      border: none;
+      border-radius: 50%;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      opacity: 0.8;
+      pointer-events: auto;
+      transform: none;
+      transition: opacity 0.3s ease,
+                  transform 0.4s cubic-bezier(0.4, 0, 0.2, 1),
+                  background 0.2s ease;
+    }
+    .back-btn.visible {
+      opacity: 1;
+      pointer-events: auto;
+      transform: translateY(0);
+    }
+    .back-btn:hover { background: #444; }
+    .back-btn svg {
+      width: 20px;
+      height: 20px;
+      stroke: #f6f6f6;
+      fill: none;
+      stroke-width: 2.5;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+    }
+
+    /* ============================================== */
+    /*  페이지 인디케이터                                  */
+    /* ============================================== */
+    /* 페이지 인디케이터: scale-container 안 1920×1080 좌표계 기준.
+       신청 버튼 끝(top 832 + 높이 69 = 901)에서 80px 떨어진 y=981 위치,
+       가로는 중앙 정렬. transform: scale도 슬라이드와 같이 적용되어
+       항상 신청 버튼 아래에 일정한 거리로 따라간다.
+       z-index를 slide-page(1)보다 명시적으로 높게 두어, slide-page들이
+       DOM 순서상 뒤에 동적으로 appendChild되어도 indicator가 가려지지 않음. */
+    #page-indicator {
+      position: absolute;
+      top: 981px;
+      left: 50%;
+      transform: translateX(-50%);
+      display: flex;
+      gap: 14px;
+      z-index: 1000;
+      pointer-events: none;
+    }
+    .page-dot {
+      width: 11px;
+      height: 11px;
+      border-radius: 50%;
+      background: #ccc;
+      transition: background 0.25s ease, transform 0.25s ease;
+    }
+    .page-dot.active {
+      background: var(--accent-orange);
+      transform: scale(1.15);
+    }
+
+    /* ============================================== */
+    /*  우측 슬라이드 네비 (↑/↓) - 호버 시 등장             */
+    /* ============================================== */
+    #slide-nav {
+      position: fixed;
+      right: 30px;
+      top: 50%;
+      transform: translateY(-50%);
+      z-index: 400;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+      opacity: 0.8;
+      pointer-events: auto;
+      
+    }
+    #slide-nav.visible {
+      opacity: 1;
+      pointer-events: auto;
+    }
+    .slide-nav-btn {
+      width: 48px;
+      height: 48px;
+      padding: 0;
+      background: #2a2a2a;
+      border: none;
+      border-radius: 50%;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: background 0.2s ease;
+    }
+    .slide-nav-btn:hover { background: #444; }
+    .slide-nav-btn:disabled {
+      opacity: 0.35;
+      cursor: not-allowed;
+    }
+    .slide-nav-btn svg {
+      width: 20px;
+      height: 20px;
+      stroke: #f6f6f6;
+      fill: none;
+      stroke-width: 2.5;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+    }
+
+    /* ============================================== */
+    /*  빈 / 로딩 상태                                     */
+    /* ============================================== */
+    .seminar-empty {
+      position: absolute;
+      top: 50%; left: 50%;
+      transform: translate(-50%, -50%);
+      font-size: 28px;
+      color: #999;
+    }
+
+    /* ============================================== */
+    /*  토스트 (신청 결과 알림)                            */
+    /* ============================================== */
+    #toast {
+      position: fixed;
+      left: 50%;
+      bottom: 100px;
+      transform: translateX(-50%) translateY(40px);
+      max-width: min(920px, 88vw);
+      background: #2a2a2a;
+      color: #fff;
+      padding: 16px 28px;
+      border-radius: 30px;
+      font-size: 18px;
+      font-weight: 500;
+      letter-spacing: -0.02em;
+      text-align: center;
+      line-height: 1.35;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.25);
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.3s ease, transform 0.3s ease;
+      z-index: 1500;
+    }
+    #toast.visible {
+      opacity: 1;
+      transform: translateX(-50%) translateY(0);
+    }
+    #toast.error {
+      background: #b53017;
+    }
+
+    .emoji-fireworks-layer {
+      position: fixed;
+      inset: 0;
+      z-index: 1490;
+      overflow: hidden;
+      pointer-events: none;
+    }
+    .emoji-firework {
+      position: absolute;
+      left: 0;
+      top: 0;
+      font-size: var(--size);
+      opacity: 0;
+      transform: translate3d(-999px, -999px, 0);
+      filter: drop-shadow(0 8px 10px rgba(0, 0, 0, 0.14));
+      will-change: transform, opacity;
+    }
+
+    /* ============================================== */
+    /*  포스터 확대 보기                                  */
+    /* ============================================== */
+    #poster-lightbox {
+      position: fixed;
+      inset: 0;
+      z-index: 1600;
+      background: rgba(0, 0, 0, 0.72);
+      backdrop-filter: blur(22px);
+      -webkit-backdrop-filter: blur(22px);
+      overflow-y: auto;
+      opacity: 0;
+      visibility: hidden;
+      pointer-events: none;
+      transition: opacity 0.25s ease, visibility 0s linear 0.25s;
+    }
+    #poster-lightbox.visible {
+      opacity: 1;
+      visibility: visible;
+      pointer-events: auto;
+      transition: opacity 0.25s ease, visibility 0s linear 0s;
+    }
+    .poster-lightbox-inner {
+      width: 80vw;
+      margin: 6vh auto;
+      min-height: 88vh;
+      display: flex;
+      align-items: flex-start;
+      justify-content: center;
+    }
+    #poster-lightbox-img {
+      width: 80vw;
+      height: auto;
+      display: block;
+      box-shadow: 0 24px 80px rgba(0,0,0,0.48);
+      background: #f6f6f6;
+    }
+
+    /* ============================================== */
+    /*  로딩 오버레이 (메인 페이지 이동용)                  */
+    /* ============================================== */
+    #loading-overlay {
+      position: fixed;
+      top: 0; left: 0;
+      width: 100vw; height: 100vh;
+      z-index: 9999;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.3s ease-out;
+      background: #000;
+    }
+    #loading-overlay.active {
+      opacity: 1;
+      pointer-events: auto;
+    }
+    #loading-overlay.lock {
+      opacity: 1 !important;
+      pointer-events: auto !important;
+    }
+    #loading-bg {
+      position: absolute;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+      object-fit: cover;
+    }
+    #loading-dim {
+      position: absolute;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+      background: rgba(0, 0, 0, 0.4);
+    }
+    #loading-text-wrapper {
+      position: absolute;
+      top: 50%; left: 50%;
+      transform: translate(-50%, -50%);
+      z-index: 2;
+      width: 90vw;
+      text-align: center;
+    }
+    .wipe-text {
+      font-family: 'Paperlogy', 'Great Vibes', cursive;
+      font-weight: 800;
+      font-size: clamp(1.25rem, 3.5vw, 3rem);
+      line-height: 1.2;
+      position: relative;
+      display: inline-block;
+      color: rgba(255, 255, 255, 0.5);
+    }
+    .wipe-text::after {
+      content: attr(data-text);
+      position: absolute;
+      top: 0; left: 0;
+      width: 100%;
+      color: rgba(255, 255, 255, 1);
+      clip-path: inset(0 calc(100% - var(--loading-progress, 0%)) 0 0);
+      transition: clip-path 0.35s cubic-bezier(0.65, 0, 0.35, 1);
+    }
+    .wipe-text.animate::after {
+      transition-duration: 0.35s;
+    }
+    @keyframes wipeIn {
+      0%   { clip-path: inset(0 100% 0 0); }
+      100% { clip-path: inset(0 0 0 0); }
+    }
+  </style>
+</head>
+<body tabindex="-1">
+  <!-- 슬라이드 영역 -->
+  <div class="slide-view">
+    <div id="scale-container">
+      <!-- 동적으로 .slide-page들이 들어감 -->
+      <!-- 페이지 인디케이터: 슬라이드 좌표계 안에 두어 신청 버튼과 같은 1920×1080
+           좌표로 위치 잡고 스케일도 같이 적용되도록 함. -->
+      <div id="page-indicator"></div>
+    </div>
+  </div>
+
+  <!-- 빈 상태 -->
+  <div class="seminar-empty" id="seminar-empty">특강 정보를 불러오는 중...</div>
+
+  <!-- 슬라이드 네비 (↑/↓) -->
+  <div id="slide-nav">
+    <button class="slide-nav-btn" id="nav-prev" title="이전">
+      <svg viewBox="0 0 24 24"><polyline points="6 15 12 9 18 15"></polyline></svg>
+    </button>
+    <button class="slide-nav-btn" id="nav-next" title="다음">
+      <svg viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"></polyline></svg>
+    </button>
+  </div>
+
+  <!-- 좌하단 메인으로 -->
+  <button class="back-btn" id="back-btn" onclick="goHome()" title="메인으로">
+    <svg viewBox="0 0 24 24"><polyline points="15 6 9 12 15 18"></polyline></svg>
+  </button>
+
+  <!-- 토스트 -->
+  <div id="toast"></div>
+
+  <!-- 포스터 확대 보기 -->
+  <div id="poster-lightbox">
+    <div class="poster-lightbox-inner">
+      <img id="poster-lightbox-img" src="" alt="">
+    </div>
+  </div>
+
+  <!-- 로딩 오버레이 (메인 이동 시) -->
+  <div id="loading-overlay">
+    <img id="loading-bg" src="" alt="">
+    <div id="loading-dim"></div>
+    <div id="loading-text-wrapper">
+      <span class="wipe-text" id="loading-text" data-text=""></span>
+    </div>
+  </div>
+
+  <script>
+    /* ============================================== */
+    /*  상태 변수                                         */
+    /* ============================================== */
+    const LOADING_CACHE_KEY = 'loading_image_cache_v1';
+    const LOADING_LIST_CACHE_KEY = 'loading_list_cache_v1';
+
+    let seminarList = [];      // 서버에서 받은 특강 배열
+    let currentIdx = 0;         // 현재 보는 슬라이드 인덱스
+    let cachedWebAppUrl = null;
+    let isNavigating = false;
+    let isApplying = false;     // 신청 중복 클릭 방지
+
+    function setLoadingProgress(percent) {
+      document.documentElement.style.setProperty('--loading-progress', Math.max(0, Math.min(100, percent)) + '%');
+    }
+
+    /* ============================================== */
+    /*  화면 스케일링 (1920×1080 → slide-view 영역)        */
+    /* ============================================== */
+    function applyScale() {
+      const view = document.querySelector('.slide-view');
+      const container = document.getElementById('scale-container');
+      if (!view || !container) return;
+      const vw = view.clientWidth;
+      const vh = view.clientHeight;
+      const sx = vw / 1920;
+      const sy = vh / 1080;
+      const scale = Math.min(sx, sy);
+      const offsetX = (vw - 1920 * scale) / 2;
+      const offsetY = (vh - 1080 * scale) / 2;
+      container.style.transform =
+        'translate(' + offsetX + 'px, ' + offsetY + 'px) scale(' + scale + ')';
+    }
+    window.addEventListener('resize', applyScale);
+
+    function focusSlideKeyboardTarget() {
+      const tag = (document.activeElement && document.activeElement.tagName) || '';
+      if (tag === 'INPUT' || tag === 'TEXTAREA') return;
+      try {
+        window.focus();
+        document.body.focus({ preventScroll: true });
+      } catch (e) {
+        document.body.focus();
+      }
+    }
+
+    /* ============================================== */
+    /*  HTML 이스케이프                                   */
+    /* ============================================== */
+    function escapeHtml(str) {
+      return String(str == null ? '' : str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+    }
+    function escapeAttr(str) { return escapeHtml(str); }
+
+    /* ============================================== */
+    /*  슬라이드 생성                                     */
+    /* ============================================== */
+    function ensurePageIndicator() {
+      const container = document.getElementById('scale-container');
+      if (!container) return null;
+
+      let panel = document.getElementById('page-indicator');
+      if (!panel) {
+        panel = document.createElement('div');
+        panel.id = 'page-indicator';
+      }
+
+      if (panel.parentElement !== container) {
+        container.appendChild(panel);
+      }
+
+      return panel;
+    }
+
+    function buildSlides() {
+      const container = document.getElementById('scale-container');
+      container.innerHTML = '';
+      const indicator = ensurePageIndicator();
+
+      if (!seminarList || seminarList.length === 0) {
+        document.getElementById('seminar-empty').textContent = '등록된 특강이 없습니다.';
+        document.getElementById('seminar-empty').style.display = 'block';
+        if (indicator) indicator.innerHTML = '';
+        return;
+      }
+
+      document.getElementById('seminar-empty').style.display = 'none';
+
+      seminarList.forEach(function(s, idx) {
+        const slide = document.createElement('div');
+        const isPast = !!s.isPast;
+        const disabledAttr = isPast ? ' disabled' : '';
+        const applyButtonText = isPast
+          ? '특강 신청일이 지났습니다.'
+          : '개인정보 수집 및 이용에 동의하며 신청합니다.';
+
+        slide.className = 'slide-page' + (isPast ? ' expired' : '');
+        slide.dataset.idx = idx;
+
+        const posterHTML = s.img
+          ? '<img src="' + escapeAttr(s.img) + '" alt="" '
+            +   'onerror="this.style.display=\'none\';this.nextElementSibling.style.display=\'flex\';">'
+            + '<span class="no-img" style="display:none;">이미지 없음</span>'
+          : '<span class="no-img">이미지 없음</span>';
+
+        slide.innerHTML =
+            '<div class="seminar-header-left">SEMINAR</div>'
+          + '<div class="seminar-header-right">OPEN CLASS</div>'
+          + '<div class="seminar-footer">SBS ACADEMY COMPUTER ART SUWON</div>'
+          + '<div class="seminar-poster-shadow"></div>'
+          + '<div class="seminar-poster" data-poster-src="' + escapeAttr(s.img || '') + '">' + posterHTML + '</div>'
+          + '<div class="seminar-title">' + escapeHtml(s.title) + '</div>'
+          + '<div class="seminar-divider"></div>'
+          + '<div class="seminar-subtitle">' + escapeHtml(s.subtitle) + '</div>'
+          + '<div class="seminar-label label-datetime">일    시 : </div>'
+          + '<div class="seminar-value value-datetime">' + escapeHtml(s.datetime) + '</div>'
+          + '<div class="seminar-label label-place">장    소 : </div>'
+          + '<div class="seminar-value value-place">' + escapeHtml(s.place) + '</div>'
+          + '<div class="seminar-label label-instructor">강사명 : </div>'
+          + '<div class="seminar-value value-instructor">' + escapeHtml(s.instructor) + '</div>'
+          + '<div class="seminar-label label-applicants">신청인원 : </div>'
+          + '<div class="seminar-value value-capacity">총 ' + escapeHtml(s.totalCapacity) + '명</div>'
+          + '<div class="seminar-value value-applied" data-applied-for="' + escapeAttr(s.title) + '">'
+          +   '(' + escapeHtml(s.applied) + '명 신청 중)'
+          + '</div>'
+          + '<div class="seminar-label label-apply">신청하기 </div>'
+          + '<input class="seminar-input seminar-input-name" type="text" maxlength="20" placeholder="이름"' + disabledAttr + '>'
+          + '<input class="seminar-input seminar-input-phone" type="text" maxlength="20" placeholder="연락처(000-0000-0000)"' + disabledAttr + '>'
+          + '<button class="seminar-apply-btn"' + disabledAttr + '>' + applyButtonText + '</button>'
+          + (isPast ? '<div class="seminar-expired-overlay">특강 신청일이 지났습니다</div>' : '');
+
+        container.appendChild(slide);
+
+        // 신청 버튼 이벤트
+        const btn = slide.querySelector('.seminar-apply-btn');
+        btn.addEventListener('click', function() {
+          handleApply(slide, idx);
+        });
+
+        const poster = slide.querySelector('.seminar-poster');
+        poster.addEventListener('click', function() {
+          if (this.dataset.posterSrc) openPosterLightbox(this.dataset.posterSrc);
+        });
+
+        // Enter 키로도 신청 가능 (입력 필드에서)
+        slide.querySelectorAll('.seminar-input').forEach(function(inp) {
+          inp.addEventListener('keydown', function(e) {
+            if (e.key === 'Enter') {
+              e.preventDefault();
+              handleApply(slide, idx);
+            }
+          });
+        });
+
+        bindInputGuards(slide);
+      });
+
+      buildIndicator(seminarList.length);
+      updateNavButtons();
+      showSlide(0);
+      setTimeout(focusSlideKeyboardTarget, 0);
+    }
+
+    /* ============================================== */
+    /*  슬라이드 표시 / 인디케이터 갱신                    */
+    /* ============================================== */
+    function showSlide(idx) {
+      const slides = document.querySelectorAll('.slide-page');
+      if (slides.length === 0) return;
+      idx = Math.max(0, Math.min(idx, slides.length - 1));
+      currentIdx = idx;
+      slides.forEach(function(s, i) {
+        if (i === idx) s.classList.add('active');
+        else s.classList.remove('active');
+      });
+      updateIndicator();
+      updateNavButtons();
+    }
+
+    function buildIndicator(count) {
+      const ind = ensurePageIndicator();
+      if (!ind) return;
+      ind.innerHTML = '';
+      if (count <= 1) return;
+      for (let i = 0; i < count; i++) {
+        const dot = document.createElement('div');
+        dot.className = 'page-dot' + (i === currentIdx ? ' active' : '');
+        ind.appendChild(dot);
+      }
+    }
+    function updateIndicator() {
+      const dots = document.querySelectorAll('.page-dot');
+      dots.forEach(function(d, i) {
+        if (i === currentIdx) d.classList.add('active');
+        else d.classList.remove('active');
+      });
+    }
+    function updateNavButtons() {
+      const total = seminarList.length;
+      document.getElementById('nav-prev').disabled = (currentIdx <= 0);
+      document.getElementById('nav-next').disabled = (currentIdx >= total - 1);
+    }
+
+    function gotoPrev() {
+      if (currentIdx > 0) showSlide(currentIdx - 1);
+    }
+    function gotoNext() {
+      if (currentIdx < seminarList.length - 1) showSlide(currentIdx + 1);
+    }
+
+    /* ============================================== */
+    /*  신청 처리                                         */
+    /* ============================================== */
+    function handleApply(slide, idx) {
+      if (isApplying) return;
+
+      const seminar = seminarList[idx];
+      if (!seminar) return;
+      if (seminar.isPast) {
+        showToast('특강 신청일이 지났습니다.', true);
+        return;
+      }
+
+      const nameInput = slide.querySelector('.seminar-input-name');
+      const phoneInput = slide.querySelector('.seminar-input-phone');
+      const btn = slide.querySelector('.seminar-apply-btn');
+
+      const name = (nameInput.value || '').trim();
+      const phone = (phoneInput.value || '').trim();
+
+      if (!name) {
+        showToast('이름을 입력해주세요.', true);
+        nameInput.focus();
+        return;
+      }
+      if (!/^[가-힣ㄱ-ㅎㅏ-ㅣ]+$/.test(name)) {
+        showToast('한글만 입력해주세요', true, 1400);
+        nameInput.focus();
+        nameInput.value = sanitizeKorean(name);
+        return;
+      }
+      if (!phone) {
+        showToast('연락처를 입력해주세요.', true);
+        phoneInput.focus();
+        return;
+      }
+      if (!/^\d{3}-\d{4}-\d{4}$/.test(phone)) {
+        showToast('연락처 형식은 000-0000-0000입니다.', true);
+        phoneInput.focus();
+        return;
+      }
+
+      // GitHub Pages → Apps Script Web App(doPost)으로 신청 전송.
+      //  - Content-Type을 text/plain으로 보내면 CORS preflight가 발생하지 않아
+      //    별도 CORS 설정 없이 Apps Script가 응답을 돌려줄 수 있다.
+      //  - Apps Script doPost는 body에서 JSON 문자열을 파싱한 뒤 applySeminar()를
+      //    실행해 시트("특강 신청자 명단")에 행을 추가하고 H열 카운트를 반환한다.
+      const APPLY_ENDPOINT = (window.COMSW_SUPABASE_CONFIG && window.COMSW_SUPABASE_CONFIG.appsScriptApplyUrl) || '';
+      if (!APPLY_ENDPOINT) {
+        showToast('신청 endpoint가 설정되지 않았습니다. (supabase-config.js의 appsScriptApplyUrl 확인)', true, 5000);
+        return;
+      }
+
+      isApplying = true;
+      btn.disabled = true;
+      const originalText = btn.textContent;
+      btn.textContent = '신청 중...';
+
+      fetch(APPLY_ENDPOINT, {
+        method: 'POST',
+        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+        body: JSON.stringify({
+          action: 'apply_seminar',
+          title: seminar.title,
+          name: name,
+          phone: phone
+        })
+      })
+        .then(function(res) {
+          if (!res.ok) throw new Error('HTTP ' + res.status);
+          return res.json();
+        })
+        .then(function(res) {
+          isApplying = false;
+          btn.disabled = false;
+          btn.textContent = originalText;
+
+          if (res && res.ok) {
+            // 화면 카운트 갱신 (서버가 반환한 applied 우선, 없으면 +1)
+            const newApplied = (typeof res.applied === 'number') ? res.applied : (seminar.applied + 1);
+            seminar.applied = newApplied;
+            const appliedEl = slide.querySelector('.value-applied');
+            if (appliedEl) appliedEl.textContent = '(' + newApplied + '명 신청 중)';
+
+            nameInput.value = '';
+            phoneInput.value = '';
+
+            showToast('신청을 완료했습니다. 특강 전 안내문자를 발송하겠습니다.', false, 5000);
+            launchEmojiFireworks();
+          } else {
+            const msg = (res && res.error) ? res.error : '신청 처리 중 오류가 발생했습니다.';
+            showToast(msg, true);
+          }
+        })
+        .catch(function(err) {
+          isApplying = false;
+          btn.disabled = false;
+          btn.textContent = originalText;
+          showToast('오류: ' + (err && err.message ? err.message : err), true);
+        });
+    }
+
+    /* ============================================== */
+    /*  토스트                                            */
+    /* ============================================== */
+    let toastTimer = null;
+    let emojiFireworkFrame = null;
+    function showToast(msg, isError, duration) {
+      const t = document.getElementById('toast');
+      t.textContent = msg;
+      if (isError) t.classList.add('error');
+      else t.classList.remove('error');
+      t.classList.add('visible');
+      if (toastTimer) clearTimeout(toastTimer);
+      toastTimer = setTimeout(function() {
+        t.classList.remove('visible');
+      }, duration || 2500);
+    }
+
+    function launchEmojiFireworks() {
+      const existing = document.querySelector('.emoji-fireworks-layer');
+      if (existing) existing.remove();
+      if (emojiFireworkFrame) {
+        cancelAnimationFrame(emojiFireworkFrame);
+        emojiFireworkFrame = null;
+      }
+
+      const layer = document.createElement('div');
+      layer.className = 'emoji-fireworks-layer';
+      document.body.appendChild(layer);
+
+      const emojis = ['🎉', '✨', '🎊', '⭐', '💫', '🌟', '🥳', '👏'];
+      const duration = 5000;
+      const viewportW = window.innerWidth;
+      const viewportH = window.innerHeight;
+      const particles = [];
+
+      createEmojiParticles(29, 'left');
+      createEmojiParticles(21, 'right');
+
+      const startedAt = performance.now();
+      emojiFireworkFrame = requestAnimationFrame(renderEmojiFrame);
+
+      function createEmojiParticles(count, side) {
+        const fromLeft = side === 'left';
+        const direction = fromLeft ? 1 : -1;
+
+        for (let i = 0; i < count; i++) {
+          const particle = document.createElement('span');
+          particle.className = 'emoji-firework';
+          particle.textContent = emojis[Math.floor(Math.random() * emojis.length)];
+          particle.style.setProperty('--size', randomBetween(22, 44) + 'px');
+          layer.appendChild(particle);
+
+          particles.push({
+            el: particle,
+            startX: fromLeft
+              ? randomBetween(34, Math.max(120, Math.floor(viewportW * 0.18)))
+              : randomBetween(Math.floor(viewportW * 0.82), viewportW - 34),
+            startY: viewportH + randomBetween(18, 54),
+            vx: direction * randomBetween(105, 330),
+            vy: -randomBetween(565, 830),
+            gravity: randomBetween(430, 650),
+            wind: direction * randomBetween(-26, 42),
+            sway: randomBetween(8, 34),
+            swaySpeed: randomBetween(12, 28) / 10,
+            phase: randomBetween(0, 628) / 100,
+            startScale: randomBetween(70, 95) / 100,
+            peakScale: randomBetween(108, 138) / 100,
+            endScale: randomBetween(64, 88) / 100,
+            rotationStart: randomBetween(-30, 30),
+            rotationSpeed: randomBetween(-240, 240)
+          });
+        }
+      }
+
+      function renderEmojiFrame(now) {
+        const elapsed = now - startedAt;
+        const progress = Math.min(elapsed / duration, 1);
+        const seconds = elapsed / 1000;
+        const fade = progress < 0.68 ? 1 : Math.max(0, 1 - ((progress - 0.68) / 0.32));
+
+        particles.forEach(function(particle) {
+          const x = particle.startX
+            + particle.vx * seconds
+            + particle.wind * seconds * seconds
+            + Math.sin(seconds * particle.swaySpeed + particle.phase) * particle.sway;
+          const y = particle.startY
+            + particle.vy * seconds
+            + 0.5 * particle.gravity * seconds * seconds;
+          const apexProgress = Math.min(progress / 0.42, 1);
+          const fallingProgress = Math.max(0, (progress - 0.42) / 0.58);
+          const scale = particle.startScale
+            + (particle.peakScale - particle.startScale) * apexProgress
+            + (particle.endScale - particle.peakScale) * fallingProgress;
+          const rotation = particle.rotationStart + particle.rotationSpeed * seconds;
+
+          particle.el.style.opacity = String(fade);
+          particle.el.style.transform =
+            'translate3d(' + x + 'px, ' + y + 'px, 0) scale(' + scale + ') rotate(' + rotation + 'deg)';
+        });
+
+        if (progress < 1) {
+          emojiFireworkFrame = requestAnimationFrame(renderEmojiFrame);
+        } else {
+          layer.remove();
+          emojiFireworkFrame = null;
+        }
+      }
+    }
+
+    function randomBetween(min, max) {
+      return Math.floor(Math.random() * (max - min + 1)) + min;
+    }
+
+    /* ============================================== */
+    /*  입력 제한 / 자동 서식                             */
+    /* ============================================== */
+    function bindInputGuards(slide) {
+      const nameInput = slide.querySelector('.seminar-input-name');
+      const phoneInput = slide.querySelector('.seminar-input-phone');
+
+      nameInput.addEventListener('input', function() {
+        const original = this.value;
+        const cleaned = sanitizeKorean(original);
+        if (original !== cleaned) {
+          this.value = cleaned;
+          showToast('한글만 입력해주세요', true, 1400);
+        }
+      });
+
+      phoneInput.addEventListener('input', function() {
+        const original = this.value;
+        const digitsOnly = original.replace(/\D/g, '');
+        if (original.replace(/-/g, '') !== digitsOnly) {
+          showToast('숫자만 입력해주세요', true, 1400);
+        }
+        this.value = formatPhoneNumber(digitsOnly);
+      });
+    }
+
+    function sanitizeKorean(value) {
+      return String(value || '').replace(/[^가-힣ㄱ-ㅎㅏ-ㅣ]/g, '');
+    }
+
+    function formatPhoneNumber(value) {
+      const digits = String(value || '').replace(/\D/g, '').slice(0, 11);
+      if (digits.length < 3) return digits;
+      if (digits.length === 3) return digits + '-';
+      if (digits.length <= 7) {
+        const formatted = digits.slice(0, 3) + '-' + digits.slice(3);
+        return digits.length === 7 ? formatted + '-' : formatted;
+      }
+      return digits.slice(0, 3) + '-' + digits.slice(3, 7) + '-' + digits.slice(7);
+    }
+
+    /* ============================================== */
+    /*  포스터 확대 보기                                  */
+    /* ============================================== */
+    function openPosterLightbox(src) {
+      const lb = document.getElementById('poster-lightbox');
+      const img = document.getElementById('poster-lightbox-img');
+      img.src = src;
+      lb.scrollTop = 0;
+      lb.classList.add('visible');
+    }
+
+    function closePosterLightbox() {
+      const lb = document.getElementById('poster-lightbox');
+      const img = document.getElementById('poster-lightbox-img');
+      lb.classList.remove('visible');
+      img.src = '';
+    }
+
+    /* ============================================== */
+    /*  키보드 / 마우스 휠 네비게이션                      */
+    /* ============================================== */
+    window.addEventListener('keydown', function(e) {
+      const posterOpen = document.getElementById('poster-lightbox').classList.contains('visible');
+      if (posterOpen && e.key === 'Escape') {
+        closePosterLightbox();
+        return;
+      }
+
+      // 입력 필드 안에서는 방향키로 슬라이드 이동 안 함
+      const tag = (e.target && e.target.tagName) || '';
+      const isInput = (tag === 'INPUT' || tag === 'TEXTAREA');
+
+      if (e.key === 'ArrowLeft' || e.key === 'ArrowUp' || e.key === 'PageUp') {
+        if (isInput) return;
+        e.preventDefault();
+        gotoPrev();
+      } else if (e.key === 'ArrowRight' || e.key === 'ArrowDown' || e.key === 'PageDown' || e.key === ' ') {
+        if (isInput) return;
+        e.preventDefault();
+        gotoNext();
+      } else if (e.key === 'Home') {
+        if (isInput) return;
+        e.preventDefault();
+        showSlide(0);
+      } else if (e.key === 'End') {
+        if (isInput) return;
+        e.preventDefault();
+        showSlide(seminarList.length - 1);
+      } else if (e.key === 'Escape') {
+        goHome();
+      }
+    });
+
+    // 마우스 휠 (디바운스)
+    let wheelLocked = false;
+    document.addEventListener('wheel', function(e) {
+      const posterOpen = document.getElementById('poster-lightbox').classList.contains('visible');
+      if (posterOpen) return;
+
+      // 입력 필드 위에서는 스크롤 동작 무시
+      if (e.target && (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA')) return;
+
+      if (wheelLocked) return;
+      const dy = e.deltaY;
+      if (Math.abs(dy) < 4) return;
+      wheelLocked = true;
+      setTimeout(function() { wheelLocked = false; }, 180);
+      if (dy > 0) gotoNext();
+      else gotoPrev();
+    }, { passive: true });
+
+    /* ============================================== */
+    /*  좌하단 < 버튼 호버 감지                            */
+    /* ============================================== */
+    // 태블릿: back-btn과 slide-nav 상시 노출 (마우스 호버 감지 불필요)
+
+    // 슬라이드 네비 버튼
+    document.getElementById('nav-prev').addEventListener('click', gotoPrev);
+    document.getElementById('nav-next').addEventListener('click', gotoNext);
+    document.getElementById('poster-lightbox').addEventListener('click', function(e) {
+      closePosterLightbox();
+    });
+    document.getElementById('poster-lightbox').addEventListener('wheel', function(e) {
+      e.stopPropagation();
+    }, { passive: true });
+    document.getElementById('poster-lightbox-img').addEventListener('click', function(e) {
+      e.stopPropagation();
+    });
+
+    /* ============================================== */
+    /*  Supabase 헬퍼 — Apps Script getSeminarList 대체     */
+    /* ============================================== */
+    function _semNorm(v) {
+      if (window.ComswSupabase) return window.ComswSupabase.normalizeText(v);
+      if (v === null || v === undefined) return '';
+      return String(v).replace(/[​‌‍﻿ ]/g, '').trim();
+    }
+    function _semRaw(row) {
+      return window.ComswSupabase
+        ? window.ComswSupabase.getRawValues(row)
+        : ((row && row.data && row.data.values) || []);
+    }
+    function _semDrive(url) {
+      return window.ComswSupabase
+        ? window.ComswSupabase.convertDriveUrl(url)
+        : _semNorm(url);
+    }
+
+    // 시트 셀 날짜 비교용. "YYYY.MM.DD" / "YYYY-MM-DD" / "YYYY년 M월 D일" / ISO 등 처리
+    function _semParseDate(text) {
+      if (!text) return null;
+      const s = String(text).trim();
+      // ISO (date-only / datetime) → Date
+      const iso = new Date(s);
+      if (!isNaN(iso.getTime())) return iso;
+      let m = s.match(/(\d{4})[.\-\/](\d{1,2})[.\-\/](\d{1,2})/);
+      if (m) return new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]));
+      m = s.match(/(\d{4})년\s*(\d{1,2})월\s*(\d{1,2})일/);
+      if (m) return new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]));
+      m = s.match(/(\d{1,2})월\s*(\d{1,2})일/);
+      if (m) return new Date((new Date()).getFullYear(), Number(m[1]) - 1, Number(m[2]));
+      return null;
+    }
+    function _semFormatDatetime(raw) {
+      const s = _semNorm(raw);
+      if (!s) return '';
+      const d = _semParseDate(s);
+      if (!d) return s;
+      const weekdays = ['일','월','화','수','목','금','토'];
+      const w = weekdays[d.getDay()];
+      // 시간 부분이 원본에 있으면 그대로 붙임
+      const timeMatch = s.match(/\d{1,2}:\d{2}(\s*[-~]\s*\d{1,2}:\d{2})?/);
+      const timeStr = timeMatch ? timeMatch[0] : '';
+      return d.getFullYear() + '년 ' + (d.getMonth() + 1) + '월 ' + d.getDate() + '일(' + w + ')' +
+             (timeStr ? ' ' + timeStr : '');
+    }
+
+    async function getSeminarListFromSupabase() {
+      const rows = await window.ComswSupabase.fetchSheetRows('특강 및 세미나');
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const list = [];
+
+      rows.forEach(function(row) {
+        const vals = _semRaw(row);
+        // A=이미지, B=특강명, C=소주제, D=일시, E=강사명, F=장소, G=정원, H=신청인원
+        const title = _semNorm(vals[1]);
+        if (!title) return;
+        const imgRaw = _semNorm(vals[0]);
+        const datetimeRaw = _semNorm(vals[3]);
+        const dateOnly = _semParseDate(datetimeRaw);
+        let isPast = false;
+        if (dateOnly) {
+          const d0 = new Date(dateOnly.getFullYear(), dateOnly.getMonth(), dateOnly.getDate());
+          isPast = d0 < today;
+        }
+        let placeText = _semNorm(vals[5]);
+        if (placeText && placeText.indexOf('SBS아카데미컴퓨터아트학원') === -1) {
+          placeText = 'SBS아카데미컴퓨터아트학원 수원점 ' + placeText;
+        } else if (!placeText) {
+          placeText = 'SBS아카데미컴퓨터아트학원 수원점';
+        }
+        let instText = _semNorm(vals[4]);
+        if (instText && instText.indexOf('선생님') === -1) instText = instText + ' 선생님';
+
+        list.push({
+          img: imgRaw ? _semDrive(imgRaw) : '',
+          title: title,
+          subtitle: _semNorm(vals[2]),
+          datetime: _semFormatDatetime(datetimeRaw),
+          datetimeRaw: datetimeRaw,
+          instructor: instText,
+          place: placeText,
+          totalCapacity: _semNorm(vals[6]),
+          applied: Number(vals[7]) || 0,
+          isPast: isPast
+        });
+      });
+
+      // 현재 신청 가능한 항목이 먼저, 지난 항목이 뒤로
+      list.sort(function(a, b) {
+        if (a.isPast !== b.isPast) return a.isPast ? 1 : -1;
+        return 0;
+      });
+      return list;
+    }
+
+    /* ============================================== */
+    /*  데이터 로드                                       */
+    /* ============================================== */
+    window.onload = function() {
+      applyScale();
+      focusSlideKeyboardTarget();
+
+      // 특강 목록 받아오기 (Supabase)
+      getSeminarListFromSupabase()
+        .then(function(list) {
+          seminarList = list || [];
+          buildSlides();
+          focusSlideKeyboardTarget();
+        })
+        .catch(function(err) {
+          document.getElementById('seminar-empty').textContent =
+            '오류: ' + (err && err.message ? err.message : err);
+        });
+    };
+
+    /* ============================================== */
+    /*  메인으로 이동 (로딩 화면 후)                       */
+    /* ============================================== */
+    function getCachedImage(id) {
+      try {
+        const raw = localStorage.getItem(LOADING_CACHE_KEY);
+        if (!raw) return null;
+        const cache = JSON.parse(raw);
+        return cache[id] || null;
+      } catch (e) {
+        return null;
+      }
+    }
+    function showLoadingAndNavigate(targetUrl) {
+      if (isNavigating) return;
+      isNavigating = true;
+
+      const overlay = document.getElementById('loading-overlay');
+      const bg = document.getElementById('loading-bg');
+      const textEl = document.getElementById('loading-text');
+      setLoadingProgress(0);
+
+      let picked = null;
+      try {
+        const raw = localStorage.getItem(LOADING_LIST_CACHE_KEY);
+        if (raw) {
+          const list = JSON.parse(raw);
+          if (list.length > 0) picked = list[Math.floor(Math.random() * list.length)];
+        }
+      } catch (e) {}
+
+      if (picked) {
+        const cachedImage = getCachedImage(picked.id);
+        bg.src = cachedImage || picked.imageUrl;
+        textEl.textContent = picked.text || '';
+        textEl.setAttribute('data-text', picked.text || '');
+        if (typeof applyLoadingFont === 'function') applyLoadingFont(textEl, picked);
+      } else {
+        textEl.textContent = '';
+        textEl.setAttribute('data-text', '');
+        if (typeof applyLoadingFont === 'function') applyLoadingFont(textEl, null);
+      }
+
+      overlay.classList.add('active');
+      overlay.classList.add('lock');
+      setLoadingProgress(25);
+
+      textEl.classList.remove('animate');
+      void textEl.offsetWidth;
+      textEl.classList.add('animate');
+
+      requestAnimationFrame(function() { setLoadingProgress(100); });
+      setTimeout(function() {
+        window.top.location.href = targetUrl;
+      }, 2500);
+    }
+    function goHome() {
+      showLoadingAndNavigate('./index_tablet.html');
+    }
+  </script>
+<script src="./assets/js/footer-menu-tablet.js"></script>
+</body>
+</html>
+
+

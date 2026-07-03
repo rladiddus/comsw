@@ -2152,3 +2152,48 @@
 - 반영:
   - commit: `d99bc5f feat(roadmap): auto-shrink long subject names in dept popup table`
   - `git push origin main` 성공.
+
+## 2026-07-03
+
+### 태블릿 페이지 신규 구현 (이전 세션에서 완료)
+
+- 작업 전 이 `gpt.md` 파일을 확인했다.
+- Method B 방식으로 `_tablet.html` 접미사를 사용한 별도 파일 7개를 생성했다:
+  `index_tablet.html`, `roadmap_tablet.html`, `Curriculum_full_tablet.html`,
+  `Curriculum_onepage_tablet.html`, `seminar_tablet.html`, `item_tablet.html`, `vacation_tablet.html`
+- 태블릿 5가지 요구사항 적용:
+  1. 메인 페이지(`index_tablet.html`) 하단 메뉴 상시 노출 — 토글 없이 flat flex row.
+  2. 서브 페이지 공통 하단 메뉴 — `footer-menu-tablet.js` 공통 스크립트로 주입. `PAGE_TO_MENU`를 `_tablet.html` URL로 설정, 폴백 `index_tablet.html`.
+  3. `Curriculum_full_tablet.html` 슬라이드 클릭/탭으로 다음 슬라이드 이동.
+  4. `Curriculum_full_tablet.html` 우측 ↑/↓ 버튼 상시 노출(불투명도 80%) — 위=이전, 아래=다음.
+  5. `seminar_tablet.html` 우측 ↑/↓ 버튼 상시 노출(불투명도 80%) — 위=이전, 아래=다음.
+- 각 파일의 `goHome()` → `./index_tablet.html` 링크, back-btn/slide-nav 상시 노출 CSS, 마우스 호버 감지 제거, `initHoverDetection()` noop 처리 완료.
+- 반영: commit `d05fc48 feat: add tablet HTML pages (_tablet.html)`
+
+### `Curriculum_full_tablet.html` 위 화살표(↑) 이전 페이지 이동 안되는 버그 수정
+
+- 작업 전 이 `gpt.md` 파일을 확인했다.
+- 증상: 아래 화살표(↓)로 다음 슬라이드 이동은 잘 되나, 위 화살표(↑)로 이전 슬라이드 이동이 안 됨.
+- 원인: 슬라이드 패널(`#slide-panel`)에 추가된 터치탭 이벤트 핸들러(`touchend`)가 버튼 탭 여부를 구분하지 않고 무조건 `goToSlide(currentSlideIndex + 1)`을 실행함. 터치 이벤트 순서는 `touchend` → `click`이므로, ↑ 버튼 탭 시 `touchend`가 먼저 +1, 이후 click이 -1 하여 결과가 0 (원위치). ↓ 버튼은 `touchend` +1, click도 +1로 둘 다 같은 방향이라 "동작한다"처럼 보임.
+- 수정: `Curriculum_full_tablet.html`의 `touchend` 핸들러에 `SKIP` 셀렉터 체크 추가. `button`, `a`, `.img-box` 등을 탭한 경우 `goToSlide(+1)` 실행하지 않도록 함.
+- 추가 정리: `#slide-nav` CSS를 `position: fixed` → `position: absolute`로 변경 (CSS 명세상 transform이 적용된 부모 안에서 fixed는 absolute와 동일하게 동작하므로 동작에 차이 없으나, 의미상 명확한 absolute로 수정).
+
+### 태블릿 서브 페이지 하단 메뉴 드래그 가능 팝업으로 변경 (`footer-menu-tablet.js`)
+
+- 작업 전 이 `gpt.md` 파일을 확인했다.
+- 기존 하단 고정 알약 메뉴(`#comsw-footer-menu` fixed bottom center)를 드래그 가능한 팝업으로 전면 변경.
+- DOM 구조:
+  ```
+  #comsw-footer-popup
+  ├─ #comsw-footer-popup-handle  (드래그 핸들 영역)
+  │   ├─ #comsw-footer-popup-drag-icon  (3선 아이콘, 드래그 힌트)
+  │   ├─ #comsw-footer-popup-title  ("메뉴")
+  │   └─ #comsw-footer-popup-toggle  (▲/▼ 접기/펼치기 버튼)
+  └─ #comsw-footer-menu  (기존 알약 버튼들, 접히면 display:none)
+  ```
+- 초기 위치: 우측 하단(`bottom: 24px; right: 24px`).
+- 드래그(`initDrag`): mousedown/touchstart → mousemove/touchmove → mouseup/touchend 패턴. 드래그 시작 시 `bottom/right`를 `top/left`로 변환해 절대 좌표로 이동. 뷰포트 경계 클램프 적용. 메뉴 아이템·토글 버튼 탭은 드래그 시작 제외.
+- 토글(`initToggle`): ▲/▼ 버튼 클릭 시 `#comsw-footer-popup`에 `.collapsed` 클래스 토글. 접힌 상태에서 `#comsw-footer-menu`는 `display: none`. 핸들의 `border-radius`도 collapsed 시 사방 둥글게 변환.
+- 반영:
+  - commit: `(이번 세션)`
+  - `git push origin main` 예정.

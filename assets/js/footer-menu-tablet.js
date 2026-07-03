@@ -45,20 +45,93 @@
   function injectCSS() {
     if (document.getElementById('comsw-footer-menu-css')) return;
     const css = ''
-      + '#comsw-footer-menu {'
+      + '#comsw-footer-popup {'
       + '  position: fixed;'
-      + '  bottom: 4vh;'
-      + '  left: 50%;'
-      + '  transform: translateX(-50%);'
+      + '  bottom: 24px;'
+      + '  right: 24px;'
       + '  z-index: 9000;'
+      + '  background: rgba(255,255,255,0.96);'
+      + '  border-radius: 16px;'
+      + '  box-shadow: 0 8px 32px rgba(0,0,0,0.22);'
+      + '  font-family: \'Pretendard Variable\', \'Pretendard\', sans-serif;'
+      + '  user-select: none;'
+      + '  touch-action: none;'
+      + '  max-width: calc(100vw - 48px);'
+      + '  cursor: grab;'
+      + '}'
+      + '#comsw-footer-popup.is-dragging {'
+      + '  cursor: grabbing;'
+      + '  box-shadow: 0 16px 48px rgba(0,0,0,0.32);'
+      + '  opacity: 0.92;'
+      + '}'
+      + '#comsw-footer-popup-handle {'
+      + '  display: flex;'
+      + '  align-items: center;'
+      + '  justify-content: center;'
+      + '  padding: 10px 12px 10px 10px;'
+      + '  gap: 8px;'
+      + '  cursor: grab;'
+      + '  border-radius: 16px 16px 0 0;'
+      + '  background: rgba(0,0,0,0.04);'
+      + '  min-height: 42px;'
+      + '}'
+      + '#comsw-footer-popup.collapsed #comsw-footer-popup-handle {'
+      + '  border-radius: 16px;'
+      + '}'
+      + '#comsw-footer-popup-drag-icon {'
+      + '  display: flex;'
+      + '  flex-direction: column;'
+      + '  gap: 3px;'
+      + '  flex-shrink: 0;'
+      + '  opacity: 0.4;'
+      + '  pointer-events: none;'
+      + '}'
+      + '#comsw-footer-popup-drag-icon span {'
+      + '  display: block;'
+      + '  width: 18px;'
+      + '  height: 2px;'
+      + '  background: #333;'
+      + '  border-radius: 1px;'
+      + '}'
+      + '#comsw-footer-popup-title {'
+      + '  font-size: 13px;'
+      + '  font-weight: 600;'
+      + '  color: #444;'
+      + '  flex: 1;'
+      + '  text-align: center;'
+      + '  pointer-events: none;'
+      + '}'
+      + '#comsw-footer-popup-toggle {'
+      + '  width: 26px;'
+      + '  height: 26px;'
+      + '  display: flex;'
+      + '  align-items: center;'
+      + '  justify-content: center;'
+      + '  cursor: pointer;'
+      + '  border-radius: 50%;'
+      + '  font-size: 11px;'
+      + '  background: rgba(0,0,0,0.1);'
+      + '  border: none;'
+      + '  padding: 0;'
+      + '  color: #333;'
+      + '  flex-shrink: 0;'
+      + '  pointer-events: auto;'
+      + '  transition: background 0.15s;'
+      + '}'
+      + '#comsw-footer-popup-toggle:hover {'
+      + '  background: rgba(0,0,0,0.2);'
+      + '}'
+      + '#comsw-footer-menu {'
       + '  display: flex;'
       + '  flex-wrap: wrap;'
       + '  align-items: center;'
       + '  justify-content: center;'
-      + '  gap: 12px;'
-      + '  max-width: calc(100vw - 40px);'
+      + '  gap: 10px;'
+      + '  padding: 12px 14px;'
       + '  pointer-events: none;'
-      + '  font-family: \'Pretendard Variable\', \'Pretendard\', sans-serif;'
+      + '}'
+      + '#comsw-footer-popup.collapsed #comsw-footer-menu {'
+      + '  display: none;'
       + '}'
       + '#comsw-footer-menu .comsw-menu-item {'
       + '  background: #ffffff;'
@@ -66,11 +139,11 @@
       + '  border: 0;'
       + '  font-weight: 500;'
       + '  font-size: 14px;'
-      + '  padding: 12px 20px;'
+      + '  padding: 10px 18px;'
       + '  border-radius: 24px;'
       + '  cursor: pointer;'
       + '  white-space: nowrap;'
-      + '  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.25);'
+      + '  box-shadow: 0 2px 10px rgba(0,0,0,0.18);'
       + '  pointer-events: auto;'
       + '  user-select: none;'
       + '  transition: background-color 0.18s ease, color 0.18s ease, box-shadow 0.18s ease, transform 0.15s ease;'
@@ -78,7 +151,7 @@
       + '}'
       + '#comsw-footer-menu .comsw-menu-item:hover {'
       + '  background: #f0f0f0;'
-      + '  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.35);'
+      + '  box-shadow: 0 4px 16px rgba(0,0,0,0.25);'
       + '  transform: translateY(-1px);'
       + '}'
       + '#comsw-footer-menu .comsw-menu-item.active {'
@@ -90,19 +163,19 @@
       + '#comsw-footer-menu .comsw-menu-item.active:hover {'
       + '  background: #fa491d;'
       + '  transform: none;'
-      + '  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.25);'
+      + '  box-shadow: 0 2px 10px rgba(0,0,0,0.18);'
       + '}'
       + '#comsw-footer-menu .comsw-download-item {'
-      + '  width: 48px;'
-      + '  height: 44px;'
+      + '  width: 44px;'
+      + '  height: 40px;'
       + '  padding: 0;'
       + '  display: inline-flex;'
       + '  align-items: center;'
       + '  justify-content: center;'
       + '}'
       + '#comsw-footer-menu .comsw-download-item svg {'
-      + '  width: 23px;'
-      + '  height: 29px;'
+      + '  width: 21px;'
+      + '  height: 27px;'
       + '  display: block;'
       + '  fill: currentColor;'
       + '}'
@@ -128,12 +201,123 @@
   }
 
   function injectContainer() {
-    let div = document.getElementById('comsw-footer-menu');
-    if (div) return div;
-    div = document.createElement('div');
-    div.id = 'comsw-footer-menu';
-    document.body.appendChild(div);
-    return div;
+    if (document.getElementById('comsw-footer-popup')) {
+      return document.getElementById('comsw-footer-menu');
+    }
+
+    const popup = document.createElement('div');
+    popup.id = 'comsw-footer-popup';
+
+    const handle = document.createElement('div');
+    handle.id = 'comsw-footer-popup-handle';
+
+    const dragIcon = document.createElement('div');
+    dragIcon.id = 'comsw-footer-popup-drag-icon';
+    dragIcon.innerHTML = '<span></span><span></span><span></span>';
+
+    const title = document.createElement('span');
+    title.id = 'comsw-footer-popup-title';
+    title.textContent = '메뉴';
+
+    const toggleBtn = document.createElement('button');
+    toggleBtn.id = 'comsw-footer-popup-toggle';
+    toggleBtn.textContent = '▲';
+    toggleBtn.title = '접기/펼치기';
+
+    handle.appendChild(dragIcon);
+    handle.appendChild(title);
+    handle.appendChild(toggleBtn);
+
+    const menu = document.createElement('div');
+    menu.id = 'comsw-footer-menu';
+
+    popup.appendChild(handle);
+    popup.appendChild(menu);
+    document.body.appendChild(popup);
+
+    return menu;
+  }
+
+  function initDrag(popup) {
+    let isDragging = false;
+    let startX = 0, startY = 0, startLeft = 0, startTop = 0;
+
+    function onStart(clientX, clientY) {
+      isDragging = true;
+      const rect = popup.getBoundingClientRect();
+      startX = clientX;
+      startY = clientY;
+      startLeft = rect.left;
+      startTop = rect.top;
+      popup.style.right = '';
+      popup.style.bottom = '';
+      popup.style.left = startLeft + 'px';
+      popup.style.top = startTop + 'px';
+      popup.classList.add('is-dragging');
+    }
+
+    function onMove(clientX, clientY) {
+      if (!isDragging) return;
+      let newLeft = startLeft + (clientX - startX);
+      let newTop = startTop + (clientY - startY);
+      const maxLeft = window.innerWidth - popup.offsetWidth;
+      const maxTop = window.innerHeight - popup.offsetHeight;
+      newLeft = Math.max(0, Math.min(newLeft, maxLeft));
+      newTop = Math.max(0, Math.min(newTop, maxTop));
+      popup.style.left = newLeft + 'px';
+      popup.style.top = newTop + 'px';
+    }
+
+    function onEnd() {
+      isDragging = false;
+      popup.classList.remove('is-dragging');
+    }
+
+    popup.addEventListener('mousedown', function(e) {
+      const toggle = document.getElementById('comsw-footer-popup-toggle');
+      if (toggle && toggle.contains(e.target)) return;
+      if (e.target.closest && e.target.closest('.comsw-menu-item, .comsw-download-item')) return;
+      e.preventDefault();
+      onStart(e.clientX, e.clientY);
+      function onMouseMove(ev) { onMove(ev.clientX, ev.clientY); }
+      function onMouseUp() {
+        onEnd();
+        window.removeEventListener('mousemove', onMouseMove);
+        window.removeEventListener('mouseup', onMouseUp);
+      }
+      window.addEventListener('mousemove', onMouseMove);
+      window.addEventListener('mouseup', onMouseUp);
+    });
+
+    popup.addEventListener('touchstart', function(e) {
+      const toggle = document.getElementById('comsw-footer-popup-toggle');
+      if (toggle && toggle.contains(e.target)) return;
+      if (e.target.closest && e.target.closest('.comsw-menu-item, .comsw-download-item')) return;
+      const touch = e.touches[0];
+      onStart(touch.clientX, touch.clientY);
+      function onTouchMove(ev) {
+        if (!isDragging) return;
+        const t = ev.touches[0];
+        onMove(t.clientX, t.clientY);
+      }
+      function onTouchEnd() {
+        onEnd();
+        window.removeEventListener('touchmove', onTouchMove);
+        window.removeEventListener('touchend', onTouchEnd);
+      }
+      window.addEventListener('touchmove', onTouchMove, { passive: true });
+      window.addEventListener('touchend', onTouchEnd, { passive: true });
+    }, { passive: true });
+  }
+
+  function initToggle(popup) {
+    const toggleBtn = document.getElementById('comsw-footer-popup-toggle');
+    if (!toggleBtn) return;
+    toggleBtn.addEventListener('click', function(e) {
+      e.stopPropagation();
+      popup.classList.toggle('collapsed');
+      toggleBtn.textContent = popup.classList.contains('collapsed') ? '▼' : '▲';
+    });
   }
 
   /** Supabase "메인 페이지" 시트에서 체크된 메뉴 목록 가져오기. */
@@ -917,11 +1101,13 @@
   function start() {
     injectCSS();
     const container = injectContainer();
+    const popup = document.getElementById('comsw-footer-popup');
     renderMenus(container, []);
+    initDrag(popup);
+    initToggle(popup);
     fetchMenus()
       .then(function(menus) { renderMenus(container, menus); })
       .catch(function(err) {
-        // 메뉴 fetch 실패해도 본문 동작은 영향 없음. 콘솔에만 경고.
         if (window.console) console.warn('[footer-menu]', err);
       });
   }

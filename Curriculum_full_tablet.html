@@ -523,7 +523,7 @@
     /* ============================================== */
 
     #slide-nav {
-      position: fixed;
+      position: absolute;
       right: 60px;
       top: 50%;
       transform: translate(0, -50%);
@@ -5532,7 +5532,10 @@
         if (!activeDeptName || !slides || slides.length === 0) return;
         var dx = Math.abs(e.changedTouches[0].clientX - tStartX);
         var dy = Math.abs(e.changedTouches[0].clientY - tStartY);
-        if (dx < 20 && dy < 20) goToSlide(currentSlideIndex + 1);
+        if (dx < 20 && dy < 20) {
+          var SKIP = 'button,a,.img-box,#lightbox-overlay,#instructor-lightbox,#instructor-curriculum-lightbox,.slide-indicator-area,.dept-dot';
+          if (!e.target.closest || !e.target.closest(SKIP)) goToSlide(currentSlideIndex + 1);
+        }
       }, { passive: true });
     })();  </script>
 <script src="./assets/js/footer-menu-tablet.js"></script>

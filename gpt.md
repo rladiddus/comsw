@@ -2358,3 +2358,38 @@
 - 반영:
   - commit: `cf4fe30`
   - `git push origin main` 완료.
+
+## 2026-07-06 (7차)
+
+### 이미지 저장 시 팝업 메뉴 제외
+
+- 작업 전 이 `gpt.md` 파일을 확인했다.
+- 대상 파일: `assets/js/footer-menu-tablet.js`
+
+#### 수정 — html2canvas 캡처에서 팝업 제외
+- 타블렛 전체 페이지 이미지 저장 시 `#comsw-footer-popup`(팝업 메뉴 + 버튼)이 이미지에 포함되는 문제.
+- 수정: `injectContainer()`에서 popup div 생성 후 `popup.setAttribute('data-html2canvas-ignore', 'true')` 추가.
+  → html2canvas가 이 속성이 있는 요소와 하위 요소 전체를 캡처에서 자동 제외.
+- `index_tablet.html`의 이미지 저장은 Drive 이미지를 직접 다운로드하는 방식이므로 별도 수정 불필요.
+- 반영:
+  - commit: `809a246`
+  - `git push origin main` 완료.
+
+## 2026-07-06 (8차)
+
+### 강사 소개 페이지 더블클릭/더블탭으로 ESC 동작 추가
+
+- 작업 전 이 `gpt.md` 파일을 확인했다.
+- 대상 파일: `Curriculum_full_tablet.html`
+
+#### 수정 — 강사 라이트박스 더블클릭/더블탭 닫기
+- 요청: `Curriculum_full_tablet.html` 강사 소개 페이지에서 프로필 사진·알약(과목 버튼) 제외 영역을
+  더블클릭(PC) 또는 두 번 터치(태블릿, 300ms 이내)하면 ESC와 동일하게 동작.
+- 수정: `#instructor-lightbox`에 `dblclick` + `touchend` 이벤트 추가 (IIFE 스코프).
+  - 제외 영역: `#instructor-detail-photo`(프로필 사진), `#instructor-subjects`(과목 알약 버튼)
+  - 강사 커리큘럼이 열린 경우(`_instructorCurriculumOpen` 플래그 또는 `.visible` 클래스) → `closeInstructorCurriculum()` 우선
+  - 커리큘럼 미오픈 시 → `closeInstructorLightbox(true)` (force=true, 라이트박스 통째로 닫기)
+  - 더블탭: `touchend { passive: false }` + `e.preventDefault()` → 합성 click 차단
+- 반영:
+  - commit: `4a6be30`
+  - `git push origin main` 완료.

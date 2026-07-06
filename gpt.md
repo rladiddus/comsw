@@ -2237,5 +2237,36 @@
 - `initDrag(popup)` / `initToggle(popup)` 함수 인라인 추가 (`footer-menu-tablet.js`와 동일 로직).
 - 초기 위치: 우측 하단 (`bottom: 24px; right: 24px`).
 - 반영:
-  - commit: `(이번 세션)`
-  - `git push origin main` 예정.
+  - commit: `ff3b35b`
+  - `git push origin main` 완료.
+
+## 2026-07-06 (2차)
+
+### 팝업 드래그·접기·외관·메인 캡션 수정
+
+- 작업 전 이 `gpt.md` 파일을 확인했다.
+- 대상 파일: `assets/js/footer-menu-tablet.js`, `index_tablet.html`
+
+#### 수정 1 — 드래그 위치 이동 (크기 변경 방지)
+- 원인: `right: 24px` 상태에서 드래그 시작 → `right` 제거하고 `left` 추가 시 `width`가 미고정이라 팝업 너비가 변경되어 "크기 조정처럼" 보임.
+- 수정: `onStart()` 내 `popup.style.right = ''` 이전에 `popup.style.width = rect.width + 'px'` 추가.
+- 두 파일 모두 동일 수정.
+
+#### 수정 2 — 접으면 '메뉴' 알약만 남음
+- collapsed 시 drag-icon과 toggle 버튼 숨김 (`display: none`).
+- `#comsw-footer-popup-title`에 `flex: none` 적용 → 컨텐츠 너비만큼만 차지.
+- 팝업과 handle 모두 `border-radius: 24px`으로 완전 알약 형태.
+- 접힌 알약 탭 시 다시 펼침: `popup.addEventListener('click', ...)` 추가.
+
+#### 수정 3 — 접힌 상태에서 알약 클릭 시 펼침
+- `initToggle()` 내 `popup.addEventListener('click', ...)` 추가.
+- collapsed 상태일 때만 동작, 내부 메뉴 클릭 이벤트와 충돌 없음 (메뉴는 hidden).
+
+#### 수정 4 — 메인 페이지 화면 중앙 캡션 복원 (`index_tablet.html` 전용)
+- Drive 이미지 고정 후 `captionHtml: ''`로 설정해 캡션이 사라진 문제 해결.
+- `(function(){...})()` IIFE를 `getMainRows().then(...)` 비동기 패턴으로 변경.
+- Supabase "메인 페이지" 시트 B열 첫 행(B2)을 `captionTextToHtml()`로 변환해 모든 Drive 이미지에 동일하게 적용.
+- Supabase 요청 실패 시 캡션 없이 이미지만 표시 (`.catch` 폴백).
+- 반영:
+  - commit: `f957e08`
+  - `git push origin main` 완료.

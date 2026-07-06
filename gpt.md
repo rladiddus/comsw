@@ -2295,3 +2295,43 @@
 - 반영:
   - commit: `558ff4f`
   - `git push origin main` 완료.
+
+## 2026-07-06 (4차)
+
+### 팝업 메뉴 2줄 고정 레이아웃 (flex → CSS Grid)
+
+- 작업 전 이 `gpt.md` 파일을 확인했다.
+- 대상 파일: `assets/js/footer-menu-tablet.js`, `index_tablet.html`
+
+#### 문제
+- `flex-wrap: wrap`으로 자동 줄바꿈 → 팝업 너비에 따라 배열이 달라짐.
+- 접었다 펴면 너비가 바뀌어 배열이 흐트러짐.
+
+#### 수정
+- `#comsw-footer-menu`를 `display: grid; grid-template-columns: auto auto auto auto`로 변경.
+- 4열 고정이므로 팝업 너비와 무관하게 항상 1행 4개 + 2행 3개 배열 유지.
+- 반영:
+  - commit: `fe1966d`
+  - `git push origin main` 완료.
+
+## 2026-07-06 (5차)
+
+### 드래그 릴리즈 펼침 방지 + 아이템 overflow 수정 + 가운데 정렬
+
+- 작업 전 이 `gpt.md` 파일을 확인했다.
+- 대상 파일: `assets/js/footer-menu-tablet.js`, `index_tablet.html`
+
+#### 수정 1 — 드래그 놓으면 접힌 팝업이 펼쳐지는 버그
+- 원인: touchend 후 브라우저가 합성 click 이벤트를 발생시킴 → 팝업의 click 핸들러가 `collapsed` 팝업을 펼침.
+- 수정: `wasDragged` 플래그 추가. `onMove` 내에서 `true`로 설정, popup click 핸들러에서 체크 후 리셋.
+
+#### 수정 2 — 드래그 후 펼치면 아이템이 팝업 밖으로 흩어지는 버그
+- 원인: collapsed 상태로 드래그하면 pill 너비(`fit-content`)가 `popup.style.width`에 인라인 고정됨.
+  → 나중에 펼칠 때 그 좁은 너비 안에서 4열 그리드가 overflow.
+- 수정: collapsed 상태 드래그 시 width 잠금 건너뜀. 펼칠 때 `popup.style.width = ''`로 항상 초기화.
+
+#### 수정 3 — 메뉴 아이템 가운데 정렬
+- `#comsw-footer-menu`에 `justify-items: center` 추가.
+- 반영:
+  - commit: `90d3a97`
+  - `git push origin main` 완료.

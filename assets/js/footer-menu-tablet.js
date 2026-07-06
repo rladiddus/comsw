@@ -142,6 +142,7 @@
       + '  display: grid;'
       + '  grid-template-columns: auto auto auto auto;'
       + '  justify-content: center;'
+      + '  justify-items: center;'
       + '  align-items: center;'
       + '  gap: 10px;'
       + '  padding: 12px 14px;'
@@ -255,6 +256,8 @@
     return menu;
   }
 
+  let wasDragged = false;
+
   function initDrag(popup) {
     let isDragging = false;
     let startX = 0, startY = 0, startLeft = 0, startTop = 0;
@@ -266,7 +269,10 @@
       startY = clientY;
       startLeft = rect.left;
       startTop = rect.top;
-      popup.style.width = rect.width + 'px';
+      // collapsed 상태 드래그 시에는 width 고정 안 함 (좁은 pill 너비로 잠기면 펼칠 때 overflow)
+      if (!popup.classList.contains('collapsed')) {
+        popup.style.width = rect.width + 'px';
+      }
       popup.style.right = 'auto';
       popup.style.bottom = 'auto';
       popup.style.left = startLeft + 'px';
@@ -276,6 +282,7 @@
 
     function onMove(clientX, clientY) {
       if (!isDragging) return;
+      wasDragged = true;
       let newLeft = startLeft + (clientX - startX);
       let newTop = startTop + (clientY - startY);
       const maxLeft = window.innerWidth - popup.offsetWidth;
@@ -338,12 +345,15 @@
         popup.style.width = '';
         toggleBtn.textContent = '▼';
       } else {
+        popup.style.width = '';  // 잠긴 width 해제 후 그리드 크기로 자연 확장
         toggleBtn.textContent = '▲';
       }
     });
     popup.addEventListener('click', function() {
+      if (wasDragged) { wasDragged = false; return; }  // 드래그 릴리즈 click 무시
       if (!popup.classList.contains('collapsed')) return;
       popup.classList.remove('collapsed');
+      popup.style.width = '';  // collapsed 드래그로 생긴 좁은 width 해제
       toggleBtn.textContent = '▲';
     });
   }

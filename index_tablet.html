@@ -181,6 +181,7 @@
       display: grid;
       grid-template-columns: auto auto auto auto;
       justify-content: center;
+      justify-items: center;
       align-items: center;
       gap: 10px;
       padding: 12px 14px;
@@ -853,6 +854,8 @@
       // 팝업으로 대체됨 - no-op
     }
 
+    var wasDragged = false;
+
     function initDrag(popup) {
       var isDragging = false;
       var startX = 0, startY = 0, startLeft = 0, startTop = 0;
@@ -861,13 +864,16 @@
         var rect = popup.getBoundingClientRect();
         startX = clientX; startY = clientY;
         startLeft = rect.left; startTop = rect.top;
-        popup.style.width = rect.width + 'px';
+        if (!popup.classList.contains('collapsed')) {
+          popup.style.width = rect.width + 'px';
+        }
         popup.style.right = 'auto'; popup.style.bottom = 'auto';
         popup.style.left = startLeft + 'px'; popup.style.top = startTop + 'px';
         popup.classList.add('is-dragging');
       }
       function onMove(clientX, clientY) {
         if (!isDragging) return;
+        wasDragged = true;
         var newLeft = startLeft + (clientX - startX);
         var newTop = startTop + (clientY - startY);
         var maxLeft = window.innerWidth - popup.offsetWidth;
@@ -909,12 +915,15 @@
           popup.style.width = '';
           btn.textContent = '▼';
         } else {
+          popup.style.width = '';
           btn.textContent = '▲';
         }
       });
       popup.addEventListener('click', function() {
+        if (wasDragged) { wasDragged = false; return; }
         if (!popup.classList.contains('collapsed')) return;
         popup.classList.remove('collapsed');
+        popup.style.width = '';
         btn.textContent = '▲';
       });
     }

@@ -2195,5 +2195,47 @@
 - 드래그(`initDrag`): mousedown/touchstart → mousemove/touchmove → mouseup/touchend 패턴. 드래그 시작 시 `bottom/right`를 `top/left`로 변환해 절대 좌표로 이동. 뷰포트 경계 클램프 적용. 메뉴 아이템·토글 버튼 탭은 드래그 시작 제외.
 - 토글(`initToggle`): ▲/▼ 버튼 클릭 시 `#comsw-footer-popup`에 `.collapsed` 클래스 토글. 접힌 상태에서 `#comsw-footer-menu`는 `display: none`. 핸들의 `border-radius`도 collapsed 시 사방 둥글게 변환.
 - 반영:
+  - commit: `0746501 fix(tablet): fix up-arrow nav bug and add draggable footer menu popup`
+  - `git push origin main` 성공.
+
+## 2026-07-06
+
+### `index_tablet.html` 배경 영상 → Drive 폴더 이미지 교체
+
+- 작업 전 이 `gpt.md` 파일을 확인했다.
+- 기존 `index_tablet.html`은 Supabase "메인 페이지" 시트에서 미디어(주로 영상)를 불러와 배경에 표시했다.
+- 태블릿용으로는 영상 대신 지정된 Google Drive 폴더 이미지 3장을 배경으로 고정 사용하도록 변경.
+- Drive 폴더: `1zEHJHjbSFoo4qSN_jWGPDLVe5rw_VsMu`
+  - pexels-diva-34787933.jpg → `1tEaMmqNSpCQEBau_K0QeHp4Emcp1RgyC`
+  - pexels-diva-34787935.jpg → `1c8PeBprYCJUka6DWQ1SRF4tUY7UbxmI0`
+  - pexels-steve-13659333.jpg → `1d3rV1XPZxZUENI4OkJ2cu1jAv_lcNPwD`
+- 이미지 URL: `https://lh3.googleusercontent.com/d/FILE_ID=w1920` (공개 공유 파일 형식)
+- 구현:
+  - `getCheckedMediaFromSupabase()` 호출 제거, 대신 3장 이미지 배열을 `type: 'image'`로 `onMediaLoaded()`에 직접 전달.
+  - 로드 시 `Math.random()`으로 순서 섞기 → 매번 다른 이미지부터 시작.
+  - 기존 이미지 슬라이드쇼 로직(`renderMedia`, `scheduleNext`, `goNext`)은 그대로 재사용.
+  - 터치 스와이프로 이미지 전환 유지.
+- Supabase 메뉴 로드(`getMenuListFromSupabase`)는 그대로 유지 — 메뉴 항목은 여전히 시트에서 동적으로 가져옴.
+
+### `index_tablet.html` 하단 메뉴 드래그 가능 팝업으로 변경
+
+- 작업 전 이 `gpt.md` 파일을 확인했다.
+- 기존 `#menu-area` (하단 고정 flat flex row)를 서브 페이지와 동일한 드래그 팝업 형태로 교체.
+- DOM 구조 (`footer-menu-tablet.js`와 동일):
+  ```
+  #comsw-footer-popup
+  ├─ #comsw-footer-popup-handle
+  │   ├─ #comsw-footer-popup-drag-icon
+  │   ├─ #comsw-footer-popup-title  ("메뉴")
+  │   └─ #comsw-footer-popup-toggle  (▲/▼)
+  └─ #comsw-footer-menu  (메뉴 아이템들)
+  ```
+- 팝업 내 항목:
+  1. **이미지 저장 버튼** (`createDownloadMenuItem`) — 현재 배경 이미지를 `fetch` + blob으로 다운로드 시도. CORS 실패 시 새 탭에서 열기 폴백.
+  2. Supabase에서 로드된 메뉴 항목들 (전체 수업, 학과별 자료, 방학 특강, 학과 커리큘럼, 특강/세미나, 수업별 준비물 등)
+- 이미지 저장 버튼은 `window.onload` 직후 즉시 추가 (Supabase 로드 성공/실패 무관하게 항상 표시).
+- `initDrag(popup)` / `initToggle(popup)` 함수 인라인 추가 (`footer-menu-tablet.js`와 동일 로직).
+- 초기 위치: 우측 하단 (`bottom: 24px; right: 24px`).
+- 반영:
   - commit: `(이번 세션)`
   - `git push origin main` 예정.

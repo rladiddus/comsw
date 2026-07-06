@@ -91,47 +91,118 @@
       display: inline-block;
     }
     
-    /* 하단 메뉴 시스템 - 태블릿: 상시 노출 */
-    #menu-area {
+    /* 하단 메뉴 - 드래그 가능 팝업 */
+    #comsw-footer-popup {
       position: fixed;
-      bottom: 4vh;
-      left: 50%;
-      transform: translateX(-50%);
-      z-index: 200;
+      bottom: 24px;
+      right: 24px;
+      z-index: 9000;
+      background: rgba(255,255,255,0.96);
+      border-radius: 16px;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.22);
+      font-family: 'Pretendard Variable', 'Pretendard', sans-serif;
+      user-select: none;
+      touch-action: none;
+      max-width: calc(100vw - 48px);
+      cursor: grab;
+    }
+    #comsw-footer-popup.is-dragging {
+      cursor: grabbing;
+      box-shadow: 0 16px 48px rgba(0,0,0,0.32);
+      opacity: 0.92;
+    }
+    #comsw-footer-popup-handle {
       display: flex;
       align-items: center;
       justify-content: center;
-      flex-wrap: wrap;
-      gap: 12px;
-      pointer-events: none;
-      max-width: calc(100vw - 40px);
-      font-family: 'Pretendard Variable', 'Pretendard', sans-serif;
+      padding: 10px 12px 10px 10px;
+      gap: 8px;
+      cursor: grab;
+      border-radius: 16px 16px 0 0;
+      background: rgba(0,0,0,0.04);
+      min-height: 42px;
     }
-
-  .menu-item {
-    background: #ffffff;
-    color: #000;
-    font-weight: 500;
-    font-size: 14px;
-    padding: 12px 20px;
-    border-radius: 24px;
-    cursor: pointer;
-    white-space: nowrap;
-    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.25);
-    opacity: 1;
-    pointer-events: auto;
-    position: relative;
-    z-index: 1;
-    user-select: none;
-    letter-spacing: -0.01em;
-    transition: background-color 0.18s ease, box-shadow 0.18s ease, transform 0.15s ease;
-  }
-
-  .menu-item:hover {
-    background: #f0f0f0;
-    box-shadow: 0 8px 28px rgba(0, 0, 0, 0.35);
-    transform: translateY(-1px);
-  }
+    #comsw-footer-popup.collapsed #comsw-footer-popup-handle {
+      border-radius: 16px;
+    }
+    #comsw-footer-popup-drag-icon {
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+      flex-shrink: 0;
+      opacity: 0.4;
+      pointer-events: none;
+    }
+    #comsw-footer-popup-drag-icon span {
+      display: block;
+      width: 18px;
+      height: 2px;
+      background: #333;
+      border-radius: 1px;
+    }
+    #comsw-footer-popup-title {
+      font-size: 13px;
+      font-weight: 600;
+      color: #444;
+      flex: 1;
+      text-align: center;
+      pointer-events: none;
+    }
+    #comsw-footer-popup-toggle {
+      width: 26px;
+      height: 26px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      border-radius: 50%;
+      font-size: 11px;
+      background: rgba(0,0,0,0.1);
+      border: none;
+      padding: 0;
+      color: #333;
+      flex-shrink: 0;
+      pointer-events: auto;
+      transition: background 0.15s;
+    }
+    #comsw-footer-popup-toggle:hover { background: rgba(0,0,0,0.2); }
+    #comsw-footer-menu {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      padding: 12px 14px;
+      pointer-events: none;
+    }
+    #comsw-footer-popup.collapsed #comsw-footer-menu { display: none; }
+    .comsw-menu-item {
+      background: #ffffff;
+      color: #000;
+      border: 0;
+      font-weight: 500;
+      font-size: 14px;
+      padding: 10px 18px;
+      border-radius: 24px;
+      cursor: pointer;
+      white-space: nowrap;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.18);
+      pointer-events: auto;
+      user-select: none;
+      transition: background-color 0.18s ease, color 0.18s ease, box-shadow 0.18s ease, transform 0.15s ease;
+      letter-spacing: -0.01em;
+    }
+    .comsw-menu-item:hover {
+      background: #f0f0f0;
+      box-shadow: 0 4px 16px rgba(0,0,0,0.25);
+      transform: translateY(-1px);
+    }
+    .comsw-download-item {
+      width: 44px; height: 40px; padding: 0;
+      display: inline-flex; align-items: center; justify-content: center;
+    }
+    .comsw-download-item svg { width: 21px; height: 27px; display: block; fill: currentColor; }
+    .comsw-download-item.is-busy { pointer-events: none; opacity: 0.68; }
     
     .message {
       color: #fff; font-size: 1.2rem;
@@ -239,8 +310,15 @@
   </div>
   <div id="caption"></div>
   
-  <div id="menu-area">
-    <!-- 태블릿: onMenuLoaded가 직접 .menu-item을 여기에 추가 -->
+  <div id="comsw-footer-popup">
+    <div id="comsw-footer-popup-handle">
+      <div id="comsw-footer-popup-drag-icon">
+        <span></span><span></span><span></span>
+      </div>
+      <span id="comsw-footer-popup-title">메뉴</span>
+      <button id="comsw-footer-popup-toggle" title="접기/펼치기">▲</button>
+    </div>
+    <div id="comsw-footer-menu"></div>
   </div>
 
   <script>
@@ -545,9 +623,18 @@
           markLoadingStep('loadingContent');
         });
       
-      getCheckedMediaFromSupabase()
-        .then(onMediaLoaded)
-        .catch(onError);
+      // 태블릿: Supabase 미디어 대신 Drive 폴더 이미지 고정 사용
+      (function() {
+        var imgs = [
+          'https://lh3.googleusercontent.com/d/1tEaMmqNSpCQEBau_K0QeHp4Emcp1RgyC=w1920',
+          'https://lh3.googleusercontent.com/d/1c8PeBprYCJUka6DWQ1SRF4tUY7UbxmI0=w1920',
+          'https://lh3.googleusercontent.com/d/1d3rV1XPZxZUENI4OkJ2cu1jAv_lcNPwD=w1920'
+        ];
+        imgs.sort(function() { return Math.random() - 0.5; });
+        onMediaLoaded(imgs.map(function(url) {
+          return { url: url, type: 'image', captionHtml: '' };
+        }));
+      })();
       
       getMenuListFromSupabase()
         .then(onMenuLoaded)
@@ -563,6 +650,13 @@
       
       initParallax();
       initMenuVisibility();
+      (function() {
+        var popup = document.getElementById('comsw-footer-popup');
+        if (popup) { initDrag(popup); initToggle(popup); }
+        // 다운로드 버튼 즉시 추가 (Supabase 로드 성공/실패 무관)
+        var menuDiv = document.getElementById('comsw-footer-menu');
+        if (menuDiv) menuDiv.appendChild(createDownloadMenuItem());
+      })();
       
       setTimeout(function() {
         tryHideLoadingOverlay(true);
@@ -665,29 +759,130 @@
     /* ============================================== */
     
     function onMenuLoaded(menus) {
+      const container = document.getElementById('comsw-footer-menu');
       if (!menus || menus.length === 0) {
         menuReady = true;
         markLoadingStep('menu');
         return;
       }
-      const container = document.getElementById('menu-area');
-      // 태블릿: 순서대로 한 줄 배치
       const sorted = menus.slice().sort((a, b) => a.order - b.order);
       sorted.forEach(menu => container.appendChild(createMenuItem(menu)));
       menuReady = true;
       markLoadingStep('menu');
     }
-    
+
     function createMenuItem(menu) {
       const div = document.createElement('div');
-      div.className = 'menu-item';
+      div.className = 'comsw-menu-item';
       div.textContent = menu.name;
       div.onclick = function() { onMenuClick(menu.name); };
       return div;
     }
-    
+
+    function createDownloadMenuItem() {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'comsw-menu-item comsw-download-item';
+      btn.title = '현재 배경 이미지 다운로드';
+      btn.innerHTML = '<svg viewBox="0 0 400 500" aria-hidden="true" focusable="false"><g>'
+        + '<path d="M358.8,272.2v70.3c0,1.4-0.2,2.7-0.5,3.9c-1.4,6.9-7.5,12.1-14.7,12.1H56.3'
+        + 'c-7.7,0-14.1-5.9-14.9-13.4c-0.2-0.9-0.2-1.7-0.2-2.7v-70.3c0-8.3,6.8-15,15-15'
+        + 'c4.1,0,7.9,1.7,10.6,4.4c2.7,2.7,4.4,6.5,4.4,10.6v56.3h257.7v-56.3c0-8.3,6.8-15,15-15'
+        + 'c4.1,0,7.9,1.7,10.6,4.4C357.1,264.3,358.8,268.1,358.8,272.2z"/>'
+        + '<path d="M286.5,201.8l-73.7,73.7c-0.1,0.2-0.3,0.3-0.4,0.4c-2.7,2.7-6.2,4.4-9.7,4.9'
+        + 'c-0.9,0.1-1.8,0.1-2.7,0l-1.7-0.1c-0.3,0-0.6-0.1-0.9-0.1c-3.6-0.5-7-2.2-9.7-4.9'
+        + 'c-0.1-0.1-0.3-0.3-0.4-0.4l-73.7-73.7c-3.4-3.4-5.1-7.9-5.1-12.4c0-4.5,1.7-9,5.1-12.4'
+        + 'c6.8-6.8,17.9-6.8,24.8,0l44.3,44.3V59c0-9.6,7.9-17.5,17.5-17.5c4.8,0,9.2,2,12.4,5.1'
+        + 'c3.2,3.2,5.1,7.5,5.1,12.4v162.3l44.3-44.3c6.8-6.8,17.9-6.8,24.8,0'
+        + 'C293.3,183.9,293.3,195,286.5,201.8z"/></g></svg>';
+      btn.addEventListener('click', downloadCurrentImage);
+      return btn;
+    }
+
+    function downloadCurrentImage() {
+      const imgEl = document.querySelector('#media-container img');
+      if (!imgEl || !imgEl.src) return;
+      const url = imgEl.src;
+      const btn = document.querySelector('.comsw-download-item');
+      if (btn) btn.classList.add('is-busy');
+      fetch(url, { mode: 'cors', credentials: 'omit' })
+        .then(function(res) {
+          if (!res.ok) throw new Error('fetch failed');
+          return res.blob();
+        })
+        .then(function(blob) {
+          const blobUrl = URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = blobUrl;
+          a.download = 'background.jpg';
+          a.click();
+          setTimeout(function() { URL.revokeObjectURL(blobUrl); }, 1000);
+        })
+        .catch(function() {
+          window.open(url, '_blank');
+        })
+        .finally(function() {
+          if (btn) btn.classList.remove('is-busy');
+        });
+    }
+
     function initMenuVisibility() {
-      // 태블릿: CSS로 항상 보임 - 이벤트 핸들러 불필요
+      // 팝업으로 대체됨 - no-op
+    }
+
+    function initDrag(popup) {
+      var isDragging = false;
+      var startX = 0, startY = 0, startLeft = 0, startTop = 0;
+      function onStart(clientX, clientY) {
+        isDragging = true;
+        var rect = popup.getBoundingClientRect();
+        startX = clientX; startY = clientY;
+        startLeft = rect.left; startTop = rect.top;
+        popup.style.right = ''; popup.style.bottom = '';
+        popup.style.left = startLeft + 'px'; popup.style.top = startTop + 'px';
+        popup.classList.add('is-dragging');
+      }
+      function onMove(clientX, clientY) {
+        if (!isDragging) return;
+        var newLeft = startLeft + (clientX - startX);
+        var newTop = startTop + (clientY - startY);
+        var maxLeft = window.innerWidth - popup.offsetWidth;
+        var maxTop = window.innerHeight - popup.offsetHeight;
+        newLeft = Math.max(0, Math.min(newLeft, maxLeft));
+        newTop = Math.max(0, Math.min(newTop, maxTop));
+        popup.style.left = newLeft + 'px'; popup.style.top = newTop + 'px';
+      }
+      function onEnd() { isDragging = false; popup.classList.remove('is-dragging'); }
+      popup.addEventListener('mousedown', function(e) {
+        var toggle = document.getElementById('comsw-footer-popup-toggle');
+        if (toggle && toggle.contains(e.target)) return;
+        if (e.target.closest && e.target.closest('.comsw-menu-item,.comsw-download-item')) return;
+        e.preventDefault();
+        onStart(e.clientX, e.clientY);
+        function mm(ev) { onMove(ev.clientX, ev.clientY); }
+        function mu() { onEnd(); window.removeEventListener('mousemove', mm); window.removeEventListener('mouseup', mu); }
+        window.addEventListener('mousemove', mm); window.addEventListener('mouseup', mu);
+      });
+      popup.addEventListener('touchstart', function(e) {
+        var toggle = document.getElementById('comsw-footer-popup-toggle');
+        if (toggle && toggle.contains(e.target)) return;
+        if (e.target.closest && e.target.closest('.comsw-menu-item,.comsw-download-item')) return;
+        var t = e.touches[0];
+        onStart(t.clientX, t.clientY);
+        function tm(ev) { if (!isDragging) return; var tt = ev.touches[0]; onMove(tt.clientX, tt.clientY); }
+        function te() { onEnd(); window.removeEventListener('touchmove', tm); window.removeEventListener('touchend', te); }
+        window.addEventListener('touchmove', tm, { passive: true }); window.addEventListener('touchend', te, { passive: true });
+      }, { passive: true });
+    }
+
+    function initToggle(popup) {
+      var btn = document.getElementById('comsw-footer-popup-toggle');
+      if (!btn) return;
+      btn.addEventListener('click', function(e) {
+        e.stopPropagation();
+        popup.classList.toggle('collapsed');
+        btn.textContent = popup.classList.contains('collapsed') ? '▼' : '▲';
+      });
     }
     
     /* ============================================== */

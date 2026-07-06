@@ -2270,3 +2270,28 @@
 - 반영:
   - commit: `f957e08`
   - `git push origin main` 완료.
+
+## 2026-07-06 (3차)
+
+### 팝업 드래그 크기 고정 + 접기 시 너비 축소 + ▼ 버튼 표시
+
+- 작업 전 이 `gpt.md` 파일을 확인했다.
+- 대상 파일: `assets/js/footer-menu-tablet.js`, `index_tablet.html`
+
+#### 수정 1 — 드래그 시 팝업 크기 증가 버그
+- 원인: `popup.style.bottom = ''`은 인라인 스타일만 지우므로 CSS 시트의 `bottom: 24px`가 살아남아,
+  `top` + `bottom`이 동시에 걸리면서 팝업 높이가 늘어나 보임.
+- 수정: `popup.style.right = 'auto'`, `popup.style.bottom = 'auto'`로 변경.
+  `auto`는 인라인 스타일로 CSS 시트 규칙을 오버라이드하여 `top`+`bottom` 동시 적용을 방지.
+
+#### 수정 2 — 접어도 너비가 줄지 않는 문제
+- 원인 1: 드래그 후 `popup.style.width`에 고정 픽셀값이 남아 있음.
+- 원인 2: CSS에 `width: fit-content`가 없어 콘텐츠 크기로 자동 축소가 안 됨.
+- 수정: collapsed 시 `popup.style.width = ''`로 인라인 초기화 + CSS에 `width: fit-content !important` 추가.
+
+#### 수정 3 — 접힌 상태에서 ▼ 버튼 표시
+- 이전에 collapsed 시 toggle 버튼(`▼`)을 숨겼으나, 사용자 요청으로 "메뉴 ▼" 형태로 표시.
+- `display: none` 규칙 제거, gap: 6px 추가.
+- 반영:
+  - commit: `558ff4f`
+  - `git push origin main` 완료.

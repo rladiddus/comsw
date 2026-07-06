@@ -5556,7 +5556,7 @@
       // 클릭으로 다음 슬라이드
       slidePanel.addEventListener('click', function(e) {
         if (!activeDeptName || !slides || slides.length === 0) return;
-        var SKIP = 'button,a,.img-box,#lightbox-overlay,#instructor-lightbox,#instructor-curriculum-lightbox,.slide-indicator-area,.dept-dot';
+        var SKIP = 'button,a,.img-box,.instructor-card,#lightbox-overlay,#instructor-lightbox,#instructor-curriculum-lightbox,.slide-indicator-area,.dept-dot';
         if (e.target.closest(SKIP)) return;
         goToSlide(currentSlideIndex + 1);
       });
@@ -5572,7 +5572,7 @@
         var dx = Math.abs(e.changedTouches[0].clientX - tStartX);
         var dy = Math.abs(e.changedTouches[0].clientY - tStartY);
         if (dx < 20 && dy < 20) {
-          var SKIP = 'button,a,.img-box,#lightbox-overlay,#instructor-lightbox,#instructor-curriculum-lightbox,.slide-indicator-area,.dept-dot';
+          var SKIP = 'button,a,.img-box,.instructor-card,#lightbox-overlay,#instructor-lightbox,#instructor-curriculum-lightbox,.slide-indicator-area,.dept-dot';
           if (!e.target.closest || !e.target.closest(SKIP)) goToSlide(currentSlideIndex + 1);
         }
       }, { passive: true });

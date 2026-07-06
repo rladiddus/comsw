@@ -178,13 +178,18 @@
     }
     #comsw-footer-popup-toggle:hover { background: rgba(0,0,0,0.2); }
     #comsw-footer-menu {
-      display: grid;
-      grid-template-columns: auto auto auto auto;
-      justify-content: center;
-      justify-items: center;
+      display: flex;
+      flex-direction: column;
       align-items: center;
       gap: 10px;
       padding: 12px 14px;
+      pointer-events: none;
+    }
+    .comsw-menu-row {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      gap: 10px;
       pointer-events: none;
     }
     #comsw-footer-popup.collapsed #comsw-footer-menu { display: none; }
@@ -677,9 +682,19 @@
       (function() {
         var popup = document.getElementById('comsw-footer-popup');
         if (popup) { initDrag(popup); initToggle(popup); }
-        // 다운로드 버튼 즉시 추가 (Supabase 로드 성공/실패 무관)
+        // 메뉴 row 구조 생성 후 download 버튼을 row1에 추가
         var menuDiv = document.getElementById('comsw-footer-menu');
-        if (menuDiv) menuDiv.appendChild(createDownloadMenuItem());
+        if (menuDiv) {
+          var row1 = document.createElement('div');
+          row1.id = 'comsw-footer-menu-row1';
+          row1.className = 'comsw-menu-row';
+          var row2 = document.createElement('div');
+          row2.id = 'comsw-footer-menu-row2';
+          row2.className = 'comsw-menu-row';
+          menuDiv.appendChild(row1);
+          menuDiv.appendChild(row2);
+          row1.appendChild(createDownloadMenuItem());
+        }
       })();
       
       setTimeout(function() {
@@ -783,14 +798,18 @@
     /* ============================================== */
     
     function onMenuLoaded(menus) {
+      if (!menus || menus.length === 0) { menuReady = true; markLoadingStep('menu'); return; }
+      const row1 = document.getElementById('comsw-footer-menu-row1');
+      const row2 = document.getElementById('comsw-footer-menu-row2');
       const container = document.getElementById('comsw-footer-menu');
-      if (!menus || menus.length === 0) {
-        menuReady = true;
-        markLoadingStep('menu');
-        return;
-      }
       const sorted = menus.slice().sort((a, b) => a.order - b.order);
-      sorted.forEach(menu => container.appendChild(createMenuItem(menu)));
+      let r1 = row1 ? row1.children.length : 4;  // download 버튼이 이미 row1에 있음
+      sorted.forEach(function(menu) {
+        const item = createMenuItem(menu);
+        if (r1 < 4 && row1) { row1.appendChild(item); r1++; }
+        else if (row2) { row2.appendChild(item); }
+        else { container.appendChild(item); }
+      });
       menuReady = true;
       markLoadingStep('menu');
     }
@@ -900,8 +919,8 @@
         var t = e.touches[0];
         onStart(t.clientX, t.clientY);
         function tm(ev) { if (!isDragging) return; var tt = ev.touches[0]; onMove(tt.clientX, tt.clientY); }
-        function te() { onEnd(); window.removeEventListener('touchmove', tm); window.removeEventListener('touchend', te); }
-        window.addEventListener('touchmove', tm, { passive: true }); window.addEventListener('touchend', te, { passive: true });
+        function te(ev) { if (wasDragged) ev.preventDefault(); onEnd(); window.removeEventListener('touchmove', tm); window.removeEventListener('touchend', te); }
+        window.addEventListener('touchmove', tm, { passive: true }); window.addEventListener('touchend', te, { passive: false });
       }, { passive: true });
     }
 

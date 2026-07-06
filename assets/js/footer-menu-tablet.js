@@ -139,13 +139,18 @@
       + '  background: rgba(0,0,0,0.2);'
       + '}'
       + '#comsw-footer-menu {'
-      + '  display: grid;'
-      + '  grid-template-columns: auto auto auto auto;'
-      + '  justify-content: center;'
-      + '  justify-items: center;'
+      + '  display: flex;'
+      + '  flex-direction: column;'
       + '  align-items: center;'
       + '  gap: 10px;'
       + '  padding: 12px 14px;'
+      + '  pointer-events: none;'
+      + '}'
+      + '.comsw-menu-row {'
+      + '  display: flex;'
+      + '  justify-content: center;'
+      + '  align-items: center;'
+      + '  gap: 10px;'
       + '  pointer-events: none;'
       + '}'
       + '#comsw-footer-popup.collapsed #comsw-footer-menu {'
@@ -325,13 +330,14 @@
         const t = ev.touches[0];
         onMove(t.clientX, t.clientY);
       }
-      function onTouchEnd() {
+      function onTouchEnd(ev) {
+        if (wasDragged) ev.preventDefault();  // 드래그 후 합성 click 완전 차단
         onEnd();
         window.removeEventListener('touchmove', onTouchMove);
         window.removeEventListener('touchend', onTouchEnd);
       }
       window.addEventListener('touchmove', onTouchMove, { passive: true });
-      window.addEventListener('touchend', onTouchEnd, { passive: true });
+      window.addEventListener('touchend', onTouchEnd, { passive: false });
     }, { passive: true });
   }
 
@@ -1113,7 +1119,14 @@
 
   function renderMenus(container, menus) {
     container.innerHTML = '';
-    container.appendChild(createDownloadButton());
+    const row1 = document.createElement('div');
+    row1.className = 'comsw-menu-row';
+    const row2 = document.createElement('div');
+    row2.className = 'comsw-menu-row';
+    container.appendChild(row1);
+    container.appendChild(row2);
+    row1.appendChild(createDownloadButton());
+    let r1 = 1;  // download 버튼으로 이미 1개
     menus.forEach(function(menu) {
       const item = document.createElement('div');
       item.className = 'comsw-menu-item';
@@ -1127,12 +1140,12 @@
           if (target) {
             location.href = './' + target;
           } else {
-            // 미지원 메뉴는 메인으로 폴백 (예: 시트에 새 메뉴가 추가됐는데 페이지가 없을 때)
             location.href = './index_tablet.html';
           }
         });
       }
-      container.appendChild(item);
+      if (r1 < 4) { row1.appendChild(item); r1++; }
+      else { row2.appendChild(item); }
     });
   }
 

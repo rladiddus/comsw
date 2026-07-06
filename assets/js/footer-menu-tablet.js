@@ -75,8 +75,27 @@
       + '  background: rgba(0,0,0,0.04);'
       + '  min-height: 42px;'
       + '}'
+      + '#comsw-footer-popup.collapsed {'
+      + '  border-radius: 24px;'
+      + '}'
       + '#comsw-footer-popup.collapsed #comsw-footer-popup-handle {'
-      + '  border-radius: 16px;'
+      + '  padding: 10px 20px;'
+      + '  border-radius: 24px;'
+      + '  justify-content: center;'
+      + '  gap: 0;'
+      + '  cursor: pointer;'
+      + '  background: rgba(0,0,0,0.06);'
+      + '}'
+      + '#comsw-footer-popup.collapsed #comsw-footer-popup-drag-icon {'
+      + '  display: none;'
+      + '}'
+      + '#comsw-footer-popup.collapsed #comsw-footer-popup-toggle {'
+      + '  display: none;'
+      + '}'
+      + '#comsw-footer-popup.collapsed #comsw-footer-popup-title {'
+      + '  flex: none;'
+      + '  font-size: 14px;'
+      + '  font-weight: 600;'
       + '}'
       + '#comsw-footer-popup-drag-icon {'
       + '  display: flex;'
@@ -249,6 +268,7 @@
       startY = clientY;
       startLeft = rect.left;
       startTop = rect.top;
+      popup.style.width = rect.width + 'px';
       popup.style.right = '';
       popup.style.bottom = '';
       popup.style.left = startLeft + 'px';
@@ -317,6 +337,11 @@
       e.stopPropagation();
       popup.classList.toggle('collapsed');
       toggleBtn.textContent = popup.classList.contains('collapsed') ? '▼' : '▲';
+    });
+    popup.addEventListener('click', function() {
+      if (!popup.classList.contains('collapsed')) return;
+      popup.classList.remove('collapsed');
+      toggleBtn.textContent = '▲';
     });
   }
 

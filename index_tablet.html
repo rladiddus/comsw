@@ -122,9 +122,19 @@
       background: rgba(0,0,0,0.04);
       min-height: 42px;
     }
-    #comsw-footer-popup.collapsed #comsw-footer-popup-handle {
-      border-radius: 16px;
+    #comsw-footer-popup.collapsed {
+      border-radius: 24px;
     }
+    #comsw-footer-popup.collapsed #comsw-footer-popup-handle {
+      padding: 10px 20px;
+      border-radius: 24px;
+      justify-content: center;
+      cursor: pointer;
+      background: rgba(0,0,0,0.06);
+    }
+    #comsw-footer-popup.collapsed #comsw-footer-popup-drag-icon,
+    #comsw-footer-popup.collapsed #comsw-footer-popup-toggle { display: none; }
+    #comsw-footer-popup.collapsed #comsw-footer-popup-title { flex: none; }
     #comsw-footer-popup-drag-icon {
       display: flex;
       flex-direction: column;
@@ -624,16 +634,28 @@
         });
       
       // 태블릿: Supabase 미디어 대신 Drive 폴더 이미지 고정 사용
+      // "메인 페이지" 시트 B2 문구를 캡션으로 표시
       (function() {
-        var imgs = [
+        var driveImgs = [
           'https://lh3.googleusercontent.com/d/1tEaMmqNSpCQEBau_K0QeHp4Emcp1RgyC=w1920',
           'https://lh3.googleusercontent.com/d/1c8PeBprYCJUka6DWQ1SRF4tUY7UbxmI0=w1920',
           'https://lh3.googleusercontent.com/d/1d3rV1XPZxZUENI4OkJ2cu1jAv_lcNPwD=w1920'
         ];
-        imgs.sort(function() { return Math.random() - 0.5; });
-        onMediaLoaded(imgs.map(function(url) {
-          return { url: url, type: 'image', captionHtml: '' };
-        }));
+        driveImgs.sort(function() { return Math.random() - 0.5; });
+        getMainRows()
+          .then(function(rows) {
+            var captionText = (rows && rows.length > 0)
+              ? normalizeText(getRawValues(rows[0])[1])
+              : '';
+            onMediaLoaded(driveImgs.map(function(url) {
+              return { url: url, type: 'image', captionHtml: captionTextToHtml(captionText) };
+            }));
+          })
+          .catch(function() {
+            onMediaLoaded(driveImgs.map(function(url) {
+              return { url: url, type: 'image', captionHtml: '' };
+            }));
+          });
       })();
       
       getMenuListFromSupabase()
@@ -838,6 +860,7 @@
         var rect = popup.getBoundingClientRect();
         startX = clientX; startY = clientY;
         startLeft = rect.left; startTop = rect.top;
+        popup.style.width = rect.width + 'px';
         popup.style.right = ''; popup.style.bottom = '';
         popup.style.left = startLeft + 'px'; popup.style.top = startTop + 'px';
         popup.classList.add('is-dragging');
@@ -882,6 +905,11 @@
         e.stopPropagation();
         popup.classList.toggle('collapsed');
         btn.textContent = popup.classList.contains('collapsed') ? '▼' : '▲';
+      });
+      popup.addEventListener('click', function() {
+        if (!popup.classList.contains('collapsed')) return;
+        popup.classList.remove('collapsed');
+        btn.textContent = '▲';
       });
     }
     

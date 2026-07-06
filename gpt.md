@@ -2335,3 +2335,26 @@
 - 반영:
   - commit: `90d3a97`
   - `git push origin main` 완료.
+
+## 2026-07-06 (6차)
+
+### 드래그 릴리즈 click 완전차단 + 메뉴 행별 가운데정렬
+
+- 작업 전 이 `gpt.md` 파일을 확인했다.
+- 대상 파일: `assets/js/footer-menu-tablet.js`, `index_tablet.html`
+
+#### 수정 1 — 드래그 릴리즈 후 팝업 펼쳐짐 완전 수정
+- 이전 방법(`wasDragged` 플래그 + click 핸들러)이 일부 기기에서 미작동.
+  원인: `touchend` 리스너가 `passive: true`여서 `e.preventDefault()` 호출 불가.
+  브라우저가 touch → click 합성 이벤트를 막을 수 없었음.
+- 수정: `window.addEventListener('touchend', ..., { passive: false })`로 변경.
+  드래그가 발생한 경우(`wasDragged === true`) `ev.preventDefault()` 호출 → 합성 click 완전 차단.
+
+#### 수정 2 — 메뉴 행별 독립 가운데 정렬
+- 이전 CSS Grid 4열 방식: 열 너비가 가장 넓은 항목 기준으로 고정되어 행마다 독립 가운데 정렬 불가.
+- 수정: `#comsw-footer-menu`를 `flex-direction: column`으로 변경, 각 행을 `.comsw-menu-row` div로 묶음.
+  `.comsw-menu-row { display: flex; justify-content: center; }` → 각 줄 독립 가운데 정렬.
+- `renderMenus()` / `onMenuLoaded()`: row1(download+3개), row2(나머지) 구조로 항목 분배.
+- 반영:
+  - commit: `cf4fe30`
+  - `git push origin main` 완료.

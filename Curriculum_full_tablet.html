@@ -5508,6 +5508,45 @@
           e.stopPropagation();
         });
 
+        // 강사 상세 라이트박스 - 더블클릭/더블탭 → ESC 동작
+        // 프로필 사진(#instructor-detail-photo)·과목 버튼(#instructor-subjects) 영역 제외
+        (function() {
+          var lb = document.getElementById('instructor-lightbox');
+
+          function doEscAction() {
+            var curriculumLb = document.getElementById('instructor-curriculum-lightbox');
+            if (window._instructorCurriculumOpen
+                || (curriculumLb && curriculumLb.classList.contains('visible'))) {
+              closeInstructorCurriculum();
+            } else {
+              closeInstructorLightbox(true);
+            }
+          }
+
+          function isExcluded(target) {
+            return target.closest('#instructor-detail-photo')
+                || target.closest('#instructor-subjects');
+          }
+
+          lb.addEventListener('dblclick', function(e) {
+            if (isExcluded(e.target)) return;
+            doEscAction();
+          });
+
+          var _lastTap = 0;
+          lb.addEventListener('touchend', function(e) {
+            if (isExcluded(e.target)) return;
+            var now = Date.now();
+            if (now - _lastTap < 300) {
+              e.preventDefault();
+              doEscAction();
+              _lastTap = 0;
+            } else {
+              _lastTap = now;
+            }
+          }, { passive: false });
+        })();
+
 
     // 🎯 태블릿: 슬라이드 클릭/탭으로 다음 슬라이드 이동
     (function() {

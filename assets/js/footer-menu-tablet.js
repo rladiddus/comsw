@@ -230,6 +230,7 @@
 
     const popup = document.createElement('div');
     popup.id = 'comsw-footer-popup';
+    popup.setAttribute('data-html2canvas-ignore', 'true');
 
     const handle = document.createElement('div');
     handle.id = 'comsw-footer-popup-handle';

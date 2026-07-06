@@ -77,24 +77,22 @@
       + '}'
       + '#comsw-footer-popup.collapsed {'
       + '  border-radius: 24px;'
+      + '  width: fit-content !important;'
       + '}'
       + '#comsw-footer-popup.collapsed #comsw-footer-popup-handle {'
-      + '  padding: 10px 20px;'
+      + '  padding: 8px 14px;'
       + '  border-radius: 24px;'
       + '  justify-content: center;'
-      + '  gap: 0;'
+      + '  gap: 6px;'
       + '  cursor: pointer;'
       + '  background: rgba(0,0,0,0.06);'
       + '}'
       + '#comsw-footer-popup.collapsed #comsw-footer-popup-drag-icon {'
       + '  display: none;'
       + '}'
-      + '#comsw-footer-popup.collapsed #comsw-footer-popup-toggle {'
-      + '  display: none;'
-      + '}'
       + '#comsw-footer-popup.collapsed #comsw-footer-popup-title {'
       + '  flex: none;'
-      + '  font-size: 14px;'
+      + '  font-size: 13px;'
       + '  font-weight: 600;'
       + '}'
       + '#comsw-footer-popup-drag-icon {'
@@ -269,8 +267,8 @@
       startLeft = rect.left;
       startTop = rect.top;
       popup.style.width = rect.width + 'px';
-      popup.style.right = '';
-      popup.style.bottom = '';
+      popup.style.right = 'auto';
+      popup.style.bottom = 'auto';
       popup.style.left = startLeft + 'px';
       popup.style.top = startTop + 'px';
       popup.classList.add('is-dragging');
@@ -336,7 +334,12 @@
     toggleBtn.addEventListener('click', function(e) {
       e.stopPropagation();
       popup.classList.toggle('collapsed');
-      toggleBtn.textContent = popup.classList.contains('collapsed') ? '▼' : '▲';
+      if (popup.classList.contains('collapsed')) {
+        popup.style.width = '';
+        toggleBtn.textContent = '▼';
+      } else {
+        toggleBtn.textContent = '▲';
+      }
     });
     popup.addEventListener('click', function() {
       if (!popup.classList.contains('collapsed')) return;

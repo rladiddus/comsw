@@ -124,17 +124,18 @@
     }
     #comsw-footer-popup.collapsed {
       border-radius: 24px;
+      width: fit-content !important;
     }
     #comsw-footer-popup.collapsed #comsw-footer-popup-handle {
-      padding: 10px 20px;
+      padding: 8px 14px;
       border-radius: 24px;
       justify-content: center;
+      gap: 6px;
       cursor: pointer;
       background: rgba(0,0,0,0.06);
     }
-    #comsw-footer-popup.collapsed #comsw-footer-popup-drag-icon,
-    #comsw-footer-popup.collapsed #comsw-footer-popup-toggle { display: none; }
-    #comsw-footer-popup.collapsed #comsw-footer-popup-title { flex: none; }
+    #comsw-footer-popup.collapsed #comsw-footer-popup-drag-icon { display: none; }
+    #comsw-footer-popup.collapsed #comsw-footer-popup-title { flex: none; font-size: 13px; }
     #comsw-footer-popup-drag-icon {
       display: flex;
       flex-direction: column;
@@ -861,7 +862,7 @@
         startX = clientX; startY = clientY;
         startLeft = rect.left; startTop = rect.top;
         popup.style.width = rect.width + 'px';
-        popup.style.right = ''; popup.style.bottom = '';
+        popup.style.right = 'auto'; popup.style.bottom = 'auto';
         popup.style.left = startLeft + 'px'; popup.style.top = startTop + 'px';
         popup.classList.add('is-dragging');
       }
@@ -904,7 +905,12 @@
       btn.addEventListener('click', function(e) {
         e.stopPropagation();
         popup.classList.toggle('collapsed');
-        btn.textContent = popup.classList.contains('collapsed') ? '▼' : '▲';
+        if (popup.classList.contains('collapsed')) {
+          popup.style.width = '';
+          btn.textContent = '▼';
+        } else {
+          btn.textContent = '▲';
+        }
       });
       popup.addEventListener('click', function() {
         if (!popup.classList.contains('collapsed')) return;

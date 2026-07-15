@@ -2393,3 +2393,56 @@
 - 반영:
   - commit: `4a6be30`
   - `git push origin main` 완료.
+
+## 2026-07-15 (9차)
+
+### 강사 카드 탭 시 슬라이드 이동 버그 수정
+
+- 작업 전 이 `gpt.md` 파일을 확인했다.
+- 대상 파일: `Curriculum_full_tablet.html`
+
+#### 버그 1 — 프로필 사진 탭 시 다른 강사 페이지로 이동
+- 원인: `#slide-panel`의 `click`/`touchend` 핸들러 SKIP 선택자에 `.instructor-card`가 없어
+  강사 카드 탭 시 `openInstructorLightbox()` + `goToSlide(n+1)`이 동시에 실행됨.
+  라이트박스는 올바른 강사로 열리나, 배경 슬라이드가 n+1로 이동해버림.
+
+#### 버그 2 — 더블탭으로 라이트박스 닫으면 다른 페이지로 이동
+- 원인: 버그 1의 결과. 카드 탭 시 슬라이드가 이미 이동한 상태에서 라이트박스를 닫으면
+  이동된 슬라이드(n+1)가 노출됨.
+
+#### 수정
+- `click` 핸들러 SKIP (line 5559)와 `touchend` 핸들러 SKIP (line 5575) 모두에
+  `.instructor-card` 추가.
+  `.instructor-card-overlay`는 `.instructor-card`의 자식이므로 `closest()`로 함께 차단.
+- 반영:
+  - commit: `b672f5d`
+  - `git push origin main` 완료.
+
+## 2026-07-15 (10차)
+
+### Curriculum_onepage_tablet.html 로딩화면 전체화면 미적용 수정
+
+- 작업 전 이 `gpt.md` 파일을 확인했다.
+- 대상 파일: `Curriculum_onepage_tablet.html`
+
+#### 원인 분석
+- `#page-wrapper`(1920px, `position: absolute`)가 body 직접 자식으로 있고 viewport 메타 태그 없음.
+- 다른 태블릿 페이지의 1920px 요소는 `position: fixed` 컨테이너 안에 있어 레이아웃 뷰포트에 영향 없음.
+- 이 페이지는 1920px 요소가 body에 직접 노출되어 모바일 브라우저의 레이아웃 뷰포트가
+  잘못 계산되고, `100vw`/`100vh`가 실제 화면보다 작아 로딩 오버레이가 화면을 덮지 못함.
+
+#### 잘못된 시도 (롤백)
+- `<meta name="viewport" content="width=device-width, initial-scale=1">` 추가.
+- 결과: 로딩화면은 전체화면이 됐으나 브라우저 자동 줌 방식을 변경해 페이지 전체 렌더링에
+  사이드이펙트 발생. 다른 페이지들과 렌더링 방식이 달라져 롤백.
+  - commit: `1ee69a8` (롤백됨)
+
+#### 최종 수정
+- viewport 메타 태그 제거 (롤백).
+- `#loading-overlay` CSS: `top: 0; left: 0; width: 100vw; height: 100vh` →
+  `inset: 0` 으로 변경.
+  `inset: 0`은 `top/right/bottom/left: 0` 단축어로, `position: fixed` 요소를
+  레이아웃 뷰포트 계산과 무관하게 뷰포트 네 방향에 완전히 밀착시킴.
+- 반영:
+  - commit: `1c5e67b`
+  - `git push origin main` 완료.

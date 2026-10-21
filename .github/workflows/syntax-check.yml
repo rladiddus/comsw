@@ -19,5 +19,7 @@ jobs:
           node-version: '22'
       - name: Run syntax check
         run: node scripts/check-syntax.js
-      - name: Run admin tests
-        run: node --test "admin/test/*.test.mjs"
+      - name: Install test dependencies
+        run: npm ci
+      - name: Run tests
+        run: npm test

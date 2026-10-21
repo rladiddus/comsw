@@ -11,6 +11,8 @@ begin
     'course_prep_items', 'seminars', 'seminar_applications', 'recruitment_posts',
     'main_media', 'menus', 'loading_items', 'site_settings'
   ] loop
+    -- 프로젝트 기본 권한에 기대지 않고 명시한다. 실제 접근은 아래 RLS가 정한다.
+    execute format('grant select, insert, update, delete on public.%I to authenticated', t);
     execute format('alter table public.%I enable row level security', t);
     execute format(
       'create policy staff_all on public.%I for all to authenticated
@@ -27,6 +29,7 @@ begin
   end loop;
 end $$;
 
+grant select on public.site_snapshots to authenticated;
 alter table public.site_snapshots enable row level security;
 create policy staff_read on public.site_snapshots for select to authenticated
   using (public.comsw_role() in ('admin', 'head'));
@@ -41,9 +44,12 @@ create policy teacher_own_select on public.instructor_curricula for select to au
 create policy teacher_own_insert on public.instructor_curricula for insert to authenticated
   with check (public.comsw_role() = 'teacher' and status = 'pending'
               and instructor_id in (select public.comsw_my_instructor_ids()));
+-- 선생님은 확인 대기(pending) 제출물만 고치고 지운다. 공개된(approved) 내용은 관리자 승인 전까지 그대로 둔다.
 create policy teacher_own_update on public.instructor_curricula for update to authenticated
-  using (public.comsw_role() = 'teacher' and instructor_id in (select public.comsw_my_instructor_ids()))
+  using (public.comsw_role() = 'teacher' and status = 'pending'
+         and instructor_id in (select public.comsw_my_instructor_ids()))
   with check (public.comsw_role() = 'teacher' and status = 'pending'
               and instructor_id in (select public.comsw_my_instructor_ids()));
 create policy teacher_own_delete on public.instructor_curricula for delete to authenticated
-  using (public.comsw_role() = 'teacher' and instructor_id in (select public.comsw_my_instructor_ids()));
+  using (public.comsw_role() = 'teacher' and status = 'pending'
+         and instructor_id in (select public.comsw_my_instructor_ids()));

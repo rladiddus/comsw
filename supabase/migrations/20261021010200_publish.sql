@@ -60,7 +60,7 @@ begin
   -- 주차가 없는 전체수업 과목은 D가 빈 요약 행 하나를 남긴다.
   result := result || comsw_sheet('main', '컴수원_전체수업', (
     with week as (
-      select row_number() over (order by sj.sort_order, w.sort_order nulls last, w.week_label) n,
+      select row_number() over (order by sj.sort_order, sj.name, sj.id, w.sort_order nulls last, w.week_label) n,
              sj.id subject_id, sj.name, sj.duration, sj.dept_curriculum, sj.program, sj.level,
              w.week_label, w.written, w.summary, w.image_url
       from subjects sj

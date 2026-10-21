@@ -109,6 +109,17 @@ test("로드맵·준비물·강사·특강·강사 커리큘럼·채용 배치",
   assert.equal(job[0][12], "https://job");
 });
 
+test("과목 순서 번호가 겹쳐도 과목별 주차가 섞이지 않는다", async () => {
+  const db = await seeded();
+  await db.exec(`update subjects set sort_order = 0 where sort_order is not null`);
+  await as(db, "authenticated", ADMIN);
+  await db.query(`select comsw_publish()`);
+  await as(db, "anon");
+  const names = (await sheet(db, "main", "컴수원_전체수업")).map(r => r.data.values[2]).filter(Boolean);
+  const runs = names.filter((n, i) => n !== names[i - 1]);
+  assert.equal(runs.length, new Set(names).size);
+});
+
 test("선생님의 pending 커리큘럼은 공개되지 않는다", async () => {
   const db = await seeded();
   await db.exec(`update instructor_curricula set status = 'pending' where summary = '정리w2'`);

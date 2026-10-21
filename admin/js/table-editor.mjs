@@ -201,5 +201,5 @@ export function mountTableEditor(container, {
   });
 
   reload();
-  return { reload };
+  return { reload, rows: () => rows };
 }

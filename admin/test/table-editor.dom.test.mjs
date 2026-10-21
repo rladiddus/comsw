@@ -8,60 +8,7 @@ globalThis.document = dom.window.document;
 let confirmAnswer = true;
 globalThis.confirm = () => confirmAnswer;
 const { mountTableEditor } = await import("../js/table-editor.mjs");
-
-// supabase-js 쿼리 빌더 흉내: eq·in·is·not 필터, order, update·delete·insert.
-function fakeSupabase(tables, { unique = {} } = {}) {
-  const calls = [];
-  return {
-    calls,
-    from(table) {
-      const rows = (tables[table] ??= []);
-      const query = (kind, payload) => {
-        const filters = [];
-        const eqs = [];
-        let orderCol = null;
-        const run = () => {
-          const hit = rows.filter(r => filters.every(f => f(r)));
-          if (kind === "select") {
-            const key = r => r[orderCol] ?? Infinity;
-            return { data: [...hit].sort((a, b) => (orderCol ? key(a) - key(b) : 0)).map(r => ({ ...r })), error: null };
-          }
-          const id = eqs.find(([k]) => k === "id")?.[1];
-          if (kind === "update") {
-            calls.push(["update", table, id, payload]);
-            const u = unique[table];
-            if (u && u in payload && rows.some(r => !hit.includes(r) && r[u] === payload[u]))
-              return { error: { code: "23505", message: "duplicate" } };
-            hit.forEach(r => Object.assign(r, payload));
-            return { error: null };
-          }
-          calls.push(["delete", table, id ?? Object.fromEntries(eqs)]);
-          for (const r of hit) rows.splice(rows.indexOf(r), 1);
-          return { error: null };
-        };
-        const q = {
-          eq: (k, v) => { filters.push(r => r[k] === v); eqs.push([k, v]); return q; },
-          in: (k, vs) => { filters.push(r => vs.includes(r[k])); return q; },
-          is: (k, v) => { filters.push(r => (r[k] ?? null) === v); return q; },
-          not: (k, _op, v) => { filters.push(r => (r[k] ?? null) !== v); return q; },
-          order: col => { orderCol = col; return q; },
-          then: (ok, bad) => Promise.resolve().then(run).then(ok, bad),
-        };
-        return q;
-      };
-      return {
-        select: () => query("select"),
-        update: patch => query("update", patch),
-        delete: () => query("delete"),
-        insert: row => {
-          calls.push(["insert", table, row]);
-          rows.push({ id: `new${rows.length}`, ...row });
-          return Promise.resolve({ error: null });
-        },
-      };
-    },
-  };
-}
+const { fakeSupabase } = await import("./fake-supabase.mjs");
 
 const flush = async () => { for (let i = 0; i < 5; i++) await new Promise(r => setTimeout(r, 0)); };
 const COLUMNS = [

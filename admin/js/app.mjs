@@ -10,6 +10,8 @@ const PAGES = {
   main: () => import("./pages/main-page.mjs"),
   loading: () => import("./pages/loading.mjs"),
   seminars: () => import("./pages/seminars.mjs"),
+  departments: () => import("./pages/departments.mjs"),
+  subjects: () => import("./pages/subjects.mjs"),
 };
 
 export function toast(message) {

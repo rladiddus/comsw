@@ -1,4 +1,6 @@
 * { margin: 0; padding: 0; box-sizing: border-box; }
+/* display를 준 요소(.login-wrap 등)도 hidden이면 반드시 숨긴다. */
+[hidden] { display: none !important; }
 :root { --accent: #fa491d; --line: #e4e4e4; --muted: #777; --bg: #f6f6f6; }
 body {
   min-height: 100vh; background: var(--bg); color: #1a1a1a;
@@ -20,14 +22,13 @@ input, textarea, select { font: inherit; }
 .error { min-height: 20px; margin-top: 12px; font-size: 13px; color: #e03131; white-space: pre-line; }
 
 /* 관리 화면 */
-.app { display: grid; grid-template-columns: 200px 1fr; grid-template-rows: auto auto 1fr; min-height: 100vh; }
+.app { display: grid; grid-template-columns: 200px 1fr; grid-template-rows: auto 1fr; min-height: 100vh; }
 .app-header { grid-column: 1 / -1; display: flex; align-items: center; gap: 12px; padding: 12px 20px; background: #fff; border-bottom: 1px solid var(--line); }
 .app-header h1 { font-size: 18px; margin-right: auto; }
 .role-badge { display: inline-block; padding: 2px 10px; border-radius: 12px; background: var(--accent); color: #fff; font-size: 12px; font-weight: 600; }
 .publish-btn { padding: 8px 16px; border: 0; border-radius: 8px; background: var(--accent); color: #fff; font-weight: 700; }
 .ghost-btn { padding: 8px 12px; border: 1px solid var(--line); border-radius: 8px; background: #fff; }
 .muted { color: var(--muted); font-size: 12px; }
-.notice { grid-column: 1 / -1; padding: 8px 20px; background: #fff8e1; color: #6b5300; font-size: 13px; border-bottom: 1px solid #f1e3b0; }
 .side-nav { background: #fff; border-right: 1px solid var(--line); padding: 12px 8px; }
 .side-nav a { display: block; padding: 9px 12px; border-radius: 8px; color: #1a1a1a; text-decoration: none; }
 .side-nav a:hover { background: #f2f2f2; }

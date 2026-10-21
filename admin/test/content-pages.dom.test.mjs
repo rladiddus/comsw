@@ -107,3 +107,57 @@ test("기타 과목 '+ 추가'는 전체수업 과목과 겹치지 않는 이름
   await flush();
   assert.deepEqual(supabase.calls.filter(x => x[0] === "insert").at(-1), ["insert", "subjects", { sort_order: null, name: "새 과목 2" }]);
 });
+
+const more = () => Object.assign(data(), {
+  roadmap_tracks: [{ id: "t1", name: "웹학과", department_id: "d2", sort_order: 0 }, { id: "t2", name: "사무 자격증", department_id: null, sort_order: 1 }],
+  roadmap_steps: [{ id: "p2", track_id: "t1", position: 2 }, { id: "p1", track_id: "t1", position: 1 }],
+  roadmap_step_subjects: [{ step_id: "p1", subject_id: "s1", sort_order: 0 }],
+  course_prep_items: [{ id: "c1", subject_id: "s1", category: "textbook", content: "멘토 포토샵", sort_order: 0 }],
+});
+const pick = async (c, value) => {
+  const select = c.querySelector(".picker select");
+  select.value = value;
+  select.dispatchEvent(new dom.window.Event("change"));
+  await flush();
+};
+
+test("로드맵: 묶음 표, 단계는 단계 번호순·↑↓ 없음·과목 칩, 학과 없음은 빈 값", async () => {
+  const { c } = await renderPage("../js/pages/roadmap.mjs", more());
+  const tracks = tableOf(c, "로드맵 묶음");
+  assert.equal(tracks.querySelectorAll("tbody tr").length, 2);
+  assert.equal(tracks.querySelectorAll("tbody tr")[1].querySelector("select").value, "");
+  buttons(tracks, "단계")[0].click();
+  await flush();
+  const steps = tableOf(c, "단계");
+  assert.deepEqual([...steps.querySelectorAll("tbody tr")].map(tr => tr.querySelector("input").value), ["1", "2"]);
+  assert.equal(buttons(steps, "↑").length, 0);
+  assert.equal(steps.querySelector(".chip").firstChild.textContent, "포토샵");
+});
+
+test("로드맵 삭제 경고에 단계 수", async () => {
+  const { c } = await renderPage("../js/pages/roadmap.mjs", more());
+  buttons(tableOf(c, "로드맵 묶음"), "삭제")[0].click();
+  await flush();
+  assert.equal(lastConfirm, "'웹학과' 로드맵을(를) 삭제하면 단계 2개도 함께 삭제됩니다. 삭제할까요?");
+});
+
+test("준비물: 고른 과목의 준비물만 보이고 새 줄은 그 과목으로", async () => {
+  const { c, supabase } = await renderPage("../js/pages/prep.mjs", more());
+  await pick(c, "s1");
+  assert.equal(c.querySelectorAll("table.editor tbody tr").length, 1);
+  assert.equal(c.querySelector("table.editor tbody textarea").value, "멘토 포토샵");
+  [...c.querySelectorAll(".editor-bar button")].find(b => b.textContent === "+ 추가").click();
+  await flush();
+  const ins = supabase.calls.filter(x => x[0] === "insert").at(-1);
+  assert.equal(ins[1], "course_prep_items");
+  assert.equal(ins[2].subject_id, "s1");
+  assert.equal(ins[2].category, "textbook");
+});
+
+test("채용 공고: 고른 학과의 공고만, 14칸", async () => {
+  const { c } = await renderPage("../js/pages/recruitment.mjs", more());
+  await pick(c, "d2");
+  const table = c.querySelector("table.editor");
+  assert.equal(table.querySelectorAll("tbody tr").length, 1);
+  assert.equal(table.querySelectorAll("thead th").length, 15);
+});

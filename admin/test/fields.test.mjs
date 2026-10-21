@@ -24,3 +24,7 @@ test("중복 오류 문구를 표마다 바꿀 수 있다", () => {
   assert.equal(dbErrorMessage({ code: "23505" }, { duplicate: "이미 있는 단계 번호입니다" }), "이미 있는 단계 번호입니다");
   assert.equal(dbErrorMessage({ code: "23505" }, {}), "같은 이름이 이미 있습니다");
 });
+
+test("select의 빈 값은 null로 저장", () => {
+  assert.deepEqual(toDbValue({ key: "department_id", label: "학과", type: "select" }, ""), { value: null });
+});

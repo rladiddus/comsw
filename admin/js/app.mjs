@@ -12,6 +12,9 @@ const PAGES = {
   seminars: () => import("./pages/seminars.mjs"),
   departments: () => import("./pages/departments.mjs"),
   subjects: () => import("./pages/subjects.mjs"),
+  roadmap: () => import("./pages/roadmap.mjs"),
+  prep: () => import("./pages/prep.mjs"),
+  recruitment: () => import("./pages/recruitment.mjs"),
 };
 
 export function toast(message) {

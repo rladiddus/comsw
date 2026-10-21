@@ -2,6 +2,7 @@
 
 export function toDbValue(field, raw) {
   if (field.type === "checkbox") return { value: Boolean(raw) };
+  if (field.type === "select" && (raw === "" || raw == null)) return { value: null };
   const text = String(raw ?? "").trim();
   if (field.required && !text) return { error: `${field.label}을(를) 입력해주세요` };
   if (field.type === "number") {

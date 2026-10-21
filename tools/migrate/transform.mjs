@@ -1,7 +1,8 @@
 import { normText as T, truthy, deptKeyword, splitMulti, splitRoadmapNames, prepCategory } from "./normalize.mjs";
 
 const PREP_SHEETS = ["수업별 준비물(AI/교재 등)", "수업별 준비몰(AI/교재 등)"];
-const APPLY_SHEETS = ["특강 신청", "특강 신청자 명단"];
+// 사이트의 신청 수(H열)는 이 시트만 센다. 예전 '특강 신청' 시트 포함 여부는 사용자 확인 대기.
+const APPLY_SHEETS = ["특강 신청자 명단"];
 const IC_HELPER_TAB = "전체학과별 과목";
 
 function forwardFill(rows, cols) {

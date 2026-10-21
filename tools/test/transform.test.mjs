@@ -89,8 +89,8 @@ test("준비물은 A·B를 이어받고 알 수 없는 분류는 건너뛴다", 
     [["포토샵", "textbook", "멘토 포토샵", "28,000원"], ["포토샵", "textbook", "멘토 포토샵 2", ""], ["캐드", "ai", "ChatGPT, Claude", "설명"]]);
 });
 
-test("신청자는 두 시트를 합치고 중복을 제거한다", () => {
-  assert.equal(m.applications.length, 2);
+test("신청자는 '특강 신청자 명단' 시트에서만 가져온다 (사이트의 신청 수와 같게)", () => {
+  assert.deepEqual(m.applications.map(a => a.name).sort(), ["김철수", "홍길동"]);
   assert.equal(m.seminars[0].capacity, 25);
 });
 

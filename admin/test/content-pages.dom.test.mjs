@@ -161,3 +161,21 @@ test("채용 공고: 고른 학과의 공고만, 14칸", async () => {
   assert.equal(table.querySelectorAll("tbody tr").length, 1);
   assert.equal(table.querySelectorAll("thead th").length, 15);
 });
+
+test("로드맵 '+ 추가'를 두 번 눌러도 이름이 겹치지 않는다 (같은 이름 묶음은 사이트에서 합쳐져 사라짐)", async () => {
+  const { c, supabase } = await renderPage("../js/pages/roadmap.mjs", more());
+  const add = () => [...c.querySelectorAll(".editor-bar button")].find(b => b.textContent === "+ 추가").click();
+  add(); await flush(); add(); await flush();
+  const names = supabase.calls.filter(x => x[0] === "insert" && x[1] === "roadmap_tracks").map(x => x[2].name);
+  assert.equal(names.length, 2);
+  assert.notEqual(names[0], names[1]);
+});
+
+test("과목 삭제 경고에 강사 담당 과목 연결도 나온다", async () => {
+  const tables = data();
+  tables.instructor_subjects = [{ instructor_id: "i1", subject_id: "s2" }];
+  const { c } = await renderPage("../js/pages/subjects.mjs", tables);
+  buttons(tableOf(c, "전체수업 과목"), "삭제")[1].click();
+  await flush();
+  assert.equal(lastConfirm, "'웹1' 과목을(를) 삭제하면 주차 1개, 강사 담당 과목 1개도 함께 삭제됩니다. 삭제할까요?");
+});

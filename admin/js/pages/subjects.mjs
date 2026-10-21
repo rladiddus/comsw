@@ -28,6 +28,7 @@ export async function render(container, { supabase }) {
   const deleteConfirm = async row => cascadeMessage("과목", row.name, [
     ["주차", await countRows(supabase, "subject_weeks", "subject_id", row.id)],
     ["강사 커리큘럼", await countRows(supabase, "instructor_curricula", "subject_id", row.id)],
+    ["강사 담당 과목", await countRows(supabase, "instructor_subjects", "subject_id", row.id)],
     ["준비물", await countRows(supabase, "course_prep_items", "subject_id", row.id)],
     ["로드맵 연결", await countRows(supabase, "roadmap_step_subjects", "subject_id", row.id)],
   ]);

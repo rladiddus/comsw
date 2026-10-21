@@ -1,6 +1,7 @@
 import { mountTableEditor } from "../table-editor.mjs";
 import { cascadeMessage } from "../format.mjs";
 import { countRows } from "../count.mjs";
+import { freeName } from "../order.mjs";
 
 function el(tag, props = {}, children = []) {
   const node = Object.assign(document.createElement(tag), props);
@@ -49,7 +50,8 @@ export async function render(container, { supabase }) {
       { key: "department_id", label: "학과", type: "select",
         options: [{ value: "", label: "없음" }, ...(depts || []).map(d => ({ value: d.id, label: d.name }))] },
     ],
-    defaults: { name: "새 로드맵" },
+    // 이름이 같은 묶음이 이웃하면 공개 사이트(roadmap.html)가 하나로 합쳐 두 번째를 빠뜨린다.
+    defaults: rows => ({ name: freeName("새 로드맵", rows, "name") }),
     deleteConfirm: async row => cascadeMessage("로드맵", row.name, [["단계", await countRows(supabase, "roadmap_steps", "track_id", row.id)]]),
     extraActions: [{ label: "단계", onClick: showSteps }],
   });

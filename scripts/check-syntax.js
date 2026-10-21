@@ -13,6 +13,7 @@
 const fs = require('fs');
 const path = require('path');
 const vm = require('vm');
+const { execFileSync } = require('child_process');
 
 const ROOT = path.resolve(__dirname, '..');
 let failures = 0;
@@ -42,6 +43,19 @@ for (const file of jsFiles) {
   } catch (err) {
     failures++;
     console.error(`  FAIL ${rel(file)}: ${err.message}`);
+  }
+}
+
+// 1-1) ES 모듈(.mjs): vm.Script는 import/export를 못 읽으므로 node --check 사용
+const mjsFiles = walk(ROOT, (f) => f.endsWith('.mjs'), []);
+for (const file of mjsFiles) {
+  try {
+    execFileSync(process.execPath, ['--check', file], { stdio: 'pipe' });
+    checked++;
+  } catch (err) {
+    failures++;
+    const msg = String(err.stderr || err.message).trim().split('\n').find((l) => /Error/.test(l)) || err.message;
+    console.error(`  FAIL ${rel(file)}: ${msg}`);
   }
 }
 
@@ -75,4 +89,4 @@ if (failures) {
   console.error(`\n문법 검사 실패: ${failures}건 (검사 ${checked}건)`);
   process.exit(1);
 }
-console.log(`문법 검사 통과: ${checked}건 (JS ${jsFiles.length}개 파일 + HTML 인라인 스크립트)`);
+console.log(`문법 검사 통과: ${checked}건 (JS ${jsFiles.length}개 파일 + MJS ${mjsFiles.length}개 파일 + HTML 인라인 스크립트)`);

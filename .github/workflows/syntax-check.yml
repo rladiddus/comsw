@@ -16,6 +16,8 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '22'
       - name: Run syntax check
         run: node scripts/check-syntax.js
+      - name: Run admin tests
+        run: node --test "admin/test/*.test.mjs"

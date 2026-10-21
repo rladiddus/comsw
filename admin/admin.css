@@ -1,0 +1,65 @@
+* { margin: 0; padding: 0; box-sizing: border-box; }
+:root { --accent: #fa491d; --line: #e4e4e4; --muted: #777; --bg: #f6f6f6; }
+body {
+  min-height: 100vh; background: var(--bg); color: #1a1a1a;
+  font-family: 'Pretendard Variable', 'Pretendard', -apple-system, sans-serif; font-size: 14px;
+}
+button { font: inherit; cursor: pointer; }
+button:disabled { opacity: 0.6; cursor: default; }
+input, textarea, select { font: inherit; }
+
+/* 로그인 */
+.login-wrap { min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 16px; }
+.card { width: 100%; max-width: 380px; background: #fff; border-radius: 16px; padding: 32px 28px; box-shadow: 0 8px 32px rgba(0,0,0,.08); }
+.card h1 { font-size: 22px; font-weight: 700; margin-bottom: 4px; }
+.sub { font-size: 14px; color: var(--muted); margin-bottom: 24px; }
+.card label { display: block; font-size: 13px; color: #555; margin: 14px 0 6px; }
+.card input { width: 100%; height: 46px; padding: 0 14px; border: 1px solid #ddd; border-radius: 8px; font-size: 15px; }
+.card input:focus { outline: 2px solid var(--accent); outline-offset: -1px; border-color: transparent; }
+.card button { width: 100%; height: 48px; margin-top: 22px; border: 0; border-radius: 8px; background: var(--accent); color: #fff; font-size: 16px; font-weight: 700; }
+.error { min-height: 20px; margin-top: 12px; font-size: 13px; color: #e03131; white-space: pre-line; }
+
+/* 관리 화면 */
+.app { display: grid; grid-template-columns: 200px 1fr; grid-template-rows: auto auto 1fr; min-height: 100vh; }
+.app-header { grid-column: 1 / -1; display: flex; align-items: center; gap: 12px; padding: 12px 20px; background: #fff; border-bottom: 1px solid var(--line); }
+.app-header h1 { font-size: 18px; margin-right: auto; }
+.role-badge { display: inline-block; padding: 2px 10px; border-radius: 12px; background: var(--accent); color: #fff; font-size: 12px; font-weight: 600; }
+.publish-btn { padding: 8px 16px; border: 0; border-radius: 8px; background: var(--accent); color: #fff; font-weight: 700; }
+.ghost-btn { padding: 8px 12px; border: 1px solid var(--line); border-radius: 8px; background: #fff; }
+.muted { color: var(--muted); font-size: 12px; }
+.notice { grid-column: 1 / -1; padding: 8px 20px; background: #fff8e1; color: #6b5300; font-size: 13px; border-bottom: 1px solid #f1e3b0; }
+.side-nav { background: #fff; border-right: 1px solid var(--line); padding: 12px 8px; }
+.side-nav a { display: block; padding: 9px 12px; border-radius: 8px; color: #1a1a1a; text-decoration: none; }
+.side-nav a:hover { background: #f2f2f2; }
+.side-nav a.active { background: #fff0eb; color: var(--accent); font-weight: 700; }
+.side-nav a.not-ready { color: #aaa; }
+.side-nav a.not-ready::after { content: " · 준비 중"; font-size: 11px; }
+.content { padding: 24px; overflow-x: auto; }
+.content h2 { font-size: 20px; margin-bottom: 6px; }
+.content h3 { font-size: 16px; margin: 28px 0 6px; }
+.desc { color: var(--muted); margin-bottom: 12px; }
+.toast { position: fixed; right: 20px; bottom: 20px; padding: 10px 16px; border-radius: 8px; background: #1a1a1a; color: #fff; z-index: 10; }
+
+/* 표 편집기 */
+.editor-bar { display: flex; align-items: center; gap: 10px; margin: 8px 0; }
+.save-state { font-size: 12px; color: var(--muted); }
+.save-state.err { color: #e03131; }
+table.editor { width: 100%; border-collapse: collapse; background: #fff; border: 1px solid var(--line); }
+table.editor th { text-align: left; font-weight: 600; font-size: 12px; color: #555; background: #fafafa; padding: 8px; border-bottom: 1px solid var(--line); white-space: nowrap; }
+table.editor td { padding: 6px 8px; border-bottom: 1px solid #f0f0f0; vertical-align: top; }
+table.editor input[type=text], table.editor input[type=number], table.editor textarea, table.editor select { width: 100%; min-width: 120px; padding: 6px 8px; border: 1px solid #ddd; border-radius: 6px; }
+table.editor textarea { min-height: 54px; resize: vertical; }
+table.editor input[type=checkbox] { width: 18px; height: 18px; }
+table.editor .row-err { color: #e03131; font-size: 12px; margin-top: 4px; }
+table.editor .actions { white-space: nowrap; }
+table.editor .actions button { padding: 4px 8px; margin-right: 2px; border: 1px solid #ddd; border-radius: 6px; background: #fff; }
+table.editor .actions button.danger { color: #e03131; }
+.thumb { display: block; max-width: 120px; max-height: 70px; margin-top: 4px; border-radius: 4px; }
+.settings-form { background: #fff; border: 1px solid var(--line); border-radius: 8px; padding: 12px 16px; max-width: 720px; }
+.settings-form label { display: block; margin: 10px 0 4px; font-weight: 600; font-size: 13px; }
+.settings-form input, .settings-form select { width: 100%; padding: 6px 8px; border: 1px solid #ddd; border-radius: 6px; }
+
+@media (max-width: 900px) {
+  .app { grid-template-columns: 1fr; }
+  .side-nav { display: flex; flex-wrap: wrap; border-right: 0; border-bottom: 1px solid var(--line); }
+}

@@ -1,7 +1,8 @@
 import { auth } from "./firebase.mjs";
 import { signIn, signOutAll, currentRole } from "./session.mjs";
-import { roleLabel, canEnter } from "./roles.mjs";
+import { canEnter } from "./roles.mjs";
 import { loginErrorMessage } from "./messages.mjs";
+import { startApp, stopApp } from "./app.mjs";
 
 const $ = (sel) => document.querySelector(sel);
 const form = $("#loginForm");
@@ -10,9 +11,7 @@ const NO_ACCESS = "접근 권한이 없습니다. 교육부 계정만 이용할 
 
 function show(view) {
   $("#loginView").hidden = view !== "login";
-  $("#statusView").hidden = view !== "status";
   $("#loadingView").hidden = view !== "loading";
-  $(".sub").textContent = view === "status" ? "로그인 되었습니다" : "쌤톡 아이디로 로그인하세요";
 }
 
 function lockForm(locked) {
@@ -27,9 +26,7 @@ async function enter(role) {
     show("login");
     return;
   }
-  $("#statusEmail").textContent = auth.currentUser.email;
-  $("#statusRole").textContent = roleLabel(role);
-  show("status");
+  startApp({ role, email: auth.currentUser.email });
 }
 
 form.addEventListener("submit", async (e) => {
@@ -51,6 +48,7 @@ form.addEventListener("submit", async (e) => {
 
 $("#logoutBtn").addEventListener("click", async () => {
   await signOutAll();
+  stopApp();
   show("login");
 });
 

@@ -2,6 +2,7 @@ import { mountTableEditor } from "../table-editor.mjs";
 import { dbErrorMessage } from "../fields.mjs";
 import { toCsv } from "../csv.mjs";
 import { deleteSeminarMessage, formatSeoul } from "../format.mjs";
+import { freeName } from "../order.mjs";
 
 function el(tag, props = {}, children = []) {
   const node = Object.assign(document.createElement(tag), props);
@@ -18,10 +19,12 @@ function download(filename, text) {
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
+// 세지 못하면 0명으로 치지 않는다 — 경고 없이 신청자 명단이 지워지는 것을 막는다.
 async function applicantCount(supabase, seminarId) {
-  const { count } = await supabase.from("seminar_applications")
+  const { count, error } = await supabase.from("seminar_applications")
     .select("id", { count: "exact", head: true }).eq("seminar_id", seminarId);
-  return count ?? 0;
+  if (error || typeof count !== "number") throw new Error("신청자 수를 확인하지 못했습니다. 잠시 후 다시 시도해주세요");
+  return count;
 }
 
 export function render(container, { supabase }) {
@@ -77,7 +80,7 @@ export function render(container, { supabase }) {
       { key: "place", label: "장소", type: "text" },
       { key: "capacity", label: "정원", type: "number" },
     ],
-    defaults: rows => ({ title: `새 특강 ${rows.length + 1}` }),
+    defaults: rows => ({ title: freeName("새 특강", rows, "title") }),
     deleteConfirm: async row => deleteSeminarMessage(row.title, await applicantCount(supabase, row.id)),
     extraActions: [{ label: "신청자 명단", onClick: showRoster }],
   });

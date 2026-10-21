@@ -3,6 +3,7 @@ import { navFor, routeFrom } from "./router.mjs";
 import { roleLabel, canManage } from "./roles.mjs";
 import { formatPublished } from "./format.mjs";
 import { dbErrorMessage } from "./fields.mjs";
+import { mountPage, clearApp } from "./mount.mjs";
 
 const $ = sel => document.querySelector(sel);
 const PAGES = {
@@ -52,12 +53,9 @@ async function route() {
     if (!n.ready) a.classList.add("not-ready");
     return a;
   }));
-  const content = $("#content");
-  content.replaceChildren();
-  if (!item) return;
+  if (!item) { $("#content").replaceChildren(); return; }
   const load = item.ready && PAGES[id] ? PAGES[id] : () => import("./pages/placeholder.mjs");
-  const mod = await load();
-  await mod.render(content, { supabase, role: session.role, label: item.label, id });
+  await mountPage($("#content"), load, { supabase, role: session.role, label: item.label, id });
 }
 
 export function startApp({ role, email }) {
@@ -77,6 +75,8 @@ export function startApp({ role, email }) {
 export function stopApp() {
   window.removeEventListener("hashchange", route);
   session = null;
+  // 공용 PC에서 다음 사람이 이전 화면(신청자 연락처 등)을 보지 못하게 비운다.
+  clearApp([$("#content"), $("#sideNav")], [$("#userEmail"), $("#userRole"), $("#publishInfo")]);
   $("#appView").hidden = true;
   $("#loginWrap").hidden = false;
 }

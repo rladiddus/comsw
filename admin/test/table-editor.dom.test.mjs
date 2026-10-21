@@ -119,6 +119,44 @@ test("다른 줄과 같은 이름이면 '같은 이름이 이미 있습니다'�
   assert.equal(tables.menus.find(r => r.id === "a").name, "전체 수업");
 });
 
+test("네트워크·권한 오류처럼 서버 쪽 실패면 입력한 글을 지우지 않는다", async () => {
+  const { rowsEl, supabase, state } = await setup();
+  const realFrom = supabase.from.bind(supabase);
+  supabase.from = t => ({ ...realFrom(t), update: () => ({ eq: () => Promise.resolve({ error: { message: "Failed to fetch" } }) }) });
+  const input = rowsEl()[0].querySelector("input");
+  change(input, "긴 문구를 열심히 썼다");
+  await flush();
+  assert.equal(input.value, "긴 문구를 열심히 썼다");
+  assert.equal(state(), "저장하지 못했습니다: Failed to fetch");
+});
+
+test("숫자 칸은 글자가 섞여도 브라우저가 지우지 않게 text 입력칸(숫자 키패드)으로 만든다", async () => {
+  const tables = { seminars: [{ id: "s", capacity: 25, sort_order: 0 }] };
+  const container = document.createElement("div");
+  mountTableEditor(container, { supabase: fakeSupabase(tables), table: "seminars", columns: [{ key: "capacity", label: "정원", type: "number" }] });
+  await flush();
+  const input = container.querySelector("tbody input");
+  assert.equal(input.type, "text");
+  assert.equal(input.inputMode, "numeric");
+  change(input, "25명");
+  await flush();
+  assert.equal(container.querySelector(".save-state").textContent, "정원에는 숫자만 입력할 수 있습니다");
+  assert.equal(tables.seminars[0].capacity, 25);
+});
+
+test("삭제 확인 문구를 만들다 실패하면 삭제를 묻지 않고 오류를 보여준다", async () => {
+  let asked = false;
+  const saved = globalThis.confirm;
+  globalThis.confirm = () => { asked = true; return true; };
+  const { rowsEl, tables, state } = await setup({ deleteConfirm: async () => { throw new Error("신청자 수를 확인하지 못했습니다. 잠시 후 다시 시도해주세요"); } });
+  rowsEl()[0].querySelector("button.danger").click();
+  await flush();
+  globalThis.confirm = saved;
+  assert.equal(asked, false);
+  assert.equal(tables.menus.length, 2);
+  assert.equal(state(), "신청자 수를 확인하지 못했습니다. 잠시 후 다시 시도해주세요");
+});
+
 test("↓를 누르면 두 줄 순서가 바뀐다", async () => {
   const { rowsEl } = await setup();
   rowsEl()[0].querySelector(".actions button").nextSibling.click();

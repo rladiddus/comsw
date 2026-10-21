@@ -1,3 +1,11 @@
+// 이름이 고유해야 하는 표(메뉴·특강)에서 새 줄 기본 이름이 겹치지 않게 한다.
+export function freeName(prefix, rows, key) {
+  const taken = new Set(rows.map(r => r[key]));
+  let n = 1;
+  while (taken.has(`${prefix} ${n}`)) n++;
+  return `${prefix} ${n}`;
+}
+
 export function nextOrder(rows) {
   const orders = rows.map(r => r.sort_order).filter(n => typeof n === "number");
   return orders.length ? Math.max(...orders) + 1 : 0;

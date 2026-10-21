@@ -1,6 +1,7 @@
 import { mountTableEditor } from "../table-editor.mjs";
 import { dbErrorMessage } from "../fields.mjs";
 import { driveThumbnail } from "../drive.mjs";
+import { freeName } from "../order.mjs";
 
 const MENU_NAMES = "전체 수업, 학과별 자료, 학과 커리큘럼, 특강/세미나, 수업별 준비물, 방학 특강";
 
@@ -80,7 +81,7 @@ export async function render(container, { supabase }) {
       { key: "side", label: "위치", type: "select", options: [{ value: "left", label: "왼쪽" }, { value: "right", label: "오른쪽" }] },
       { key: "sort_order", label: "순서", type: "number" },
     ],
-    defaults: rows => ({ name: `새 메뉴 ${rows.length + 1}`, is_active: false, side: "right" }),
+    defaults: rows => ({ name: freeName("새 메뉴", rows, "name"), is_active: false, side: "right" }),
   });
   await settingsForm(container, supabase);
 }

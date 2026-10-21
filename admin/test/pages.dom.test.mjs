@@ -87,6 +87,28 @@ test("특강: 신청자 명단을 열면 인원·연락처가 보이고 CSV를 �
   assert.equal(downloaded, "AI 특강_신청자.csv");
 });
 
+test("신청자 수 조회가 실패하면 삭제를 묻지 않는다", async () => {
+  const { render } = await import("../js/pages/seminars.mjs");
+  const container = document.createElement("div");
+  document.body.replaceChildren(container);
+  const sb = fakeSupabase();
+  const realFrom = sb.from;
+  sb.from = t => {
+    const q = realFrom(t);
+    if (t !== "seminar_applications") return q;
+    const realSelect = q.select;
+    q.select = (cols, opts) => (opts?.head ? { eq: () => Promise.resolve({ count: null, error: { message: "boom" } }) } : realSelect(cols, opts));
+    return q;
+  };
+  render(container, { supabase: sb });
+  await flush();
+  lastConfirm = "";
+  container.querySelector("table.editor button.danger").click();
+  await flush();
+  assert.equal(lastConfirm, "");
+  assert.match(container.querySelector(".save-state").textContent, /신청자 수를 확인하지 못했습니다/);
+});
+
 test("특강 삭제 경고에 신청자 수가 나온다 (취소하면 지우지 않음)", async () => {
   const c = await renderPage("../js/pages/seminars.mjs");
   c.querySelector("table.editor button.danger").click();

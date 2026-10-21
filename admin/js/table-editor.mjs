@@ -35,16 +35,23 @@ export function mountTableEditor(container, {
   let rows = [];
   const setState = (text, isError = false) => { state.textContent = text; state.classList.toggle("err", isError); };
 
+  // 반환값 revert: 값 자체가 잘못된 경우(형식·필수·중복)만 원래 값으로 되돌린다.
+  // 네트워크·권한 같은 서버 쪽 실패는 입력한 글을 남겨 다시 시도할 수 있게 한다.
   async function save(row, column, raw, errBox) {
     const result = toDbValue(column, raw);
-    if (result.error) { errBox.textContent = result.error; setState(result.error, true); return false; }
+    if (result.error) { errBox.textContent = result.error; setState(result.error, true); return { ok: false, revert: true }; }
     setState("저장 중…");
     const { error } = await supabase.from(table).update({ [column.key]: result.value }).eq("id", row.id);
-    if (error) { const m = dbErrorMessage(error); errBox.textContent = m; setState(m, true); return false; }
+    if (error) {
+      const m = dbErrorMessage(error);
+      errBox.textContent = m;
+      setState(m, true);
+      return { ok: false, revert: error.code === "23505" || error.code === "23502" };
+    }
     row[column.key] = result.value;
     errBox.textContent = "";
     setState("저장됨");
-    return true;
+    return { ok: true, revert: false };
   }
 
   function inputFor(row, column, errBox) {
@@ -60,13 +67,14 @@ export function mountTableEditor(container, {
       input.addEventListener("change", () => save(row, column, input.value, errBox));
       return [input];
     }
+    // 숫자 칸도 text로 둔다: type=number는 브라우저에 따라 '25명'을 빈 값으로 넘겨 조용히 지워진다.
     const input = column.type === "textarea"
       ? el("textarea", { value: value ?? "" })
-      : el("input", { type: column.type === "number" ? "number" : "text", value: value ?? "" });
+      : el("input", { type: "text", value: value ?? "", ...(column.type === "number" ? { inputMode: "numeric" } : {}) });
     const preview = column.type === "image" ? imagePreview(value) : null;
     input.addEventListener("change", async () => {
-      const ok = await save(row, column, input.value, errBox);
-      if (!ok) input.value = row[column.key] ?? "";
+      const { revert } = await save(row, column, input.value, errBox);
+      if (revert) input.value = row[column.key] ?? "";
       preview?.set(input.value);
     });
     return preview ? [input, preview.img] : [input];
@@ -112,7 +120,14 @@ export function mountTableEditor(container, {
   }
 
   async function remove(row) {
-    if (!confirm(await deleteConfirm(row))) return;
+    let message;
+    try {
+      message = await deleteConfirm(row);
+    } catch (err) {
+      setState(err.message, true);
+      return;
+    }
+    if (!confirm(message)) return;
     const { error } = await supabase.from(table).delete().eq("id", row.id);
     if (error) { setState(dbErrorMessage(error), true); return; }
     setState("삭제됨");

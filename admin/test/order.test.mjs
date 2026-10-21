@@ -1,6 +1,12 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { nextOrder, moveUpdates } from "../js/order.mjs";
+import { nextOrder, moveUpdates, freeName } from "../js/order.mjs";
+
+test("새 줄 이름은 아직 없는 가장 작은 번호", () => {
+  assert.equal(freeName("새 메뉴", [], "name"), "새 메뉴 1");
+  assert.equal(freeName("새 메뉴", [{ name: "새 메뉴 1" }, { name: "새 메뉴 3" }], "name"), "새 메뉴 2");
+  assert.equal(freeName("새 특강", [{ title: "새 특강 1" }, { title: "새 특강 2" }], "title"), "새 특강 3");
+});
 
 test("다음 순서 번호", () => {
   assert.equal(nextOrder([]), 0);

@@ -12,6 +12,7 @@ function show(view) {
   $("#loginView").hidden = view !== "login";
   $("#statusView").hidden = view !== "status";
   $("#loadingView").hidden = view !== "loading";
+  $(".sub").textContent = view === "status" ? "로그인 되었습니다" : "쌤톡 아이디로 로그인하세요";
 }
 
 function lockForm(locked) {

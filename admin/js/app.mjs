@@ -15,6 +15,7 @@ const PAGES = {
   roadmap: () => import("./pages/roadmap.mjs"),
   prep: () => import("./pages/prep.mjs"),
   recruitment: () => import("./pages/recruitment.mjs"),
+  import: () => import("./pages/import.mjs"),
 };
 
 export function toast(message) {

@@ -13,7 +13,6 @@ export const NAV = [
   { id: "recruitment", label: "채용 공고", manage: true, ready: true },
   { id: "vacation", label: "방학 특강", manage: true, ready: false },
   { id: "mine", label: "내 커리큘럼", manage: false, ready: false },
-  { id: "import", label: "시트에서 가져오기", manage: true, ready: true },
 ];
 
 export function navFor(role) {

@@ -37,3 +37,9 @@ test("메뉴 위치는 left/right만", async () => {
   const db = await freshDb();
   await assert.rejects(db.query(`insert into menus(name, side) values ('전체 수업', 'center')`));
 });
+
+test("'시트에서 가져오기' 함수는 전환 뒤 없앴다", async () => {
+  const db = await freshDb();
+  const { rows } = await db.query(`select 1 from pg_proc where proname = 'comsw_import'`);
+  assert.equal(rows.length, 0);
+});

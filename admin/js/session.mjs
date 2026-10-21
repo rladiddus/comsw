@@ -10,8 +10,10 @@ export const supabase = createClient(cfg.url, cfg.anonKey, {
 });
 
 // 승인·등급 변경이 옛 토큰에 남지 않도록 클레임을 다시 계산하고 토큰을 강제 갱신한다.
+// 직원이 아니면 토큰에 Supabase 인증 클레임이 없으므로 Supabase를 부르지 않는다.
 async function syncRole(user) {
-  await httpsCallable(functions, "refreshMyComswClaims")();
+  const { data: refreshed } = await httpsCallable(functions, "refreshMyComswClaims")();
+  if (!refreshed?.role) return null;
   await user.getIdToken(true);
   const { data, error } = await supabase.rpc("comsw_whoami");
   if (error) throw error;

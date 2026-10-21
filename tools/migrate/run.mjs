@@ -4,7 +4,7 @@ import path from "node:path";
 import vm from "node:vm";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { transform } from "./transform.mjs";
-import { toSql } from "./to-sql.mjs";
+import { toSql, toSqlChunks } from "./to-sql.mjs";
 
 const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
 
@@ -51,8 +51,16 @@ async function main() {
   }
   const raw = arg("--raw") ? readRawFolder(arg("--raw")) : await fetchRawRows();
   const model = transform(raw);
-  fs.writeFileSync(out, toSql(model));
-  console.log(`원본 ${raw.length}행 → ${out}`);
+  if (process.argv.includes("--chunks")) {
+    // --out은 폴더. SQL Editor 붙여넣기 한도에 맞춰 데이터-01.sql, 데이터-02.sql … 로 나눈다.
+    fs.mkdirSync(out, { recursive: true });
+    const chunks = toSqlChunks(model);
+    chunks.forEach((c, i) => fs.writeFileSync(path.join(out, `데이터-${String(i + 1).padStart(2, "0")}.sql`), c));
+    console.log(`원본 ${raw.length}행 → ${out} (조각 ${chunks.length}개, 01번부터 순서대로 실행)`);
+  } else {
+    fs.writeFileSync(out, toSql(model));
+    console.log(`원본 ${raw.length}행 → ${out}`);
+  }
   for (const w of model.warnings) console.log(`경고: ${w}`);
 }
 

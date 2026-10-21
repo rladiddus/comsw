@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { freshDb } from "./pg.mjs";
-import { sqlLiteral, toSql } from "../migrate/to-sql.mjs";
+import { sqlLiteral, toSql, toSqlChunks } from "../migrate/to-sql.mjs";
 import { isInsideRepo } from "../migrate/run.mjs";
 import { transform } from "../migrate/transform.mjs";
 import { SAMPLE_ROWS } from "./fixtures.mjs";
@@ -10,6 +10,15 @@ test("문자열의 작은따옴표·줄바꿈·$$·이모지를 그대로 보존
   const db = await freshDb();
   const text = "it's\n$$ drop table x; $$ 😀 \\n";
   await db.query(`insert into menus(name) values (${sqlLiteral(text)})`);
+  assert.equal((await db.query(`select name from menus`)).rows[0].name, text);
+});
+
+test("줄바꿈·탭·역슬래시는 SQL 파일에 그대로 쓰지 않고 이스케이프한다 (붙여넣기 중 변형 방지)", async () => {
+  const text = "첫 줄\r\n둘째\n셋째\t탭 \\ 역슬래시 it's";
+  const lit = sqlLiteral(text);
+  assert.ok(!/[\r\n\t]/.test(lit), lit);
+  const db = await freshDb();
+  await db.query(`insert into menus(name) values (${lit})`);
   assert.equal((await db.query(`select name from menus`)).rows[0].name, text);
 });
 
@@ -44,6 +53,27 @@ test("재실행해도 적용 기록(스냅샷)은 지우지 않는다", async ()
   await db.exec(`insert into site_snapshots(rows) values ('[]')`);
   await db.exec(toSql(transform(SAMPLE_ROWS)));
   assert.equal((await db.query(`select count(*)::int c from site_snapshots`)).rows[0].c, 1);
+});
+
+test("SQL Editor에 붙여넣을 수 있게 조각마다 글자 수 한도 이하로 나눈다", async () => {
+  const model = transform(SAMPLE_ROWS);
+  const chunks = toSqlChunks(model, { maxChars: 1500 });
+  assert.ok(chunks.length > 2);
+  for (const c of chunks) assert.ok(c.length <= 1500, `조각 길이 ${c.length}`);
+  assert.match(chunks[0], /truncate/);
+  const db = await freshDb();
+  for (let round = 0; round < 2; round++) for (const c of chunks) await db.exec(c);
+  const count = async t => (await db.query(`select count(*)::int c from ${t}`)).rows[0].c;
+  assert.equal(await count("subjects"), model.subjects.length);
+  assert.equal(await count("instructor_curricula"), model.instructor_curricula.length);
+  assert.equal(await count("site_settings"), 3);
+});
+
+test("한 줄이 한도보다 길면 그 줄 하나만 담은 조각을 만든다", () => {
+  const model = transform(SAMPLE_ROWS);
+  model.menus[0].name = "가".repeat(3000);
+  const chunks = toSqlChunks(model, { maxChars: 1500 });
+  assert.ok(chunks.some(c => c.includes("가".repeat(3000))));
 });
 
 test("저장소 안 경로는 거부한다", () => {

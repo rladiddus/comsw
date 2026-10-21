@@ -17,22 +17,63 @@ export function sqlLiteral(v) {
   if (v === null || v === undefined) return "null";
   if (typeof v === "boolean") return v ? "true" : "false";
   if (typeof v === "number") return String(v);
-  return `'${String(v).replace(/'/g, "''")}'`;
+  const s = String(v);
+  // 줄바꿈·탭을 그대로 두면 SQL Editor 붙여넣기 중 \r\n 등으로 바뀌므로 E'' 이스케이프로 적는다.
+  if (/[\\\r\n\t]/.test(s)) {
+    const escaped = s.replace(/\\/g, "\\\\").replace(/'/g, "''").replace(/\r/g, "\\r").replace(/\n/g, "\\n").replace(/\t/g, "\\t");
+    return `E'${escaped}'`;
+  }
+  return `'${s.replace(/'/g, "''")}'`;
 }
 
 function insert(table, columns, rows) {
-  if (!rows.length) return "";
-  const out = [];
-  for (let i = 0; i < rows.length; i += 500) {
-    const values = rows.slice(i, i + 500).map(r => `(${r.map(sqlLiteral).join(", ")})`).join(",\n  ");
-    out.push(`insert into public.${table} (${columns.join(", ")}) values\n  ${values};`);
-  }
-  return out.join("\n");
+  if (!rows.length) return null;
+  return {
+    head: `insert into public.${table} (${columns.join(", ")}) values\n  `,
+    tuples: rows.map(r => `(${r.map(sqlLiteral).join(", ")})`),
+  };
 }
 
+const statement = (block, tuples) => `${block.head}${tuples.join(",\n  ")};`;
 const unique = keys => [...new Set(keys)];
 
-export function toSql(model, { uuid = randomUUID } = {}) {
+export function toSql(model, options = {}) {
+  const { header, truncate, blocks } = buildParts(model, options);
+  const inserts = blocks.flatMap(b => {
+    const out = [];
+    for (let i = 0; i < b.tuples.length; i += 500) out.push(statement(b, b.tuples.slice(i, i + 500)));
+    return out;
+  });
+  return [header, "begin;", truncate, ...inserts, "commit;"].join("\n\n") + "\n";
+}
+
+// SQL Editor 붙여넣기 한도 때문에 나눈다. 첫 조각이 비우고 시작하므로, 실패하면 첫 조각부터 다시 실행하면 된다.
+export function toSqlChunks(model, { maxChars = 60000, ...options } = {}) {
+  const { header, truncate, blocks } = buildParts(model, options);
+  const chunks = [];
+  let done = [];
+  let open = null;
+  const size = () => done.reduce((n, s) => n + s.length + 2, 0) + (open ? statement(open.block, open.tuples).length : 0);
+  const close = () => { if (open) done.push(statement(open.block, open.tuples)); open = null; };
+  const flush = () => { close(); if (done.length) chunks.push(done.join("\n\n") + "\n"); done = []; };
+
+  done.push(header, truncate);
+  for (const block of blocks) {
+    for (const tuple of block.tuples) {
+      if (open && open.block === block && size() + tuple.length + 4 <= maxChars) {
+        open.tuples.push(tuple);
+        continue;
+      }
+      close();
+      if (size() + statement(block, [tuple]).length + 2 > maxChars && done.length) flush();
+      open = { block, tuples: [tuple] };
+    }
+  }
+  flush();
+  return chunks;
+}
+
+function buildParts(model, { uuid = randomUUID } = {}) {
   const ids = new Map();
   const id = key => {
     if (!ids.has(key)) ids.set(key, uuid());
@@ -40,10 +81,7 @@ export function toSql(model, { uuid = randomUUID } = {}) {
   };
   const steps = model.roadmap_tracks.flatMap(t => t.steps.map(s => ({ ...s, track_key: t.key, key: `${t.key}:${s.position}` })));
 
-  const parts = [
-    "-- 컴수원 데이터 이전 (자동 생성). 신청자 개인정보 포함 — 공개 저장소에 넣지 말 것.",
-    "begin;",
-    `truncate ${CONTENT_TABLES.map(t => `public.${t}`).join(", ")} cascade;`,
+  const blocks = [
     insert("departments", ["id", "name", "name_en", "description", "image_url", "drive_folder_id", "is_active", "sort_order"],
       model.departments.map(d => [id(d.key), d.name, d.name_en, d.description, d.image_url, d.drive_folder_id, d.is_active, d.sort_order])),
     insert("site_categories", ["id", "name", "is_active", "sort_order"],
@@ -89,7 +127,10 @@ export function toSql(model, { uuid = randomUUID } = {}) {
       ["vacation_set_id", model.settings.vacation_set_key ? id(model.settings.vacation_set_key) : null],
       ["vacation_background_url", model.settings.vacation_background_url],
     ]),
-    "commit;",
-  ];
-  return parts.filter(Boolean).join("\n\n") + "\n";
+  ].filter(Boolean);
+  return {
+    header: "-- 컴수원 데이터 이전 (자동 생성). 신청자 개인정보 포함 — 공개 저장소에 넣지 말 것.",
+    truncate: `truncate ${CONTENT_TABLES.map(t => `public.${t}`).join(", ")} cascade;`,
+    blocks,
+  };
 }

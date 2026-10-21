@@ -36,5 +36,6 @@ export async function currentRole() {
 }
 
 export function signOutAll() {
+  try { localStorage.removeItem("comsw_preview_token"); } catch {}
   return signOut(auth);
 }

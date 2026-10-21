@@ -2,6 +2,18 @@
   const cfg = window.COMSW_SUPABASE_CONFIG || {};
   const cache = {};
 
+  // 미리보기: 관리 화면이 ?preview=1로 열고 로그인 토큰을 남긴다. 같은 탭에서 다른 페이지로 가도 이어진다.
+  // 토큰은 관리자·학과장만 통과하므로 방문자가 주소에 preview를 붙여도 적용된 내용만 보인다.
+  const preview = (function() {
+    try {
+      if (/[?&]preview=1(&|$)/.test(location.search)) sessionStorage.setItem('comsw_preview', '1');
+      const token = sessionStorage.getItem('comsw_preview') === '1' && localStorage.getItem('comsw_preview_token');
+      return { token: token || null, failed: false };
+    } catch (e) {
+      return { token: null, failed: false };
+    }
+  })();
+
   function normalizeText(value) {
     if (value === null || value === undefined) return '';
     return String(value).replace(/[\u200B\u200C\u200D\uFEFF\u00A0]/g, '').trim();
@@ -44,7 +56,7 @@
   }
 
   // 관리 플랫폼에서 '적용'한 내용(시트와 같은 모양의 행)을 RPC로 읽는다.
-  async function rpc(name, args) {
+  async function rpc(name, args, token) {
     if (!cfg.url || !cfg.anonKey) {
       throw new Error('Supabase 설정이 비어 있습니다.');
     }
@@ -52,7 +64,7 @@
       method: 'POST',
       headers: {
         apikey: cfg.anonKey,
-        Authorization: 'Bearer ' + cfg.anonKey,
+        Authorization: 'Bearer ' + (token || cfg.anonKey),
         'Content-Type': 'application/json'
       },
       body: JSON.stringify(args || {})
@@ -78,7 +90,18 @@
     const source = normalizeText(sourceId) || defaultSourceId();
     const cacheKey = source + '::' + sheetName;
     if (cache[cacheKey]) return cache[cacheKey];
-    const rows = (await rpc('comsw_site_rows', { p_source: source, p_sheet: sheetName })) || [];
+    const args = { p_source: source, p_sheet: sheetName };
+    let rows = null;
+    if (preview.token && !preview.failed) {
+      rows = await rpc('comsw_preview_rows', args, preview.token).catch(function(err) {
+        // 토큰 만료(1시간) 등: 적용된 내용으로 보여 주고 표시를 바꾼다.
+        if (window.console) console.warn('[ComswSupabase] 미리보기 실패', err);
+        preview.failed = true;
+        renderPreviewBadge();
+        return null;
+      });
+    }
+    if (!rows) rows = (await rpc('comsw_site_rows', args)) || [];
     if (!rows.length) {
       // 관리 화면에서 아직 '적용'하지 않았거나 빈 시트. 다음 호출에서 다시 읽도록 캐시하지 않는다.
       if (window.console) console.warn('[ComswSupabase] 적용된 데이터 없음: ' + source + ' / ' + sheetName);
@@ -90,6 +113,7 @@
 
   // 특강 신청(특강 id = 특강 및 세미나 행 인덱스 8): 응답 { ok, applied?, duplicate?, error? } (예전 Apps Script 응답과 같은 모양)
   function applySeminar(seminarId, name, phone) {
+    if (preview.token) return Promise.resolve({ ok: false, error: '미리보기에서는 신청할 수 없습니다.' });
     return rpc('comsw_apply_seminar', { p_id: seminarId || null, p_name: name, p_phone: phone });
   }
 
@@ -115,8 +139,38 @@
     return '';
   }
 
+  function renderPreviewBadge() {
+    if (!preview.token || !document.body) return;
+    let badge = document.getElementById('comsw-preview-badge');
+    if (!badge) {
+      badge = document.createElement('div');
+      badge.id = 'comsw-preview-badge';
+      badge.setAttribute('data-html2canvas-ignore', 'true');
+      badge.setAttribute('style', 'position:fixed;top:12px;left:12px;z-index:100001;display:flex;gap:8px;align-items:center;'
+        + 'padding:6px 12px;border-radius:999px;background:#fa491d;color:#fff;font-size:13px;font-weight:700;'
+        + 'box-shadow:0 2px 8px rgba(0,0,0,.2);');
+      document.body.appendChild(badge);
+    }
+    const text = document.createElement('span');
+    text.textContent = preview.failed
+      ? '미리보기 시간이 지났습니다. 관리 화면에서 다시 열어 주세요 (지금은 적용된 내용)'
+      : '미리보기 · 적용 전 내용';
+    const end = document.createElement('button');
+    end.type = 'button';
+    end.textContent = '끝내기';
+    end.setAttribute('style', 'border:0;border-radius:999px;padding:2px 10px;background:#fff;color:#fa491d;font-weight:700;cursor:pointer;');
+    end.addEventListener('click', function() {
+      try { sessionStorage.removeItem('comsw_preview'); } catch (e) {}
+      location.href = location.pathname;
+    });
+    badge.replaceChildren(text, end);
+  }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', renderPreviewBadge);
+  else renderPreviewBadge();
+
   const api = window.ComswSupabase = {
     config: cfg,
+    isPreview: !!preview.token,
     _random: Math.random,
     applySeminar: applySeminar,
     fetchSeminarCounts: fetchSeminarCounts,

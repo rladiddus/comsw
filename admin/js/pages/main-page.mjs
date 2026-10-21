@@ -2,8 +2,9 @@ import { mountTableEditor } from "../table-editor.mjs";
 import { dbErrorMessage } from "../fields.mjs";
 import { driveThumbnail } from "../drive.mjs";
 import { freeName } from "../order.mjs";
+import { SITE_PAGES } from "../preview.mjs";
 
-const MENU_NAMES = "전체 수업, 학과별 자료, 학과 커리큘럼, 특강/세미나, 수업별 준비물, 방학 특강";
+const MENU_NAMES = SITE_PAGES.slice(1).map(p => p.name).join(", ");
 
 function el(tag, props = {}, children = []) {
   const node = Object.assign(document.createElement(tag), props);
@@ -56,7 +57,7 @@ async function settingsForm(container, supabase) {
   );
 }
 
-export async function render(container, { supabase }) {
+export async function render(container, { supabase, preview }) {
   container.append(el("h2", { textContent: "메인 화면" }));
   mountTableEditor(container, {
     supabase,
@@ -74,7 +75,7 @@ export async function render(container, { supabase }) {
     supabase,
     table: "menus",
     title: "메뉴",
-    description: `메뉴 이름은 사이트 페이지와 연결되어 있어 바꾸면 해당 페이지로 이동하지 않을 수 있습니다: ${MENU_NAMES}`,
+    description: `메뉴 이름은 사이트 페이지와 연결되어 있어 바꾸면 해당 페이지로 이동하지 않을 수 있습니다: ${MENU_NAMES}. 사용을 꺼 둔 메뉴도 미리보기로 '적용' 전 내용을 볼 수 있습니다.`,
     columns: [
       { key: "name", label: "메뉴 이름", type: "text", required: true },
       { key: "is_active", label: "사용", type: "checkbox" },
@@ -82,6 +83,10 @@ export async function render(container, { supabase }) {
       { key: "sort_order", label: "순서", type: "number" },
     ],
     defaults: rows => ({ name: freeName("새 메뉴", rows, "name"), is_active: false, side: "right" }),
+    extraActions: preview ? [
+      { label: "미리보기", onClick: row => preview(row.name, false) },
+      { label: "태블릿", onClick: row => preview(row.name, true) },
+    ] : [],
   });
   await settingsForm(container, supabase);
 }

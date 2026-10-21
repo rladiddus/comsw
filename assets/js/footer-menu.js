@@ -918,7 +918,7 @@
     });
   }
 
-  /** 관리 화면에서 끈 메뉴(메인 페이지 F열 해제)의 페이지를 주소로 직접 열면 '준비 중' 덮개를 띄운다. 메뉴에 없는 페이지는 그대로. */
+  /** 관리 화면에서 끈 메뉴(메인 페이지 F열 해제)의 페이지를 주소로 직접 열면 '준비 중' 덮개를 띄운다. 메뉴에 없는 페이지·미리보기는 그대로. */
   function isPageOff(rows, menuName) {
     const S = window.ComswSupabase;
     const key = function(v) { return S.normalizeText(v).replace(/\s+/g, ''); };
@@ -930,6 +930,7 @@
 
   function showIfPageOff() {
     if (!currentMenuName || !window.ComswSupabase || !window.COMSW_SUPABASE_CONFIG) return;
+    if (window.ComswSupabase.isPreview) return; // 관리 화면 미리보기에서는 꺼진 페이지도 연다
     const cfg = window.COMSW_SUPABASE_CONFIG;
     window.ComswSupabase.fetchSheetRows((cfg.sheets && cfg.sheets.main) || '메인 페이지')
       .then(function(rows) {

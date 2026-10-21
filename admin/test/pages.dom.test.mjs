@@ -48,11 +48,11 @@ function fakeSupabase() {
 }
 
 const flush = async () => { for (let i = 0; i < 8; i++) await new Promise(r => setTimeout(r, 0)); };
-async function renderPage(path) {
+async function renderPage(path, ctx = {}) {
   const { render } = await import(path);
   const container = document.createElement("div");
   document.body.replaceChildren(container);
-  await render(container, { supabase: fakeSupabase() });
+  await render(container, { supabase: fakeSupabase(), ...ctx });
   await flush();
   return container;
 }
@@ -66,6 +66,15 @@ test("메인 화면: 배경 미디어·메뉴 표와 기타 설정", async () =>
   assert.equal(c.querySelector(".settings-form input").value, "logo");
   const sideSelect = c.querySelectorAll("table.editor")[1].querySelector("select");
   assert.equal(sideSelect.value, "left");
+});
+
+test("메인 화면: 메뉴 줄마다 PC·태블릿 미리보기", async () => {
+  const opened = [];
+  const c = await renderPage("../js/pages/main-page.mjs", { preview: (name, tablet) => opened.push([name, tablet]) });
+  const buttons = [...c.querySelectorAll("table.editor")[1].querySelectorAll("tbody button")];
+  buttons.find(b => b.textContent === "미리보기").click();
+  buttons.find(b => b.textContent === "태블릿").click();
+  assert.deepEqual(opened, [["전체 수업", false], ["전체 수업", true]]);
 });
 
 test("로딩 화면: 줄이 그려진다", async () => {

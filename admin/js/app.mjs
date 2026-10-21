@@ -4,6 +4,8 @@ import { roleLabel, canManage } from "./roles.mjs";
 import { formatPublished } from "./format.mjs";
 import { dbErrorMessage } from "./fields.mjs";
 import { mountPage, clearApp } from "./mount.mjs";
+import { auth } from "./firebase.mjs";
+import { SITE_PAGES, previewUrl, openPreview } from "./preview.mjs";
 
 const $ = sel => document.querySelector(sel);
 const PAGES = {
@@ -23,6 +25,17 @@ export function toast(message) {
   el.textContent = message;
   document.body.append(el);
   setTimeout(() => el.remove(), 2600);
+}
+
+// 관리자·학과장이 '적용' 전 내용을 공개 사이트 화면으로 본다(꺼진 페이지 포함).
+async function preview(menuName, tablet = false) {
+  const url = previewUrl(menuName, tablet);
+  if (!url) { alert(`'${menuName}'은(는) 연결된 사이트 페이지가 없어 미리 볼 수 없습니다.`); return; }
+  try {
+    await openPreview(url, () => auth.currentUser.getIdToken());
+  } catch (err) {
+    alert(`미리보기를 열지 못했습니다: ${err.message}`);
+  }
 }
 
 async function refreshPublished() {
@@ -60,7 +73,7 @@ async function route() {
   }));
   if (!item) { $("#content").replaceChildren(); return; }
   const load = item.ready && PAGES[id] ? PAGES[id] : () => import("./pages/placeholder.mjs");
-  await mountPage($("#content"), load, { supabase, role: session.role, label: item.label, id });
+  await mountPage($("#content"), load, { supabase, role: session.role, label: item.label, id, preview });
 }
 
 export function startApp({ role, email }) {
@@ -71,6 +84,8 @@ export function startApp({ role, email }) {
   $("#userRole").textContent = roleLabel(role);
   const manager = canManage(role);
   $("#publishBtn").hidden = !manager;
+  $("#previewBox").hidden = !manager;
+  $("#previewPage").replaceChildren(...SITE_PAGES.map(p => Object.assign(document.createElement("option"), { value: p.name, textContent: p.name })));
   $("#publishInfo").hidden = !manager;
   if (manager) refreshPublished();
   window.addEventListener("hashchange", route);
@@ -88,4 +103,5 @@ export function stopApp() {
 
 document.addEventListener("click", e => {
   if (e.target?.id === "publishBtn") publish();
+  if (e.target?.id === "previewBtn") preview($("#previewPage").value, $("#previewDevice").value === "tablet");
 });

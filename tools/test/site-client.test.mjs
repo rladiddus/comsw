@@ -6,14 +6,18 @@ import { JSDOM } from "jsdom";
 const src = f => readFileSync(new URL(`../../assets/js/${f}`, import.meta.url), "utf8");
 
 // 공개 사이트 스크립트(클래식)를 가짜 fetch가 있는 창에서 실행한다.
-function site({ page = "index.html", reply = () => [], scripts = ["supabase-client.js"] } = {}) {
+function site({ page = "index.html", reply = () => [], scripts = ["supabase-client.js"], token, session } = {}) {
   const { window } = new JSDOM("<!doctype html><body></body>", { runScripts: "outside-only", url: `https://x.github.io/comsw/${page}` });
+  if (token) window.localStorage.setItem("comsw_preview_token", token);
+  if (session) window.sessionStorage.setItem("comsw_preview", "1");
   const calls = [];
   window.COMSW_SUPABASE_CONFIG = { url: "https://db.example", anonKey: "anon", sources: { main: "main" }, sheets: { main: "메인 페이지" } };
   window.fetch = async (url, opts = {}) => {
     const body = opts.body ? JSON.parse(opts.body) : null;
-    calls.push({ url, method: opts.method, body });
-    return { ok: true, json: async () => reply(url, body) };
+    calls.push({ url, method: opts.method, body, auth: opts.headers?.Authorization });
+    const out = reply(url, body);
+    if (out instanceof Error) return { ok: false, status: 401, text: async () => out.message };
+    return { ok: true, json: async () => out };
   };
   for (const s of scripts) window.eval(src(s));
   return { window, calls };
@@ -83,3 +87,55 @@ for (const [script, off, on, home] of [
     }
   });
 }
+
+test("미리보기: ?preview=1 + 관리 화면이 남긴 토큰이면 적용 전 내용을 토큰으로 읽는다", async () => {
+  const { window, calls } = site({ page: "roadmap.html?preview=1", token: "tok", reply: () => [row(2, ["a"])] });
+  await window.ComswSupabase.fetchSheetRows("로드맵");
+  assert.equal(calls[0].url, "https://db.example/rest/v1/rpc/comsw_preview_rows");
+  assert.equal(calls[0].auth, "Bearer tok");
+  assert.equal(window.ComswSupabase.isPreview, true);
+  assert.equal(window.sessionStorage.getItem("comsw_preview"), "1", "같은 탭에서 다른 페이지로 가도 유지");
+});
+
+test("미리보기는 같은 탭에서 이어지고, 토큰이 없으면 일반 화면", async () => {
+  const kept = site({ page: "item.html", token: "tok", session: true, reply: () => [row(2, ["a"])] });
+  await kept.window.ComswSupabase.fetchSheetRows("로드맵");
+  assert.match(kept.calls[0].url, /comsw_preview_rows$/);
+  const plain = site({ page: "item.html?preview=1", reply: () => [row(2, ["a"])] });
+  await plain.window.ComswSupabase.fetchSheetRows("로드맵");
+  assert.match(plain.calls[0].url, /comsw_site_rows$/);
+  assert.equal(plain.window.ComswSupabase.isPreview, false);
+});
+
+test("미리보기 토큰이 만료되면 적용된 내용으로 보여 주고 표시를 바꾼다", async () => {
+  const { window, calls } = site({ page: "item.html?preview=1", token: "old",
+    reply: url => url.endsWith("comsw_preview_rows") ? new Error("JWT expired") : [row(2, ["live"])] });
+  const rows = await window.ComswSupabase.fetchSheetRows("로드맵");
+  assert.equal(rows[0].data.values[0], "live");
+  assert.match(calls[1].url, /comsw_site_rows$/);
+  await tick();
+  assert.match(window.document.getElementById("comsw-preview-badge").textContent, /다시 열어/);
+});
+
+test("미리보기 표시가 있고, 끝내기를 누르면 일반 화면으로", async () => {
+  const { window } = site({ page: "item.html?preview=1", token: "tok" });
+  await tick();
+  const badge = window.document.getElementById("comsw-preview-badge");
+  assert.match(badge.textContent, /미리보기/);
+  badge.querySelector("button").click();
+  assert.equal(window.sessionStorage.getItem("comsw_preview"), null);
+});
+
+test("미리보기에서는 특강 신청이 저장되지 않는다", async () => {
+  const { window, calls } = site({ page: "seminar.html?preview=1", token: "tok" });
+  const res = await window.ComswSupabase.applySeminar("sem-1", "이영희", "010-5555-6666");
+  assert.equal(res.ok, false);
+  assert.match(res.error, /미리보기/);
+  assert.equal(calls.filter(c => c.url.endsWith("comsw_apply_seminar")).length, 0);
+});
+
+test("미리보기에서는 꺼진 페이지도 열린다", async () => {
+  const { window } = site({ page: "seminar.html?preview=1", token: "tok", reply: () => MENU, scripts: ["supabase-client.js", "footer-menu.js"] });
+  await tick();
+  assert.equal(window.document.getElementById("comsw-page-off"), null);
+});

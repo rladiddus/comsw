@@ -119,9 +119,14 @@ test("특강명이 없는 신청자와 없는 학과명은 경고로 남긴다",
   assert.ok(w.some(x => x.includes("없는학과")));
 });
 
-test("같은 이름 강사 중 탭 학과로 못 고르면 첫 강사 + 경고", () => {
-  const w = transform([...SAMPLE_ROWS,
+test("같은 이름 강사가 여럿인데 탭 학과로 못 고르면 어느 쪽에도 붙이지 않고 숨김 강사로 분리 + 경고", () => {
+  const m2 = transform([...SAMPLE_ROWS,
     r("instructor_curriculum", "CG학과", 2, ["김민주", "마야", "1주차", "", "x", ""]),
-    r("instructor_curriculum", "CG학과", 3, ["", "", "2주차", "", "y", ""])]).warnings;
-  assert.equal(w.filter(x => x.includes("김민주")).length, 1);
+    r("instructor_curriculum", "CG학과", 3, ["", "", "2주차", "", "y", ""])]);
+  const kims = m2.instructors.filter(i => i.name === "김민주");
+  assert.equal(kims.length, 3);
+  const hidden = kims.find(i => !i.is_listed);
+  const rows = m2.instructor_curricula.filter(c => c.summary === "x" || c.summary === "y");
+  assert.deepEqual(rows.map(c => c.instructor_key), [hidden.key, hidden.key]);
+  assert.equal(m2.warnings.filter(x => x.includes("김민주")).length, 1);
 });

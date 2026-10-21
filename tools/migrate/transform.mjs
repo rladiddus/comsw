@@ -115,20 +115,20 @@ export function transform(rawRows) {
     });
   }
   function matchInstructor(name, set) {
-    const same = instructors.filter(i => i.name === name);
-    if (same.length === 1) return same[0].key;
-    if (same.length > 1) {
-      const hit = same.find(i => set.department_key && i.department_keys.includes(set.department_key));
+    const listed = instructors.filter(i => i.name === name && i.is_listed);
+    if (listed.length === 1) return listed[0].key;
+    if (listed.length > 1) {
+      const hit = listed.find(i => set.department_key && i.department_keys.includes(set.department_key));
       if (hit) return hit.key;
-      warnings.push(`강사 커리큘럼 '${set.name}' 탭의 ${name}: 동명이인 중 학과로 구분 불가, 첫 강사로 연결`);
-      return same[0].key;
+      // 동명이인 누구에게도 맞지 않으면 엉뚱한 사람에게 붙이지 않고 따로 둔다 (관리 화면에서 담당자 지정).
+      warnings.push(`강사 커리큘럼 '${set.name}' 탭의 ${name}: 동명이인 중 학과로 구분 불가, 숨김 강사로 분리`);
     }
-    const hidden = {
-      key: `i:hidden:${name}`, name, gender: "", career: "", message: "", photo_url: "", is_listed: false,
+    const key = `i:hidden:${name}`;
+    if (!instructors.some(i => i.key === key)) instructors.push({
+      key, name, gender: "", career: "", message: "", photo_url: "", is_listed: false,
       sort_order: instructors.length, department_keys: set.department_key ? [set.department_key] : [], subject_keys: [],
-    };
-    instructors.push(hidden);
-    return hidden.key;
+    });
+    return key;
   }
 
   // 로드맵: A가 연속으로 같은 3행 묶음 (1행 과목명, 2행 원문, 3행 요약)

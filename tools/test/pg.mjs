@@ -29,6 +29,15 @@ export async function freshDb() {
   return db;
 }
 
+export async function seeded() {
+  const [{ transform }, { toSql }, { SAMPLE_ROWS }] = await Promise.all([
+    import("../migrate/transform.mjs"), import("../migrate/to-sql.mjs"), import("./fixtures.mjs"),
+  ]);
+  const db = await freshDb();
+  await db.exec(toSql(transform(SAMPLE_ROWS)));
+  return db;
+}
+
 export async function as(db, role, claims = {}) {
   await db.exec("reset role");
   await db.query("select set_config('request.jwt.claims', $1, false)", [JSON.stringify(claims)]);

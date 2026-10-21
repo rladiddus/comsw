@@ -17,3 +17,10 @@ export function deleteSeminarMessage(title, applicantCount) {
     ? `'${title}' 특강을 삭제하면 신청자 ${applicantCount}명의 명단도 함께 삭제됩니다. 삭제할까요?`
     : `'${title}' 특강을 삭제할까요?`;
 }
+
+export function cascadeMessage(kind, name, parts) {
+  const listed = parts.filter(([, n]) => n > 0).map(([label, n]) => `${label} ${n}개`);
+  return listed.length
+    ? `'${name}' ${kind}을(를) 삭제하면 ${listed.join(", ")}도 함께 삭제됩니다. 삭제할까요?`
+    : `'${name}' ${kind}을(를) 삭제할까요?`;
+}

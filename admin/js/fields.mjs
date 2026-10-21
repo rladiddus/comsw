@@ -12,8 +12,8 @@ export function toDbValue(field, raw) {
   return { value: text };
 }
 
-export function dbErrorMessage(err) {
-  if (err?.code === "23505") return "같은 이름이 이미 있습니다";
+export function dbErrorMessage(err, { duplicate } = {}) {
+  if (err?.code === "23505") return duplicate ?? "같은 이름이 이미 있습니다";
   if (err?.code === "23502") return "필수 칸이 비어 있습니다";
   if (err?.code === "42501" || err?.status === 401 || err?.status === 403) return "권한이 없습니다. 다시 로그인해주세요";
   return `저장하지 못했습니다: ${err?.message ?? err}`;

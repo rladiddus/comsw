@@ -20,6 +20,7 @@ function imagePreview(url) {
 export function mountTableEditor(container, {
   supabase, table, columns, title, description = "", defaults = {},
   filter = q => q, deleteConfirm = () => "이 줄을 삭제할까요?", extraActions = [],
+  orderKey = "sort_order", movable = true, duplicateMessage,
 }) {
   const state = el("span", { className: "save-state" });
   const addBtn = el("button", { type: "button", className: "ghost-btn", textContent: "+ 추가" });
@@ -43,7 +44,7 @@ export function mountTableEditor(container, {
     setState("저장 중…");
     const { error } = await supabase.from(table).update({ [column.key]: result.value }).eq("id", row.id);
     if (error) {
-      const m = dbErrorMessage(error);
+      const m = dbErrorMessage(error, { duplicate: duplicateMessage });
       errBox.textContent = m;
       setState(m, true);
       return { ok: false, revert: error.code === "23505" || error.code === "23502" };
@@ -54,7 +55,63 @@ export function mountTableEditor(container, {
     return { ok: true, revert: false };
   }
 
+  // 연결표(다대다)는 칩으로: 줄마다 연결된 값을 보여주고, 목록에서 고른 이름으로 더하고, ×로 뺀다.
+  const links = {};
+  let datalistSeq = 0;
+  async function loadLinks() {
+    for (const c of columns.filter(c => c.type === "links")) {
+      links[c.key] = new Map(rows.map(r => [r.id, []]));
+      if (!rows.length) continue;
+      const cols = [c.own, c.other, ...(c.ordered ? ["sort_order"] : [])].join(", ");
+      const { data, error } = await supabase.from(c.through).select(cols).in(c.own, rows.map(r => r.id));
+      if (error) { setState(dbErrorMessage(error), true); continue; }
+      const sorted = c.ordered ? [...data].sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0)) : data;
+      for (const l of sorted) links[c.key].get(l[c.own])?.push({ value: l[c.other], sort_order: l.sort_order });
+    }
+  }
+
+  function linksCell(row, column) {
+    const list = links[column.key]?.get(row.id) ?? [];
+    const labelOf = v => column.options.find(o => o.value === v)?.label ?? v;
+    const wrap = el("div", { className: "links" });
+    const draw = () => {
+      const chips = list.map(item => {
+        const x = el("button", { type: "button", textContent: "×", title: "빼기" });
+        x.addEventListener("click", async () => {
+          setState("저장 중…");
+          const { error } = await supabase.from(column.through).delete().eq(column.own, row.id).eq(column.other, item.value);
+          if (error) { setState(dbErrorMessage(error), true); return; }
+          list.splice(list.indexOf(item), 1);
+          setState("저장됨");
+          draw();
+        });
+        return el("span", { className: "chip" }, [el("span", { textContent: labelOf(item.value) }), x]);
+      });
+      const listId = `links-${++datalistSeq}`;
+      const input = el("input", { type: "text", className: "link-input", placeholder: "추가…" });
+      input.setAttribute("list", listId);
+      const datalist = el("datalist", { id: listId }, column.options.map(o => el("option", { value: o.label })));
+      input.addEventListener("change", async () => {
+        const option = column.options.find(o => o.label === input.value.trim());
+        if (!option) { setState("목록에 없는 항목입니다", true); return; }
+        if (list.some(i => i.value === option.value)) { input.value = ""; return; }
+        const sort_order = column.ordered ? list.reduce((m, i) => Math.max(m, i.sort_order ?? -1), -1) + 1 : undefined;
+        setState("저장 중…");
+        const { error } = await supabase.from(column.through)
+          .insert({ [column.own]: row.id, [column.other]: option.value, ...(column.ordered ? { sort_order } : {}) });
+        if (error) { setState(dbErrorMessage(error), true); return; }
+        list.push({ value: option.value, sort_order });
+        setState("저장됨");
+        draw();
+      });
+      wrap.replaceChildren(...chips, input, datalist);
+    };
+    draw();
+    return [wrap];
+  }
+
   function inputFor(row, column, errBox) {
+    if (column.type === "links") return linksCell(row, column);
     const value = row[column.key];
     if (column.type === "checkbox") {
       const input = el("input", { type: "checkbox", checked: Boolean(value) });
@@ -90,8 +147,7 @@ export function mountTableEditor(container, {
         return b;
       };
       const actions = el("td", { className: "actions" }, [
-        button("↑", () => move(index, -1)),
-        button("↓", () => move(index, 1)),
+        ...(movable ? [button("↑", () => move(index, -1)), button("↓", () => move(index, 1))] : []),
         ...extraActions.map(a => button(a.label, () => a.onClick(row))),
         button("삭제", () => remove(row), "danger"),
       ]);
@@ -101,9 +157,10 @@ export function mountTableEditor(container, {
 
   async function reload() {
     const { data, error } = await filter(supabase.from(table).select("*"))
-      .order("sort_order", { ascending: true, nullsFirst: false });
+      .order(orderKey, { ascending: true, nullsFirst: false });
     if (error) { setState(dbErrorMessage(error), true); return; }
     rows = data;
+    await loadLinks();
     render();
   }
 
@@ -136,7 +193,8 @@ export function mountTableEditor(container, {
 
   addBtn.addEventListener("click", async () => {
     const extra = typeof defaults === "function" ? defaults(rows) : defaults;
-    const { error } = await supabase.from(table).insert({ ...extra, sort_order: nextOrder(rows) });
+    const order = orderKey === "sort_order" ? { sort_order: nextOrder(rows) } : {};
+    const { error } = await supabase.from(table).insert({ ...order, ...extra });
     if (error) { setState(dbErrorMessage(error), true); return; }
     setState("추가됨");
     await reload();

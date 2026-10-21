@@ -9,42 +9,55 @@ let confirmAnswer = true;
 globalThis.confirm = () => confirmAnswer;
 const { mountTableEditor } = await import("../js/table-editor.mjs");
 
+// supabase-js 쿼리 빌더 흉내: eq·in·is·not 필터, order, update·delete·insert.
 function fakeSupabase(tables, { unique = {} } = {}) {
   const calls = [];
-  const result = value => ({ then: (ok, bad) => Promise.resolve(value).then(ok, bad) });
   return {
     calls,
     from(table) {
-      const rows = tables[table];
+      const rows = (tables[table] ??= []);
+      const query = (kind, payload) => {
+        const filters = [];
+        const eqs = [];
+        let orderCol = null;
+        const run = () => {
+          const hit = rows.filter(r => filters.every(f => f(r)));
+          if (kind === "select") {
+            const key = r => r[orderCol] ?? Infinity;
+            return { data: [...hit].sort((a, b) => (orderCol ? key(a) - key(b) : 0)).map(r => ({ ...r })), error: null };
+          }
+          const id = eqs.find(([k]) => k === "id")?.[1];
+          if (kind === "update") {
+            calls.push(["update", table, id, payload]);
+            const u = unique[table];
+            if (u && u in payload && rows.some(r => !hit.includes(r) && r[u] === payload[u]))
+              return { error: { code: "23505", message: "duplicate" } };
+            hit.forEach(r => Object.assign(r, payload));
+            return { error: null };
+          }
+          calls.push(["delete", table, id ?? Object.fromEntries(eqs)]);
+          for (const r of hit) rows.splice(rows.indexOf(r), 1);
+          return { error: null };
+        };
+        const q = {
+          eq: (k, v) => { filters.push(r => r[k] === v); eqs.push([k, v]); return q; },
+          in: (k, vs) => { filters.push(r => vs.includes(r[k])); return q; },
+          is: (k, v) => { filters.push(r => (r[k] ?? null) === v); return q; },
+          not: (k, _op, v) => { filters.push(r => (r[k] ?? null) !== v); return q; },
+          order: col => { orderCol = col; return q; },
+          then: (ok, bad) => Promise.resolve().then(run).then(ok, bad),
+        };
+        return q;
+      };
       return {
-        select: () => ({
-          order: () => result({
-            data: [...rows].sort((a, b) => (a.sort_order ?? Infinity) - (b.sort_order ?? Infinity)).map(r => ({ ...r })),
-            error: null,
-          }),
-        }),
-        update: patch => ({
-          eq: (_, id) => {
-            calls.push(["update", table, id, patch]);
-            const key = unique[table];
-            if (key && key in patch && rows.some(r => r.id !== id && r[key] === patch[key]))
-              return result({ error: { code: "23505", message: "duplicate" } });
-            Object.assign(rows.find(r => r.id === id), patch);
-            return result({ error: null });
-          },
-        }),
+        select: () => query("select"),
+        update: patch => query("update", patch),
+        delete: () => query("delete"),
         insert: row => {
           calls.push(["insert", table, row]);
           rows.push({ id: `new${rows.length}`, ...row });
-          return result({ error: null });
+          return Promise.resolve({ error: null });
         },
-        delete: () => ({
-          eq: (_, id) => {
-            calls.push(["delete", table, id]);
-            rows.splice(rows.findIndex(r => r.id === id), 1);
-            return result({ error: null });
-          },
-        }),
       };
     },
   };
@@ -192,4 +205,86 @@ test("추가 버튼(extraActions)은 그 줄 데이터를 넘긴다", async () =
   const { rowsEl } = await setup({ extraActions: [{ label: "신청자 명단", onClick: row => { got = row.id; } }] });
   [...rowsEl()[1].querySelectorAll(".actions button")].find(b => b.textContent === "신청자 명단").click();
   assert.equal(got, "b");
+});
+
+test("orderKey로 정렬하고 movable:false면 ↑↓가 없다", async () => {
+  const tables = { roadmap_steps: [{ id: "s1", position: 3 }, { id: "s2", position: 1 }, { id: "s3", position: 2 }] };
+  const container = document.createElement("div");
+  mountTableEditor(container, { supabase: fakeSupabase(tables), table: "roadmap_steps", orderKey: "position", movable: false,
+    columns: [{ key: "position", label: "단계", type: "number" }] });
+  await flush();
+  assert.deepEqual([...container.querySelectorAll("tbody input")].map(i => i.value), ["1", "2", "3"]);
+  assert.ok(![...container.querySelectorAll(".actions button")].some(b => b.textContent === "↑"));
+});
+
+test("추가 기본값이 sort_order를 덮어쓴다", async () => {
+  const { container, supabase } = await setup({ defaults: { name: "기타", sort_order: null } });
+  container.querySelector(".editor-bar button").click();
+  await flush();
+  assert.deepEqual(supabase.calls.at(-1), ["insert", "menus", { sort_order: null, name: "기타" }]);
+});
+
+const DEPT_OPTIONS = [{ value: "d1", label: "시각편집학과" }, { value: "d2", label: "웹학과" }];
+async function linksSetup(extraLinks = [], column = {}) {
+  const tables = {
+    subjects: [{ id: "a", name: "포토샵", sort_order: 0 }],
+    subject_departments: [{ subject_id: "a", department_id: "d1" }, ...extraLinks],
+  };
+  const supabase = fakeSupabase(tables);
+  const container = document.createElement("div");
+  mountTableEditor(container, { supabase, table: "subjects", columns: [
+    { key: "name", label: "과목명", type: "text" },
+    { key: "departments", label: "학과", type: "links", through: "subject_departments", own: "subject_id", other: "department_id", options: DEPT_OPTIONS, ...column },
+  ] });
+  await flush();
+  const chips = () => [...container.querySelectorAll(".chip")].map(c => c.firstChild.textContent);
+  return { tables, supabase, container, chips, linkInput: () => container.querySelector("input.link-input"), state: () => container.querySelector(".save-state").textContent };
+}
+
+test("연결 칩: 읽기·추가·빼기", async () => {
+  const { chips, linkInput, supabase, tables, container } = await linksSetup();
+  assert.deepEqual(chips(), ["시각편집학과"]);
+  change(linkInput(), "웹학과");
+  await flush();
+  assert.deepEqual(supabase.calls.at(-1), ["insert", "subject_departments", { subject_id: "a", department_id: "d2" }]);
+  assert.deepEqual(chips(), ["시각편집학과", "웹학과"]);
+  container.querySelector(".chip button").click();
+  await flush();
+  assert.deepEqual(supabase.calls.at(-1), ["delete", "subject_departments", { subject_id: "a", department_id: "d1" }]);
+  assert.deepEqual(tables.subject_departments.map(r => r.department_id), ["d2"]);
+  assert.deepEqual(chips(), ["웹학과"]);
+});
+
+test("연결 칩: 목록에 없는 이름은 저장하지 않는다", async () => {
+  const { linkInput, supabase, state } = await linksSetup();
+  change(linkInput(), "없는학과");
+  await flush();
+  assert.equal(state(), "목록에 없는 항목입니다");
+  assert.ok(!supabase.calls.some(c => c[0] === "insert"));
+});
+
+test("연결 칩: 이미 연결된 항목은 다시 넣지 않는다", async () => {
+  const { linkInput, supabase, chips } = await linksSetup();
+  change(linkInput(), "시각편집학과");
+  await flush();
+  assert.ok(!supabase.calls.some(c => c[0] === "insert"));
+  assert.deepEqual(chips(), ["시각편집학과"]);
+});
+
+test("ordered 연결은 그 줄의 다음 순서로 넣는다", async () => {
+  const tables = {
+    roadmap_steps: [{ id: "s", position: 1 }],
+    roadmap_step_subjects: [{ step_id: "s", subject_id: "x", sort_order: 0 }, { step_id: "s", subject_id: "y", sort_order: 1 }],
+  };
+  const supabase = fakeSupabase(tables);
+  const container = document.createElement("div");
+  mountTableEditor(container, { supabase, table: "roadmap_steps", orderKey: "position", movable: false, columns: [
+    { key: "subjects", label: "과목", type: "links", through: "roadmap_step_subjects", own: "step_id", other: "subject_id", ordered: true,
+      options: [{ value: "x", label: "포토샵" }, { value: "y", label: "일러스트" }, { value: "z", label: "웹1" }] },
+  ] });
+  await flush();
+  assert.deepEqual([...container.querySelectorAll(".chip")].map(c => c.firstChild.textContent), ["포토샵", "일러스트"]);
+  change(container.querySelector("input.link-input"), "웹1");
+  await flush();
+  assert.deepEqual(supabase.calls.at(-1), ["insert", "roadmap_step_subjects", { step_id: "s", subject_id: "z", sort_order: 2 }]);
 });

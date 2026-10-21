@@ -63,3 +63,12 @@ table.editor .actions button.danger { color: #e03131; }
   .app { grid-template-columns: 1fr; }
   .side-nav { display: flex; flex-wrap: wrap; border-right: 0; border-bottom: 1px solid var(--line); }
 }
+
+/* 연결 칩 */
+.links { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; min-width: 180px; }
+.chip { display: inline-flex; align-items: center; gap: 2px; padding: 2px 4px 2px 8px; border-radius: 12px; background: #f0f0f0; font-size: 12px; }
+.chip button { border: 0; background: none; color: #888; padding: 0 4px; }
+.chip button:hover { color: #e03131; }
+table.editor input.link-input { width: 110px; min-width: 110px; padding: 3px 6px; }
+.picker { display: flex; align-items: center; gap: 8px; margin: 8px 0 4px; }
+.picker select { min-width: 220px; padding: 6px 8px; border: 1px solid #ddd; border-radius: 6px; }

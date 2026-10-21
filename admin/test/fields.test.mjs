@@ -19,3 +19,8 @@ test("DB 오류 문구", () => {
   assert.equal(dbErrorMessage({ status: 401 }), "권한이 없습니다. 다시 로그인해주세요");
   assert.equal(dbErrorMessage({ code: "XX", message: "boom" }), "저장하지 못했습니다: boom");
 });
+
+test("중복 오류 문구를 표마다 바꿀 수 있다", () => {
+  assert.equal(dbErrorMessage({ code: "23505" }, { duplicate: "이미 있는 단계 번호입니다" }), "이미 있는 단계 번호입니다");
+  assert.equal(dbErrorMessage({ code: "23505" }, {}), "같은 이름이 이미 있습니다");
+});

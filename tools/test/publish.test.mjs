@@ -149,3 +149,29 @@ test("적용은 매번 새 스냅샷을 만들고 공개 함수는 최신을 쓴
   const rows = (await sheet(db, "main", "컴수원_전체수업")).map(r => r.data.values);
   assert.equal(rows[0][2], "포토샵 기초");
 });
+
+test("전체수업 주차 행 마지막 칸에 그 주차의 승인된 강사 커리큘럼 이미지 후보", async () => {
+  const db = await seeded();
+  await db.exec(`
+    insert into instructor_curricula (set_id, instructor_id, subject_id, step_label, media_url, status, sort_order)
+    select (select id from curriculum_sets order by sort_order limit 1), (select id from instructors limit 1),
+           (select id from subjects where name = '포토샵'), '1주차', m, st, o
+    from (values ('cand-a', 'approved', 1), ('cand-b', 'approved', 2), ('', 'approved', 3), ('cand-pending', 'pending', 4)) v(m, st, o)`);
+  await as(db, "authenticated", ADMIN);
+  await db.query(`select comsw_publish()`);
+  await as(db, "anon");
+  const rows = (await sheet(db, "main", "컴수원_전체수업")).map(r => r.data.values);
+  const week = (name, label) => rows.find(v => v[2] === name && v[3] === label);
+  assert.equal(week("포토샵", "1주차")[24], "cand-a\ncand-b");
+  assert.equal(week("포토샵", "2주차")[24], "");
+  assert.ok(rows.every(v => v.length === 25));
+  assert.equal(week("포토샵", "1주차")[7], "img1");
+});
+
+test("이미지 후보를 더해도 공개 전 데이터는 여전히 직접 뽑을 수 없다", async () => {
+  const db = await seeded();
+  await as(db, "anon");
+  await assert.rejects(db.query(`select comsw_build_rows()`));
+  await as(db, "authenticated", ADMIN);
+  await assert.rejects(db.query(`select comsw_build_rows()`));
+});

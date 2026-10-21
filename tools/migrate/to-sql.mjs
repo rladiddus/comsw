@@ -1,5 +1,3 @@
-import { randomUUID } from "node:crypto";
-
 const CONTENT_TABLES = [
   "departments", "site_categories", "subjects", "subject_departments", "subject_weeks",
   "instructors", "instructor_departments", "instructor_subjects", "curriculum_sets",
@@ -29,6 +27,7 @@ export function sqlLiteral(v) {
 function insert(table, columns, rows) {
   if (!rows.length) return null;
   return {
+    table, columns, rows,
     head: `insert into public.${table} (${columns.join(", ")}) values\n  `,
     tuples: rows.map(r => `(${r.map(sqlLiteral).join(", ")})`),
   };
@@ -73,7 +72,13 @@ export function toSqlChunks(model, { maxChars = 60000, ...options } = {}) {
   return chunks;
 }
 
-function buildParts(model, { uuid = randomUUID } = {}) {
+// 관리 화면 '시트에서 가져오기'용: toSql과 같은 행을 표별 객체 배열로 (comsw_import 입력).
+export function toImportPayload(model, options = {}) {
+  return Object.fromEntries(buildParts(model, options).blocks.map(b =>
+    [b.table, b.rows.map(r => Object.fromEntries(b.columns.map((c, i) => [c, r[i] ?? null])))]));
+}
+
+function buildParts(model, { uuid = () => crypto.randomUUID() } = {}) {
   const ids = new Map();
   const id = key => {
     if (!ids.has(key)) ids.set(key, uuid());

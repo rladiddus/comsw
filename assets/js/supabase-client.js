@@ -43,34 +43,56 @@
     return (cfg.sources && cfg.sources.main) || 'main';
   }
 
+  // 관리 플랫폼에서 '적용'한 내용(시트와 같은 모양의 행)을 RPC로 읽는다.
+  async function rpc(name, args) {
+    if (!cfg.url || !cfg.anonKey) {
+      throw new Error('Supabase 설정이 비어 있습니다.');
+    }
+    const res = await fetch(cfg.url.replace(/\/+$/, '') + '/rest/v1/rpc/' + name, {
+      method: 'POST',
+      headers: {
+        apikey: cfg.anonKey,
+        Authorization: 'Bearer ' + cfg.anonKey,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(args || {})
+    });
+    if (!res.ok) {
+      throw new Error('Supabase HTTP ' + res.status + ' / ' + await res.text());
+    }
+    return res.json();
+  }
+
+  // 전체수업 25번째 칸(인덱스 24) = 그 주차 강사 커리큘럼 이미지 후보. 방문마다 하나를 골라 H(대표 이미지)에 넣는다.
+  function pickWeekImages(rows) {
+    rows.forEach(function(row) {
+      const vals = row && row.data && row.data.values;
+      if (!Array.isArray(vals)) return;
+      const candidates = normalizeText(vals[24]).split(/[\n\r,]+/).map(normalizeText).filter(Boolean);
+      if (candidates.length) vals[7] = candidates[Math.floor(api._random() * candidates.length)];
+    });
+    return rows;
+  }
+
   async function fetchSheetRows(sheetName, sourceId) {
     const source = normalizeText(sourceId) || defaultSourceId();
     const cacheKey = source + '::' + sheetName;
     if (cache[cacheKey]) return cache[cacheKey];
-    if (!cfg.url || !cfg.anonKey || !cfg.rawTable) {
-      throw new Error('Supabase 설정이 비어 있습니다.');
-    }
-
-    const endpoint = cfg.url.replace(/\/+$/, '') + '/rest/v1/' + cfg.rawTable;
-    const url = endpoint
-      + '?select=source_id,sheet_name,row_number,data'
-      + '&source_id=eq.' + encodeURIComponent(source)
-      + '&sheet_name=eq.' + encodeURIComponent(sheetName)
-      + '&order=row_number.asc';
-
-    const res = await fetch(url, {
-      headers: {
-        apikey: cfg.anonKey,
-        Authorization: 'Bearer ' + cfg.anonKey
-      }
-    });
-
-    if (!res.ok) {
-      throw new Error('Supabase HTTP ' + res.status + ' / ' + await res.text());
-    }
-
-    cache[cacheKey] = await res.json();
+    const rows = (await rpc('comsw_site_rows', { p_source: source, p_sheet: sheetName })) || [];
+    cache[cacheKey] = sheetName === '컴수원_전체수업' ? pickWeekImages(rows) : rows;
     return cache[cacheKey];
+  }
+
+  // 특강 신청: 응답 { ok, applied?, duplicate?, error? } (예전 Apps Script 응답과 같은 모양)
+  function applySeminar(title, name, phone) {
+    return rpc('comsw_apply_seminar', { p_title: title, p_name: name, p_phone: phone });
+  }
+
+  // { 특강명: 신청 수 } — 스냅샷의 신청 수는 '적용' 시점 값이라 화면에서 최신 값으로 덮는다.
+  async function fetchSeminarCounts() {
+    const counts = {};
+    ((await rpc('comsw_seminar_counts')) || []).forEach(function(r) { counts[r.title] = r.applied; });
+    return counts;
   }
 
   function splitMultiValue(value) {
@@ -88,8 +110,11 @@
     return '';
   }
 
-  window.ComswSupabase = {
+  const api = window.ComswSupabase = {
     config: cfg,
+    _random: Math.random,
+    applySeminar: applySeminar,
+    fetchSeminarCounts: fetchSeminarCounts,
     normalizeText: normalizeText,
     truthyCell: truthyCell,
     convertDriveUrl: convertDriveUrl,

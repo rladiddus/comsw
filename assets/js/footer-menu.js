@@ -918,8 +918,42 @@
     });
   }
 
+  /** 관리 화면에서 끈 메뉴(메인 페이지 F열 해제)의 페이지를 주소로 직접 열면 '준비 중' 덮개를 띄운다. 메뉴에 없는 페이지는 그대로. */
+  function isPageOff(rows, menuName) {
+    const S = window.ComswSupabase;
+    const key = function(v) { return S.normalizeText(v).replace(/\s+/g, ''); };
+    if (!menuName) return false;
+    const row = rows.find(function(r) { return key(S.getRawValues(r)[4]) === key(menuName); });
+    return !!row && !S.truthyCell(S.getRawValues(row)[5]);
+  }
+  window.ComswFooter = { isPageOff: isPageOff };
+
+  function showIfPageOff() {
+    if (!currentMenuName || !window.ComswSupabase || !window.COMSW_SUPABASE_CONFIG) return;
+    const cfg = window.COMSW_SUPABASE_CONFIG;
+    window.ComswSupabase.fetchSheetRows((cfg.sheets && cfg.sheets.main) || '메인 페이지')
+      .then(function(rows) {
+        if (!isPageOff(rows, currentMenuName) || document.getElementById('comsw-page-off')) return;
+        const cover = document.createElement('div');
+        cover.id = 'comsw-page-off';
+        cover.setAttribute('style', 'position:fixed;inset:0;z-index:100000;display:flex;flex-direction:column;'
+          + 'align-items:center;justify-content:center;gap:16px;background:#fff;color:#222;font-size:20px;font-weight:700;');
+        const text = document.createElement('p');
+        text.textContent = '준비 중입니다';
+        const link = document.createElement('a');
+        link.href = './index.html';
+        link.textContent = '메인으로';
+        link.setAttribute('style', 'font-size:16px;color:#ff6a00;');
+        cover.appendChild(text);
+        cover.appendChild(link);
+        document.body.appendChild(cover);
+      })
+      .catch(function(err) { if (window.console) console.warn('[footer-menu]', err); });
+  }
+
   function start() {
     injectCSS();
+    showIfPageOff();
     const container = injectContainer();
     renderMenus(container, []);
     fetchMenus()

@@ -16,7 +16,10 @@ const PAGES = {
   subjects: () => import("./pages/subjects.mjs"),
   roadmap: () => import("./pages/roadmap.mjs"),
   prep: () => import("./pages/prep.mjs"),
+  instructors: () => import("./pages/instructors.mjs"),
+  curricula: () => import("./pages/curricula.mjs"),
   recruitment: () => import("./pages/recruitment.mjs"),
+  vacation: () => import("./pages/vacation.mjs"),
 };
 
 export function toast(message) {

@@ -1173,7 +1173,7 @@
         const text = document.createElement('p');
         text.textContent = '준비 중입니다';
         const link = document.createElement('a');
-        link.href = './index.html';
+        link.href = './index_tablet.html';
         link.textContent = '메인으로';
         link.setAttribute('style', 'font-size:16px;color:#ff6a00;');
         cover.appendChild(text);

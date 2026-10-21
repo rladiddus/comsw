@@ -45,18 +45,28 @@ test("전체수업 시트는 이미지 후보 중 하나를 H에 넣는다", asy
 
 test("특강 신청·신청 수 RPC", async () => {
   const { window, calls } = site({
-    reply: url => url.endsWith("comsw_apply_seminar") ? { ok: true, applied: 3 } : [{ title: "AI 특강", applied: 2 }],
+    reply: url => url.endsWith("comsw_apply_seminar") ? { ok: true, applied: 3 } : [{ id: "sem-1", applied: 2 }],
   });
-  assert.deepEqual({ ...(await window.ComswSupabase.applySeminar("AI 특강", "이영희", "010-5555-6666")) }, { ok: true, applied: 3 });
-  assert.deepEqual(calls[0].body, { p_title: "AI 특강", p_name: "이영희", p_phone: "010-5555-6666" });
-  assert.deepEqual({ ...(await window.ComswSupabase.fetchSeminarCounts()) }, { "AI 특강": 2 });
+  assert.deepEqual({ ...(await window.ComswSupabase.applySeminar("sem-1", "이영희", "010-5555-6666")) }, { ok: true, applied: 3 });
+  assert.deepEqual(calls[0].body, { p_id: "sem-1", p_name: "이영희", p_phone: "010-5555-6666" });
+  assert.deepEqual({ ...(await window.ComswSupabase.fetchSeminarCounts()) }, { "sem-1": 2 });
   assert.equal(calls[1].url, "https://db.example/rest/v1/rpc/comsw_seminar_counts");
 });
 
 const MENU = [row(2, ["", "", "", "", "전체 수업", "true"]), row(3, ["", "", "", "", "특강/세미나", "false"])];
-for (const [script, off, on] of [
-  ["footer-menu.js", "seminar.html", "roadmap.html"],
-  ["footer-menu-tablet.js", "seminar_tablet.html", "roadmap_tablet.html"],
+test("빈 결과(아직 '적용' 전)는 캐시하지 않고 경고한다", async () => {
+  const { window, calls } = site({ reply: () => [] });
+  const warns = [];
+  window.console.warn = (...a) => warns.push(a.join(" "));
+  await window.ComswSupabase.fetchSheetRows("로드맵");
+  await window.ComswSupabase.fetchSheetRows("로드맵");
+  assert.equal(calls.length, 2);
+  assert.match(warns[0], /로드맵/);
+});
+
+for (const [script, off, on, home] of [
+  ["footer-menu.js", "seminar.html", "roadmap.html", "./index.html"],
+  ["footer-menu-tablet.js", "seminar_tablet.html", "roadmap_tablet.html", "./index_tablet.html"],
 ]) {
   test(`${script}: 꺼진 페이지는 준비 중, 켜진 페이지·메뉴 밖 페이지는 그대로`, async () => {
     const scripts = ["supabase-client.js", script];
@@ -65,7 +75,7 @@ for (const [script, off, on] of [
     const overlay = offSite.window.document.getElementById("comsw-page-off");
     assert.ok(overlay, "덮개");
     assert.match(overlay.textContent, /준비 중입니다/);
-    assert.equal(overlay.querySelector("a").getAttribute("href"), "./index.html");
+    assert.equal(overlay.querySelector("a").getAttribute("href"), home);
     for (const page of [on, "index.html"]) {
       const s = site({ page, reply: () => MENU, scripts });
       await tick();

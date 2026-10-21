@@ -79,19 +79,24 @@
     const cacheKey = source + '::' + sheetName;
     if (cache[cacheKey]) return cache[cacheKey];
     const rows = (await rpc('comsw_site_rows', { p_source: source, p_sheet: sheetName })) || [];
+    if (!rows.length) {
+      // 관리 화면에서 아직 '적용'하지 않았거나 빈 시트. 다음 호출에서 다시 읽도록 캐시하지 않는다.
+      if (window.console) console.warn('[ComswSupabase] 적용된 데이터 없음: ' + source + ' / ' + sheetName);
+      return rows;
+    }
     cache[cacheKey] = sheetName === '컴수원_전체수업' ? pickWeekImages(rows) : rows;
     return cache[cacheKey];
   }
 
-  // 특강 신청: 응답 { ok, applied?, duplicate?, error? } (예전 Apps Script 응답과 같은 모양)
-  function applySeminar(title, name, phone) {
-    return rpc('comsw_apply_seminar', { p_title: title, p_name: name, p_phone: phone });
+  // 특강 신청(특강 id = 특강 및 세미나 행 인덱스 8): 응답 { ok, applied?, duplicate?, error? } (예전 Apps Script 응답과 같은 모양)
+  function applySeminar(seminarId, name, phone) {
+    return rpc('comsw_apply_seminar', { p_id: seminarId || null, p_name: name, p_phone: phone });
   }
 
-  // { 특강명: 신청 수 } — 스냅샷의 신청 수는 '적용' 시점 값이라 화면에서 최신 값으로 덮는다.
+  // { 특강 id: 신청 수 } — 스냅샷의 신청 수는 '적용' 시점 값이라 화면에서 최신 값으로 덮는다.
   async function fetchSeminarCounts() {
     const counts = {};
-    ((await rpc('comsw_seminar_counts')) || []).forEach(function(r) { counts[r.title] = r.applied; });
+    ((await rpc('comsw_seminar_counts')) || []).forEach(function(r) { counts[r.id] = r.applied; });
     return counts;
   }
 

@@ -900,7 +900,7 @@
       const originalText = btn.textContent;
       btn.textContent = '신청 중...';
 
-      window.ComswSupabase.applySeminar(seminar.title, name, phone)
+      window.ComswSupabase.applySeminar(seminar.id, name, phone)
         .then(function(res) {
           isApplying = false;
           btn.disabled = false;
@@ -1282,7 +1282,8 @@
           instructor: instText,
           place: placeText,
           totalCapacity: _semNorm(vals[6]),
-          applied: typeof counts[title] === 'number' ? counts[title] : (Number(vals[7]) || 0),
+          id: _semNorm(vals[8]),
+          applied: typeof counts[_semNorm(vals[8])] === 'number' ? counts[_semNorm(vals[8])] : (Number(vals[7]) || 0),
           isPast: isPast
         });
       });

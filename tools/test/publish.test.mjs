@@ -97,7 +97,7 @@ test("로드맵·준비물·강사·특강·강사 커리큘럼·채용 배치",
   assert.deepEqual(inst[0], ["김민주", "시각편집학과", "포토샵, 일러스트", "경력1", "한마디1", "photo1", "", "여자"]);
 
   const sem = (await sheet(db, "main", "특강 및 세미나")).map(r => r.data.values);
-  assert.deepEqual(sem[0], ["poster", "AI 특강", "소주제", "2026년 8월 18일 14:00-16:00", "홍강사", "F강의장", "25", "2"]);
+  assert.deepEqual(sem[0].slice(0, 8), ["poster", "AI 특강", "소주제", "2026년 8월 18일 14:00-16:00", "홍강사", "F강의장", "25", "2"]);
 
   const web = (await sheet(db, "instructor_curriculum", "웹학과")).map(r => r.data.values);
   assert.deepEqual(web.map(v => [v[0], v[1], v[2], v[4]]), [["김민주", "웹1", "1주차", "정리w1"], ["김민주", "웹1", "2주차", "정리w2"], ["조해리", "웹1", "1주차", "정리j1"]]);
@@ -174,4 +174,14 @@ test("이미지 후보를 더해도 공개 전 데이터는 여전히 직접 뽑
   await assert.rejects(db.query(`select comsw_build_rows()`));
   await as(db, "authenticated", ADMIN);
   await assert.rejects(db.query(`select comsw_build_rows()`));
+});
+
+test("특강 행 9번째 칸(인덱스 8)은 특강 id — 사이트가 이 id로 신청한다", async () => {
+  const db = await published();
+  await as(db, null);
+  const { id } = (await db.query(`select id from seminars where title = 'AI 특강'`)).rows[0];
+  await as(db, "anon");
+  const [row] = await sheet(db, "main", "특강 및 세미나");
+  assert.equal(row.data.values[1], "AI 특강");
+  assert.equal(row.data.values[8], id);
 });

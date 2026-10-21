@@ -15,7 +15,7 @@ declare
   rows jsonb;
   result jsonb := '{}';
 begin
-  if comsw_role() not in ('admin', 'head') then
+  if coalesce(comsw_role(), '') not in ('admin', 'head') then
     raise exception '가져오기 권한이 없습니다';
   end if;
   execute 'truncate ' || (select string_agg(format('public.%I', x), ', ') from unnest(tables) x) || ' cascade';

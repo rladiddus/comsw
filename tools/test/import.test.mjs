@@ -40,6 +40,10 @@ test("선생님·익명은 가져올 수 없다", async () => {
   const payload = toImportPayload(transform(SAMPLE_ROWS));
   await as(db, "authenticated", TEACHER);
   await assert.rejects(run(db, payload), /가져오기 권한이 없습니다/);
+  await as(db, "authenticated", { sub: "x", role: "authenticated" });
+  await assert.rejects(run(db, {}), /가져오기 권한이 없습니다/, "등급 클레임이 없는 로그인 사용자");
+  await as(db, null);
+  assert.ok(await count(db, "subjects") > 0);
   await as(db, "anon");
   await assert.rejects(run(db, payload));
 });

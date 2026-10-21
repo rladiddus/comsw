@@ -9,8 +9,15 @@ async function open() {
   await as(db, "anon");
   return db;
 }
+// 사이트는 스냅샷 행의 특강 id(인덱스 8)로 신청한다. 테스트는 제목으로 id를 찾아 넘긴다.
+const idOf = async (db, title) => {
+  await as(db, null);
+  const id = (await db.query(`select id from seminars where title = $1`, [title])).rows[0]?.id ?? "00000000-0000-0000-0000-000000000000";
+  await as(db, "anon");
+  return id;
+};
 const apply = async (db, title, name, phone) =>
-  (await db.query(`select comsw_apply_seminar($1, $2, $3) as r`, [title, name, phone])).rows[0].r;
+  (await db.query(`select comsw_apply_seminar($1, $2, $3) as r`, [await idOf(db, title), name, phone])).rows[0].r;
 
 test("정상 신청은 저장하고 신청 수를 돌려준다", async () => {
   const db = await open();
@@ -70,11 +77,20 @@ test("날짜 읽기", async () => {
   }
 });
 
-test("신청 수 함수는 이름·연락처 없이 수만", async () => {
+test("관리 화면에서 제목을 바꾸고 아직 적용하지 않아도 신청된다", async () => {
+  const db = await open();
+  const id = await idOf(db, "AI 특강");
+  await as(db, null);
+  await db.exec(`update seminars set title = 'AI 특강 (새 이름)'`);
+  await as(db, "anon");
+  assert.equal((await db.query(`select comsw_apply_seminar($1, '이영희', '010-5555-6666') r`, [id])).rows[0].r.ok, true);
+});
+
+test("신청 수 함수는 이름·연락처·제목 없이 수만", async () => {
   const db = await open();
   const { rows, fields } = await db.query(`select * from comsw_seminar_counts()`);
-  assert.deepEqual(fields.map(f => f.name), ["title", "applied"]);
-  assert.deepEqual(rows, [{ title: "AI 특강", applied: 2 }]);
+  assert.deepEqual(fields.map(f => f.name), ["id", "applied"]);
+  assert.deepEqual(rows, [{ id: await idOf(db, "AI 특강"), applied: 2 }]);
 });
 
 test("익명은 신청 명단을 직접 읽지 못한다", async () => {

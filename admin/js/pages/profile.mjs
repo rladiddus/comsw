@@ -28,9 +28,13 @@ export async function render(container, ctx) {
     const layout = el("div", { className: "workspace-grid" });
     const form = el("form", { className: "workspace-card profile-form" });
     form.append(el("h3", { textContent: "선생님 소개" }));
-    const name = field(form, "이름", "name", "text", draft?.name ?? own.name);
-    name.required = true;
-    name.maxLength = 80;
+    // 이름은 강사 정보(쌤톡 이름)를 그대로 쓴다. 바꿔야 하면 관리자가 '강사'에서 고친다.
+    const name = field(form, "이름", "name", "text", own.name);
+    name.readOnly = true;
+    form.append(el("p", {
+      className: "muted",
+      textContent: "이름은 바꿀 수 없습니다. 고쳐야 하면 관리자에게 요청해주세요.",
+    }));
     const career = field(
       form,
       "경력",
@@ -39,6 +43,15 @@ export async function render(container, ctx) {
       draft?.career ?? own.career ?? "",
     );
     career.maxLength = 10000;
+    career.rows = 7;
+    career.placeholder = [
+      "예시)",
+      "現 SBS아카데미 수원지점 시각편집학과 전임강사",
+      "前 ○○디자인 스튜디오 그래픽 디자이너",
+      "2025 ○○기업 브랜드 리뉴얼 프로젝트 디자인",
+      "2024 ○○문화재단 독립출판 북디자인",
+      "저서 『○○ 실무 가이드』",
+    ].join("\n");
     const message = field(
       form,
       "한마디",
@@ -47,6 +60,8 @@ export async function render(container, ctx) {
       draft?.message ?? own.message ?? "",
     );
     message.maxLength = 2000;
+    message.placeholder =
+      "예시) 혼자서는 막막했던 그때를 기억하며, 기초부터 실무까지 차근차근 함께 완성하겠습니다!";
     form.append(
       el("h3", { textContent: "프로필 생성용 본인 사진" }),
       el("p", {

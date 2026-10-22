@@ -83,19 +83,19 @@ test("과목: '전체수업에서 빼기'는 순서를 비우고 두 목록을 �
   assert.equal(tableOf(c, "전체수업 과목").querySelectorAll("tbody tr").length, 2);
 });
 
-test("과목: 주차 버튼으로 그 과목 주차만 연다", async () => {
+test("과목: 단계 버튼으로 그 과목 단계만 연다", async () => {
   const { c } = await renderPage("../js/pages/subjects.mjs");
-  buttons(tableOf(c, "전체수업 과목"), "주차")[0].click();
+  buttons(tableOf(c, "전체수업 과목"), "단계")[0].click();
   await flush();
-  const weeks = tableOf(c, "주차");
+  const weeks = tableOf(c, "단계");
   assert.deepEqual([...weeks.querySelectorAll("tbody tr")].map(tr => tr.querySelector("input").value), ["1주차", "2주차"]);
 });
 
-test("과목 삭제 경고에 주차·강사 커리큘럼이 나온다", async () => {
+test("과목 삭제 경고에 단계·강사 커리큘럼이 나온다", async () => {
   const { c } = await renderPage("../js/pages/subjects.mjs");
   buttons(tableOf(c, "전체수업 과목"), "삭제")[0].click();
   await flush();
-  assert.equal(lastConfirm, "'포토샵' 과목을(를) 삭제하면 주차 2개, 강사 커리큘럼 1개도 함께 삭제됩니다. 삭제할까요?");
+  assert.equal(lastConfirm, "'포토샵' 과목을(를) 삭제하면 단계 2개, 강사 커리큘럼 1개도 함께 삭제됩니다. 삭제할까요?");
 });
 
 test("기타 과목 '+ 추가'는 전체수업 과목과 겹치지 않는 이름, 순서 없음으로 넣는다", async () => {
@@ -177,5 +177,5 @@ test("과목 삭제 경고에 강사 담당 과목 연결도 나온다", async (
   const { c } = await renderPage("../js/pages/subjects.mjs", tables);
   buttons(tableOf(c, "전체수업 과목"), "삭제")[1].click();
   await flush();
-  assert.equal(lastConfirm, "'웹1' 과목을(를) 삭제하면 주차 1개, 강사 담당 과목 1개도 함께 삭제됩니다. 삭제할까요?");
+  assert.equal(lastConfirm, "'웹1' 과목을(를) 삭제하면 단계 1개, 강사 담당 과목 1개도 함께 삭제됩니다. 삭제할까요?");
 });

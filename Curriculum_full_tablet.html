@@ -966,7 +966,7 @@
 
 <script>
   /**
-   * 커리큘럼 카테고리 - 학과의 과목별/주차별 슬라이드들을 생성
+   * 커리큘럼 카테고리 - 학과의 과목별/단계별 슬라이드들을 생성
    * @param {string} deptName - 학과명 (예: "시각편집학과")
    * @param {string} engHeader - 영문 헤더 (예: "VISUAL EDITING")
    * @param {Array} subjects - 과목 배열 (서버에서 받은 데이터)
@@ -975,7 +975,7 @@
   function createCurriculumPages(deptName, engHeader, subjects) {
     const slides = [];
     
-    // 🎯 라이트박스용 - 학과 전체 주차를 평탄화한 배열 만들기
+    // 🎯 라이트박스용 - 학과 전체 단계를 평탄화한 배열 만들기
     // [{ subjectName, week: {title, content, img} }, ...]
     window.flatWeeksForLightbox = [];
     if (subjects && subjects.length > 0) {
@@ -2201,7 +2201,7 @@
     border-top-right-radius: 30px;
     border-bottom-left-radius: 30px;
     overflow: hidden;
-    margin-bottom: 24px;            /* 피그마: 이미지 하단 ~ 주차 라벨 = 677→693 */
+    margin-bottom: 24px;            /* 피그마: 이미지 하단 ~ 단계 라벨 = 677→693 */
     display: flex;
     justify-content: center;
     align-items: center;
@@ -2224,7 +2224,7 @@
     font-size: 16px;
     color: #aaa;
   }
-  /* 🎯 주차 라벨 (피그마: 32px Bold black) */
+  /* 🎯 단계 라벨 (피그마: 32px Bold black) */
   .week-card-mini .week-label {
     font-size: 2.96vh;              /* 32/1080 */
     font-weight: 700;
@@ -2869,7 +2869,7 @@
       loadInstructorFlatWeeks(dept, instructorName);
     }
 
-    // 🎯 카드 클릭 → 큰 라이트박스 (강사의 모든 과목·주차 평탄화 데이터 기반)
+    // 🎯 카드 클릭 → 큰 라이트박스 (강사의 모든 과목·단계 평탄화 데이터 기반)
     box.querySelectorAll('.img-box-mini[data-week]').forEach(card => {
       card.addEventListener('click', function(e) {
         e.stopPropagation();
@@ -4195,7 +4195,7 @@
 
 <!-- 🎯 썸네일 라이트박스 (커리큘럼 이미지 확대) -->
   <div id="lightbox-overlay">
-    <button class="lightbox-nav prev" id="lightbox-prev" title="이전 주차">
+    <button class="lightbox-nav prev" id="lightbox-prev" title="이전 단계">
       <svg viewBox="0 0 24 24">
         <polyline points="15 6 9 12 15 18"></polyline>
       </svg>
@@ -4214,7 +4214,7 @@
       </div>
     </div>
     
-    <button class="lightbox-nav next" id="lightbox-next" title="다음 주차">
+    <button class="lightbox-nav next" id="lightbox-next" title="다음 단계">
       <svg viewBox="0 0 24 24">
         <polyline points="9 6 15 12 9 18"></polyline>
       </svg>

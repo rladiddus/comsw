@@ -47,7 +47,7 @@ const data = {
     instructor_id: "demo-teacher",
     set_id: "design-set",
     subject_id: "photoshop",
-    step_label: "1주차",
+    step_label: "1단계",
     written:
       "포토샵의 기본 화면을 이해하고 선택 도구와 레이어를 활용해 나만의 첫 포스터를 제작합니다.",
     summary: "기본 도구와 레이어를 활용한 포스터 제작",

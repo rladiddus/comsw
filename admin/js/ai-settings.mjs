@@ -33,7 +33,7 @@ export async function mountAiSettings(container, supabase) {
   try {
     const settings = await rows(supabase, "site_settings");
     const labels = {
-      week: "주차별 커리큘럼 요약",
+      week: "단계별 커리큘럼 요약",
       department: "학과별 커리큘럼 요약",
       roadmap: "로드맵 요약",
       profile: "프로필 사진 지시문",

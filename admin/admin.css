@@ -152,3 +152,27 @@ details summary { cursor:pointer; font-weight:650; }
 .crop-canvas:active { cursor:grabbing; }
 .crop-control { display:grid; grid-template-columns:95px minmax(0,1fr); align-items:center; gap:12px; margin:12px 0; font-size:13px; }
 .crop-control input { width:100%; accent-color:var(--accent); }
+
+/* 내 커리큘럼: 등록하기·조회하기 탭, 단계 줄, 이미지 업로드/링크 선택 */
+.tab-bar { display:flex; gap:4px; margin:20px 0 0; border-bottom:1px solid var(--line); }
+.tab-bar button { padding:10px 18px; border:0; border-bottom:3px solid transparent; background:none; font-weight:600; color:var(--muted); cursor:pointer; }
+.tab-bar button.active { color:var(--accent); border-bottom-color:var(--accent); }
+.workspace-single { max-width:860px; margin-top:20px; }
+.form-row { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+.form-row .form-field { margin:12px 0; }
+.step-row { border:1px solid var(--line); border-radius:12px; padding:4px 16px 16px; margin:14px 0; background:#fcfcfd; }
+.step-head { display:grid; grid-template-columns:minmax(0,2fr) minmax(0,1fr) auto; gap:12px; align-items:end; }
+.step-head .form-field { margin:12px 0 0; }
+.step-head .danger { margin-bottom:2px; color:#e03131; }
+.add-step { width:100%; border-style:dashed; color:var(--accent); font-weight:700; }
+.media-picker { display:flex; flex-direction:column; gap:10px; margin-top:6px; }
+.field-label { font-weight:600; }
+.segmented { display:inline-flex; align-self:flex-start; border:1px solid var(--line); border-radius:9px; overflow:hidden; }
+.segmented button { padding:7px 14px; border:0; background:#fff; color:var(--muted); cursor:pointer; }
+.segmented button + button { border-left:1px solid var(--line); }
+.segmented button.active { background:#fff0eb; color:var(--accent); font-weight:700; }
+.media-link { margin:0; }
+.form-field input[readonly] { background:#f4f5f7; color:#555; }
+@media (max-width:640px) {
+  .form-row, .step-head { grid-template-columns:1fr; }
+}

@@ -12,7 +12,7 @@ function el(tag, props = {}, children = []) {
 
 // sort_order가 비어 있는 과목은 공개 사이트 '전체수업'에 나오지 않는다(2단계 스냅샷 규칙).
 export async function render(container, { supabase }) {
-  container.append(el("h2", { textContent: "과목·주차" }));
+  container.append(el("h2", { textContent: "과목·단계" }));
   const { data: depts } = await supabase.from("departments").select("id, name").order("sort_order");
   const columns = [
     { key: "name", label: "과목명", type: "text", required: true },
@@ -29,7 +29,7 @@ export async function render(container, { supabase }) {
   const weeks = el("section");
   const allRows = () => [...main.rows(), ...other.rows()];
   const deleteConfirm = async row => cascadeMessage("과목", row.name, [
-    ["주차", await countRows(supabase, "subject_weeks", "subject_id", row.id)],
+    ["단계", await countRows(supabase, "subject_weeks", "subject_id", row.id)],
     ["강사 커리큘럼", await countRows(supabase, "instructor_curricula", "subject_id", row.id)],
     ["강사 담당 과목", await countRows(supabase, "instructor_subjects", "subject_id", row.id)],
     ["준비물", await countRows(supabase, "course_prep_items", "subject_id", row.id)],
@@ -49,11 +49,11 @@ export async function render(container, { supabase }) {
     mountTableEditor(weeks, {
       supabase,
       table: "subject_weeks",
-      title: `주차 — ${row.name}`,
+      title: `단계 — ${row.name}`,
       filter: q => q.eq("subject_id", row.id),
-      defaults: rows => ({ subject_id: row.id, week_label: `${rows.length + 1}주차` }),
+      defaults: rows => ({ subject_id: row.id, week_label: `${rows.length + 1}단계` }),
       columns: [
-        { key: "week_label", label: "주차", type: "text", required: true },
+        { key: "week_label", label: "단계", type: "text", required: true },
         { key: "written", label: "커리큘럼 원문", type: "textarea" },
         { key: "summary", label: "AI 요약", type: "textarea", ai:'week', source:'written' },
         { key: "image_url", label: "대표 이미지", type: "image", uploadKind:'curriculum' },
@@ -69,7 +69,7 @@ export async function render(container, { supabase }) {
     filter: q => q.not("sort_order", "is", null),
     defaults: () => ({ name: freeName("새 과목", allRows(), "name") }),
     extraActions: [
-      { label: "주차", onClick: showWeeks },
+      { label: "단계", onClick: showWeeks },
       { label: "전체수업에서 빼기", onClick: row => setOrder(row, null) },
     ],
   });

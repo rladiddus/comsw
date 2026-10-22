@@ -5,7 +5,7 @@ export const NAV = [
   { id: "loading", label: "로딩 화면", manage: true, ready: true },
   { id: "seminars", label: "특강·세미나", manage: true, ready: true },
   { id: "departments", label: "학과", manage: true, ready: true },
-  { id: "subjects", label: "과목·주차", manage: true, ready: true },
+  { id: "subjects", label: "과목·단계", manage: true, ready: true },
   { id: "roadmap", label: "로드맵", manage: true, ready: true },
   { id: "prep", label: "수업별 준비물", manage: true, ready: true },
   { id: "instructors", label: "강사", manage: true, ready: true },

@@ -895,7 +895,7 @@
 
   <!-- 썸네일 라이트박스 -->
   <div id="lightbox-overlay">
-    <button class="lightbox-nav prev" id="lightbox-prev" title="이전 주차">
+    <button class="lightbox-nav prev" id="lightbox-prev" title="이전 단계">
       <svg viewBox="0 0 24 24">
         <polyline points="15 6 9 12 15 18"></polyline>
       </svg>
@@ -912,7 +912,7 @@
       </div>
     </div>
     
-    <button class="lightbox-nav next" id="lightbox-next" title="다음 주차">
+    <button class="lightbox-nav next" id="lightbox-next" title="다음 단계">
       <svg viewBox="0 0 24 24">
         <polyline points="9 6 15 12 9 18"></polyline>
       </svg>
@@ -1186,9 +1186,9 @@
       return { engName: engName, subjects: subjects };
     }
 
-    // [getCurriculumByDept]의 Supabase 대체 (서브젝트 팝업용 — 주차별 상세)
+    // [getCurriculumByDept]의 Supabase 대체 (서브젝트 팝업용 — 단계별 상세)
     //  Curriculum_full_supabase_test와 동일한 로직: O열==deptName인 학과의
-    //  B열(학과 키워드) 매칭 + C열(과목명) + D열(주차) + F열(내용) + H열(이미지)
+    //  B열(학과 키워드) 매칭 + C열(과목명) + D열(단계) + F열(내용) + H열(이미지)
     async function getCurriculumByDeptFromSupabase(deptName) {
       const rows = await window.ComswSupabase.fetchSheetRows(_curSheets().curriculum || '컴수원_전체수업');
       const deptKeyword = _curNorm(deptName).replace(/학과$/, '').trim();

@@ -75,7 +75,7 @@
     return res.json();
   }
 
-  // 전체수업 25번째 칸(인덱스 24) = 그 주차 강사 커리큘럼 이미지 후보. 방문마다 하나를 골라 H(대표 이미지)에 넣는다.
+  // 전체수업 25번째 칸(인덱스 24) = 그 단계 강사 커리큘럼 이미지 후보. 방문마다 하나를 골라 H(대표 이미지)에 넣는다.
   function pickWeekImages(rows) {
     rows.forEach(function(row) {
       const vals = row && row.data && row.data.values;

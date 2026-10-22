@@ -328,36 +328,53 @@ export async function render(container, ctx, { tab } = {}) {
         }),
       );
     }
+    // 이미지를 누르면 크게 보여 준다(바깥이나 이미지를 누르면 닫힘).
+    const zoom = el("dialog", { className: "image-zoom" });
+    zoom.addEventListener("click", () => zoom.close?.());
+    const openZoom = (url, alt) => {
+      zoom.replaceChildren(el("img", { src: driveThumbnail(url), alt }));
+      if (zoom.showModal) zoom.showModal();
+      else zoom.setAttribute("open", "");
+    };
+    list.append(zoom);
     for (const row of submitted) {
       const pending = row.status === "pending";
       const card = el("article", { className: "submission-card" });
+      const title = `${subjectName(row.subject_id)} · ${row.step_label}`;
+      // 보기: 왼쪽 내용, 오른쪽 이미지(한 화면에 여러 단계가 보이게).
       const view = () => {
+        card.className = "submission-card submission-row";
         const edit = el("button", {
           type: "button",
           className: "ghost-btn",
           textContent: "수정",
         });
         edit.addEventListener("click", editor);
-        card.replaceChildren(
+        const actions = el("div", { className: "card-actions" }, [edit]);
+        const info = el("div", { className: "submission-info" }, [
           el("span", {
             className: `status-pill ${pending ? "pending" : "approved"}`,
             textContent: pending ? "승인 대기" : "승인됨",
           }),
-          el("h4", { textContent: `${subjectName(row.subject_id)} · ${row.step_label}` }),
+          el("h4", { textContent: title }),
           el("p", {
             className: "muted",
             textContent: sets.find((s) => s.id === row.set_id)?.name || "",
           }),
           el("p", { className: "submission-text", textContent: row.written || "" }),
-          ...(row.media_url
-            ? [el("img", {
-              className: "curriculum-preview",
-              src: driveThumbnail(row.media_url),
-              alt: `${row.step_label} 이미지`,
-            })]
-            : []),
-          edit,
-        );
+          actions,
+        ]);
+        const thumb = row.media_url
+          ? el("button", {
+            type: "button",
+            className: "submission-thumb",
+            title: "크게 보기",
+          }, [el("img", { src: driveThumbnail(row.media_url), alt: `${title} 이미지` })])
+          : el("div", { className: "submission-thumb empty", textContent: "이미지 없음" });
+        if (row.media_url) {
+          thumb.addEventListener("click", () => openZoom(row.media_url, `${title} 이미지`));
+        }
+        card.replaceChildren(info, thumb);
         if (pending) {
           const del = el("button", {
             type: "button",
@@ -380,29 +397,43 @@ export async function render(container, ctx, { tab } = {}) {
               del.disabled = false;
             }
           });
-          card.append(del);
+          actions.append(del);
         }
       };
+      // 수정: 등록하기와 같은 한 줄 배치. 과목·단계는 바꿀 수 없다(바꾸려면 새로 등록).
       function editor() {
+        card.className = "submission-card";
+        const fixed = (label, value) =>
+          el("label", { className: "form-field" }, [
+            el("span", { textContent: label }),
+            el("input", { type: "text", value, readOnly: true }),
+          ]);
         const written = el("textarea", {
-          rows: 6,
+          name: "written",
           maxLength: 12000,
           value: row.written || "",
         });
+        const mediaBox = el("div", { className: "step-media" });
         card.replaceChildren(
-          el("h4", { textContent: `${subjectName(row.subject_id)} · ${row.step_label} 수정` }),
+          el("h4", { textContent: `${title} 수정` }),
           el("p", {
             className: "muted",
             textContent: pending
               ? "저장하면 승인 대기 내용이 바뀝니다."
               : "승인된 내용은 그대로 두고, 수정본을 승인 요청합니다.",
           }),
-          el("label", { className: "form-field" }, [
-            el("span", { textContent: "개인 수업 커리큘럼" }),
-            written,
+          el("section", { className: "step-row" }, [
+            fixed("과목", subjectName(row.subject_id)),
+            fixed("단계", row.step_label),
+            el("label", { className: "form-field" }, [
+              el("span", { textContent: "개인 수업 커리큘럼" }),
+              written,
+            ]),
+            mediaBox,
+            el("span"),
           ]),
         );
-        const media = mediaPicker(card, row.media_url || "");
+        const media = mediaPicker(mediaBox, row.media_url || "");
         const save = el("button", {
           type: "button",
           className: "publish-btn",

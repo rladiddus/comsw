@@ -282,3 +282,30 @@ test("내 프로필: 처음 쓰는 선생님은 바로 작성 화면", async () 
   assert.equal(c.querySelector("form.profile-form").hidden, false);
   assert.equal(c.querySelector(".profile-view").hidden, true);
 });
+
+test("조회하기: 내용 오른쪽에 이미지가 한 줄로 있고, 누르면 크게 보인다", async () => {
+  const data = tables();
+  data.instructor_curricula[0].media_url = "https://img.example/step1.webp";
+  const { c } = await setup("mine", data);
+  const card = c.querySelector(".submission-card");
+  assert.ok(card.classList.contains("submission-row"));
+  const thumb = card.querySelector(".submission-thumb");
+  assert.equal(thumb.querySelector("img").getAttribute("src"), "https://img.example/step1.webp");
+  assert.equal(card.lastElementChild, thumb, "이미지는 오른쪽");
+  thumb.click();
+  const zoom = c.querySelector("dialog.image-zoom");
+  assert.ok(zoom.open || zoom.hasAttribute("open"));
+  assert.equal(zoom.querySelector("img").getAttribute("src"), "https://img.example/step1.webp");
+});
+
+test("조회하기 수정: 등록하기와 같은 한 줄 배치이고 과목·단계는 고정", async () => {
+  const { c } = await setup("mine");
+  findButton(c, "수정").click();
+  const row = c.querySelector(".submission-card .step-row");
+  assert.ok(row);
+  const labels = [...row.querySelectorAll(":scope > .form-field > span")].map((s) => s.textContent);
+  assert.deepEqual(labels, ["과목", "단계", "개인 수업 커리큘럼"]);
+  assert.ok(row.querySelector(".media-picker"));
+  const [subject, step] = row.querySelectorAll("input[readonly]");
+  assert.deepEqual([subject.value, step.value], ["웹1", "1주차"]);
+});

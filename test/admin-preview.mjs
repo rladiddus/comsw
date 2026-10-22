@@ -59,6 +59,31 @@ const data = {
   site_settings: [],
 };
 
+// 조회하기 화면 확인용: 김선생의 승인된 2~4단계(이미지는 내장 SVG).
+const sample = (n, color) =>
+  "data:image/svg+xml," + encodeURIComponent(
+    `<svg xmlns="http://www.w3.org/2000/svg" width="1000" height="1000"><rect width="1000" height="1000" fill="${color}"/><text x="500" y="540" font-size="140" text-anchor="middle" fill="#fff" font-family="sans-serif">${n}단계</text></svg>`,
+  );
+data.instructor_curricula[0].step_label = "1단계";
+data.instructor_curricula[0].media_url = sample(1, "#fa491d");
+for (const [n, color, text] of [
+  [2, "#2f6fed", "선택 도구와 마스크로 사진을 합성하고, 보정 레이어로 분위기를 맞춥니다."],
+  [3, "#1c9a6c", "타이포그래피와 그리드를 활용해 SNS 카드뉴스 3종을 완성합니다."],
+  [4, "#8a4fd8", "지금까지 만든 결과물을 정리해 포트폴리오 한 페이지로 구성합니다."],
+]) {
+  data.instructor_curricula.push({
+    id: `curriculum-demo-${n}`,
+    instructor_id: "demo-teacher",
+    set_id: "design-set",
+    subject_id: "photoshop",
+    step_label: `${n}단계`,
+    written: text,
+    status: "approved",
+    sort_order: n,
+    media_url: sample(n, color),
+  });
+}
+
 // 확인할 사람. 선생님과 학과장이 같은 예시 데이터를 써서 '제출 → 학과장 승인' 흐름을 이어 볼 수 있다.
 const PEOPLE = {
   newbie: { role: "teacher", uid: "newbie", name: "이새봄", badge: "선생님 · 처음 방문" },

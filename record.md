@@ -3,6 +3,15 @@
 > 작업 전 이 파일을 먼저 읽는다. 공개 사이트 예전 작업 기록은 `gpt.md`.
 > 이 파일에는 비밀 키·개인정보(신청자 이름·연락처)를 적지 않는다.
 
+## 같은 이름 강사 구분 (2026-10-22, 조사·결정만, 코딩 전)
+
+- 문제: 강사 계정 연결 카드가 계정 번호(uid)만 보여 주고, 선생님 화면 후보도 "김민주 · 연결 요청"만 있어 같은 이름을 구분할 수 없다. 운영 DB에서 이름이 겹치는 강사는 김민주 3명뿐(자격증학과·사이트 꺼짐 / 시각편집·AI학과 / 웹학과).
+- 쌤톡 로그인 토큰(이메일 로그인)에는 `email`, `email_verified`만 있고 이름·연락처는 없다.
+- **사용자 결정**
+  - 관리 화면 연결 카드: **요청자 이메일**(요청 시 토큰에서 저장, uid 대신 표시) + **대상 강사의 학과·담당 과목**.
+  - 선생님 화면 후보: **학과 + 담당 과목 일부**(예: 포토샵, 일러스트, 포토웍스 외 8개). 경력·사진·커리큘럼 수는 보이지 않는다.
+- 구현 시 손댈 곳: `comsw_instructor_candidates`(학과·과목 반환), `instructor_link_requests`에 요청자 이메일 칸 + `comsw_request_instructor_link`, `admin/js/teacher-workspace.mjs`, `admin/js/instructor-review.mjs`.
+
 ## 이미지 저장소 전환·캐시 (2026-10-22)
 
 - **결정**: 구글 드라이브 OAuth 대신, 공개 이미지는 Firebase 프로젝트 `sbs-com-sw`(쌤톡과 분리, 기존 GCP 프로젝트에 Firebase 추가, Blaze) Storage **서울 asia-northeast3**(사용자 선택, 무료 구간 없음 → 전송량 과금), 본인 사진 원본은 Supabase 비공개 버킷 `comsw-private`. Supabase 무료 전송량(월 5GB)으로는 기존 이미지 전체를 감당하기 어려워 Firebase로 정함.

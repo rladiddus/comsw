@@ -142,7 +142,7 @@ export async function render(container, ctx, { tab } = {}) {
       ];
     };
     const [dept, deptField] = select("학과", "department");
-    const [set, setField] = select("커리큘럼 탭", "set_id");
+    const [set, setField] = select("과목", "set_id");
     form.append(el("div", { className: "form-row" }, [deptField, setField]));
     const options = (input, list) =>
       input.replaceChildren(
@@ -181,7 +181,8 @@ export async function render(container, ctx, { tab } = {}) {
         required: true,
         placeholder: "이 단계에서 배우는 내용과 결과물을 적어주세요.",
       });
-      box.append(
+      // 왼쪽: 과목·단계·내용, 오른쪽: 커리큘럼 이미지
+      const left = el("div", { className: "step-main" }, [
         el("div", { className: "step-head" }, [
           subjectField,
           el("label", { className: "form-field" }, [
@@ -194,8 +195,10 @@ export async function render(container, ctx, { tab } = {}) {
           el("span", { textContent: "개인 수업 커리큘럼" }),
           written,
         ]),
-      );
-      const media = mediaPicker(box);
+      ]);
+      const right = el("div", { className: "step-media" });
+      box.append(left, right);
+      const media = mediaPicker(right);
       const step = { box, subject, stepInput, written, media };
       remove.addEventListener("click", () => {
         if (steps.length === 1) {

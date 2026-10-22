@@ -157,10 +157,11 @@ details summary { cursor:pointer; font-weight:650; }
 .tab-bar { display:flex; gap:4px; margin:20px 0 0; border-bottom:1px solid var(--line); }
 .tab-bar button { padding:10px 18px; border:0; border-bottom:3px solid transparent; background:none; font-weight:600; color:var(--muted); cursor:pointer; }
 .tab-bar button.active { color:var(--accent); border-bottom-color:var(--accent); }
-.workspace-single { max-width:860px; margin-top:20px; }
+.workspace-single { max-width:1120px; margin-top:20px; }
 .form-row { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
 .form-row .form-field { margin:12px 0; }
-.step-row { border:1px solid var(--line); border-radius:12px; padding:4px 16px 16px; margin:14px 0; background:#fcfcfd; }
+.step-row { display:grid; grid-template-columns:minmax(0,1.4fr) minmax(260px,1fr); gap:24px; border:1px solid var(--line); border-radius:12px; padding:4px 16px 16px; margin:14px 0; background:#fcfcfd; }
+.step-media { padding-top:12px; }
 .step-head { display:grid; grid-template-columns:minmax(0,2fr) minmax(0,1fr) auto; gap:12px; align-items:end; }
 .step-head .form-field { margin:12px 0 0; }
 .step-head .danger { margin-bottom:2px; color:#e03131; }
@@ -174,5 +175,5 @@ details summary { cursor:pointer; font-weight:650; }
 .media-link { margin:0; }
 .form-field input[readonly] { background:#f4f5f7; color:#555; }
 @media (max-width:640px) {
-  .form-row, .step-head { grid-template-columns:1fr; }
+  .form-row, .step-head, .step-row { grid-template-columns:1fr; }
 }

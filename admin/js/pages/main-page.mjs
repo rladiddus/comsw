@@ -3,6 +3,8 @@ import { dbErrorMessage } from "../fields.mjs";
 import { driveThumbnail } from "../drive.mjs";
 import { freeName } from "../order.mjs";
 import { SITE_PAGES } from "../preview.mjs";
+import { mountAiSettings } from '../ai-settings.mjs';
+import { mountImageUpload } from '../image-upload.mjs';
 
 const MENU_NAMES = SITE_PAGES.slice(1).map(p => p.name).join(", ");
 
@@ -36,7 +38,11 @@ async function settingsForm(container, supabase) {
     const preview = () => { const s = driveThumbnail(input.value); img.hidden = !s; if (s) img.src = s; };
     preview();
     input.addEventListener("change", () => { preview(); save(key, input.value.trim()); });
-    return [el("label", { textContent: label }), input, img];
+    const upload=el('div');mountImageUpload(upload,{onUploaded:async asset=>{
+      const {error}=await supabase.from('site_settings').upsert({key,value:asset.url});
+      if(error)throw new Error(dbErrorMessage(error));input.value=asset.url;preview();
+    }});
+    return [el("label", { textContent: label }), input, img,upload];
   }
 
   const select = el("select", {}, [
@@ -89,4 +95,5 @@ export async function render(container, { supabase, preview }) {
     ] : [],
   });
   await settingsForm(container, supabase);
+  await mountAiSettings(container,supabase);
 }

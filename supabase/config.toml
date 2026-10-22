@@ -1,0 +1,5 @@
+project_id = "comsw"
+
+[functions.comsw-tools]
+# Firebase RS256 토큰은 함수 본문에서 issuer/audience/서명/역할을 확인한다.
+verify_jwt = false

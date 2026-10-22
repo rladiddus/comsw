@@ -75,15 +75,17 @@ test("선생님은 본인의 확인 대기(pending) 제출물은 고치고 지�
   await as(db, "authenticated", T1);
   await db.query(`insert into instructor_curricula(set_id, instructor_id, subject_id, step_label, status)
     select s.id, i.id, j.id, '2주차', 'pending' from curriculum_sets s, instructors i, subjects j where i.account_uid='uid-t1'`);
-  assert.equal((await db.query(`update instructor_curricula set summary='y' where status='pending' returning id`)).rows.length, 1);
+  assert.equal((await db.query(`update instructor_curricula set written='수정 원문' where status='pending' returning id`)).rows.length, 1);
+  await assert.rejects(db.query(`update instructor_curricula set summary='임의 요약' where status='pending'`),/학과장/);
   assert.equal((await db.query(`delete from instructor_curricula where status='pending' returning id`)).rows.length, 1);
 });
 
 test("선생님은 다른 선생님 커리큘럼을 만들 수 없다", async () => {
   const db = await seeded();
+  const other = (await db.query("select id from instructors where account_uid='uid-t2'")).rows[0].id;
   await as(db, "authenticated", T1);
   await assert.rejects(db.query(`insert into instructor_curricula(set_id, instructor_id, subject_id, step_label, status)
-    select s.id, i.id, j.id, '9주차', 'pending' from curriculum_sets s, instructors i, subjects j where i.account_uid='uid-t2'`));
+    select s.id, $1, j.id, '9주차', 'pending' from curriculum_sets s, subjects j`, [other]));
 });
 
 test("선생님은 과목을 고칠 수 없다", async () => {

@@ -12,11 +12,12 @@ export const NAV = [
   { id: "curricula", label: "강사 커리큘럼", manage: true, ready: true },
   { id: "recruitment", label: "채용 공고", manage: true, ready: true },
   { id: "vacation", label: "방학 특강", manage: true, ready: true },
-  { id: "mine", label: "내 커리큘럼", manage: false, ready: false },
+  { id: "mine", label: "내 커리큘럼", manage: false, ready: true },
+  { id: "profile", label: "내 프로필", manage: false, ready: true },
 ];
 
 export function navFor(role) {
-  if (canManage(role)) return NAV.filter(n => n.manage);
+  if (canManage(role)) return NAV;
   if (role === "teacher") return NAV.filter(n => !n.manage);
   return [];
 }

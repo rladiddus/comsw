@@ -6,6 +6,7 @@ import { dbErrorMessage } from "./fields.mjs";
 import { mountPage, clearApp } from "./mount.mjs";
 import { auth } from "./firebase.mjs";
 import { SITE_PAGES, previewUrl, openPreview } from "./preview.mjs";
+import { configureServices, createServices } from './services.mjs';
 
 const $ = sel => document.querySelector(sel);
 const PAGES = {
@@ -20,6 +21,8 @@ const PAGES = {
   curricula: () => import("./pages/curricula.mjs"),
   recruitment: () => import("./pages/recruitment.mjs"),
   vacation: () => import("./pages/vacation.mjs"),
+  mine: () => import('./pages/mine.mjs'),
+  profile: () => import('./pages/profile.mjs'),
 };
 
 export function toast(message) {
@@ -76,11 +79,15 @@ async function route() {
   }));
   if (!item) { $("#content").replaceChildren(); return; }
   const load = item.ready && PAGES[id] ? PAGES[id] : () => import("./pages/placeholder.mjs");
-  await mountPage($("#content"), load, { supabase, role: session.role, label: item.label, id, preview });
+  try {
+    await mountPage($("#content"), load, { supabase, ...session, label: item.label, id, preview });
+  } catch (err) { toast(dbErrorMessage(err)); }
 }
 
-export function startApp({ role, email }) {
-  session = { role, email };
+export function startApp({ role, email, uid, displayName }) {
+  session = { role, email, uid, displayName };
+  const cfg = window.COMSW_SUPABASE_CONFIG;
+  configureServices(createServices({ ...cfg, getToken: () => auth.currentUser?.getIdToken() }));
   $("#loginWrap").hidden = true;
   $("#appView").hidden = false;
   $("#userEmail").textContent = email;
@@ -98,6 +105,7 @@ export function startApp({ role, email }) {
 export function stopApp() {
   window.removeEventListener("hashchange", route);
   session = null;
+  configureServices();
   // 공용 PC에서 다음 사람이 이전 화면(신청자 연락처 등)을 보지 못하게 비운다.
   clearApp([$("#content"), $("#sideNav")], [$("#userEmail"), $("#userRole"), $("#publishInfo")]);
   $("#appView").hidden = true;

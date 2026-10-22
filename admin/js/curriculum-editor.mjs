@@ -14,8 +14,8 @@ export async function mountCurriculumEditor(container, { supabase, setId, extraC
     { key: "subject_id", label: "과목", type: "select", options: (subjects || []).map(s => ({ value: s.id, label: s.name })) },
     { key: "step_label", label: "주차", type: "text", required: true },
     { key: "written", label: "원문", type: "textarea" },
-    { key: "summary", label: "정리", type: "textarea" },
-    { key: "media_url", label: "이미지·영상", type: "image" },
+    { key: "summary", label: "정리", type: "textarea", ai:'week', source:'written' },
+    { key: "media_url", label: "이미지·영상", type: "image", uploadKind:'curriculum' },
     ...extraColumns,
   ];
   const body = document.createElement("div");

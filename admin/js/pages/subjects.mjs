@@ -19,7 +19,10 @@ export async function render(container, { supabase }) {
     { key: "departments", label: "학과", type: "links", through: "subject_departments", own: "subject_id", other: "department_id",
       options: (depts || []).map(d => ({ value: d.id, label: d.name })) },
     { key: "duration", label: "기간", type: "text" },
-    { key: "dept_curriculum", label: "학과별 커리큘럼 요약", type: "textarea" },
+    { key: "dept_curriculum", label: "학과별 커리큘럼 요약", type: "textarea", ai:'department', source:async row=>{
+      const {data,error}=await supabase.from('subject_weeks').select('summary').eq('subject_id',row.id).order('sort_order');
+      if(error)throw new Error(dbErrorMessage(error));return (data||[]).map(w=>w.summary||'').filter(Boolean).join('\n');
+    } },
     { key: "program", label: "프로그램·준비물", type: "textarea" },
     { key: "level", label: "학습 수준", type: "text" },
   ];
@@ -52,8 +55,8 @@ export async function render(container, { supabase }) {
       columns: [
         { key: "week_label", label: "주차", type: "text", required: true },
         { key: "written", label: "커리큘럼 원문", type: "textarea" },
-        { key: "summary", label: "AI 요약", type: "textarea" },
-        { key: "image_url", label: "대표 이미지", type: "image" },
+        { key: "summary", label: "AI 요약", type: "textarea", ai:'week', source:'written' },
+        { key: "image_url", label: "대표 이미지", type: "image", uploadKind:'curriculum' },
       ],
     });
     weeks.scrollIntoView({ behavior: "smooth" });

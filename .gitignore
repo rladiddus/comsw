@@ -1,2 +1,6 @@
 node_modules/
 .superpowers/
+supabase/.temp/
+supabase/functions/.env*
+.env*
+!*.example

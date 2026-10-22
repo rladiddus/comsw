@@ -26,7 +26,7 @@ async function enter(role) {
     show("login");
     return;
   }
-  startApp({ role, email: auth.currentUser.email });
+  startApp({ role, email: auth.currentUser.email, uid: auth.currentUser.uid, displayName: auth.currentUser.displayName || '' });
 }
 
 form.addEventListener("submit", async (e) => {

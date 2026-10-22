@@ -1,6 +1,8 @@
 import { toDbValue, dbErrorMessage } from "./fields.mjs";
 import { nextOrder, moveUpdates } from "./order.mjs";
 import { driveThumbnail } from "./drive.mjs";
+import { mountImageUpload } from './image-upload.mjs';
+import { getServices } from './services.mjs';
 
 const el = (tag, props = {}, children = []) => {
   const node = Object.assign(document.createElement(tag), props);
@@ -128,13 +130,42 @@ export function mountTableEditor(container, {
     const input = column.type === "textarea"
       ? el("textarea", { value: value ?? "" })
       : el("input", { type: "text", value: value ?? "", ...(column.type === "number" ? { inputMode: "numeric" } : {}) });
+    input.dataset.field = column.key;
     const preview = column.type === "image" ? imagePreview(value) : null;
     input.addEventListener("change", async () => {
       const { revert } = await save(row, column, input.value, errBox);
       if (revert) input.value = row[column.key] ?? "";
       preview?.set(input.value);
     });
-    return preview ? [input, preview.img] : [input];
+    if (column.ai) {
+      const button = el('button', { type:'button', className:'ghost-btn ai-btn', textContent:'AI 요약' });
+      button.addEventListener('click', async () => {
+        button.disabled = true;
+        try {
+          const source = typeof column.source === 'function' ? await column.source(row)
+            : input.closest('tr')?.querySelector(`[data-field="${column.source}"]`)?.value ?? row[column.source];
+          if (!String(source || '').trim()) throw new Error('요약할 원문을 먼저 입력해주세요');
+          const fn = getServices().summarize;
+          if (!fn) throw new Error('AI 연결을 준비 중입니다');
+          const before = input.value;
+          setState('AI 요약 중…');
+          const result = await fn(column.ai, String(source));
+          if (input.value !== before) throw new Error('요약 중 내용이 변경되었습니다. 입력한 내용을 확인해주세요');
+          const saved = await save(row, column, result.text, errBox);
+          if (saved.ok) { input.value = result.text; setState(result.cached ? '변경 없는 원문 — 이전 요약 사용' : '요약 저장됨 — 확인 후 적용해주세요'); }
+        } catch (err) { errBox.textContent = err.message; setState(err.message, true); }
+        finally { button.disabled = false; }
+      });
+      return [input, button];
+    }
+    if (!preview) return [input];
+    const uploadBox = el('div');
+    mountImageUpload(uploadBox, { kind:column.uploadKind || 'image', onUploaded: async asset => {
+      const result = await save(row, column, asset.url, errBox);
+      if (!result.ok) throw new Error(errBox.textContent);
+      input.value = asset.url; preview.set(asset.url);
+    }});
+    return [input, preview.img, uploadBox];
   }
 
   function render() {

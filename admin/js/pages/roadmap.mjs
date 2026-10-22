@@ -34,7 +34,7 @@ export async function render(container, { supabase }) {
         { key: "subjects", label: "과목", type: "links", through: "roadmap_step_subjects", own: "step_id", other: "subject_id", ordered: true,
           options: (subjects || []).map(s => ({ value: s.id, label: s.name })) },
         { key: "source_text", label: "원문", type: "textarea" },
-        { key: "summary", label: "요약", type: "textarea" },
+        { key: "summary", label: "요약", type: "textarea", ai:'roadmap', source:'source_text' },
       ],
     });
     steps.scrollIntoView({ behavior: "smooth" });

@@ -1,15 +1,18 @@
 import { mountTableEditor } from "../table-editor.mjs";
 import { cascadeMessage } from "../format.mjs";
 import { countRows } from "../count.mjs";
+import { mountInstructorReview } from '../instructor-review.mjs';
 
 // 사이트 '학과 강사소개'에 나오는 강사. 사이트 표시를 끈 강사는 커리큘럼에만 쓰인다(동명이인 구분용 등).
 export async function render(container, { supabase }) {
   container.append(Object.assign(document.createElement("h2"), { textContent: "강사" }));
+  const reviewBox = document.createElement('div');
+  container.append(reviewBox);
   const [{ data: depts }, { data: subjects }] = await Promise.all([
     supabase.from("departments").select("id, name").order("sort_order"),
     supabase.from("subjects").select("id, name").order("sort_order"),
   ]);
-  mountTableEditor(container, {
+  const editor = mountTableEditor(container, {
     supabase,
     table: "instructors",
     title: "강사",
@@ -31,4 +34,5 @@ export async function render(container, { supabase }) {
       ["강사 커리큘럼", await countRows(supabase, "instructor_curricula", "instructor_id", row.id)],
     ]),
   });
+  await mountInstructorReview(reviewBox, supabase, () => editor.reload());
 }

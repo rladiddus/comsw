@@ -1,4 +1,4 @@
-import { el, rows, rpc, stateLine } from "./teacher-workspace.mjs";
+import { el, instructorHint, rows, rpc, stateLine } from "./teacher-workspace.mjs";
 import { driveThumbnail } from "./drive.mjs";
 import { getServices } from "./services.mjs";
 
@@ -23,6 +23,8 @@ export async function mountInstructorReview(
         ),
         rows(supabase, "instructors"),
       ]);
+      // 연결 대상이 어느 강사인지: 후보 RPC와 같은 순서로 학과·담당 과목을 붙인다.
+      const hintOf = await linkHints(supabase, requests);
       if (!requests.length && !drafts.length) {
         box.append(
           el("p", {
@@ -51,7 +53,13 @@ export async function mountInstructorReview(
             className: "muted",
             textContent: `연결 대상: ${
               instructors.find((i) => i.id === r.instructor_id)?.name || "강사"
-            } / 계정: ${r.account_uid}`,
+            } · ${hintOf(r.instructor_id)}`,
+          }),
+          el("p", {
+            className: "muted",
+            textContent: `요청자: ${
+              r.requester_email || "이메일 없음(이전 요청)"
+            }`,
           }),
         ]);
         const approve = el("button", {
@@ -192,4 +200,33 @@ export async function mountInstructorReview(
     }
   }
   await draw();
+}
+
+async function linkHints(supabase, requests) {
+  if (!requests.length) return () => "";
+  const [links, departments, subjectLinks, subjects] = await Promise.all([
+    rows(supabase, "instructor_departments"),
+    rows(supabase, "departments"),
+    rows(supabase, "instructor_subjects"),
+    rows(supabase, "subjects"),
+  ]);
+  const order = (a, b) => (a ?? Infinity) - (b ?? Infinity);
+  return (id) => {
+    const depts = links.filter((l) => l.instructor_id === id)
+      .map((l) => departments.find((d) => d.id === l.department_id))
+      .filter(Boolean).sort((a, b) =>
+        order(a.sort_order, b.sort_order) || a.name.localeCompare(b.name)
+      );
+    const subs = subjectLinks.filter((l) => l.instructor_id === id)
+      .map((l) => ({ l, s: subjects.find((s) => s.id === l.subject_id) }))
+      .filter((x) => x.s).sort((a, b) =>
+        order(a.l.sort_order, b.l.sort_order) ||
+        order(a.s.sort_order, b.s.sort_order) ||
+        a.s.name.localeCompare(b.s.name)
+      );
+    return instructorHint({
+      departments: depts.map((d) => d.name),
+      subjects: subs.map((x) => x.s.name),
+    });
+  };
 }

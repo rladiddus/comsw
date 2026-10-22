@@ -76,3 +76,26 @@ test("학과장은 전달받은 동의된 사진으로 프로필 생성 후 확�
     configureServices();
   }
 });
+
+test("연결 요청 카드는 계정 번호 대신 요청자 이메일과 대상 강사의 학과·과목을 보여 준다", async () => {
+  const tables = {
+    instructors: [{ id: "i1", name: "김민주" }, { id: "i2", name: "김민주" }],
+    instructor_link_requests: [
+      { id: "r1", account_uid: "uid-secret", instructor_id: "i2", requested_name: "김민주", requester_email: "kim@example.com" },
+      { id: "r2", account_uid: "uid-old", instructor_id: "i1", requested_name: "김민주" },
+    ],
+    instructor_profile_drafts: [],
+    departments: [{ id: "web", name: "웹학과" }, { id: "cert", name: "자격증학과" }],
+    instructor_departments: [{ instructor_id: "i2", department_id: "web" }, { instructor_id: "i1", department_id: "cert" }],
+    subjects: [{ id: "w1", name: "웹1" }, { id: "w2", name: "웹2" }],
+    instructor_subjects: [{ instructor_id: "i2", subject_id: "w2", sort_order: 2 }, { instructor_id: "i2", subject_id: "w1", sort_order: 1 }],
+  };
+  const c = document.createElement("div");
+  await mountInstructorReview(c, fakeSupabase(tables));
+  const text = c.textContent;
+  assert.match(text, /연결 대상: 김민주 · 웹학과 · 웹1, 웹2/);
+  assert.match(text, /요청자: kim@example\.com/);
+  assert.match(text, /연결 대상: 김민주 · 자격증학과/);
+  assert.match(text, /이메일 없음\(이전 요청\)/);
+  assert.doesNotMatch(text, /uid-secret/);
+});

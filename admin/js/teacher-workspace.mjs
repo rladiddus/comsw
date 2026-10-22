@@ -36,7 +36,16 @@ export async function rows(supabase, table, filter = (q) => q) {
   return data || [];
 }
 
-// 기존 강사 계정은 자동 연결하지 않는다. 후보는 이름/id만 RPC로 조회한다.
+// 같은 이름 강사 구분: "시각편집학과, AI학과 · 포토샵, 일러스트, 포토웍스 외 8개"
+export function instructorHint({ departments = [], subjects = [] }) {
+  const more = subjects.length > 3 ? ` 외 ${subjects.length - 3}개` : "";
+  return [
+    departments.join(", "),
+    subjects.length ? subjects.slice(0, 3).join(", ") + more : "",
+  ].filter(Boolean).join(" · ") || "학과·과목 정보 없음";
+}
+
+// 기존 강사 계정은 자동 연결하지 않는다. 후보는 이름과 공개 정보(학과·담당 과목)만 RPC로 조회한다.
 export async function requireInstructor(
   container,
   { supabase, uid, displayName = "" },
@@ -119,7 +128,7 @@ export async function requireInstructor(
         const b = el("button", {
           type: "button",
           className: "ghost-btn",
-          textContent: `${i.name} · 연결 요청`,
+          textContent: `${i.name} · ${instructorHint(i)} · 연결 요청`,
         });
         b.addEventListener("click", () =>
           run(b, async () => {

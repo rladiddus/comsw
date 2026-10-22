@@ -140,3 +140,27 @@ test("승인된 커리큘럼을 수정해 제출해도 승인본 보존, 대기�
     await db.close();
   }
 });
+
+test("같은 이름 후보는 학과·담당 과목을 함께 주고, 연결 요청에는 로그인 이메일이 남는다", async () => {
+  const db = await freshDb();
+  try {
+    await db.exec(`insert into departments(name, sort_order) values ('AI학과', 2), ('시각편집학과', 1);
+      insert into subjects(name) values ('일러스트'), ('포토샵');
+      insert into instructors(name) values ('김민주');
+      insert into instructor_departments select i.id, d.id from instructors i, departments d;
+      insert into instructor_subjects(instructor_id, subject_id, sort_order)
+        select i.id, s.id, case s.name when '포토샵' then 1 else 2 end from instructors i, subjects s;`);
+    await as(db, "authenticated", { ...teacher, email: "kim@example.com" });
+    const [c] = (await db.query("select * from comsw_instructor_candidates('김민주')")).rows;
+    assert.deepEqual(c.departments, ["시각편집학과", "AI학과"]);
+    assert.deepEqual(c.subjects, ["포토샵", "일러스트"]);
+    await db.query("select comsw_request_instructor_link($1, '김민주')", [c.id]);
+    await as(db, "authenticated", head);
+    assert.equal(
+      (await db.query("select requester_email from instructor_link_requests")).rows[0].requester_email,
+      "kim@example.com",
+    );
+  } finally {
+    await db.close();
+  }
+});

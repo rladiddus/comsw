@@ -13,6 +13,14 @@
 - 옛 신청자 raw 15행은 **사용자 결정으로 삭제하지 않는다**(공개 읽기 제한 정책만 유지).
 - scent2h@gmail.com의 Apps Script ‘내 트리거’ 4개는 모두 다른 프로젝트(유튜브·마케팅)였다. 컴수원 동기화·`keepSupabaseAlive` 트리거는 이 계정에 없다 → 다른 계정 소유이거나 이미 없음. 아무것도 변경하지 않았다.
 - 로컬 Supabase CLI는 로그인 완료(연결 도구 MCP는 여전히 permission denied).
+- 사용자 승인으로 main 반영(커밋 `c0dea2b`). GitHub Pages에서 `admin/js/teacher-workspace.mjs` 200 응답 확인.
+
+### 다음 할 일
+
+1. 사용자가 Supabase Secrets 입력(위 목록). Drive OAuth offline 동의와 비공개 원본 폴더 생성 포함.
+2. Secrets 입력 뒤 실제 확인: 선생님 계정으로 커리큘럼 원문·크롭 이미지 제출 → 학과장 요약 생성 → 승인 → 미리보기, 프로필 사진 제출 → 학과장 생성 → 승인 → 미리보기.
+3. 동기화 트리거를 가진 구글 계정 확인(scent2h@gmail.com에는 없음). 찾으면 자동 복사만 끄고 `keepSupabaseAlive`는 유지.
+4. 관리 화면 디자인(사용자 별도 요청 예정)과 미뤄 둔 작은 문제들.
 
 ## 최종 요청 정리 (2026-10-22)
 

@@ -177,3 +177,13 @@ details summary { cursor:pointer; font-weight:650; }
 @media (max-width:640px) {
   .form-row, .step-head, .step-row { grid-template-columns:1fr; }
 }
+/* 내 프로필 > 수업 설정 */
+.link-btn { padding:0; border:0; background:none; color:var(--accent); font-weight:600; text-decoration:underline; cursor:pointer; }
+.class-dept { border:1px solid var(--line); border-radius:12px; padding:12px 16px 16px; margin:12px 0; background:#fcfcfd; }
+.class-dept-head { display:flex; justify-content:space-between; align-items:center; gap:12px; }
+.class-dept-head h4 { margin:0; font-size:16px; }
+.class-dept-head .danger { color:#e03131; }
+.subject-checks { display:grid; grid-template-columns:repeat(auto-fill,minmax(160px,1fr)); gap:8px 16px; margin-top:12px; }
+.subject-check { display:flex; align-items:center; gap:8px; }
+.subject-check input { width:18px; height:18px; }
+.class-settings .form-actions select { padding:8px 10px; border:1px solid #d9dde4; border-radius:9px; }

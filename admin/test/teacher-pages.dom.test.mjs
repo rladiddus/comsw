@@ -15,6 +15,8 @@ const tables = () => ({
   instructors: [{ id: "me", account_uid: "uid", name: "선생님" }],
   instructor_profile_drafts: [],
   instructor_link_requests: [],
+  instructor_departments: [{ instructor_id: "me", department_id: "dept" }],
+  instructor_subjects: [{ instructor_id: "me", subject_id: "subject", sort_order: 1 }],
   departments: [{ id: "dept", name: "웹학과", is_active: true }],
   subjects: [{ id: "subject", name: "웹1" }],
   subject_departments: [{ subject_id: "subject", department_id: "dept" }],
@@ -42,9 +44,18 @@ async function setup(page, data = tables()) {
     };
   };
   const { render } = await import(`../js/pages/${page}.mjs`);
-  await render(c, { supabase: sb, uid: "uid", displayName: "선생님" });
+  const majors = { saved: null };
+  await render(c, {
+    supabase: sb,
+    uid: "uid",
+    displayName: "선생님",
+    loadMyMajors: async () => ["웹학과"],
+    saveMyMajors: async (_uid, list) => {
+      majors.saved = list;
+    },
+  });
   await flush();
-  return { c, sb, calls };
+  return { c, sb, calls, majors };
 }
 const findButton = (c, text) =>
   [...c.querySelectorAll("button")].find((b) => b.textContent === text);
@@ -145,7 +156,7 @@ test("연결 안 된 선생님은 요청 화면 없이 쌤톡 이름으로 본�
     return { data: [], error: null };
   };
   const { render } = await import("../js/pages/mine.mjs");
-  await render(c, { supabase: sb, uid: "uid", displayName: "", loadMyName: async () => "김새봄" });
+  await render(c, { supabase: sb, uid: "uid", displayName: "", loadMyName: async () => "김새봄", loadMyMajors: async () => [] });
   await flush();
   assert.deepEqual(calls[0], ["comsw_create_my_instructor", { p_name: "김새봄" }]);
   assert.equal(data.instructor_link_requests.length, 0, "남은 연결 요청은 지운다");
@@ -161,7 +172,7 @@ test("쌤톡 이름을 알 수 없으면 강사 정보를 만들지 않고 안�
   const calls = [];
   sb.rpc = async (name) => { calls.push(name); return { data: [], error: null }; };
   const { render } = await import("../js/pages/mine.mjs");
-  await render(c, { supabase: sb, uid: "uid", displayName: "", loadMyName: async () => { throw new Error("x"); } });
+  await render(c, { supabase: sb, uid: "uid", displayName: "", loadMyName: async () => { throw new Error("x"); }, loadMyMajors: async () => [] });
   await flush();
   assert.equal(calls.length, 0);
   assert.match(c.textContent, /쌤톡 이름을 확인할 수 없습니다/);
@@ -172,4 +183,57 @@ test("내 프로필: 이름은 바꿀 수 없고 경력·한마디에 예시가 
   assert.ok(c.querySelector("[name=name]").readOnly);
   assert.match(c.querySelector("[name=career]").placeholder, /^예시\)\n現 SBS아카데미/);
   assert.match(c.querySelector("[name=message]").placeholder, /^예시\)/);
+});
+
+const withAi = () => {
+  const t = tables();
+  t.departments.push({ id: "ai", name: "AI학과", is_active: true });
+  t.subjects.push({ id: "ai1", name: "AI기초" }, { id: "web2", name: "웹2" });
+  t.subject_departments.push({ subject_id: "ai1", department_id: "ai" }, { subject_id: "web2", department_id: "dept" });
+  return t;
+};
+
+test("내 프로필: 내 소개·수업 설정 탭, 수업 설정은 쌤톡 학과와 체크한 과목을 보여 준다", async () => {
+  const { c } = await setup("profile", withAi());
+  assert.deepEqual([...c.querySelectorAll(".tab-bar button")].map((b) => b.textContent), ["내 소개", "수업 설정"]);
+  assert.ok(c.querySelector(".class-settings").closest(".workspace-single").hidden);
+  findButton(c, "수업 설정").click();
+  const box = c.querySelector(".class-settings");
+  assert.deepEqual([...box.querySelectorAll(".class-dept h4")].map((h) => h.textContent), ["웹학과"]);
+  const checks = Object.fromEntries([...box.querySelectorAll(".subject-check")].map((l) => [l.textContent, l.querySelector("input").checked]));
+  assert.deepEqual(checks, { "웹1": true, "웹2": false });
+});
+
+test("수업 설정: 학과를 추가·삭제하고 과목을 체크해 저장하면 강사 정보와 쌤톡 학과에 함께 반영한다", async () => {
+  const { c, calls, majors } = await setup("profile", withAi());
+  const box = c.querySelector(".class-settings");
+  const pick = box.querySelector(".form-actions select");
+  pick.value = "ai";
+  findButton(box, "+ 학과 추가").click();
+  const aiDept = [...box.querySelectorAll(".class-dept")].find((d) => d.querySelector("h4").textContent === "AI학과");
+  aiDept.querySelector("input").checked = true;
+  aiDept.querySelector("input").dispatchEvent(new dom.window.Event("change"));
+  findButton(box, "수업 설정 저장").click();
+  await flush();
+  let call = calls.findLast(([n]) => n === "comsw_set_my_classes");
+  assert.deepEqual(call[1], { p_department_ids: ["dept", "ai"], p_subject_ids: ["subject", "ai1"] });
+  assert.deepEqual(majors.saved, ["웹학과", "AI학과"]);
+  assert.match(box.textContent, /쌤톡 학과에도 반영했습니다/);
+  const web = [...box.querySelectorAll(".class-dept")].find((d) => d.querySelector("h4").textContent === "웹학과");
+  findButton(web, "학과 삭제").click();
+  findButton(box, "수업 설정 저장").click();
+  await flush();
+  call = calls.findLast(([n]) => n === "comsw_set_my_classes");
+  assert.deepEqual(call[1], { p_department_ids: ["ai"], p_subject_ids: ["ai1"] }, "삭제한 학과의 과목은 빠진다");
+  assert.deepEqual(majors.saved, ["AI학과"]);
+});
+
+test("내 커리큘럼: 내 학과는 쌤톡 학과, 단계 과목은 수업 설정에서 고른 과목만, 위쪽은 '선택 학과'", async () => {
+  const { c } = await setup("mine", withAi());
+  c.querySelector('.tab-bar [data-tab=write]').click();
+  const labels = [...c.querySelectorAll(".form-row .form-field > span")].map((s) => s.textContent);
+  assert.deepEqual(labels, ["내 학과", "선택 학과"]);
+  assert.deepEqual([...c.querySelector("[name=department]").options].map((o) => o.textContent), ["웹학과"]);
+  assert.deepEqual([...c.querySelector(".step-row [name=subject_id]").options].map((o) => o.textContent), ["웹1"]);
+  assert.ok(findButton(c, "내 프로필 > 수업 설정에서 학과·과목 바꾸기"));
 });

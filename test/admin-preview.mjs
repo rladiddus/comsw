@@ -70,6 +70,8 @@ const MEMBERS = [
   { uid: "newbie", name: "이새봄", username: "spring", majors: ["시각편집학과"] },
   { uid: "web-member", name: "최웹", username: "choiweb", majors: ["웹학과"] },
 ];
+// 가상 쌤톡 학과(쌤톡 회원 문서 majors). 수업 설정에서 저장하면 바뀐다.
+const MAJORS = { newbie: ["시각편집학과"], demo: ["시각편집학과"], head: [] };
 let me = PEOPLE.newbie;
 const ownId = () => data.instructors.find((i) => i.account_uid === me.uid)?.id;
 
@@ -79,6 +81,23 @@ supabase.rpc = async (name, args) => {
     const id = `instructor-${me.uid}`;
     data.instructors.push({ id, name: args.p_name, account_uid: me.uid, is_listed: false });
     return { data: id, error: null };
+  }
+  if (name === "comsw_set_my_classes") {
+    const id = ownId();
+    const keep = (list, key, ids) =>
+      list.splice(0, Infinity, ...list.filter((x) => x.instructor_id !== id || ids.includes(x[key])));
+    keep(data.instructor_departments, "department_id", args.p_department_ids);
+    keep(data.instructor_subjects, "subject_id", args.p_subject_ids);
+    for (const d of args.p_department_ids) {
+      if (!data.instructor_departments.some((x) => x.instructor_id === id && x.department_id === d)) {
+        data.instructor_departments.push({ instructor_id: id, department_id: d });
+      }
+    }
+    for (const sId of args.p_subject_ids) {
+      if (!data.instructor_subjects.some((x) => x.instructor_id === id && x.subject_id === sId)) {
+        data.instructor_subjects.push({ instructor_id: id, subject_id: sId, sort_order: 99 });
+      }
+    }
   }
   if (name === "comsw_submit_my_curriculum") {
     const payload = {
@@ -184,6 +203,10 @@ async function show() {
       displayName: me.name,
       role: me.role,
       loadMyName: async () => me.name,
+      loadMyMajors: async () => MAJORS[me.uid] ?? [],
+      saveMyMajors: async (_uid, list) => {
+        MAJORS[me.uid] = list;
+      },
       loadMembers: async () => MEMBERS,
     },
   );

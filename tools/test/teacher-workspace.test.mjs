@@ -164,3 +164,32 @@ test("같은 이름 후보는 학과·담당 과목을 함께 주고, 연결 요
     await db.close();
   }
 });
+
+test("수업 설정: 선생님은 본인 학과·담당 과목만 바꾸고, 고른 학과의 과목만 받는다", async () => {
+  const db = await freshDb();
+  try {
+    await db.exec(`insert into departments(name) values ('웹학과'), ('AI학과');
+      insert into subjects(name) values ('웹1'), ('웹2'), ('AI기초');
+      insert into subject_departments select s.id, d.id from subjects s, departments d
+        where (s.name like '웹%' and d.name = '웹학과') or (s.name = 'AI기초' and d.name = 'AI학과');
+      insert into instructors(name, account_uid) values ('나', 'teacher-a'), ('남', 'other');
+      insert into instructor_subjects(instructor_id, subject_id, sort_order)
+        select i.id, s.id, 5 from instructors i, subjects s where i.name = '나' and s.name = '웹2';`);
+    const id = async (t, n) => (await db.query(`select id from ${t} where name = $1`, [n])).rows[0].id;
+    const [web, ai, w1, w2, aiBasic] = [await id("departments", "웹학과"), await id("departments", "AI학과"),
+      await id("subjects", "웹1"), await id("subjects", "웹2"), await id("subjects", "AI기초")];
+    await as(db, "authenticated", teacher);
+    await assert.rejects(db.query("select comsw_set_my_classes($1, $2)", [[web], [aiBasic]]), /고른 학과의 과목/);
+    await db.query("select comsw_set_my_classes($1, $2)", [[web], [w2, w1]]);
+    const mine = (await db.query(`select s.name, x.sort_order from instructor_subjects x join subjects s on s.id = x.subject_id order by x.sort_order`)).rows;
+    assert.deepEqual(mine.map((r) => [r.name, r.sort_order]), [["웹2", 5], ["웹1", 7]], "남는 과목 순서 유지, 새 과목은 뒤");
+    assert.equal((await db.query("select count(*)::int n from instructor_departments")).rows[0].n, 1, "본인 줄만 보인다");
+    await db.query("select comsw_set_my_classes($1, $2)", [[ai], [aiBasic]]);
+    await as(db, "authenticated", head);
+    const all = (await db.query(`select i.name, d.name dept from instructor_departments x join instructors i on i.id = x.instructor_id join departments d on d.id = x.department_id`)).rows;
+    assert.deepEqual(all, [{ name: "나", dept: "AI학과" }]);
+    assert.equal((await db.query(`select count(*)::int n from instructor_subjects x join instructors i on i.id = x.instructor_id where i.name = '나'`)).rows[0].n, 1);
+  } finally {
+    await db.close();
+  }
+});

@@ -1,5 +1,6 @@
 import {
   el,
+  mountTabs,
   requireInstructor,
   rows,
   rpc,
@@ -92,7 +93,9 @@ export async function render(container, ctx, { tab } = {}) {
   const setState = stateLine(container);
   try {
     const own = await requireInstructor(ctx);
-    const [depts, subjects, links, sets, submitted] = await Promise.all([
+    const loadMyMajors = ctx.loadMyMajors ??
+      (await import("../ssamtalk-members.mjs")).loadMyMajors;
+    const [depts, subjects, links, sets, submitted, mySubjects, myDepts, majors] = await Promise.all([
       rows(supabase, "departments", (q) => q.order("sort_order")),
       rows(supabase, "subjects", (q) => q.order("sort_order")),
       rows(supabase, "subject_departments"),
@@ -102,7 +105,23 @@ export async function render(container, ctx, { tab } = {}) {
         "instructor_curricula",
         (q) => q.eq("instructor_id", own.id).order("sort_order"),
       ),
+      rows(supabase, "instructor_subjects", (q) => q.eq("instructor_id", own.id)),
+      rows(supabase, "instructor_departments", (q) => q.eq("instructor_id", own.id)),
+      loadMyMajors(ctx.uid).catch(() => null),
     ]);
+    // 내 학과 = 쌤톡 학과(이름이 같은 컴수원 학과). 못 불러오면 컴수원에 저장된 내 학과.
+    const myDeptList = majors
+      ? depts.filter((d) => majors.includes(d.name))
+      : depts.filter((d) => myDepts.some((x) => x.department_id === d.id));
+    const myIds = new Set(mySubjects.map((x) => x.subject_id));
+    const goSettings = () => {
+      try {
+        sessionStorage.setItem("comsw_profile_tab", "classes");
+      } catch {
+        // 탭 기억이 안 되면 내 프로필 첫 탭이 열린다.
+      }
+      location.hash = "#/profile";
+    };
     const subjectName = (id) =>
       subjects.find((s) => s.id === id)?.name || "과목";
     const submit = (row) =>
@@ -141,19 +160,28 @@ export async function render(container, ctx, { tab } = {}) {
         ]),
       ];
     };
-    const [dept, deptField] = select("학과", "department");
-    const [set, setField] = select("과목", "set_id");
+    const [dept, deptField] = select("내 학과", "department");
+    const [set, setField] = select("선택 학과", "set_id");
     form.append(el("div", { className: "form-row" }, [deptField, setField]));
+    const settingsLink = el("button", {
+      type: "button",
+      className: "link-btn",
+      textContent: "내 프로필 > 수업 설정에서 학과·과목 바꾸기",
+    });
+    settingsLink.addEventListener("click", goSettings);
+    const subjectHint = el("p", { className: "muted" });
+    form.append(el("p", { className: "muted" }, [settingsLink]), subjectHint);
     const options = (input, list) =>
       input.replaceChildren(
         ...list.map((x) => el("option", { value: x.id, textContent: x.name })),
       );
-    options(dept, depts);
+    options(dept, myDeptList);
+    // 단계의 과목 = 수업 설정에서 고른 내 과목 중 이 학과 과목.
     const deptSubjects = () => {
       const ids = links.filter((l) => l.department_id === dept.value).map((l) =>
         l.subject_id
       );
-      return ids.length ? subjects.filter((s) => ids.includes(s.id)) : subjects;
+      return subjects.filter((s) => ids.includes(s.id) && myIds.has(s.id));
     };
     const stepsBox = el("div", { className: "step-list" });
     const steps = [];
@@ -212,6 +240,11 @@ export async function render(container, ctx, { tab } = {}) {
       stepsBox.append(box);
     }
     const refill = () => {
+      subjectHint.textContent = !myDeptList.length
+        ? "내 학과가 없습니다. 수업 설정에서 학과를 추가해주세요."
+        : deptSubjects().length
+        ? ""
+        : "이 학과에서 고른 과목이 없습니다. 수업 설정에서 수업하는 과목을 체크해주세요.";
       options(
         set,
         sets.filter((s) =>
@@ -402,23 +435,11 @@ export async function render(container, ctx, { tab } = {}) {
     }
 
     // ── 탭 ──
-    const tabs = el("div", { className: "tab-bar", role: "tablist" });
-    const panels = { write: form, list };
-    const open = (name) => {
-      for (const [key, panel] of Object.entries(panels)) panel.hidden = key !== name;
-      for (const b of tabs.children) {
-        b.classList.toggle("active", b.dataset.tab === name);
-        b.setAttribute("aria-selected", String(b.dataset.tab === name));
-      }
-    };
-    for (const [name, text] of [["write", "등록하기"], ["list", `조회하기 (${submitted.length})`]]) {
-      const b = el("button", { type: "button", role: "tab", textContent: text });
-      b.dataset.tab = name;
-      b.addEventListener("click", () => open(name));
-      tabs.append(b);
-    }
-    container.append(tabs, el("div", { className: "workspace-single" }, [form, list]));
-    open(tab ?? (submitted.length ? "list" : "write"));
+    mountTabs(container, [
+      ["write", "등록하기", form],
+      ["list", `조회하기 (${submitted.length})`, list],
+    ], tab ?? (submitted.length ? "list" : "write"));
+    container.append(el("div", { className: "workspace-single" }, [form, list]));
   } catch (e) {
     setState(e.message, true);
   }

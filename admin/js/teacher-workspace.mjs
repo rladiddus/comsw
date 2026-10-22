@@ -25,6 +25,26 @@ export function stateLine(container) {
     node.classList.toggle("err", error);
   };
 }
+// 화면 안 탭 막대만 붙인다(패널 배치는 호출하는 쪽). items: [[이름, 탭 글자, 패널]].
+export function mountTabs(container, items, initial) {
+  const bar = el("div", { className: "tab-bar", role: "tablist" });
+  const open = (name) => {
+    for (const [key, , panel] of items) panel.hidden = key !== name;
+    for (const b of bar.children) {
+      b.classList.toggle("active", b.dataset.tab === name);
+      b.setAttribute("aria-selected", String(b.dataset.tab === name));
+    }
+  };
+  for (const [name, label] of items) {
+    const b = el("button", { type: "button", role: "tab", textContent: label });
+    b.dataset.tab = name;
+    b.addEventListener("click", () => open(name));
+    bar.append(b);
+  }
+  container.append(bar);
+  open(initial ?? items[0][0]);
+  return open;
+}
 export async function rpc(supabase, name, args) {
   const { data, error } = await supabase.rpc(name, args);
   if (error) throw new Error(dbErrorMessage(error));

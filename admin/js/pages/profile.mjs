@@ -1,6 +1,7 @@
 import {
   el,
   field,
+  mountTabs,
   requireInstructor,
   rows,
   rpc,
@@ -8,6 +9,9 @@ import {
 } from "../teacher-workspace.mjs";
 import { mountImageUpload } from "../image-upload.mjs";
 import { driveThumbnail } from "../drive.mjs";
+import { mountClassSettings } from "../class-settings.mjs";
+
+const members = () => import("../ssamtalk-members.mjs");
 
 export async function render(container, ctx) {
   const { supabase } = ctx;
@@ -173,7 +177,24 @@ export async function render(container, ctx) {
       }),
     );
     layout.append(form, preview);
-    container.append(layout);
+    const classes = el("div", { className: "workspace-single" });
+    await mountClassSettings(classes, {
+      supabase,
+      uid: ctx.uid,
+      own,
+      loadMyMajors: ctx.loadMyMajors ?? (await members()).loadMyMajors,
+      saveMyMajors: ctx.saveMyMajors ?? (await members()).saveMyMajors,
+    });
+    // 내 커리큘럼의 '수업 설정에서 바꾸기'로 오면 수업 설정 탭을 연다.
+    let initial = "intro";
+    try {
+      if (sessionStorage.getItem("comsw_profile_tab") === "classes") initial = "classes";
+      sessionStorage.removeItem("comsw_profile_tab");
+    } catch {
+      // 저장소를 못 쓰면 내 소개부터.
+    }
+    mountTabs(container, [["intro", "내 소개", layout], ["classes", "수업 설정", classes]], initial);
+    container.append(layout, classes);
   } catch (e) {
     setState(e.message, true);
   }

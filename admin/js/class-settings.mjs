@@ -1,0 +1,144 @@
+import { el, rows, rpc, stateLine } from "./teacher-workspace.mjs";
+
+// 내 프로필 > 수업 설정: 내 학과(쌤톡 학과와 같은 이름)와 학과별 담당 과목.
+// 저장하면 컴수원 강사 정보의 학과·담당 과목과 쌤톡 학과에 함께 반영한다.
+export async function mountClassSettings(
+  container,
+  { supabase, uid, own, loadMyMajors, saveMyMajors },
+) {
+  const box = el("section", { className: "workspace-card class-settings" }, [
+    el("h3", { textContent: "수업 설정" }),
+    el("p", {
+      className: "desc",
+      textContent:
+        "내 학과를 고르고, 학과마다 내가 수업하는 과목을 체크해주세요. 저장하면 쌤톡 학과와 강사소개의 담당 과목에 함께 반영됩니다(공개 사이트에는 '적용' 후).",
+    }),
+  ]);
+  container.append(box);
+  const setState = stateLine(box);
+  const [depts, subjects, links, myDepts, mySubjects, majors] = await Promise
+    .all([
+      rows(supabase, "departments", (q) => q.eq("is_active", true).order("sort_order")),
+      rows(supabase, "subjects", (q) => q.order("sort_order")),
+      rows(supabase, "subject_departments"),
+      rows(supabase, "instructor_departments", (q) => q.eq("instructor_id", own.id)),
+      rows(supabase, "instructor_subjects", (q) => q.eq("instructor_id", own.id)),
+      loadMyMajors(uid).catch(() => null),
+    ]);
+  const byName = (n) => depts.find((d) => d.name === n);
+  // 쌤톡 학과를 기준으로 하고, 못 불러오면 컴수원에 저장된 학과를 보여 준다.
+  const selected = new Set(
+    majors
+      ? majors.map((n) => byName(n)?.id).filter(Boolean)
+      : myDepts.map((d) => d.department_id),
+  );
+  if (!majors) {
+    setState("쌤톡 학과를 불러오지 못해 컴수원에 저장된 학과를 보여 드립니다.", true);
+  }
+  const checked = new Set(mySubjects.map((s) => s.subject_id));
+  // 컴수원에 없는 쌤톡 학과는 건드리지 않고 그대로 남긴다.
+  const otherMajors = (majors || []).filter((n) => !byName(n));
+  const subjectsOf = (deptId) =>
+    links.filter((l) => l.department_id === deptId)
+      .map((l) => subjects.find((s) => s.id === l.subject_id)).filter(Boolean);
+  const list = el("div", { className: "class-list" });
+  const actions = el("div", { className: "form-actions" });
+  const save = el("button", {
+    type: "button",
+    className: "publish-btn",
+    textContent: "수업 설정 저장",
+  });
+  box.append(list, actions);
+
+  function draw() {
+    const mine = depts.filter((d) => selected.has(d.id));
+    list.replaceChildren(...mine.map((d) => {
+      const remove = el("button", {
+        type: "button",
+        className: "ghost-btn danger",
+        textContent: "학과 삭제",
+      });
+      remove.addEventListener("click", () => {
+        selected.delete(d.id);
+        draw();
+      });
+      const subs = subjectsOf(d.id);
+      return el("section", { className: "class-dept" }, [
+        el("div", { className: "class-dept-head" }, [
+          el("h4", { textContent: d.name }),
+          remove,
+        ]),
+        subs.length
+          ? el("div", { className: "subject-checks" }, subs.map((s) => {
+            const box = el("input", { type: "checkbox", checked: checked.has(s.id) });
+            box.addEventListener("change", () => {
+              if (box.checked) checked.add(s.id);
+              else checked.delete(s.id);
+            });
+            return el("label", { className: "subject-check" }, [
+              box,
+              el("span", { textContent: s.name }),
+            ]);
+          }))
+          : el("p", { className: "muted", textContent: "이 학과에 등록된 과목이 없습니다." }),
+      ]);
+    }));
+    if (!mine.length) {
+      list.append(el("p", {
+        className: "muted",
+        textContent: "아직 고른 학과가 없습니다. 아래에서 학과를 추가해주세요.",
+      }));
+    }
+    const rest = depts.filter((d) => !selected.has(d.id));
+    const pick = el("select", {}, [
+      el("option", { value: "", textContent: "추가할 학과 선택" }),
+      ...rest.map((d) => el("option", { value: d.id, textContent: d.name })),
+    ]);
+    pick.setAttribute("aria-label", "추가할 학과");
+    const add = el("button", {
+      type: "button",
+      className: "ghost-btn",
+      textContent: "+ 학과 추가",
+      disabled: !rest.length,
+    });
+    add.addEventListener("click", () => {
+      if (!pick.value) {
+        setState("추가할 학과를 골라주세요", true);
+        return;
+      }
+      selected.add(pick.value);
+      draw();
+    });
+    actions.replaceChildren(pick, add, save);
+  }
+
+  save.addEventListener("click", async () => {
+    save.disabled = true;
+    try {
+      const deptIds = depts.filter((d) => selected.has(d.id)).map((d) => d.id);
+      // 삭제한 학과의 과목은 빼고 저장한다.
+      const allowed = new Set(deptIds.flatMap((id) => subjectsOf(id).map((s) => s.id)));
+      await rpc(supabase, "comsw_set_my_classes", {
+        p_department_ids: deptIds,
+        p_subject_ids: [...checked].filter((id) => allowed.has(id)),
+      });
+      try {
+        await saveMyMajors(uid, [
+          ...depts.filter((d) => selected.has(d.id)).map((d) => d.name),
+          ...otherMajors,
+        ]);
+        setState("저장했습니다. 쌤톡 학과에도 반영했습니다.");
+      } catch {
+        setState(
+          "컴수원에는 저장했지만 쌤톡 학과 반영에 실패했습니다. 잠시 후 다시 저장해주세요.",
+          true,
+        );
+      }
+    } catch (e) {
+      setState(e.message, true);
+    } finally {
+      save.disabled = false;
+    }
+  });
+  draw();
+}

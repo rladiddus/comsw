@@ -157,10 +157,10 @@ details summary { cursor:pointer; font-weight:650; }
 .tab-bar { display:flex; gap:4px; margin:20px 0 0; border-bottom:1px solid var(--line); }
 .tab-bar button { padding:10px 18px; border:0; border-bottom:3px solid transparent; background:none; font-weight:600; color:var(--muted); cursor:pointer; }
 .tab-bar button.active { color:var(--accent); border-bottom-color:var(--accent); }
-.workspace-single { max-width:1280px; margin-top:20px; }
+.workspace-single { margin-top:20px; }
 .form-row { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
 .form-row .form-field { margin:12px 0; }
-.step-row { display:grid; grid-template-columns:minmax(120px,150px) 96px minmax(0,1fr) minmax(400px,1.1fr) auto; gap:14px; align-items:start; border:1px solid var(--line); border-radius:12px; padding:4px 14px 14px; margin:14px 0; background:#fcfcfd; }
+.step-row { display:grid; grid-template-columns:minmax(120px,150px) 96px minmax(0,1fr) 420px auto; gap:14px; align-items:start; border:1px solid var(--line); border-radius:12px; padding:4px 14px 14px; margin:14px 0; background:#fcfcfd; }
 .step-row .form-field { margin:12px 0 0; }
 /* 한 줄 높이 고정: 내용 칸과 이미지 칸을 같은 높이로 */
 .step-row textarea { height:160px; min-height:160px; resize:none; }

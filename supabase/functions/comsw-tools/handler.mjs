@@ -28,7 +28,8 @@ export function createHandler(
     verifyToken,
     userClient,
     serviceClient,
-    drive,
+    storage,
+    toWebp,
     fetcher = fetch,
     preparePortrait,
     validateCurriculumImage,
@@ -96,8 +97,14 @@ export function createHandler(
         mime,
         owner = member.uid,
       ) {
-        const stored = await drive.upload(bytes, {
-          filename,
+        // 공개 이미지는 WebP로 줄여 저장한다. 원본 사진은 AI 입력용이라 그대로 둔다.
+        if (kind !== "profile-source") {
+          bytes = await toWebp(bytes, kind);
+          mime = "image/webp";
+          filename = String(filename || "image").replace(/\.[^.]*$/, "") +
+            ".webp";
+        }
+        const stored = await storage.upload(bytes, {
           mimeType: mime,
           privateSource: kind === "profile-source",
         });
@@ -106,7 +113,7 @@ export function createHandler(
             admin.from("media_assets").insert({
               owner_uid: owner,
               kind,
-              drive_file_id: stored.drive_file_id,
+              storage_path: stored.path,
               public_url: stored.url,
               filename: safeFilename(filename),
               mime_type: mime,
@@ -115,17 +122,17 @@ export function createHandler(
           );
           return { ...asset, url: stored.url };
         } catch (e) {
-          await drive.trash(stored.drive_file_id).catch(() => {});
+          await storage.remove(stored.path).catch(() => {});
           throw e;
         }
       }
       if (req.headers.get("Content-Type")?.includes("multipart/form-data")) {
-        if (!drive.ready()) {
-          throw new Error("관리자가 구글 드라이브 연결을 완료해야 합니다");
-        }
         const form = await req.formData();
         const file = form.get("file");
         const kind = form.get("kind");
+        if (kind !== "profile-source" && !storage.ready()) {
+          throw new Error("관리자가 이미지 저장소 연결을 완료해야 합니다");
+        }
         if (
           !["image", "curriculum", "profile-source"].includes(kind) ||
           (!member.manager && kind === "image")
@@ -149,7 +156,7 @@ export function createHandler(
       }
       if (body.action === "status") {
         return send({
-          drive: drive.ready(),
+          storage: storage.ready(),
           ai: Boolean(env("OPENAI_API_KEY")),
           budget: await budget(),
         });
@@ -162,7 +169,7 @@ export function createHandler(
         if (!asset || asset.kind !== "profile-source") {
           throw new Error("본인 사진을 확인할 권한이 없습니다");
         }
-        const bytes = await drive.download(asset.drive_file_id);
+        const bytes = await storage.download(asset.storage_path);
         checkImage(bytes, asset.mime_type);
         return send({ dataUrl: dataUrl(bytes, asset.mime_type) });
       }
@@ -279,8 +286,8 @@ export function createHandler(
         );
       }
       if (body.action === "profile") {
-        if (!drive.ready()) {
-          throw new Error("관리자가 구글 드라이브 연결을 완료해야 합니다");
+        if (!storage.ready()) {
+          throw new Error("관리자가 이미지 저장소 연결을 완료해야 합니다");
         }
         const draft = await result(
           user.from("instructor_profile_drafts").select("*").eq(
@@ -302,7 +309,7 @@ export function createHandler(
           !asset || asset.kind !== "profile-source" ||
           (!member.manager && asset.owner_uid !== member.uid)
         ) throw new Error("사진 사용 권한이 없습니다");
-        const bytes = await drive.download(asset.drive_file_id);
+        const bytes = await storage.download(asset.storage_path);
         checkImage(bytes, asset.mime_type);
         const prompt = promptFor("profile");
         if (prompt.length > 4000) {
@@ -332,7 +339,7 @@ export function createHandler(
               if (!data.data?.[0]?.b64_json) {
                 throw new Error("AI 사진을 받지 못했습니다");
               }
-              // 사용량 확인 후에만 Drive 저장. 원본 변경 시 이전 결과로 덮어쓰지 않는다.
+              // 사용량 확인 후에만 저장. 원본 변경 시 이전 결과로 덮어쓰지 않는다.
               usageCost(data.usage, fx, true);
               const png = Uint8Array.from(
                 atob(data.data[0].b64_json),

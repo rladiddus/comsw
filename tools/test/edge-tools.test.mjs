@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { createHandler } from "../../supabase/functions/comsw-tools/handler.mjs";
-import { createDrive } from "../../supabase/functions/comsw-tools/drive.mjs";
+import { createStorage } from "../../supabase/functions/comsw-tools/storage.mjs";
 import {
   checkImage,
   requireMember,
@@ -86,60 +86,58 @@ test("토큰 비용 예약은 한글 원문과 출력 상한을 포함하고 응
   assert.ok(usageCost({ input_tokens: 100, output_tokens: 100 }, 2000) > 0);
   assert.throws(() => usageCost({}, 2000), /사용량/);
 });
-test("드라이브 공개 이미지 업로드는 공유 설정을 완료한 뒤 링크 반환", async () => {
+test("공개 이미지는 Firebase에 1년 캐시로 올리고 공개 링크 반환", async () => {
   const calls = [];
-  const drive = createDrive({
-    env: (name) => ({
-      GOOGLE_CLIENT_ID: "client",
-      GOOGLE_CLIENT_SECRET: "secret",
-      GOOGLE_REFRESH_TOKEN: "refresh",
-      GOOGLE_DRIVE_FOLDER_ID: "public",
-    }[name]),
+  const storage = createStorage({
+    env: () => undefined,
+    supabase: () => {
+      throw Error("공개 이미지는 Supabase에 올리지 않음");
+    },
+    firebaseToken: async () => "token",
     fetcher: async (url, options) => {
       calls.push([url, options]);
-      return Response.json(
-        url.includes("oauth2")
-          ? { access_token: "token", expires_in: 3600 }
-          : url.includes("/upload/")
-          ? { id: "new-file" }
-          : { id: "permission" },
-      );
+      return Response.json({ name: "x" });
     },
   });
-  const saved = await drive.upload(new Uint8Array([1, 2]), {
-    filename: "photo.png",
-    mimeType: "image/png",
+  const saved = await storage.upload(new Uint8Array([1, 2]), {
+    mimeType: "image/webp",
   });
-  assert.equal(saved.url, "https://drive.google.com/file/d/new-file/view");
-  const permission = calls.find(([url]) => url.endsWith("/permissions"));
-  assert.equal(JSON.parse(permission[1].body).type, "anyone");
-});
-test("원본 사진 폴더가 공개면 파일 업로드 자체를 하지 않음", async () => {
-  const calls = [];
-  const drive = createDrive({
-    env: (name) => ({
-      GOOGLE_CLIENT_ID: "client",
-      GOOGLE_CLIENT_SECRET: "secret",
-      GOOGLE_REFRESH_TOKEN: "refresh",
-      GOOGLE_DRIVE_FOLDER_ID: "public",
-      GOOGLE_DRIVE_PRIVATE_FOLDER_ID: "private",
-    }[name]),
-    fetcher: async (url) => {
-      calls.push(url);
-      return Response.json(
-        url.includes("oauth2")
-          ? { access_token: "token" }
-          : { permissions: [{ type: "anyone", role: "reader" }] },
-      );
-    },
-  });
-  await assert.rejects(
-    drive.upload(new Uint8Array([1]), {
-      filename: "photo.png",
-      mimeType: "image/png",
-      privateSource: true,
-    }),
-    /공개/,
+  assert.match(saved.path, /^firebase:public\/\d{4}-\d{2}\/[0-9a-f-]+\.webp$/);
+  assert.equal(
+    saved.url,
+    `https://firebasestorage.googleapis.com/v0/b/sbs-com-sw.firebasestorage.app/o/${
+      encodeURIComponent(saved.path.slice("firebase:".length))
+    }?alt=media`,
   );
-  assert.ok(!calls.some((url) => url.includes("/upload/")));
+  const [url, options] = calls[0];
+  assert.ok(url.includes("/upload/storage/v1/b/sbs-com-sw.firebasestorage.app/o"));
+  assert.equal(options.headers.Authorization, "Bearer token");
+  assert.match(await options.body.text(), /max-age=31536000/);
+});
+test("본인 사진 원본은 Supabase 비공개 버킷에만 저장하고 링크를 만들지 않음", async () => {
+  const uploads = [];
+  const storage = createStorage({
+    env: () => undefined,
+    supabase: () => ({
+      storage: {
+        from: (bucket) => ({
+          upload: async (name) => {
+            uploads.push([bucket, name]);
+            return { error: null };
+          },
+        }),
+      },
+    }),
+    firebaseToken: async () => {
+      throw Error("원본 사진은 Firebase에 올리지 않음");
+    },
+  });
+  const saved = await storage.upload(new Uint8Array([1]), {
+    mimeType: "image/png",
+    privateSource: true,
+  });
+  assert.equal(saved.url, null);
+  assert.equal(uploads[0][0], "comsw-private");
+  assert.equal(saved.path, `supabase:${uploads[0][1]}`);
+  await assert.rejects(storage.download("firebase:public/a.webp"), /본인 사진/);
 });

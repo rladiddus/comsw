@@ -8,7 +8,7 @@ const head = { sub: "head", comsw_role: "head" };
 test('본인 원본 사진과 프로필 대기본은 다른 교사에게 보이지 않음',async()=>{
   const db=await freshDb();try{
     await db.exec(`insert into instructors(name,account_uid) values('다른강사','other');
-      insert into media_assets(owner_uid,kind,drive_file_id,filename,mime_type,byte_size) values('other','profile-source','private-file','photo.png','image/png',100);
+      insert into media_assets(owner_uid,kind,storage_path,filename,mime_type,byte_size) values('other','profile-source','private-file','photo.png','image/png',100);
       insert into instructor_profile_drafts(instructor_id,name,source_asset_id) select i.id,i.name,a.id from instructors i,media_assets a;`);
     const asset=(await db.query('select id from media_assets')).rows[0].id;
     await as(db,'authenticated',teacher);

@@ -29,4 +29,4 @@ jobs:
       - name: Check Edge Function
         run: deno check --config supabase/functions/comsw-tools/deno.json supabase/functions/comsw-tools/index.ts
       - name: Check profile PNG dimensions and transparency
-        run: deno test --config supabase/functions/comsw-tools/deno.json tools/test/portrait.deno.ts
+        run: deno test --allow-read --config supabase/functions/comsw-tools/deno.json tools/test/portrait.deno.ts

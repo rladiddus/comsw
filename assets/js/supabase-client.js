@@ -86,6 +86,31 @@
     return rows;
   }
 
+  // 방문자 캐시: '적용' 번호(스냅샷 id)를 페이지당 한 번 확인하고, 같으면 브라우저에 저장해 둔 내용을 쓴다.
+  // 저장 키에 번호를 넣어 두어 '적용'이 바뀌면 예전 것은 지운다. 번호 확인이 실패하면 예전처럼 매번 읽는다.
+  const STORE = 'comsw_rows::';
+  let versionPromise = null;
+  function siteVersion() {
+    if (!versionPromise) versionPromise = rpc('comsw_site_version').catch(function() { return null; });
+    return versionPromise;
+  }
+  function readStored(key, version) {
+    try {
+      return JSON.parse(localStorage.getItem(STORE + version + '::' + key) || 'null');
+    } catch (e) {
+      return null;
+    }
+  }
+  function writeStored(key, version, rows) {
+    try {
+      const prefix = STORE + version + '::';
+      Object.keys(localStorage).forEach(function(k) {
+        if (k.indexOf(STORE) === 0 && k.indexOf(prefix) !== 0) localStorage.removeItem(k);
+      });
+      localStorage.setItem(prefix + key, JSON.stringify(rows));
+    } catch (e) {} // 저장 공간이 꽉 차거나 막힌 브라우저: 저장 없이 그대로 쓴다.
+  }
+
   async function fetchSheetRows(sheetName, sourceId) {
     const source = normalizeText(sourceId) || defaultSourceId();
     const cacheKey = source + '::' + sheetName;
@@ -101,7 +126,14 @@
         return null;
       });
     }
-    if (!rows) rows = (await rpc('comsw_site_rows', args)) || [];
+    if (!rows) {
+      const version = await siteVersion();
+      rows = version == null ? null : readStored(cacheKey, version);
+      if (!rows) {
+        rows = (await rpc('comsw_site_rows', args)) || [];
+        if (rows.length && version != null) writeStored(cacheKey, version, rows);
+      }
+    }
     if (!rows.length) {
       // 관리 화면에서 아직 '적용'하지 않았거나 빈 시트. 다음 호출에서 다시 읽도록 캐시하지 않는다.
       if (window.console) console.warn('[ComswSupabase] 적용된 데이터 없음: ' + source + ' / ' + sheetName);

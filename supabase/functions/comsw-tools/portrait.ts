@@ -1,4 +1,28 @@
 import { Image } from "npm:imagescript@3.3.0";
+import encodeWebp from "npm:@jsquash/webp@1.5.0/encode.js";
+
+// 공개 이미지는 WebP로 저장한다. 메인 배경 등 일반 이미지는 긴 변 1920px까지 줄인다.
+export async function toWebp(bytes: Uint8Array, kind: string) {
+  const isWebp = String.fromCharCode(...bytes.slice(8, 12)) === "WEBP";
+  if (isWebp) return bytes;
+  const image = await Image.decode(bytes, { maxPixels: 20_000_000 });
+  const max = kind === "image" ? 1920 : 0;
+  if (max && Math.max(image.width, image.height) > max) {
+    const scale = max / Math.max(image.width, image.height);
+    image.resize(
+      Math.round(image.width * scale),
+      Math.round(image.height * scale),
+    );
+  }
+  return new Uint8Array(
+    await encodeWebp({
+      data: new Uint8ClampedArray(image.bitmap.buffer),
+      width: image.width,
+      height: image.height,
+      colorSpace: "srgb",
+    } as ImageData, { quality: 80 }),
+  );
+}
 
 export async function validateCurriculumImage(bytes: Uint8Array) {
   const image = await Image.decode(bytes, { maxPixels: 20_000_000 });

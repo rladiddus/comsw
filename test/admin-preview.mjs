@@ -97,7 +97,7 @@ configureServices({
     throw new Error("화면 예시에서는 AI 사진을 생성하지 않습니다.");
   },
   status: async () => ({
-    drive: false,
+    storage: false,
     ai: false,
     budget: { month: "2026-10", used: 0, limit: 3000 },
   }),

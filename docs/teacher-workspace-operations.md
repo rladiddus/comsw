@@ -5,30 +5,35 @@
 ## 반영 순서
 
 1. `npm test`, `node scripts/check-syntax.js` 및 Deno 검사 통과를 확인한다.
-2. Supabase SQL Editor에서 `supabase/migrations/20261021081846_teacher_workspace.sql`을 한 트랜잭션으로 실행한다. 기존 데이터는 지우지 않는다. CLI `db push`는 쓰지 않는다(기존 마이그레이션은 SQL Editor에서 실행되어 원격 이력과 다를 수 있음).
+2. `supabase/migrations/20261021081846_teacher_workspace.sql`, `20261022010000_image_storage.sql`을 각각 한 트랜잭션으로 실행한다(SQL Editor 또는 `supabase db query --linked -f`). 기존 데이터는 지우지 않는다. CLI `db push`는 쓰지 않는다(기존 마이그레이션은 SQL Editor에서 실행되어 원격 이력과 다를 수 있음).
 3. Supabase Edge Function `comsw-tools`를 배포한다. `supabase/config.toml`의 `verify_jwt=false`는 함수 안에서 Firebase RS256 서명, issuer, audience, 만료, `comsw_role`을 직접 검사하기 위한 설정이다. 인증 없이 업무 작업을 실행하지 않는다.
 4. 아래 비밀값을 Supabase Edge Functions > Secrets에서 넣는다. 채팅·저장소·브라우저 프런트 코드에 키나 토큰을 붙여넣지 않는다.
 5. 테스트 계정에서 실제 커리큘럼 원문·크롭 이미지 제출 → 학과장 요약 → 승인 → 미리보기, 프로필 원본·사용 동의 제출 → 학과장 생성 → 승인 → 미리보기를 확인한다. 실제 공개는 기존 ‘적용’ 버튼으로 진행한다.
 6. 사용자 확인 후 main에 반영한다. GitHub Pages에서 새 파일을 제공한 뒤 기존 로그인으로 확인한다.
+
+## 이미지 저장소 (2026-10-22 변경: 구글 드라이브 → Firebase/Supabase)
+
+- **공개 이미지**(커리큘럼·일반 이미지·AI 프로필 결과): Firebase 프로젝트 `sbs-com-sw`(쌤톡과 분리)의 Storage, 서울 `asia-northeast3`, 버킷 `sbs-com-sw.firebasestorage.app`의 `public/년-월/uuid.webp`. 서버에서 **WebP(품질 80)**로 바꿔 저장하고 1년 캐시 헤더를 붙인다. 일반 이미지는 긴 변 1920px까지 줄인다.
+- **본인 사진 원본**: Supabase 비공개 버킷 `comsw-private`. 정책이 없어 서버 함수(서비스 키)만 읽고 쓴다. 원본은 변환하지 않는다.
+- 위치는 `media_assets.storage_path`에 `firebase:경로` / `supabase:경로`로 남는다.
+- 공개 읽기 규칙: `firebase/storage.rules` (`public/**` 읽기만 허용). 배포: `cd firebase && firebase deploy --only storage`.
+- 서울 지역은 무료 구간이 없어 전송량만큼 요금이 나온다(사용자 결정). Blaze 예산 알림을 유지한다.
 
 ## 서버 비밀값
 
 | 이름 | 용도 |
 |---|---|
 | `OPENAI_API_KEY` | 요약·프로필 API 전용 키 |
-| `GOOGLE_CLIENT_ID` | 관리자 Drive OAuth 클라이언트 |
-| `GOOGLE_CLIENT_SECRET` | OAuth 클라이언트 비밀값 |
-| `GOOGLE_REFRESH_TOKEN` | 관리자 개인 Drive 계정의 offline 갱신 토큰 |
-| `GOOGLE_DRIVE_FOLDER_ID` | 기존 공개 자료 폴더 `1jiXHizCoG1ynl2mXOEZrWUeRjrUxZzdk` |
-| `GOOGLE_DRIVE_PRIVATE_FOLDER_ID` | 소유자만 접근하는 별도의 본인 사진 원본 폴더. 공개 자료 폴더 안에 만들지 않는다. |
+| `FIREBASE_SERVICE_ACCOUNT` | `sbs-com-sw` 서비스 계정 키 JSON 전체. Storage 쓰기용 |
+| `FIREBASE_STORAGE_BUCKET` | 생략 가능. 기본 `sbs-com-sw.firebasestorage.app` |
 | `COMSW_USD_KRW` | 원화 예산 환율. 기본 2000. 실제 결제 환율보다 충분히 높게 유지 |
 | `COMSW_ALLOWED_ORIGINS` | 허용 화면 origin 목록. 기본 GitHub Pages와 로컬 화면 확인 주소 |
 
-`SUPABASE_URL`, `SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`는 Supabase가 함수에 제공한다. 서비스 키는 서버 내부에서 자산 등록·비용 원장 처리에만 사용한다. 사용자 자료 조회는 사용자 Firebase 토큰을 사용하는 Supabase 클라이언트와 RLS를 통과한다.
+`SUPABASE_URL`, `SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`는 Supabase가 함수에 제공한다. 서비스 키는 서버 내부에서 자산 등록·비용 원장·비공개 버킷 처리에만 사용한다. 사용자 자료 조회는 사용자 Firebase 토큰을 사용하는 Supabase 클라이언트와 RLS를 통과한다.
 
-관리자 Google 계정으로 [서버용 OAuth offline 동의](https://developers.google.com/identity/protocols/oauth2/web-server#offline)를 한 번 완료한다. Drive 파일 생성·공유에 필요한 범위를 사용하고, 토큰은 Secrets에 보관한다. 개인 Drive 폴더에 서비스 계정 업로드 방식은 사용하지 않는다. 원본 폴더와 원본 파일의 권한을 매번 확인하여 소유자 이외 권한이 있으면 업로드·다운로드를 거절한다.
+## 기존 드라이브 이미지 옮기기
 
-공개용 이미지 업로드는 파일 생성과 `anyone/reader` 공유가 모두 성공해야 링크를 돌려준다. 원본 사진에는 공개 공유를 적용하지 않는다. 실패한 새 파일은 가능한 경우 Drive 휴지통으로 이동한다.
+`tools/move-drive-images.ts` 맨 위 주석 순서대로: 목록(`tools/drive-image-urls.sql`) → 내려받아 WebP 변환(영상 등은 건너뜀) → Firebase 업로드 → 생성된 `update.sql` 확인 후 운영 DB 실행 → 관리 화면 ‘적용’. 대상 칸은 `tools/drive-image-columns.json`.
 
 ## AI 비용과 결과
 
@@ -44,7 +49,7 @@
 
 ## 커리큘럼 이미지 자르기
 
-파일 선택·드롭 후 업로드 전에 정사각형 크롭 화면을 제공한다. 원본은 가로·세로 모두 1000px 이상이어야 하며, 가로형·세로형 등 비율 제한은 없다. 드래그 또는 가로/세로 위치 슬라이더와 크기 슬라이더로 영역을 선택한다. 선택 영역도 최소 1000px을 유지하고, 원본에서 바로 1000×1000 PNG를 만든다. 취소하면 Drive 요청을 하지 않는다. 서버는 해당 kind의 이미지가 실제 정사각형이고 최소 1000px인지 검사한다. 링크로 연결한 기존 자료·영상과 프로필 생성용 원본은 그대로 사용한다.
+파일 선택·드롭 후 업로드 전에 정사각형 크롭 화면을 제공한다. 원본은 가로·세로 모두 1000px 이상이어야 하며, 가로형·세로형 등 비율 제한은 없다. 드래그 또는 가로/세로 위치 슬라이더와 크기 슬라이더로 영역을 선택한다. 선택 영역도 최소 1000px을 유지하고, 원본에서 바로 1000×1000 PNG를 만들고 서버가 WebP로 바꿔 저장한다. 취소하면 업로드 요청을 하지 않는다. 서버는 해당 kind의 이미지가 실제 정사각형이고 최소 1000px인지 검사한다. 링크로 연결한 기존 자료·영상과 프로필 생성용 원본은 그대로 사용한다.
 
 ## 기존 데이터 정리
 
@@ -60,13 +65,13 @@
 
 ## 로컬 화면 확인과 검사
 
-`node scripts/preview-server.mjs` 실행 후 `http://127.0.0.1:8787/test/admin-preview.html`을 연다. 예시 데이터만 사용하며 실제 계정·Drive·AI에 연결되지 않는다. 선생님/학과장 선택으로 메뉴 구성을 확인한다.
+`node scripts/preview-server.mjs` 실행 후 `http://127.0.0.1:8787/test/admin-preview.html`을 연다. 예시 데이터만 사용하며 실제 계정·저장소·AI에 연결되지 않는다. 선생님/학과장 선택으로 메뉴 구성을 확인한다.
 
 ```
 npm test
 node scripts/check-syntax.js
 npx deno check --config supabase/functions/comsw-tools/deno.json supabase/functions/comsw-tools/index.ts
-npx deno test --config supabase/functions/comsw-tools/deno.json tools/test/portrait.deno.ts
+npx deno test --allow-read --config supabase/functions/comsw-tools/deno.json tools/test/portrait.deno.ts
 ```
 
-운영 배포·Secrets 설정·실제 Google OAuth/API 호출·원본 GAS 트리거 변경은 로컬 테스트 통과만으로 완료된 것이 아니다. 각 운영 반영 후 실제 요청 결과로 확인한다.
+운영 배포·Secrets 설정·실제 저장소·AI 호출·원본 GAS 트리거 변경은 로컬 테스트 통과만으로 완료된 것이 아니다. 각 운영 반영 후 실제 요청 결과로 확인한다.

@@ -50,7 +50,7 @@ export function mountImageUpload(
       box.setAttribute("aria-busy", "true");
       state.textContent = kind === "curriculum"
         ? "정사각형으로 자를 부분을 선택해주세요…"
-        : "드라이브에 올리는 중…";
+        : "이미지를 올리는 중…";
       state.classList.remove("err");
       const file = kind === "curriculum" ? await crop(files[0]) : files[0];
       if (!file) {
@@ -58,7 +58,7 @@ export function mountImageUpload(
         return;
       }
       validateImage(file);
-      state.textContent = "드라이브에 올리는 중…";
+      state.textContent = "이미지를 올리는 중…";
       const fn = upload ?? getServices().upload;
       if (!fn) {
         throw new Error(

@@ -19,7 +19,7 @@ export async function mountAiSettings(container, supabase) {
       if (!service) throw new Error("AI 연결을 준비 중입니다");
       const status = await service();
       setState(
-        `드라이브 ${status.drive ? "연결됨" : "설정 필요"} · AI ${
+        `이미지 저장소 ${status.storage ? "연결됨" : "설정 필요"} · AI ${
           status.ai ? "연결됨" : "설정 필요"
         } · ${status.budget.month} 사용·예약 ${status.budget.used.toLocaleString()}원 / 3,000원`,
       );

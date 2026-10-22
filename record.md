@@ -3,6 +3,17 @@
 > 작업 전 이 파일을 먼저 읽는다. 공개 사이트 예전 작업 기록은 `gpt.md`.
 > 이 파일에는 비밀 키·개인정보(신청자 이름·연락처)를 적지 않는다.
 
+## 이미지 저장소 전환·캐시 (2026-10-22)
+
+- **결정**: 구글 드라이브 OAuth 대신, 공개 이미지는 Firebase 프로젝트 `sbs-com-sw`(쌤톡과 분리, 기존 GCP 프로젝트에 Firebase 추가, Blaze) Storage **서울 asia-northeast3**(사용자 선택, 무료 구간 없음 → 전송량 과금), 본인 사진 원본은 Supabase 비공개 버킷 `comsw-private`. Supabase 무료 전송량(월 5GB)으로는 기존 이미지 전체를 감당하기 어려워 Firebase로 정함.
+- 새 업로드: 서버가 **WebP(품질 80)**로 바꿔 `public/년-월/uuid.webp`에 저장, 1년 immutable 캐시. 일반 이미지는 긴 변 1920px. 코드 `storage.mjs`(drive.mjs 삭제), `portrait.ts`의 `toWebp`(@jsquash/webp), `index.ts`의 서비스 계정 토큰. Secret `FIREBASE_SERVICE_ACCOUNT` 입력됨(사용자). 키 파일은 `research\`에만 둔다.
+- 운영 실행: `20261022010000_image_storage.sql`(`drive_file_id`→`storage_path`, 비공개 버킷), `20261022020000_site_version.sql`. 함수 재배포, `firebase/storage.rules`(public/** 읽기만) 배포.
+- **기존 드라이브 이미지 이전 완료**: 8개 칸의 서로 다른 파일 955개 → WebP 76.8MB 업로드(HEAD 955/955 200). 사용자 확인 후 링크 1,364줄 교체(남은 드라이브 링크 0). 교체 전 값은 `research\drive-urls-backup-2026-10-22.json`. 도구 `tools/move-drive-images.ts`. 6000px 넘는 사진 10개는 드라이브 1920px 썸네일로 변환.
+- 미리보기 확인: 전체수업 382줄에 드라이브 0·Firebase 2,216, 로딩 이미지 표시 정상. **공개 반영은 관리 화면 ‘적용’ 필요(아직 안 함)**.
+- **방문자 캐시**: `supabase-client.js`가 페이지당 한 번 `comsw_site_version()`(최신 스냅샷 id)만 확인하고, 같으면 localStorage(`comsw_rows::번호::시트`)의 내용을 쓴다. ‘적용’으로 번호가 바뀌면 새로 받고 예전 번호는 지운다. 미리보기는 캐시 안 씀, 번호 확인 실패 시 예전처럼 매번 읽음. 특강 신청 수는 항상 최신으로 읽음. 관리 화면은 편집 중 최신 값이 필요해 캐시하지 않음.
+- 검증: `npm test` 189개, 문법 125건, Deno check, Deno 테스트 4개(WebP 투명도·1920 제한 포함) 통과.
+- 주의: 서비스 계정 키 내용이 편집기 선택으로 대화에 노출됨 → 키 교체 권장(새 키 생성 → Secret·research 파일 교체 → 예전 키 삭제). 실제 관리 화면 업로드로 Edge의 WebP 변환(wasm) 동작은 아직 미확인.
+
 ## 운영 반영 (2026-10-22)
 
 - 다시 검증: `npm test` 185개, 문법 검사 125건, Deno check·이미지 검사 3개 통과.

@@ -1,0 +1,10 @@
+[
+ ["course_prep_items", "image_url"],
+ ["departments", "image_url"],
+ ["instructor_curricula", "media_url"],
+ ["instructors", "photo_url"],
+ ["loading_items", "image_url"],
+ ["seminars", "poster_url"],
+ ["site_settings", "value"],
+ ["subject_weeks", "image_url"]
+]

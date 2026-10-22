@@ -185,3 +185,14 @@ test("특강 행 9번째 칸(인덱스 8)은 특강 id — 사이트가 이 id�
   assert.equal(row.data.values[1], "AI 특강");
   assert.equal(row.data.values[8], id);
 });
+
+test("'적용' 번호는 적용할 때마다 바뀌고 익명도 읽을 수 있다", async () => {
+  const db = await published();
+  const version = async () => (await db.query(`select comsw_site_version() v`)).rows[0].v;
+  const first = await version();
+  assert.ok(first);
+  await as(db, "authenticated", ADMIN);
+  await db.query(`select comsw_publish()`);
+  await as(db, "anon");
+  assert.notEqual(await version(), first);
+});

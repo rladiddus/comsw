@@ -6,21 +6,28 @@ import { JSDOM } from "jsdom";
 const src = f => readFileSync(new URL(`../../assets/js/${f}`, import.meta.url), "utf8");
 
 // 공개 사이트 스크립트(클래식)를 가짜 fetch가 있는 창에서 실행한다.
-function site({ page = "index.html", reply = () => [], scripts = ["supabase-client.js"], token, session } = {}) {
+// '적용' 번호 확인(comsw_site_version)은 calls에 넣지 않고 versionCalls로 센다.
+function site({ page = "index.html", reply = () => [], scripts = ["supabase-client.js"], token, session, version = 7 } = {}) {
   const { window } = new JSDOM("<!doctype html><body></body>", { runScripts: "outside-only", url: `https://x.github.io/comsw/${page}` });
   if (token) window.localStorage.setItem("comsw_preview_token", token);
   if (session) window.sessionStorage.setItem("comsw_preview", "1");
   const calls = [];
+  const state = { version, versionCalls: 0 };
   window.COMSW_SUPABASE_CONFIG = { url: "https://db.example", anonKey: "anon", sources: { main: "main" }, sheets: { main: "메인 페이지" } };
   window.fetch = async (url, opts = {}) => {
     const body = opts.body ? JSON.parse(opts.body) : null;
+    if (url.endsWith("comsw_site_version")) {
+      state.versionCalls++;
+      if (state.version instanceof Error) return { ok: false, status: 404, text: async () => "없음" };
+      return { ok: true, json: async () => state.version };
+    }
     calls.push({ url, method: opts.method, body, auth: opts.headers?.Authorization });
     const out = reply(url, body);
     if (out instanceof Error) return { ok: false, status: 401, text: async () => out.message };
     return { ok: true, json: async () => out };
   };
   for (const s of scripts) window.eval(src(s));
-  return { window, calls };
+  return { window, calls, state };
 }
 const row = (n, values) => ({ source_id: "main", sheet_name: "x", row_number: n, data: { values } });
 const tick = () => new Promise(r => setTimeout(r, 20));
@@ -138,4 +145,37 @@ test("미리보기에서는 꺼진 페이지도 열린다", async () => {
   const { window } = site({ page: "seminar.html?preview=1", token: "tok", reply: () => MENU, scripts: ["supabase-client.js", "footer-menu.js"] });
   await tick();
   assert.equal(window.document.getElementById("comsw-page-off"), null);
+});
+
+test("같은 '적용' 번호면 새로 고침해도 저장된 내용을 쓰고, 번호가 바뀌면 다시 받는다", async () => {
+  const { window, calls, state } = site({ reply: () => [row(2, ["a"])] });
+  const reload = () => window.eval(src("supabase-client.js"));
+  await window.ComswSupabase.fetchSheetRows("로드맵");
+  await window.ComswSupabase.fetchSheetRows("메인 페이지");
+  assert.equal(state.versionCalls, 1, "번호 확인은 페이지당 한 번");
+  reload();
+  const again = await window.ComswSupabase.fetchSheetRows("로드맵");
+  assert.equal(again[0].data.values[0], "a");
+  assert.equal(calls.length, 2, "새로 고침 뒤에는 저장된 내용");
+  state.version = 8;
+  reload();
+  await window.ComswSupabase.fetchSheetRows("로드맵");
+  assert.equal(calls.length, 3, "'적용'이 바뀌면 다시 받는다");
+  assert.deepEqual(Object.keys(window.localStorage).filter(k => k.startsWith("comsw_rows::")), ["comsw_rows::8::main::로드맵"], "예전 번호는 지운다");
+});
+
+test("번호 확인이 실패하면 저장 없이 예전처럼 매번 읽는다", async () => {
+  const { window, calls } = site({ version: new Error("x"), reply: () => [row(2, ["a"])] });
+  await window.ComswSupabase.fetchSheetRows("로드맵");
+  window.eval(src("supabase-client.js"));
+  await window.ComswSupabase.fetchSheetRows("로드맵");
+  assert.equal(calls.length, 2);
+  assert.equal(Object.keys(window.localStorage).filter(k => k.startsWith("comsw_rows::")).length, 0);
+});
+
+test("미리보기는 저장된 내용을 쓰지 않는다", async () => {
+  const { window, calls, state } = site({ page: "item.html?preview=1", token: "tok", reply: () => [row(2, ["a"])] });
+  await window.ComswSupabase.fetchSheetRows("로드맵");
+  assert.equal(state.versionCalls, 0);
+  assert.match(calls[0].url, /comsw_preview_rows$/);
 });

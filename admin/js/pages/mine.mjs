@@ -12,16 +12,16 @@ import { driveThumbnail } from "../drive.mjs";
 // 이미지: 직접 업로드(정사각형 크롭) 또는 링크. 고른 방식의 값 하나만 제출한다.
 function mediaPicker(container, initial = "") {
   let url = initial;
-  const preview = el("img", {
-    className: "curriculum-preview",
-    alt: "커리큘럼 이미지",
-    hidden: true,
-  });
+  // 첨부 이미지는 업로드 칸 오른쪽의 고정 크기 칸에 보여 준다(줄 높이가 바뀌지 않게).
+  const preview = el("img", { alt: "커리큘럼 이미지", hidden: true });
+  const empty = el("span", { textContent: "이미지 없음" });
   preview.addEventListener("error", () => {
     preview.hidden = true;
+    empty.hidden = false;
   });
   const show = () => {
     preview.hidden = !url;
+    empty.hidden = Boolean(url);
     if (url) preview.src = driveThumbnail(url);
   };
   const link = el("input", {
@@ -65,10 +65,10 @@ function mediaPicker(container, initial = "") {
   container.append(
     el("div", { className: "media-picker" }, [
       el("span", { className: "field-label", textContent: "커리큘럼 이미지" }),
-      modes,
-      uploadBox,
-      linkBox,
-      preview,
+      el("div", { className: "media-body" }, [
+        el("div", { className: "media-controls" }, [modes, uploadBox, linkBox]),
+        el("div", { className: "media-thumb" }, [preview, empty]),
+      ]),
     ]),
   );
   show();

@@ -112,9 +112,10 @@ export async function render(container, ctx) {
     const submit = el("button", {
       type: "submit",
       className: "publish-btn",
-      textContent: "프로필 승인 요청",
+      textContent: "저장 및 승인 요청",
     });
-    form.append(el("div", { className: "form-actions" }, [submit]));
+    const actions = el("div", { className: "form-actions" }, [submit]);
+    form.append(actions);
     async function save() {
       if (upload.busy()) {
         throw new Error("사진 업로드가 끝난 후 저장해주세요");
@@ -157,7 +158,52 @@ export async function render(container, ctx) {
         textContent: "프로필 승인 대기 중입니다. 공개 정보는 승인 전까지 유지됩니다.",
       }));
     }
-    layout.append(form);
+    // 이미 적용됐거나 제출한 소개가 있으면 보기 화면부터 보여 주고, '수정'을 눌러야 고친다.
+    const pending = draft?.status === "pending";
+    const shown = pending ? draft : own;
+    const hasProfile = Boolean(
+      draft || own.career?.trim() || own.message?.trim(),
+    );
+    const edit = el("button", {
+      type: "button",
+      className: "publish-btn",
+      textContent: "수정",
+    });
+    const item = (label, text) =>
+      el("div", { className: "profile-item" }, [
+        el("span", { className: "field-label", textContent: label }),
+        el("p", { className: "submission-text", textContent: text || "-" }),
+      ]);
+    const view = el("section", { className: "workspace-card profile-view" }, [
+      el("h3", { textContent: "선생님 소개" }),
+      el("p", {
+        className: pending ? "notice" : "muted",
+        textContent: pending
+          ? "승인 대기 중인 수정본입니다. 사이트에는 승인 후 반영됩니다."
+          : "사이트에 적용된 소개입니다.",
+      }),
+      item("이름", own.name),
+      el("div", { className: "form-row" }, [
+        item("경력", shown.career),
+        item("한마디", shown.message),
+      ]),
+      item("본인 사진", sourceId ? "비공개로 보관 중" : "올린 사진 없음"),
+      el("div", { className: "form-actions" }, [edit]),
+    ]);
+    const cancel = el("button", {
+      type: "button",
+      className: "ghost-btn",
+      textContent: "취소",
+    });
+    const showView = (on) => {
+      view.hidden = !on;
+      form.hidden = on;
+    };
+    edit.addEventListener("click", () => showView(false));
+    cancel.addEventListener("click", () => showView(true));
+    if (hasProfile) actions.append(cancel);
+    showView(hasProfile);
+    layout.append(view, form);
     const classes = el("div", { className: "workspace-single" });
     await mountClassSettings(classes, {
       supabase,

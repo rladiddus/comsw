@@ -46,9 +46,52 @@ export async function mountClassSettings(
   const save = el("button", {
     type: "button",
     className: "publish-btn",
-    textContent: "수업 설정 저장",
+    textContent: "저장",
   });
-  box.append(list, actions);
+  const cancel = el("button", {
+    type: "button",
+    className: "ghost-btn",
+    textContent: "취소",
+  });
+  // 저장된 설정을 먼저 보여 주고, '수정'을 눌러야 고친다. 고른 학과가 없으면 바로 고치는 화면.
+  const summary = el("div", { className: "class-summary" });
+  const editor = el("div", {}, [list, actions]);
+  box.append(summary, editor);
+  let saved = { depts: new Set(selected), subjects: new Set(checked) };
+  function showSummary() {
+    const mine = depts.filter((d) => saved.depts.has(d.id));
+    const edit = el("button", {
+      type: "button",
+      className: "publish-btn",
+      textContent: "수정",
+    });
+    edit.addEventListener("click", () => {
+      summary.hidden = true;
+      editor.hidden = false;
+      draw();
+    });
+    summary.replaceChildren(
+      ...mine.map((d) =>
+        el("div", { className: "profile-item" }, [
+          el("span", { className: "field-label", textContent: d.name }),
+          el("p", {
+            textContent: subjectsOf(d.id).filter((s) => saved.subjects.has(s.id))
+              .map((s) => s.name).join(", ") || "고른 과목 없음",
+          }),
+        ])
+      ),
+      el("div", { className: "form-actions" }, [edit]),
+    );
+    summary.hidden = false;
+    editor.hidden = true;
+  }
+  cancel.addEventListener("click", () => {
+    selected.clear();
+    saved.depts.forEach((d) => selected.add(d));
+    checked.clear();
+    saved.subjects.forEach((x) => checked.add(x));
+    showSummary();
+  });
 
   function draw() {
     const mine = depts.filter((d) => selected.has(d.id));
@@ -109,7 +152,7 @@ export async function mountClassSettings(
       selected.add(pick.value);
       draw();
     });
-    actions.replaceChildren(pick, add, save);
+    actions.replaceChildren(pick, add, save, ...(saved.depts.size ? [cancel] : []));
   }
 
   save.addEventListener("click", async () => {
@@ -128,6 +171,8 @@ export async function mountClassSettings(
           ...otherMajors,
         ]);
         setState("저장했습니다. 쌤톡 학과에도 반영했습니다.");
+        saved = { depts: new Set(selected), subjects: new Set(checked) };
+        showSummary();
       } catch {
         setState(
           "컴수원에는 저장했지만 쌤톡 학과 반영에 실패했습니다. 잠시 후 다시 저장해주세요.",
@@ -140,5 +185,6 @@ export async function mountClassSettings(
       save.disabled = false;
     }
   });
-  draw();
+  if (saved.depts.size) showSummary();
+  else draw();
 }

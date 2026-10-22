@@ -71,10 +71,10 @@ test("등록한 커리큘럼이 있으면 조회하기가 먼저 열리고, 조�
   assert.equal(tabButton(c, "list").getAttribute("aria-selected"), "true");
   assert.ok(c.querySelector("form.curriculum-form").hidden);
   assert.match(tabButton(c, "list").textContent, /조회하기 \(1\)/);
-  findButton(c, "수정해서 제출").click();
+  findButton(c, "수정").click();
   const card = c.querySelector(".submission-card");
   card.querySelector("textarea").value = "새 커리큘럼";
-  findButton(card, "수정 승인 요청").click();
+  findButton(card, "저장 및 승인 요청").click();
   await flush();
   const call = calls.find(([n]) => n === "comsw_submit_my_curriculum");
   assert.deepEqual(
@@ -200,6 +200,8 @@ test("내 프로필: 내 소개·수업 설정 탭, 수업 설정은 쌤톡 학�
   assert.ok(c.querySelector(".class-settings").closest(".workspace-single").hidden);
   findButton(c, "수업 설정").click();
   const box = c.querySelector(".class-settings");
+  assert.match(box.querySelector(".class-summary").textContent, /웹학과웹1/, "저장된 설정을 먼저 보여 준다");
+  findButton(box, "수정").click();
   assert.deepEqual([...box.querySelectorAll(".class-dept h4")].map((h) => h.textContent), ["웹학과"]);
   const checks = Object.fromEntries([...box.querySelectorAll(".subject-check")].map((l) => [l.textContent, l.querySelector("input").checked]));
   assert.deepEqual(checks, { "웹1": true, "웹2": false });
@@ -208,21 +210,24 @@ test("내 프로필: 내 소개·수업 설정 탭, 수업 설정은 쌤톡 학�
 test("수업 설정: 학과를 추가·삭제하고 과목을 체크해 저장하면 강사 정보와 쌤톡 학과에 함께 반영한다", async () => {
   const { c, calls, majors } = await setup("profile", withAi());
   const box = c.querySelector(".class-settings");
+  findButton(box, "수정").click();
   const pick = box.querySelector(".form-actions select");
   pick.value = "ai";
   findButton(box, "+ 학과 추가").click();
   const aiDept = [...box.querySelectorAll(".class-dept")].find((d) => d.querySelector("h4").textContent === "AI학과");
   aiDept.querySelector("input").checked = true;
   aiDept.querySelector("input").dispatchEvent(new dom.window.Event("change"));
-  findButton(box, "수업 설정 저장").click();
+  findButton(box, "저장").click();
   await flush();
   let call = calls.findLast(([n]) => n === "comsw_set_my_classes");
   assert.deepEqual(call[1], { p_department_ids: ["dept", "ai"], p_subject_ids: ["subject", "ai1"] });
   assert.deepEqual(majors.saved, ["웹학과", "AI학과"]);
   assert.match(box.textContent, /쌤톡 학과에도 반영했습니다/);
+  assert.ok(box.querySelector(".class-summary").textContent.includes("AI기초"), "저장 후 보기 화면");
+  findButton(box, "수정").click();
   const web = [...box.querySelectorAll(".class-dept")].find((d) => d.querySelector("h4").textContent === "웹학과");
   findButton(web, "학과 삭제").click();
-  findButton(box, "수업 설정 저장").click();
+  findButton(box, "저장").click();
   await flush();
   call = calls.findLast(([n]) => n === "comsw_set_my_classes");
   assert.deepEqual(call[1], { p_department_ids: ["ai"], p_subject_ids: ["ai1"] }, "삭제한 학과의 과목은 빠진다");
@@ -249,4 +254,31 @@ test("내 프로필: 경력과 한마디는 한 줄에 나란히 있다", async 
   const { c } = await setup("profile");
   const row = c.querySelector("[name=career]").closest(".form-row");
   assert.ok(row && row.contains(c.querySelector("[name=message]")));
+});
+
+test("내 프로필: 적용된 소개가 있으면 보기 화면부터, 수정을 눌러 고치고 저장 및 승인 요청", async () => {
+  const data = tables();
+  Object.assign(data.instructors[0], { career: "現 웹 강사", message: "함께 성장해요" });
+  const { c, calls } = await setup("profile", data);
+  const view = c.querySelector(".profile-view");
+  const form = c.querySelector("form.profile-form");
+  assert.equal(view.hidden, false);
+  assert.equal(form.hidden, true);
+  assert.match(view.textContent, /現 웹 강사/);
+  assert.match(view.textContent, /사이트에 적용된 소개/);
+  findButton(view, "수정").click();
+  assert.equal(form.hidden, false);
+  findButton(form, "취소").click();
+  assert.equal(view.hidden, false);
+  findButton(view, "수정").click();
+  form.querySelector("[name=message]").value = "새 한마디";
+  form.dispatchEvent(new dom.window.Event("submit", { bubbles: true, cancelable: true }));
+  await flush();
+  assert.equal(calls.find(([n]) => n === "comsw_save_my_profile")[1].p_message, "새 한마디");
+});
+
+test("내 프로필: 처음 쓰는 선생님은 바로 작성 화면", async () => {
+  const { c } = await setup("profile");
+  assert.equal(c.querySelector("form.profile-form").hidden, false);
+  assert.equal(c.querySelector(".profile-view").hidden, true);
 });

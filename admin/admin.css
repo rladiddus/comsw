@@ -215,3 +215,7 @@ details summary { cursor:pointer; font-weight:650; }
   .app { grid-template-rows:auto auto minmax(0,1fr); }
   .tab-bar { top:-20px; }
 }
+/* 내 프로필 보기 화면 */
+.profile-item { margin:14px 0; }
+.profile-item p { margin:6px 0 0; }
+.profile-view .form-row .profile-item { margin:14px 0; }

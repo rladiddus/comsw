@@ -335,7 +335,7 @@ export async function render(container, ctx, { tab } = {}) {
         const edit = el("button", {
           type: "button",
           className: "ghost-btn",
-          textContent: pending ? "수정" : "수정해서 제출",
+          textContent: "수정",
         });
         edit.addEventListener("click", editor);
         card.replaceChildren(
@@ -406,7 +406,7 @@ export async function render(container, ctx, { tab } = {}) {
         const save = el("button", {
           type: "button",
           className: "publish-btn",
-          textContent: "수정 승인 요청",
+          textContent: "저장 및 승인 요청",
         });
         const cancel = el("button", {
           type: "button",

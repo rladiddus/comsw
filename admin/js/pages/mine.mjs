@@ -21,12 +21,7 @@ export async function render(container, ctx) {
   );
   const setState = stateLine(container);
   try {
-    const own = await requireInstructor(
-      container,
-      ctx,
-      () => render(container, ctx),
-    );
-    if (!own) return;
+    const own = await requireInstructor(ctx);
     const [depts, subjects, links, sets, submitted] = await Promise.all([
       rows(supabase, "departments", (q) => q.order("sort_order")),
       rows(supabase, "subjects", (q) => q.order("sort_order")),

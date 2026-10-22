@@ -1,4 +1,4 @@
-import { el, instructorHints, rows, rpc, stateLine } from "./teacher-workspace.mjs";
+import { el, rows, rpc, stateLine } from "./teacher-workspace.mjs";
 import { driveThumbnail } from "./drive.mjs";
 import { getServices } from "./services.mjs";
 
@@ -14,24 +14,16 @@ export async function mountInstructorReview(
     const setState = stateLine(box);
     if (message) setState(message);
     try {
-      const [requests, drafts, instructors] = await Promise.all([
-        rows(supabase, "instructor_link_requests"),
-        rows(
-          supabase,
-          "instructor_profile_drafts",
-          (q) => q.eq("status", "pending"),
-        ),
-        rows(supabase, "instructors"),
-      ]);
-      // 연결 대상이 어느 강사인지: 후보 RPC와 같은 순서로 학과·담당 과목을 붙인다.
-      const hintOf = requests.length
-        ? await instructorHints(supabase)
-        : () => "";
-      if (!requests.length && !drafts.length) {
+      const drafts = await rows(
+        supabase,
+        "instructor_profile_drafts",
+        (q) => q.eq("status", "pending"),
+      );
+      if (!drafts.length) {
         box.append(
           el("p", {
             className: "desc",
-            textContent: "새 연결 요청이나 승인 대기 프로필이 없습니다.",
+            textContent: "승인 대기 프로필이 없습니다.",
           }),
         );
         return;
@@ -47,53 +39,6 @@ export async function mountInstructorReview(
         } finally {
           b.disabled = false;
         }
-      }
-      for (const r of requests) {
-        const card = el("article", { className: "submission-card" }, [
-          el("h4", { textContent: `강사 계정 연결 · ${r.requested_name}` }),
-          el("p", {
-            className: "muted",
-            textContent: `연결 대상: ${
-              instructors.find((i) => i.id === r.instructor_id)?.name || "강사"
-            } · ${hintOf(r.instructor_id)}`,
-          }),
-          el("p", {
-            className: "muted",
-            textContent: `요청자: ${
-              r.requester_email || "이메일 없음(이전 요청)"
-            }`,
-          }),
-        ]);
-        const approve = el("button", {
-          type: "button",
-          className: "publish-btn",
-          textContent: "연결 승인",
-        });
-        approve.addEventListener("click", () => {
-          if (confirm("요청자와 강사가 같은 사람인지 확인하셨나요?")) {
-            run(
-              approve,
-              () =>
-                rpc(supabase, "comsw_approve_instructor_link", { p_id: r.id }),
-            );
-          }
-        });
-        const reject = el("button", {
-          type: "button",
-          className: "ghost-btn danger",
-          textContent: "연결 요청 반려",
-        });
-        reject.addEventListener("click", () => {
-          if (confirm("이 연결 요청을 반려할까요?")) {
-            run(reject, async () => {
-              const { error } = await supabase.from("instructor_link_requests")
-                .delete().eq("id", r.id);
-              if (error) throw new Error(error.message);
-            });
-          }
-        });
-        card.append(approve, reject);
-        box.append(card);
       }
       for (const d of drafts) {
         const card = el("article", { className: "submission-card" }, [

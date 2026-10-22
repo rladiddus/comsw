@@ -81,15 +81,6 @@ test("프로필 저장은 경력·한마디와 비공개 사진 ID를 승인 대
   assert.match(c.textContent, /승인/);
 });
 
-test("본인 강사 미연결이면 제출 대신 이름 후보 확인과 새 프로필 등록 안내", async () => {
-  const data = tables();
-  data.instructors = [];
-  const { c } = await setup("mine", data);
-  assert.equal(c.querySelector("form.curriculum-form"), null);
-  assert.match(c.textContent, /강사 정보 연결/);
-  assert.ok(findButton(c, "새 강사로 시작"));
-});
-
 test("교사 개인 화면에는 AI 실행과 비용 안내 없이 원문·사진 제출만 제공", async () => {
   const mine = await setup("mine");
   assert.equal(findButton(mine.c, "AI로 요약"), undefined);
@@ -100,28 +91,38 @@ test("교사 개인 화면에는 AI 실행과 비용 안내 없이 원문·사�
   assert.match(profile.c.textContent, /학과장/);
 });
 
-test("같은 이름 후보 버튼에 학과·담당 과목이 보인다", async () => {
+test("연결 안 된 선생님은 요청 화면 없이 쌤톡 이름으로 본인 강사 정보가 만들어진다", async () => {
+  const data = { ...tables(), instructors: [], instructor_link_requests: [{ id: "old", account_uid: "uid" }] };
+  const c = document.createElement("div");
+  document.body.replaceChildren(c);
+  const sb = fakeSupabase(data);
+  const calls = [];
+  sb.rpc = async (name, args) => {
+    calls.push([name, args]);
+    if (name === "comsw_create_my_instructor") {
+      data.instructors.push({ id: "new", account_uid: "uid", name: args.p_name });
+    }
+    return { data: [], error: null };
+  };
+  const { render } = await import("../js/pages/mine.mjs");
+  await render(c, { supabase: sb, uid: "uid", displayName: "", loadMyName: async () => "김새봄" });
+  await flush();
+  assert.deepEqual(calls[0], ["comsw_create_my_instructor", { p_name: "김새봄" }]);
+  assert.equal(data.instructor_link_requests.length, 0, "남은 연결 요청은 지운다");
+  assert.doesNotMatch(c.textContent, /강사 정보 연결/);
+  assert.ok(c.querySelector("form.curriculum-form"), "바로 커리큘럼 작성");
+});
+
+test("쌤톡 이름을 알 수 없으면 강사 정보를 만들지 않고 안내한다", async () => {
   const data = { ...tables(), instructors: [] };
   const c = document.createElement("div");
   document.body.replaceChildren(c);
   const sb = fakeSupabase(data);
-  sb.rpc = async (name) => ({
-    data: name === "comsw_instructor_candidates"
-      ? [
-        { id: "a", name: "김민주", departments: ["시각편집학과", "AI학과"], subjects: ["포토샵", "일러스트", "포토웍스", "디테일 일러스트"] },
-        { id: "b", name: "김민주", departments: ["자격증학과"], subjects: [] },
-      ]
-      : [],
-    error: null,
-  });
+  const calls = [];
+  sb.rpc = async (name) => { calls.push(name); return { data: [], error: null }; };
   const { render } = await import("../js/pages/mine.mjs");
-  await render(c, { supabase: sb, uid: "uid", displayName: "김민주" });
+  await render(c, { supabase: sb, uid: "uid", displayName: "", loadMyName: async () => { throw new Error("x"); } });
   await flush();
-  findButton(c, "기존 강사 찾기").click();
-  await flush();
-  const labels = [...c.querySelectorAll(".candidate-list button")].map((b) => b.textContent);
-  assert.deepEqual(labels, [
-    "김민주 · 시각편집학과, AI학과 · 포토샵, 일러스트, 포토웍스 외 1개 · 연결 요청",
-    "김민주 · 자격증학과 · 연결 요청",
-  ]);
+  assert.equal(calls.length, 0);
+  assert.match(c.textContent, /쌤톡 이름을 확인할 수 없습니다/);
 });

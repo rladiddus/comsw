@@ -15,7 +15,6 @@ const data = () => ({
     { id: "vis", name: "김민주", account_uid: null },
     { id: "lee", name: "이영희", account_uid: "uid-lee" },
   ],
-  instructor_link_requests: [{ id: "r", account_uid: "uid-kim", instructor_id: "vis", requested_name: "김민주" }],
   departments: [{ id: "d1", name: "웹학과" }, { id: "d2", name: "시각편집학과" }],
   instructor_departments: [{ instructor_id: "web", department_id: "d1" }, { instructor_id: "vis", department_id: "d2" }],
   subjects: [],
@@ -26,7 +25,7 @@ const members = async () => [
   { uid: "uid-kim", name: "김민주", username: "kimmj", majors: ["시각편집학과"] },
 ];
 
-test("쌤톡 회원과 강사를 나란히 보여 주고, 고르면 바로 연결하고 요청은 지운다", async () => {
+test("쌤톡 회원과 강사를 나란히 보여 주고, 고르면 바로 연결한다", async () => {
   const tables = data();
   const c = document.createElement("div");
   await render(c, { supabase: fakeSupabase(tables), loadMembers: members });
@@ -34,7 +33,6 @@ test("쌤톡 회원과 강사를 나란히 보여 주고, 고르면 바로 연�
   assert.deepEqual(rowsEl().map((r) => r.cells[0].textContent), ["김민주", "이영희"], "연결 안 된 회원이 위");
   const kim = rowsEl()[0];
   assert.equal(kim.cells[1].textContent, "kimmj");
-  assert.match(kim.cells[4].textContent, /연결 요청: 김민주/);
   const labels = [...kim.querySelectorAll("option")].map((o) => o.textContent);
   assert.deepEqual(labels.slice(0, 3), ["연결 안 함", "★ 김민주 · 웹학과", "★ 김민주 · 시각편집학과"]);
   const lee = [...kim.querySelectorAll("option")].find((o) => o.value === "lee");
@@ -44,7 +42,7 @@ test("쌤톡 회원과 강사를 나란히 보여 주고, 고르면 바로 연�
   select.dispatchEvent(new dom.window.Event("change"));
   await flush();
   assert.equal(tables.instructors.find((i) => i.id === "vis").account_uid, "uid-kim");
-  assert.equal(tables.instructor_link_requests.length, 0);
+  assert.equal(kim.querySelector("select") && [...c.querySelectorAll("tbody tr")].find((r) => r.cells[1].textContent === "kimmj").cells[4].textContent, "연결됨");
   assert.match(c.textContent, /김민주 님을 김민주 강사에 연결했습니다/);
 });
 

@@ -10,18 +10,17 @@ export async function render(container, { supabase, loadMembers }) {
     el("p", {
       className: "desc",
       textContent:
-        "쌤톡 교육부 회원마다 해당하는 강사를 고르면 바로 연결됩니다. ★는 이름이 같은 강사입니다. 연결된 선생님은 연결 요청 없이 '내 커리큘럼'·'내 프로필'을 씁니다.",
+        "쌤톡 교육부 회원마다 해당하는 강사를 고르면 바로 연결됩니다. ★는 이름이 같은 강사입니다. 연결하지 않은 선생님은 처음 '내 커리큘럼'을 열 때 쌤톡 이름으로 새 강사 정보가 만들어집니다.",
     }),
   );
   const setState = stateLine(container);
   const table = el("table", { className: "editor" });
   container.append(table);
-  let members, instructors, requests, hintOf;
+  let members, instructors, hintOf;
   try {
-    [members, instructors, requests, hintOf] = await Promise.all([
+    [members, instructors, hintOf] = await Promise.all([
       loadMembers(),
       rows(supabase, "instructors"),
-      rows(supabase, "instructor_link_requests"),
       instructorHints(supabase),
     ]);
   } catch (e) {
@@ -49,13 +48,10 @@ export async function render(container, { supabase, loadMembers }) {
     if (!instructorId) return;
     check(await supabase.from("instructors").update({ account_uid: uid }).eq("id", instructorId));
     instructors.find((i) => i.id === instructorId).account_uid = uid;
-    check(await supabase.from("instructor_link_requests").delete().eq("account_uid", uid));
-    requests = requests.filter((r) => r.account_uid !== uid);
   }
 
   function row(m) {
     const current = linkedTo(m.uid);
-    const request = requests.find((r) => r.account_uid === m.uid);
     const same = (i) => key(i.name) === key(m.name);
     const taken = (i) => i.account_uid && i.account_uid !== m.uid;
     const options = [...instructors]
@@ -91,11 +87,7 @@ export async function render(container, { supabase, loadMembers }) {
       el("td", { textContent: m.majors.join(", ") }),
       el("td", {}, [select]),
       el("td", {
-        textContent: current
-          ? "연결됨"
-          : request
-          ? `연결 요청: ${nameOf(request.instructor_id)}`
-          : "",
+        textContent: current ? "연결됨" : "",
       }),
     ]);
   }

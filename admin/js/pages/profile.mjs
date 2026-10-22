@@ -21,12 +21,7 @@ export async function render(container, ctx) {
   );
   const setState = stateLine(container);
   try {
-    const own = await requireInstructor(
-      container,
-      ctx,
-      () => render(container, ctx),
-    );
-    if (!own) return;
+    const own = await requireInstructor(ctx);
     const draft = (await rows(supabase, "instructor_profile_drafts", (q) =>
       q.eq("instructor_id", own.id)))[0];
     let sourceId = draft?.source_asset_id || null;

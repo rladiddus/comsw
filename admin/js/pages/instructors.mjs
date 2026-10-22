@@ -16,7 +16,7 @@ export async function render(container, { supabase }) {
     supabase,
     table: "instructors",
     title: "강사",
-    description: "사이트 표시에 체크한 강사만 '학과 강사소개'에 나옵니다. ↑↓ 순서가 사이트 순서입니다.",
+    description: "사이트 표시에 체크한 강사만 '학과 강사소개'에 나옵니다. ↑↓ 순서가 사이트 순서입니다. 쌤톡 이메일을 적어 두면 그 선생님이 처음 로그인할 때 연결 요청 없이 바로 연결됩니다.",
     columns: [
       { key: "name", label: "이름", type: "text", required: true },
       { key: "gender", label: "성별", type: "text" },
@@ -28,7 +28,10 @@ export async function render(container, { supabase }) {
       { key: "message", label: "한마디", type: "textarea" },
       { key: "photo_url", label: "프로필 사진", type: "image" },
       { key: "is_listed", label: "사이트 표시", type: "checkbox" },
+      { key: "account_email", label: "쌤톡 이메일", type: "text",
+        hint: row => (row.account_uid ? "계정 연결됨" : row.account_email?.trim() ? "첫 로그인 때 자동 연결" : "") },
     ],
+    duplicateMessage: "이미 다른 강사에 적힌 이메일입니다",
     defaults: { name: "새 강사", is_listed: false },
     deleteConfirm: async row => cascadeMessage("강사", row.name, [
       ["강사 커리큘럼", await countRows(supabase, "instructor_curricula", "instructor_id", row.id)],

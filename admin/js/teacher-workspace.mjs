@@ -54,6 +54,19 @@ export async function requireInstructor(
   const own =
     (await rows(supabase, "instructors", (q) => q.eq("account_uid", uid)))[0];
   if (own) return own;
+  // 관리자가 강사 정보에 이 계정의 쌤톡 이메일을 적어 두었으면 요청·승인 없이 바로 연결된다.
+  try {
+    if (await rpc(supabase, "comsw_claim_my_instructor")) {
+      const claimed = (await rows(
+        supabase,
+        "instructors",
+        (q) => q.eq("account_uid", uid),
+      ))[0];
+      if (claimed) return claimed;
+    }
+  } catch {
+    // 자동 연결이 안 되면 아래의 연결 요청 화면을 그대로 쓴다.
+  }
   const panel = el("section", { className: "workspace-card" });
   panel.append(
     el("h3", { textContent: "강사 정보 연결" }),

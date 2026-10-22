@@ -125,3 +125,24 @@ test("같은 이름 후보 버튼에 학과·담당 과목이 보인다", async 
     "김민주 · 자격증학과 · 연결 요청",
   ]);
 });
+
+test("관리자가 이메일을 적어 둔 선생님은 연결 요청 화면 없이 바로 내 커리큘럼을 쓴다", async () => {
+  const data = { ...tables(), instructors: [{ id: "me", name: "선생님", account_uid: null }] };
+  const c = document.createElement("div");
+  document.body.replaceChildren(c);
+  const sb = fakeSupabase(data);
+  const calls = [];
+  sb.rpc = async (name) => {
+    calls.push(name);
+    if (name === "comsw_claim_my_instructor") {
+      data.instructors[0].account_uid = "uid";
+      return { data: "me", error: null };
+    }
+    return { data: [], error: null };
+  };
+  const { render } = await import("../js/pages/mine.mjs");
+  await render(c, { supabase: sb, uid: "uid", displayName: "선생님" });
+  await flush();
+  assert.equal(calls[0], "comsw_claim_my_instructor");
+  assert.doesNotMatch(c.textContent, /강사 정보 연결/);
+});

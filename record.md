@@ -9,10 +9,11 @@
 - 새 업로드: 서버가 **WebP(품질 80)**로 바꿔 `public/년-월/uuid.webp`에 저장, 1년 immutable 캐시. 일반 이미지는 긴 변 1920px. 코드 `storage.mjs`(drive.mjs 삭제), `portrait.ts`의 `toWebp`(@jsquash/webp), `index.ts`의 서비스 계정 토큰. Secret `FIREBASE_SERVICE_ACCOUNT` 입력됨(사용자). 키 파일은 `research\`에만 둔다.
 - 운영 실행: `20261022010000_image_storage.sql`(`drive_file_id`→`storage_path`, 비공개 버킷), `20261022020000_site_version.sql`. 함수 재배포, `firebase/storage.rules`(public/** 읽기만) 배포.
 - **기존 드라이브 이미지 이전 완료**: 8개 칸의 서로 다른 파일 955개 → WebP 76.8MB 업로드(HEAD 955/955 200). 사용자 확인 후 링크 1,364줄 교체(남은 드라이브 링크 0). 교체 전 값은 `research\drive-urls-backup-2026-10-22.json`. 도구 `tools/move-drive-images.ts`. 6000px 넘는 사진 10개는 드라이브 1920px 썸네일로 변환.
-- 미리보기 확인: 전체수업 382줄에 드라이브 0·Firebase 2,216, 로딩 이미지 표시 정상. **공개 반영은 관리 화면 ‘적용’ 필요(아직 안 함)**.
+- 미리보기 확인: 전체수업 382줄에 드라이브 0·Firebase 2,216, 로딩 이미지 표시 정상.
+- **사용자 요청으로 ‘적용’ 완료(2026-10-22 12:40, 스냅샷 17)**: 공개 스냅샷에 Firebase 링크 1,355줄·드라이브 0. 공개 사이트(일반 방문자)에서 메인 로딩 이미지가 Firebase에서 표시되고, localStorage에 `comsw_rows::17::…` 캐시가 저장되는 것 확인.
 - **방문자 캐시**: `supabase-client.js`가 페이지당 한 번 `comsw_site_version()`(최신 스냅샷 id)만 확인하고, 같으면 localStorage(`comsw_rows::번호::시트`)의 내용을 쓴다. ‘적용’으로 번호가 바뀌면 새로 받고 예전 번호는 지운다. 미리보기는 캐시 안 씀, 번호 확인 실패 시 예전처럼 매번 읽음. 특강 신청 수는 항상 최신으로 읽음. 관리 화면은 편집 중 최신 값이 필요해 캐시하지 않음.
 - 검증: `npm test` 189개, 문법 125건, Deno check, Deno 테스트 4개(WebP 투명도·1920 제한 포함) 통과.
-- 주의: 서비스 계정 키 내용이 편집기 선택으로 대화에 노출됨 → 키 교체 권장(새 키 생성 → Secret·research 파일 교체 → 예전 키 삭제). 실제 관리 화면 업로드로 Edge의 WebP 변환(wasm) 동작은 아직 미확인.
+- 서비스 계정 키 내용이 편집기 선택으로 대화에 노출됨. 교체를 권장했으나 **사용자가 교체하지 않기로 결정**(키 id f2cff097…). 실제 관리 화면 업로드로 Edge의 WebP 변환(wasm) 동작은 아직 미확인.
 
 ## 운영 반영 (2026-10-22)
 

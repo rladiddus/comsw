@@ -3,7 +3,7 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/11.9.0/firebas
 import { getAuth } from "https://www.gstatic.com/firebasejs/11.9.0/firebase-auth.js";
 import { getFunctions } from "https://www.gstatic.com/firebasejs/11.9.0/firebase-functions.js";
 
-const app = initializeApp({
+export const app = initializeApp({
   apiKey: "AIzaSyAnxAV5UJpBeLOUBvfslpWRjRQlUrQk8gs",
   authDomain: "ssamtalk-sbs.firebaseapp.com",
   projectId: "ssamtalk-sbs",

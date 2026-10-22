@@ -171,9 +171,7 @@ export function mountTableEditor(container, {
   function render() {
     tbody.replaceChildren(...rows.map((row, index) => {
       const errBox = el("div", { className: "row-err" });
-      // hint(row): 칸 아래 짧은 안내(예: 강사 '연결됨').
-      const hintOf = c => (c.hint?.(row) ? [el("div", { className: "cell-hint", textContent: c.hint(row) })] : []);
-      const cells = columns.map((c, i) => el("td", {}, [...inputFor(row, c, errBox), ...hintOf(c), ...(i === 0 ? [errBox] : [])]));
+      const cells = columns.map((c, i) => el("td", {}, [...inputFor(row, c, errBox), ...(i === 0 ? [errBox] : [])]));
       const button = (text, onClick, cls = "") => {
         const b = el("button", { type: "button", textContent: text, className: cls });
         b.addEventListener("click", onClick);

@@ -3,13 +3,13 @@ import assert from "node:assert/strict";
 import { NAV, navFor, routeFrom } from "../js/router.mjs";
 
 test("메뉴 순서와 준비 상태", () => {
-  assert.deepEqual(NAV.map(n => n.id), ["main", "loading", "seminars", "departments", "subjects", "roadmap", "prep", "instructors", "curricula", "recruitment", "vacation", "mine", "profile"]);
+  assert.deepEqual(NAV.map(n => n.id), ["main", "loading", "seminars", "departments", "subjects", "roadmap", "prep", "instructors", "accounts", "curricula", "recruitment", "vacation", "mine", "profile"]);
   assert.ok(NAV.every(n => n.ready));
 });
 
 test("관리자·학과장은 두 개인 화면을 포함한 전체, 선생님은 두 화면만", () => {
   assert.equal(navFor("admin")[0].id, "main");
-  assert.equal(navFor("admin").length, 13);
+  assert.equal(navFor("admin").length, 14);
   assert.ok(navFor("head").some(n => n.id === "mine"));
   assert.deepEqual(navFor("teacher").map(n => n.id), ["mine", "profile"]);
   assert.deepEqual(navFor(null), []);

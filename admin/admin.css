@@ -54,7 +54,6 @@ table.editor input[type=text], table.editor input[type=number], table.editor tex
 table.editor textarea { min-height: 54px; resize: vertical; }
 table.editor input[type=checkbox] { width: 18px; height: 18px; }
 table.editor .row-err { color: #e03131; font-size: 12px; margin-top: 4px; }
-table.editor .cell-hint { color: var(--muted); font-size: 12px; margin-top: 4px; }
 table.editor .actions { white-space: nowrap; }
 table.editor .actions button { padding: 4px 8px; margin-right: 2px; border: 1px solid #ddd; border-radius: 6px; background: #fff; }
 table.editor .actions button.danger { color: #e03131; }

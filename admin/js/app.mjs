@@ -18,6 +18,7 @@ const PAGES = {
   roadmap: () => import("./pages/roadmap.mjs"),
   prep: () => import("./pages/prep.mjs"),
   instructors: () => import("./pages/instructors.mjs"),
+  accounts: () => import("./pages/accounts.mjs"),
   curricula: () => import("./pages/curricula.mjs"),
   recruitment: () => import("./pages/recruitment.mjs"),
   vacation: () => import("./pages/vacation.mjs"),

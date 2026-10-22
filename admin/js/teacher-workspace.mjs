@@ -45,6 +45,35 @@ export function instructorHint({ departments = [], subjects = [] }) {
   ].filter(Boolean).join(" · ") || "학과·과목 정보 없음";
 }
 
+// 강사 id → "학과 · 과목 3개 외 N개". 후보 RPC(comsw_instructor_candidates)와 같은 순서.
+export async function instructorHints(supabase) {
+  const [links, departments, subjectLinks, subjects] = await Promise.all([
+    rows(supabase, "instructor_departments"),
+    rows(supabase, "departments"),
+    rows(supabase, "instructor_subjects"),
+    rows(supabase, "subjects"),
+  ]);
+  const order = (a, b) => (a ?? Infinity) - (b ?? Infinity);
+  return (id) => {
+    const depts = links.filter((l) => l.instructor_id === id)
+      .map((l) => departments.find((d) => d.id === l.department_id))
+      .filter(Boolean).sort((a, b) =>
+        order(a.sort_order, b.sort_order) || a.name.localeCompare(b.name)
+      );
+    const subs = subjectLinks.filter((l) => l.instructor_id === id)
+      .map((l) => ({ l, s: subjects.find((s) => s.id === l.subject_id) }))
+      .filter((x) => x.s).sort((a, b) =>
+        order(a.l.sort_order, b.l.sort_order) ||
+        order(a.s.sort_order, b.s.sort_order) ||
+        a.s.name.localeCompare(b.s.name)
+      );
+    return instructorHint({
+      departments: depts.map((d) => d.name),
+      subjects: subs.map((x) => x.s.name),
+    });
+  };
+}
+
 // 기존 강사 계정은 자동 연결하지 않는다. 후보는 이름과 공개 정보(학과·담당 과목)만 RPC로 조회한다.
 export async function requireInstructor(
   container,
@@ -54,19 +83,6 @@ export async function requireInstructor(
   const own =
     (await rows(supabase, "instructors", (q) => q.eq("account_uid", uid)))[0];
   if (own) return own;
-  // 관리자가 강사 정보에 이 계정의 쌤톡 이메일을 적어 두었으면 요청·승인 없이 바로 연결된다.
-  try {
-    if (await rpc(supabase, "comsw_claim_my_instructor")) {
-      const claimed = (await rows(
-        supabase,
-        "instructors",
-        (q) => q.eq("account_uid", uid),
-      ))[0];
-      if (claimed) return claimed;
-    }
-  } catch {
-    // 자동 연결이 안 되면 아래의 연결 요청 화면을 그대로 쓴다.
-  }
   const panel = el("section", { className: "workspace-card" });
   panel.append(
     el("h3", { textContent: "강사 정보 연결" }),

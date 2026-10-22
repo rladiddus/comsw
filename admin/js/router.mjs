@@ -9,6 +9,7 @@ export const NAV = [
   { id: "roadmap", label: "로드맵", manage: true, ready: true },
   { id: "prep", label: "수업별 준비물", manage: true, ready: true },
   { id: "instructors", label: "강사", manage: true, ready: true },
+  { id: "accounts", label: "계정 연결", manage: true, ready: true },
   { id: "curricula", label: "강사 커리큘럼", manage: true, ready: true },
   { id: "recruitment", label: "채용 공고", manage: true, ready: true },
   { id: "vacation", label: "방학 특강", manage: true, ready: true },

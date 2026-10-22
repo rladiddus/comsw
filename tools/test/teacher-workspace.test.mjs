@@ -164,25 +164,3 @@ test("같은 이름 후보는 학과·담당 과목을 함께 주고, 연결 요
     await db.close();
   }
 });
-
-test("관리자가 적어 둔 쌤톡 이메일로 첫 로그인 때 요청 없이 연결되고, 다른 계정·역할 없는 계정은 연결되지 않는다", async () => {
-  const db = await freshDb();
-  try {
-    await db.exec(`insert into instructors(name, account_email) values ('김민주', ' Kim@Example.com '), ('웹강사', '');
-      insert into instructors(name, account_email) values ('빈칸', '');`);
-    await as(db, "authenticated", { sub: "stranger", comsw_role: "teacher", email: "other@example.com" });
-    assert.equal((await db.query("select comsw_claim_my_instructor() id")).rows[0].id, null);
-    await as(db, "authenticated", { sub: "norole", email: "kim@example.com" });
-    await assert.rejects(db.query("select comsw_claim_my_instructor()"), /권한/);
-    await as(db, "authenticated", { ...teacher, email: "kim@example.com" });
-    const id = (await db.query("select comsw_claim_my_instructor() id")).rows[0].id;
-    assert.ok(id);
-    assert.equal((await db.query("select name from instructors")).rows[0].name, "김민주");
-    await as(db, "authenticated", { sub: "second", comsw_role: "teacher", email: "kim@example.com" });
-    assert.equal((await db.query("select comsw_claim_my_instructor() id")).rows[0].id, null, "이미 연결된 강사는 다른 계정에 다시 연결하지 않는다");
-    await as(db, "authenticated", head);
-    await assert.rejects(db.query("update instructors set account_email='KIM@example.com' where name='웹강사'"), /duplicate|unique/);
-  } finally {
-    await db.close();
-  }
-});

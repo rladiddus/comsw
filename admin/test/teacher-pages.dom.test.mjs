@@ -84,13 +84,14 @@ test("등록한 커리큘럼이 있으면 조회하기가 먼저 열리고, 조�
   assert.ok(!("instructor_id" in call[1]));
 });
 
-test("등록하기: 과목·단계가 한 줄에 있고 + 단계 추가로 여러 단계를 한 번에 승인 요청한다", async () => {
+test("등록하기: 과목·단계·내용·이미지가 한 줄에 있고 + 단계 추가로 여러 단계를 한 번에 승인 요청한다", async () => {
   const { c, calls } = await setup("mine");
   tabButton(c, "write").click();
   assert.match(c.textContent, /기본 4단계로 작성해주세요/);
-  const head = c.querySelector(".step-row .step-head");
-  assert.ok(head.querySelector("[name=subject_id]") && head.querySelector("[name=step_label]"));
-  assert.equal(head.querySelector("[name=step_label]").value, "1단계");
+  const row = c.querySelector(".step-row");
+  const order = [...row.children].map((x) => x.querySelector("span")?.textContent ?? x.textContent);
+  assert.deepEqual(order, ["과목", "단계", "개인 수업 커리큘럼", "커리큘럼 이미지", "단계 삭제"], "한 줄: 과목·단계·내용·이미지");
+  assert.equal(row.querySelector("[name=step_label]").value, "1단계");
   findButton(c, "+ 단계 추가").click();
   const rowsEl = [...c.querySelectorAll(".step-row")];
   assert.equal(rowsEl[1].querySelector("[name=step_label]").value, "2단계");
@@ -236,4 +237,10 @@ test("내 커리큘럼: 내 학과는 쌤톡 학과, 단계 과목은 수업 설
   assert.deepEqual([...c.querySelector("[name=department]").options].map((o) => o.textContent), ["웹학과"]);
   assert.deepEqual([...c.querySelector(".step-row [name=subject_id]").options].map((o) => o.textContent), ["웹1"]);
   assert.ok(findButton(c, "내 프로필 > 수업 설정에서 학과·과목 바꾸기"));
+});
+
+test("내 프로필: 프로필 사진 확인 칸은 없다", async () => {
+  const { c } = await setup("profile");
+  assert.equal(c.querySelector(".profile-preview"), null);
+  assert.doesNotMatch(c.textContent, /완성된 사진은 이곳에서/);
 });

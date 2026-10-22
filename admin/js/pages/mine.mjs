@@ -209,24 +209,22 @@ export async function render(container, ctx, { tab } = {}) {
         required: true,
         placeholder: "이 단계에서 배우는 내용과 결과물을 적어주세요.",
       });
-      // 왼쪽: 과목·단계·내용, 오른쪽: 커리큘럼 이미지
-      const left = el("div", { className: "step-main" }, [
-        el("div", { className: "step-head" }, [
-          subjectField,
-          el("label", { className: "form-field" }, [
-            el("span", { textContent: "단계" }),
-            stepInput,
-          ]),
-          remove,
+      // 한 줄: 과목 | 단계 | 개인 수업 커리큘럼 | 커리큘럼 이미지 | 삭제
+      const mediaBox = el("div", { className: "step-media" });
+      box.append(
+        subjectField,
+        el("label", { className: "form-field" }, [
+          el("span", { textContent: "단계" }),
+          stepInput,
         ]),
         el("label", { className: "form-field" }, [
           el("span", { textContent: "개인 수업 커리큘럼" }),
           written,
         ]),
-      ]);
-      const right = el("div", { className: "step-media" });
-      box.append(left, right);
-      const media = mediaPicker(right);
+        mediaBox,
+        remove,
+      );
+      const media = mediaPicker(mediaBox);
       const step = { box, subject, stepInput, written, media };
       remove.addEventListener("click", () => {
         if (steps.length === 1) {

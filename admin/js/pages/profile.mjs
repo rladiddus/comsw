@@ -8,7 +8,6 @@ import {
   stateLine,
 } from "../teacher-workspace.mjs";
 import { mountImageUpload } from "../image-upload.mjs";
-import { driveThumbnail } from "../drive.mjs";
 import { mountClassSettings } from "../class-settings.mjs";
 
 const members = () => import("../ssamtalk-members.mjs");
@@ -29,7 +28,7 @@ export async function render(container, ctx) {
     const draft = (await rows(supabase, "instructor_profile_drafts", (q) =>
       q.eq("instructor_id", own.id)))[0];
     let sourceId = draft?.source_asset_id || null;
-    const layout = el("div", { className: "workspace-grid" });
+    const layout = el("div", { className: "workspace-single" });
     const form = el("form", { className: "workspace-card profile-form" });
     form.append(el("h3", { textContent: "선생님 소개" }));
     // 이름은 강사 정보(쌤톡 이름)를 그대로 쓴다. 바꿔야 하면 관리자가 '강사'에서 고친다.
@@ -148,35 +147,13 @@ export async function render(container, ctx) {
         submit.disabled = false;
       }
     });
-    const preview = el("section", {
-      className: "workspace-card profile-preview",
-    }, [el("h3", { textContent: "프로필 사진" })]);
-    const url = draft?.photo_url || own.photo_url;
-    if (url) {
-      preview.append(
-        el("img", {
-          className: "profile-portrait",
-          src: driveThumbnail(url),
-          alt: `${own.name} 프로필`,
-        }),
-      );
-    } else {
-      preview.append(
-        el("div", {
-          className: "portrait-placeholder",
-          textContent: "사진을 올려 나만의 프로필을 준비하세요",
-        }),
-      );
+    if (draft?.status === "pending") {
+      form.prepend(el("p", {
+        className: "notice",
+        textContent: "프로필 승인 대기 중입니다. 공개 정보는 승인 전까지 유지됩니다.",
+      }));
     }
-    preview.append(
-      el("p", {
-        className: "desc",
-        textContent: draft?.status === "pending"
-          ? "프로필 승인 대기 중입니다. 공개 정보는 승인 전까지 유지됩니다."
-          : "올려주신 사진으로 학과장이 프로필을 제작합니다. 완성된 사진은 이곳에서 확인할 수 있습니다.",
-      }),
-    );
-    layout.append(form, preview);
+    layout.append(form);
     const classes = el("div", { className: "workspace-single" });
     await mountClassSettings(classes, {
       supabase,

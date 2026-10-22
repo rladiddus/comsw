@@ -203,3 +203,15 @@ details summary { cursor:pointer; font-weight:650; }
 .subject-check { display:flex; align-items:center; gap:8px; }
 .subject-check input { width:18px; height:18px; }
 .class-settings .form-actions select { padding:8px 10px; border:1px solid #d9dde4; border-radius:9px; }
+
+/* 헤더·왼쪽 메뉴는 제자리, 내용 영역만 스크롤. 탭 메뉴는 내용 영역 맨 위에 고정된다. */
+.app { height:100vh; height:100dvh; min-height:0; grid-template-rows:auto minmax(0,1fr); }
+.side-nav { overflow-y:auto; }
+.content { overflow:auto; }
+/* 내용 영역 안쪽 여백(32/24/20px)만큼 위로 붙여 탭 위로 내용이 비치지 않게 한다. */
+.tab-bar { position:sticky; top:-32px; z-index:5; background:var(--bg); padding-top:12px; margin-top:8px; }
+@media(max-width:1100px) { .tab-bar { top:-24px; } }
+@media(max-width:900px) {
+  .app { grid-template-rows:auto auto minmax(0,1fr); }
+  .tab-bar { top:-20px; }
+}

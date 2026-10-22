@@ -244,3 +244,9 @@ test("내 프로필: 프로필 사진 확인 칸은 없다", async () => {
   assert.equal(c.querySelector(".profile-preview"), null);
   assert.doesNotMatch(c.textContent, /완성된 사진은 이곳에서/);
 });
+
+test("내 프로필: 경력과 한마디는 한 줄에 나란히 있다", async () => {
+  const { c } = await setup("profile");
+  const row = c.querySelector("[name=career]").closest(".form-row");
+  assert.ok(row && row.contains(c.querySelector("[name=message]")));
+});

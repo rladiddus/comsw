@@ -38,8 +38,11 @@ export async function render(container, ctx) {
       className: "muted",
       textContent: "이름은 바꿀 수 없습니다. 고쳐야 하면 관리자에게 요청해주세요.",
     }));
+    // 경력·한마디는 한 줄(좁은 화면은 위아래).
+    const introRow = el("div", { className: "form-row" });
+    form.append(introRow);
     const career = field(
-      form,
+      introRow,
       "경력",
       "career",
       "textarea",
@@ -56,13 +59,14 @@ export async function render(container, ctx) {
       "저서 『○○ 실무 가이드』",
     ].join("\n");
     const message = field(
-      form,
+      introRow,
       "한마디",
       "message",
       "textarea",
       draft?.message ?? own.message ?? "",
     );
     message.maxLength = 2000;
+    message.rows = 7;
     message.placeholder =
       "예시) 혼자서는 막막했던 그때를 기억하며, 기초부터 실무까지 차근차근 함께 완성하겠습니다!";
     form.append(

@@ -64,8 +64,8 @@ const data = {
   ],
   menus: [],
   loading_items: [
-    { id: "load-1", image_url: "", text: "For Masterpieces", font_family: "Georgia", font_size: "44px", font_weight: "700", is_active: true, sort_order: 0 },
-    { id: "load-2", image_url: "", text: "꿈을 디자인하다", font_family: "", font_size: "32px", font_weight: "400", is_active: false, sort_order: 1 },
+    { id: "load-1", image_url: "", text: "For Masterpieces", font_family: "Great Vibes", font_size: "1.25rem, 3.5vw, 3rem", font_weight: "400", is_active: true, sort_order: 0 },
+    { id: "load-2", image_url: "", text: "꿈을 디자인하다", font_family: "Paperlogy", font_size: "1.25rem, 3.5vw, 3rem", font_weight: "800", is_active: false, sort_order: 1 },
   ],
 };
 
@@ -75,8 +75,8 @@ const sample = (n, color) =>
     `<svg xmlns="http://www.w3.org/2000/svg" width="1000" height="1000"><rect width="1000" height="1000" fill="${color}"/><text x="500" y="540" font-size="140" text-anchor="middle" fill="#fff" font-family="sans-serif">${n}단계</text></svg>`,
   );
 data.main_media[0].url = sample("배경 1", "#222");
-data.loading_items[0].image_url = sample("로딩 1", "#334");
-data.loading_items[1].image_url = sample("로딩 2", "#6a4");
+data.loading_items[0].image_url = sample("", "#334");
+data.loading_items[1].image_url = sample("", "#6a4");
 data.main_media[1].url = sample("배경 2", "#fa491d");
 data.instructor_curricula[0].step_label = "1단계";
 data.instructor_curricula[0].media_url = sample(1, "#fa491d");

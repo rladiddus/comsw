@@ -200,6 +200,31 @@
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', renderPreviewBadge);
   else renderPreviewBadge();
 
+  // 로딩 문구 폰트: 관리 화면(로딩 화면)에서 고른 폰트·크기·두께를 적용한다. 값이 없으면 페이지 기본(CSS).
+  // 크기는 'clamp' 세 값("1.25rem, 3.5vw, 3rem")으로 저장된다. 폰트 파일은 필요할 때 한 번만 불러온다.
+  const LOADING_FONT_CSS = {
+    'Great Vibes': 'https://fonts.googleapis.com/css2?family=Great+Vibes&display=swap',
+    'Paperlogy': 'https://cdn.jsdelivr.net/gh/rladiddus/comsw@main/assets/fonts/paperlogy.css'
+  };
+  function ensureFont(family) {
+    const href = LOADING_FONT_CSS[family];
+    if (!href || document.querySelector('link[href="' + href + '"]')) return;
+    const link = document.createElement('link');
+    link.rel = 'stylesheet';
+    link.href = href;
+    document.head.appendChild(link);
+  }
+  window.applyLoadingFont = function(el, item) {
+    if (!el) return;
+    const family = normalizeText(item && item.fontFamily).replace(/['"]/g, '');
+    const size = normalizeText(item && item.fontSize);
+    const weight = normalizeText(item && item.fontWeight);
+    if (family) ensureFont(family);
+    el.style.fontFamily = family ? "'" + family + "', 'Paperlogy', cursive" : '';
+    el.style.fontSize = !size ? '' : size.split(',').length === 3 ? 'clamp(' + size + ')' : size;
+    el.style.fontWeight = weight;
+  };
+
   const api = window.ComswSupabase = {
     config: cfg,
     isPreview: !!preview.token,

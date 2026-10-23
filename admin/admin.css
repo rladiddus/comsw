@@ -316,3 +316,28 @@ dialog.idle-dialog strong { color:var(--accent); }
   .loading-side { grid-column:2; }
 }
 .loading-line input[readonly]::placeholder { color:transparent; }
+/* 로딩 카드: [문구][폰트] / [폰트 크기][두께] 두 줄, 드롭다운 */
+.loading-fields { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); gap:10px 20px; }
+.loading-line { grid-template-columns:72px minmax(0,1fr); }
+.loading-line select { width:100%; padding:8px 10px; border:1px solid #d9dde4; border-radius:8px; background:#fff; font-weight:400; }
+.loading-line select:disabled { background:#f6f7f9; color:#333; border-color:transparent; opacity:1; -webkit-appearance:none; appearance:none; }
+.loading-card .media-actions { justify-content:flex-start; }
+.loading-card .fold-btn { margin-left:auto; }
+/* 접은 카드: 작은 미리보기 + '문구 : … · 폰트 : …' 한 줄(여기서도 수정·저장 가능, 이미지는 펼쳐서) */
+.loading-card.collapsed { grid-template-columns:28px 128px minmax(0,1fr); padding:8px 12px 8px 8px; align-items:center; }
+.loading-card.collapsed .loading-stage { min-height:0; height:72px; }
+.loading-card.collapsed .loading-caption { font-size:12px !important; padding:0 6px; }
+.loading-card.collapsed .loading-side { flex-direction:row; align-items:center; gap:12px; }
+.loading-card.collapsed .loading-fields { display:flex; flex-direction:row; flex-wrap:wrap; align-items:center; gap:6px 10px; flex:1; min-width:0; }
+.loading-card.collapsed .loading-line { display:flex; align-items:center; gap:6px; }
+.loading-card.collapsed .loading-line + .loading-line::before { content:"·"; color:#aaa; margin-right:4px; }
+.loading-card.collapsed .loading-line > span:first-child::after { content:" :"; }
+.loading-card.collapsed .loading-line > span:first-child { white-space:nowrap; font-weight:600; }
+.loading-card.collapsed .loading-line input[type=text] { width:150px; padding:5px 8px; }
+.loading-card.collapsed .loading-line select { width:auto; padding:5px 8px; }
+.loading-card.collapsed .loading-upload { display:none !important; }
+.loading-card.collapsed .media-actions { flex-wrap:nowrap; }
+@media (max-width:1100px) {
+  .loading-fields { grid-template-columns:1fr; }
+  .loading-card.collapsed .loading-side { flex-direction:column; align-items:stretch; }
+}

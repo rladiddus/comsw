@@ -179,3 +179,16 @@ test("미리보기는 저장된 내용을 쓰지 않는다", async () => {
   assert.equal(state.versionCalls, 0);
   assert.match(calls[0].url, /comsw_preview_rows$/);
 });
+
+test("로딩 문구 폰트: 고른 폰트·크기(clamp 세 값)·두께를 적용하고, 없으면 기본으로 되돌린다", () => {
+  const { window } = site();
+  const textEl = window.document.createElement("span");
+  window.applyLoadingFont(textEl, { fontFamily: "Great Vibes", fontSize: "1.25rem, 3.5vw, 3rem", fontWeight: "400" });
+  assert.match(textEl.style.fontFamily, /Great Vibes/);
+  assert.equal(textEl.style.fontSize, "clamp(1.25rem, 3.5vw, 3rem)");
+  assert.equal(textEl.style.fontWeight, "400");
+  assert.ok(window.document.querySelector('link[href*="Great+Vibes"]'), "폰트 파일을 불러온다");
+  window.applyLoadingFont(textEl, null);
+  assert.equal(textEl.style.fontFamily, "");
+  assert.equal(textEl.style.fontSize, "");
+});

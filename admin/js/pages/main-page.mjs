@@ -37,12 +37,17 @@ async function settingsForm(container, supabase) {
     const stage = el("div", { className: "media-stage" });
     const preview = () => stage.replaceChildren(mediaPreview(input.value));
     preview();
-    input.addEventListener("change", () => { preview(); save(key, input.value.trim()); });
+    // '수정' → 주소·올리기 열림, '저장'을 눌러야 저장된다.
     const editor = editableUpload(async asset => {
-      const { error } = await supabase.from("site_settings").upsert({ key, value: asset.url });
-      if (error) throw new Error(dbErrorMessage(error));
       input.value = asset.url;
       preview();
+    }, {
+      input,
+      onSave: async () => {
+        preview();
+        await save(key, input.value.trim());
+        return !state.classList.contains("err");
+      },
     });
     return el("div", { className: "media-card" }, [
       stage,

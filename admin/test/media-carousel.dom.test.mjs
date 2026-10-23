@@ -20,7 +20,7 @@ test("미디어 종류는 공개 사이트와 같은 규칙", () => {
   assert.equal(mediaKind(""), "empty");
 });
 
-test("왼쪽 미리보기에 번호, 좌우 버튼으로 하나씩 보고, 고친 칸은 바로 저장", async () => {
+test("왼쪽 미리보기에 번호, 좌우 버튼으로 하나씩 보고, 주소는 수정→저장, 사용은 바로 저장", async () => {
   const tables = { main_media: [
     { id: "a", url: "https://x.com/a.mp4", caption: "첫 문구", is_active: true, sort_order: 0 },
     { id: "b", url: "https://x.com/b.webp", caption: "", is_active: false, sort_order: 1 },
@@ -36,8 +36,10 @@ test("왼쪽 미리보기에 번호, 좌우 버튼으로 하나씩 보고, 고�
   assert.equal(badge(), "2번 / 2 · 사용 안 함");
   assert.ok(c.querySelector(".media-stage img"));
   const url = c.querySelector(".media-url input");
+  assert.ok(url.readOnly, "'수정'을 눌러야 주소를 고친다");
+  button(c, "수정").click();
   url.value = "https://x.com/c.png";
-  url.dispatchEvent(new dom.window.Event("change"));
+  button(c, "저장").click();
   await flush();
   assert.equal(tables.main_media[1].url, "https://x.com/c.png");
   const active = c.querySelector(".media-actions input[type=checkbox]");
@@ -68,8 +70,15 @@ test("오른쪽 위는 주소|문구, 아래는 사용·수정·추가·삭제, 
   const actions = [...side.querySelectorAll(".media-actions > *")].map((x) => x.textContent);
   assert.deepEqual(actions, ["사용", "수정", "+ 추가", "삭제"]);
   const zone = c.querySelector(".upload-zone").parentElement;
+  const hint = c.querySelector(".media-url .muted");
   assert.equal(zone.hidden, true);
   button(c, "수정").click();
   assert.equal(zone.hidden, false);
-  assert.ok(button(c, "수정 닫기"));
+  assert.equal(hint.hidden, true, "안내 글 자리에 올리기 칸(카드 크기 그대로)");
+  const save = button(c, "저장");
+  assert.equal(save.className, "publish-btn", "추가 버튼과 같은 주황");
+  save.click();
+  await flush();
+  assert.equal(c.querySelector(".upload-zone").parentElement.hidden, true);
+  assert.ok(button(c, "수정"));
 });

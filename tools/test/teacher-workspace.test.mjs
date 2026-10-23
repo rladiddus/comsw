@@ -193,3 +193,26 @@ test("수업 설정: 선생님은 본인 학과·담당 과목만 바꾸고, 고
     await db.close();
   }
 });
+
+test("프로필 수정 요청: 학과장만 메모와 함께 보내고, 선생님이 다시 내면 메모가 지워지고 승인 대기", async () => {
+  const db = await freshDb();
+  try {
+    await db.exec("insert into instructors(name, account_uid) values ('나', 'teacher-a')");
+    await as(db, "authenticated", teacher);
+    await db.query("select comsw_save_my_profile('나', '경력', '한마디', null)");
+    const id = (await db.query("select instructor_id from instructor_profile_drafts")).rows[0].instructor_id;
+    await assert.rejects(db.query("select comsw_request_profile_changes($1, '고쳐주세요')", [id]), /권한/);
+    await as(db, "authenticated", head);
+    await assert.rejects(db.query("select comsw_request_profile_changes($1, '  ')", [id]), /수정할 내용/);
+    await db.query("select comsw_request_profile_changes($1, '경력에 연도를 넣어주세요')", [id]);
+    await assert.rejects(db.query("select comsw_approve_profile($1)", [id]), /승인 대기 프로필이 없습니다/);
+    await as(db, "authenticated", teacher);
+    let d = (await db.query("select status, review_note from instructor_profile_drafts")).rows[0];
+    assert.deepEqual(d, { status: "changes_requested", review_note: "경력에 연도를 넣어주세요" }, "선생님이 메모를 본다");
+    await db.query("select comsw_save_my_profile('나', '2024 경력', '한마디', null)");
+    d = (await db.query("select status, review_note from instructor_profile_drafts")).rows[0];
+    assert.deepEqual(d, { status: "pending", review_note: null });
+  } finally {
+    await db.close();
+  }
+});

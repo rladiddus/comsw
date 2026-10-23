@@ -9,14 +9,32 @@ function el(tag, props = {}, children = []) {
   return node;
 }
 
-// '수정'을 눌러야 나타나는 이미지 직접 올리기(배경 미디어·기타 설정 공용).
-export function editableUpload(onUploaded) {
-  const zone = el("div", { hidden: true });
+// '수정'을 누르면 주소 칸이 열리고 이미지 직접 올리기가 안내 글 자리에 나타난다(카드 크기 그대로).
+// 버튼은 '저장'(주황)으로 바뀌고, 누르면 onSave 후 다시 '수정'.
+export function editableUpload(onUploaded, { input, hint, onSave = async () => true } = {}) {
+  const zone = el("div", { hidden: true, className: "media-upload" });
   mountImageUpload(zone, { label: "이미지 직접 올리기", onUploaded });
   const button = el("button", { type: "button", className: "ghost-btn", textContent: "수정" });
-  button.addEventListener("click", () => {
-    zone.hidden = !zone.hidden;
-    button.textContent = zone.hidden ? "수정" : "수정 닫기";
+  const setEditing = (on) => {
+    zone.hidden = !on;
+    if (hint) hint.hidden = on;
+    if (input) input.readOnly = !on;
+    button.textContent = on ? "저장" : "수정";
+    button.className = on ? "publish-btn" : "ghost-btn";
+  };
+  setEditing(false);
+  button.addEventListener("click", async () => {
+    if (zone.hidden) {
+      setEditing(true);
+      input?.focus?.();
+      return;
+    }
+    button.disabled = true;
+    try {
+      if ((await onSave()) !== false) setEditing(false);
+    } finally {
+      button.disabled = false;
+    }
   });
   return { zone, button };
 }
@@ -117,17 +135,24 @@ export async function mountMediaCarousel(container, { supabase }) {
     stage.append(badge, ...(rows.length > 1 ? [prev, next] : []));
 
     const url = el("input", { type: "text", value: row.url || "", placeholder: "https://… 이미지·영상 주소(유튜브·구글 드라이브 가능)" });
-    url.addEventListener("change", async () => {
-      const value = url.value.trim();
-      if (!value) {
-        setState("이미지/영상 주소를 입력해주세요", true);
-        url.value = row.url || "";
-        return;
-      }
-      if (await save(row, { url: value })) draw();
-    });
+    const hint = el("p", { className: "muted", textContent: "영상은 주소로 넣어주세요(유튜브·비메오·구글 드라이브·mp4 등). 이미지는 '수정'에서 직접 올릴 수 있습니다." });
     const editor = editableUpload(async (asset) => {
-      if (await save(row, { url: asset.url })) draw();
+      url.value = asset.url;
+      stage.replaceChildren(mediaPreview(asset.url), ...stage.querySelectorAll(".media-badge, .media-nav"));
+    }, {
+      input: url,
+      hint,
+      onSave: async () => {
+        const value = url.value.trim();
+        if (!value) {
+          setState("이미지/영상 주소를 입력해주세요", true);
+          return false;
+        }
+        if (value === row.url) return true;
+        if (!(await save(row, { url: value }))) return false;
+        draw();
+        return true;
+      },
     });
     const caption = el("textarea", { value: row.caption || "", placeholder: "배경 위에 나오는 문구(줄바꿈 가능)" });
     caption.addEventListener("change", () => save(row, { caption: caption.value }));
@@ -147,7 +172,7 @@ export async function mountMediaCarousel(container, { supabase }) {
           el("div", { className: "media-top" }, [
             el("div", { className: "media-url" }, [
               el("label", { className: "form-field" }, [el("span", { textContent: "이미지/영상 주소" }), url]),
-              el("p", { className: "muted", textContent: "영상은 주소로 넣어주세요(유튜브·비메오·구글 드라이브·mp4 등). 이미지는 '수정'에서 직접 올릴 수 있습니다." }),
+              hint,
               editor.zone,
             ]),
             el("label", { className: "form-field media-caption" }, [el("span", { textContent: "문구" }), caption]),

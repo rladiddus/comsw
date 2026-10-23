@@ -69,6 +69,7 @@ test("메인 화면: 배경 미디어(미리보기 카드)·메뉴 표·기타 �
   assert.equal(logo.querySelector(".upload-zone").parentElement.hidden, true, "올리기는 '수정'을 눌러야");
   [...logo.querySelectorAll("button")].find(b => b.textContent === "수정").click();
   assert.equal(logo.querySelector(".upload-zone").parentElement.hidden, false);
+  assert.ok([...logo.querySelectorAll("button")].some(b => b.textContent === "저장" && b.className === "publish-btn"));
   assert.equal(c.querySelector("table.editor select").value, "left");
 });
 

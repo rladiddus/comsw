@@ -76,3 +76,26 @@ test("학과장은 전달받은 동의된 사진으로 프로필 생성 후 확�
     configureServices();
   }
 });
+
+test("프로필 승인 대기에서 학과장이 메모와 함께 수정 요청을 보낸다", async () => {
+  const tables = {
+    instructors: [{ id: "i", name: "선생님" }],
+    instructor_link_requests: [],
+    instructor_profile_drafts: [{ instructor_id: "i", name: "선생님", career: "5년", message: "안녕", status: "pending", updated_at: "2026-10-23T00:00:00Z" }],
+  };
+  const sb = fakeSupabase(tables);
+  let received;
+  sb.rpc = async (name, args) => {
+    received = [name, args];
+    tables.instructor_profile_drafts[0].status = "changes_requested";
+    return { error: null };
+  };
+  const c = document.createElement("div");
+  await mountInstructorReview(c, sb);
+  [...c.querySelectorAll("button")].find((b) => b.textContent === "수정 요청").click();
+  c.querySelector(".review-note textarea").value = "경력에 연도를 넣어주세요";
+  [...c.querySelectorAll("button")].find((b) => b.textContent === "수정 요청 보내기").click();
+  for (let i = 0; i < 12; i++) await new Promise((r) => setTimeout(r, 0));
+  assert.deepEqual(received, ["comsw_request_profile_changes", { p_id: "i", p_note: "경력에 연도를 넣어주세요", p_updated_at: "2026-10-23T00:00:00Z" }]);
+  assert.doesNotMatch(c.textContent, /프로필 승인 대기 ·/);
+});

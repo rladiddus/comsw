@@ -139,7 +139,53 @@ export async function mountInstructorReview(
               }));
           }
         });
-        card.append(approve);
+        // 수정 요청: 메모를 적어 보내면 선생님 화면에 보이고, 선생님이 고쳐 다시 승인 요청한다.
+        const ask = el("button", {
+          type: "button",
+          className: "ghost-btn",
+          textContent: "수정 요청",
+        });
+        ask.addEventListener("click", () => {
+          ask.disabled = true;
+          const note = el("textarea", {
+            rows: 3,
+            maxLength: 2000,
+            placeholder: "선생님께 고쳐 달라고 할 내용을 적어주세요.",
+          });
+          const send = el("button", {
+            type: "button",
+            className: "publish-btn",
+            textContent: "수정 요청 보내기",
+          });
+          const cancel = el("button", {
+            type: "button",
+            className: "ghost-btn",
+            textContent: "취소",
+          });
+          const form = el("div", { className: "review-note" }, [
+            note,
+            el("div", { className: "form-actions" }, [send, cancel]),
+          ]);
+          cancel.addEventListener("click", () => {
+            form.remove();
+            ask.disabled = false;
+          });
+          send.addEventListener("click", () => {
+            if (!note.value.trim()) {
+              setState("수정할 내용을 적어주세요", true);
+              return;
+            }
+            run(send, () =>
+              rpc(supabase, "comsw_request_profile_changes", {
+                p_id: d.instructor_id,
+                p_note: note.value.trim(),
+                p_updated_at: d.updated_at,
+              }));
+          });
+          card.append(form);
+          note.focus?.();
+        });
+        card.append(approve, ask);
         box.append(card);
       }
     } catch (e) {

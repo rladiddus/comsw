@@ -28,6 +28,8 @@ export async function render(container, ctx) {
     const draft = (await rows(supabase, "instructor_profile_drafts", (q) =>
       q.eq("instructor_id", own.id)))[0];
     let sourceId = draft?.source_asset_id || null;
+    const pending = draft?.status === "pending";
+    const asked = draft?.status === "changes_requested";
     const layout = el("div", { className: "workspace-single" });
     const form = el("form", { className: "workspace-card profile-form" });
     form.append(el("h3", { textContent: "선생님 소개" }));
@@ -152,15 +154,16 @@ export async function render(container, ctx) {
         submit.disabled = false;
       }
     });
-    if (draft?.status === "pending") {
+    if (pending || asked) {
       form.prepend(el("p", {
         className: "notice",
-        textContent: "프로필 승인 대기 중입니다. 공개 정보는 승인 전까지 유지됩니다.",
+        textContent: asked
+          ? `학과장 수정 요청: ${draft.review_note || ""}`
+          : "프로필 승인 대기 중입니다. 공개 정보는 승인 전까지 유지됩니다.",
       }));
     }
     // 이미 적용됐거나 제출한 소개가 있으면 보기 화면부터 보여 주고, '수정'을 눌러야 고친다.
-    const pending = draft?.status === "pending";
-    const shown = pending ? draft : own;
+    const shown = pending || asked ? draft : own;
     const hasProfile = Boolean(
       draft || own.career?.trim() || own.message?.trim(),
     );
@@ -177,8 +180,10 @@ export async function render(container, ctx) {
     const view = el("section", { className: "workspace-card profile-view" }, [
       el("h3", { textContent: "선생님 소개" }),
       el("p", {
-        className: pending ? "notice" : "muted",
-        textContent: pending
+        className: pending || asked ? "notice" : "muted",
+        textContent: asked
+          ? `학과장 수정 요청: ${draft.review_note || ""} — '수정'을 눌러 고친 뒤 다시 승인 요청해주세요.`
+          : pending
           ? "승인 대기 중인 수정본입니다. 사이트에는 승인 후 반영됩니다."
           : "사이트에 적용된 소개입니다.",
       }),

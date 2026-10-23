@@ -352,3 +352,20 @@ test("제목부터 탭까지 한 덩어리로 고정된다", async () => {
     assert.ok(head.querySelector("h2") && head.querySelector(".tab-bar"), page);
   }
 });
+
+test("내 프로필: 수정 요청을 받으면 요청 내용이 보이고, 고쳐서 다시 승인 요청한다", async () => {
+  const data = tables();
+  Object.assign(data.instructors[0], { career: "옛 경력", message: "옛 한마디" });
+  data.instructor_profile_drafts = [{ instructor_id: "me", name: "선생님", career: "새 경력", message: "새 한마디", status: "changes_requested", review_note: "연도를 넣어주세요" }];
+  const { c, calls } = await setup("profile", data);
+  const view = c.querySelector(".profile-view");
+  assert.match(view.textContent, /학과장 수정 요청: 연도를 넣어주세요/);
+  assert.match(view.textContent, /새 경력/, "보낸 수정본을 보여 준다");
+  findButton(view, "수정").click();
+  const form = c.querySelector("form.profile-form");
+  assert.match(form.textContent, /연도를 넣어주세요/);
+  form.querySelector("[name=career]").value = "2024 새 경력";
+  form.dispatchEvent(new dom.window.Event("submit", { bubbles: true, cancelable: true }));
+  await flush();
+  assert.equal(calls.find(([n]) => n === "comsw_save_my_profile")[1].p_career, "2024 새 경력");
+});

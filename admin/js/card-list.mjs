@@ -1,5 +1,5 @@
 import { dbErrorMessage } from "./fields.mjs";
-import { nextOrder } from "./order.mjs";
+import { nextOrder, subsetReorderUpdates } from "./order.mjs";
 import { mountImageUpload } from "./image-upload.mjs";
 import { mediaPreview } from "./media-preview.mjs";
 
@@ -11,12 +11,7 @@ function el(tag, props = {}, children = []) {
 
 // 끌어 놓은 자리로 옮긴 뒤 0..n-1로 다시 매기고, 순서가 바뀐 줄만 돌려준다.
 export function reorderUpdates(rows, from, to) {
-  if (from === to || from < 0 || to < 0 || from >= rows.length || to >= rows.length) return [];
-  const ids = rows.map((r) => r.id);
-  ids.splice(to, 0, ...ids.splice(from, 1));
-  return ids
-    .map((id, sort_order) => ({ id, sort_order }))
-    .filter((u) => rows.find((r) => r.id === u.id).sort_order !== u.sort_order);
+  return subsetReorderUpdates(rows, rows.map((r) => r.id), from, to);
 }
 
 // 카드 목록 편집기(로딩 화면·학과 등).
@@ -35,7 +30,11 @@ export async function mountCardList(container, {
   imageLabel = "이미지",
   imageRequired = false,
   imageSide = "left",
-  activeKey = "is_active",
+  activeKey = "is_active", // null이면 사용 체크 없음
+  query = (q) => q, // 불러올 조건
+  sortRows = (rows) => rows, // 보이는 순서
+  orderScope = null, // 순서를 따로 매기는 묶음(예: 학과 탭). 보이는 줄의 묶음이 하나일 때만 끌어 옮길 수 있다.
+  canAdd = () => true, // true 또는 못 더하는 이유
   activeLabel = "사용",
   stageClass = "",
   defaults = () => ({}),
@@ -65,7 +64,7 @@ export async function mountCardList(container, {
   let expandNew = false;
 
   async function load() {
-    const { data, error } = await supabase.from(table).select("*")
+    const { data, error } = await query(supabase.from(table).select("*"))
       .order("sort_order", { ascending: true, nullsFirst: false });
     if (error) return setState(dbErrorMessage(error), true);
     rows = data || [];
@@ -124,8 +123,16 @@ export async function mountCardList(container, {
     setState("저장됨");
     return true;
   }
+  // 검색: 보이는 줄만 거른다(불러온 줄은 그대로).
+  let match = () => true;
+  const visible = () => sortRows(rows).filter((r) => match(r));
+  const scopes = () => new Set(visible().map((r) => (orderScope ? orderScope(r) : "")));
+  const canDrag = () => scopes().size <= 1;
   async function reorder(from, to) {
-    for (const u of reorderUpdates(rows, from, to)) {
+    const shown = visible();
+    const scope = orderScope ? orderScope(shown[from]) : "";
+    const pool = orderScope ? rows.filter((r) => orderScope(r) === scope) : rows;
+    for (const u of subsetReorderUpdates(pool, shown.map((r) => r.id), from, to)) {
       const { error } = await supabase.from(table).update({ sort_order: u.sort_order }).eq("id", u.id);
       if (error) return setState(dbErrorMessage(error), true);
     }
@@ -133,9 +140,11 @@ export async function mountCardList(container, {
     await load();
   }
   add.addEventListener("click", async () => {
+    const why = canAdd();
+    if (why !== true) return setState(why, true);
     const { error } = await supabase.from(table).insert({
       ...defaults(rows),
-      [activeKey]: false,
+      ...(activeKey ? { [activeKey]: false } : {}),
       sort_order: nextOrder(rows),
     });
     if (error) return setState(dbErrorMessage(error), true);
@@ -236,7 +245,7 @@ export async function mountCardList(container, {
       });
     }
     inputs[imageKey].addEventListener("change", paint);
-    const active = el("input", { type: "checkbox", checked: Boolean(row[activeKey]) });
+    const active = el("input", { type: "checkbox", checked: Boolean(activeKey && row[activeKey]) });
     active.setAttribute("aria-label", activeLabel);
     active.addEventListener("change", () => update(row, { [activeKey]: active.checked }));
     const upload = el("div", { className: "card-upload", hidden: true }, [line(`${imageLabel} 주소`, inputs[imageKey], true)]);
@@ -294,12 +303,17 @@ export async function mountCardList(container, {
     });
     paint();
 
-    const handle = el("span", { className: "drag-handle", textContent: "⠿", title: "끌어서 순서 바꾸기" });
+    const dragOk = canDrag();
+    const handle = el("span", {
+      className: `drag-handle${dragOk ? "" : " off"}`,
+      textContent: "⠿",
+      title: dragOk ? "끌어서 순서 바꾸기" : "한 묶음(예: 학과 탭)만 보일 때 순서를 바꿀 수 있습니다",
+    });
     const side = el("div", { className: "card-side" }, [
       el("div", { className: "card-fields" }, lines),
       upload,
       el("div", { className: "media-actions" }, [
-        el("label", { className: "consent" }, [active, el("span", { textContent: activeLabel })]),
+        ...(activeKey ? [el("label", { className: "consent" }, [active, el("span", { textContent: activeLabel })])] : []),
         remove,
         edit,
         fold,
@@ -319,7 +333,7 @@ export async function mountCardList(container, {
     fold.addEventListener("click", () => setFolded(!box.classList.contains("collapsed")));
     setFolded(collapsed.has(row.id));
     // 끌어서 순서 바꾸기: 손잡이를 잡았을 때만 줄 전체가 끌린다.
-    handle.addEventListener("pointerdown", () => { box.draggable = true; });
+    handle.addEventListener("pointerdown", () => { box.draggable = dragOk; });
     box.addEventListener("dragstart", (e) => {
       dragFrom = index;
       e.dataTransfer?.setData?.("text/plain", String(index));
@@ -344,9 +358,20 @@ export async function mountCardList(container, {
   }
 
   function draw() {
-    list.replaceChildren(...rows.map(card));
-    if (!rows.length) list.append(el("p", { className: "muted", textContent: "아직 항목이 없습니다." }));
+    const shown = visible();
+    list.replaceChildren(...shown.map(card));
+    if (!shown.length) {
+      list.append(el("p", { className: "muted", textContent: rows.length ? "검색 결과가 없습니다." : "아직 항목이 없습니다." }));
+    }
   }
   await load();
-  return { reload: load };
+  return {
+    reload: load,
+    // 검색 조건을 바꿔 다시 그린다. 결과 개수를 돌려준다.
+    setFilter(fn) {
+      match = fn || (() => true);
+      draw();
+      return visible().length;
+    },
+  };
 }

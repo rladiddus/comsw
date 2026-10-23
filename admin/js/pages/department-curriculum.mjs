@@ -1,22 +1,11 @@
 import { el, rows, stateLine } from "../teacher-workspace.mjs";
 import { dbErrorMessage } from "../fields.mjs";
+import { subsetReorderUpdates } from "../order.mjs";
 
 export const LEVELS = ["★☆☆☆☆", "★★☆☆☆", "★★★☆☆", "★★★★☆", "★★★★★"];
 
-// 학과 과목만 끌어 옮긴 뒤, 전체수업 순서(sort_order)에서 그 과목들이 있던 자리에 새 순서로 다시 넣는다.
-// 다른 학과 과목의 자리는 그대로이고, 순서가 없는(전체수업 밖) 과목은 건드리지 않는다. 바뀐 과목만 돌려준다.
-export function deptReorderUpdates(subjects, deptIds, from, to) {
-  const all = subjects.filter((s) => s.sort_order != null).sort((a, b) => a.sort_order - b.sort_order);
-  const mine = all.filter((s) => deptIds.includes(s.id));
-  if (from === to || from < 0 || to < 0 || from >= mine.length || to >= mine.length) return [];
-  const moved = [...mine];
-  moved.splice(to, 0, ...moved.splice(from, 1));
-  let k = 0;
-  const next = all.map((s) => (deptIds.includes(s.id) ? moved[k++] : s));
-  return next
-    .map((s, sort_order) => ({ id: s.id, sort_order }))
-    .filter((u) => subjects.find((s) => s.id === u.id).sort_order !== u.sort_order);
-}
+// 학과 과목만 끌어 옮기고 다른 학과 과목 자리·순서 없는 과목은 그대로(공용 계산).
+export const deptReorderUpdates = subsetReorderUpdates;
 
 // 커리큘럼 관리 > 학과 커리큘럼: 학과를 고르면 그 학과 과목을 '과목·단계'와 같은 칸으로 보여 준다.
 // 학과별 커리큘럼 요약은 '신청 과목'에서 정리해 '적용'한 문구가 들어오므로 여기서는 보기만 하고,

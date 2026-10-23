@@ -40,7 +40,7 @@ export function mediaPreview(url) {
   if (kind === "video") {
     return make("video", { src: url, muted: true, loop: true, autoplay: true, playsInline: true, controls: true });
   }
-  const img = make("img", { src: driveThumbnail(url), alt: "미리보기" });
+  const img = make("img", { src: driveThumbnail(url), alt: "미리보기", loading: "lazy" });
   img.addEventListener("error", () => img.replaceWith(make("span", { className: "muted", textContent: "이미지를 불러오지 못했습니다" })));
   return img;
 }

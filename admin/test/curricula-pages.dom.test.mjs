@@ -97,46 +97,82 @@ test("강사 삭제 경고에 커리큘럼 수", async () => {
   assert.match(lastConfirm, /강사 커리큘럼 2개/);
 });
 
-test("강사 커리큘럼: 방학 특강 세트는 빼고, 승인된 줄과 승인 대기를 나눠 보여 준다", async () => {
-  const { c } = await renderPage("../js/pages/curricula.mjs");
-  const setOptions = [...c.querySelector(".picker select").options].map(o => o.textContent);
-  assert.deepEqual(setOptions, ["웹학과"]);
-  assert.equal(rowsOf(c, "승인된 커리큘럼").length, 2);
-  assert.equal(rowsOf(c, "승인 대기").length, 1);
-});
-
-test("강사 커리큘럼: 강사로 좁혀 보기", async () => {
-  const { c } = await renderPage("../js/pages/curricula.mjs");
-  await pick(c, "강사", "i2");
-  const rows = rowsOf(c, "승인된 커리큘럼");
-  assert.equal(rows.length, 1);
-  assert.equal(rows[0].querySelector("select").value, "i2");
-});
-
-test("승인 대기 줄을 승인하면 승인 함수를 부르고 다시 그린다", async () => {
-  const { c, supabase, tables } = await renderPage("../js/pages/curricula.mjs");
-  supabase.rpc = async (name, args) => {
-    supabase.rpcCalls.push([name, args]);
-    tables.instructor_curricula = tables.instructor_curricula.filter(r => r.id !== "c1");
-    tables.instructor_curricula.find(r => r.id === "c3").status = "approved";
-    return { data: null, error: null };
-  };
-  button(rowsOf(c, "승인 대기")[0], "승인").click();
+const curData = () => {
+  const t = data();
+  t.curriculum_sets.unshift({ id: "set-ps", name: "시각편집학과", department_id: "d1", sort_order: -1 });
+  t.instructor_curricula.push(
+    { id: "c5", set_id: "set-ps", instructor_id: "i2", subject_id: "s1", step_label: "1단계", status: "approved", sort_order: 0 },
+  );
+  return t;
+};
+const cardIds = (c) => [...c.querySelectorAll(".card-item")].map(x => x.querySelector(".card-side input")?.value ?? "");
+const searchBy = async (c, { set = "", inst = "", subj = "" } = {}) => {
+  const sel = (label) => c.querySelector(`.search-bar select[aria-label="${label}"]`);
+  sel("학과 탭").value = set; sel("강사").value = inst; sel("과목").value = subj;
+  button(c.querySelector(".search-bar"), "검색").click();
   await flush();
-  assert.deepEqual(supabase.rpcCalls, [["comsw_approve_curriculum", { p_id: "c3" }]]);
-  assert.match(lastConfirm, /예전 내용은 지워집니다/);
-  assert.equal(rowsOf(c, "승인 대기").length, 0);
+};
+const addCard = (c) => [...c.querySelectorAll("button")].filter(b => b.textContent === "+ 추가").at(-1).click();
+const lines = (c) => [...c.querySelectorAll(".card-item")].map(card =>
+  [...card.querySelectorAll(".card-line select")].map(s => s.value).join("/"));
+
+test("강사 커리큘럼: 방학 특강·승인 대기는 빼고, 학과 탭 순서대로 카드(이미지 왼쪽, 접힘)", async () => {
+  const { c } = await renderPage("../js/pages/curricula.mjs", curData());
+  const setOptions = [...c.querySelector('.search-bar select[aria-label="학과 탭"]').options].map(o => o.textContent);
+  assert.deepEqual(setOptions, ["전체", "시각편집학과", "웹학과"]);
+  assert.deepEqual(lines(c), ["set-ps/i2/s1", "set-web/i1/s2", "set-web/i2/s2"]);
+  const card = c.querySelector(".card-item");
+  assert.ok(card.classList.contains("collapsed"));
+  assert.deepEqual([...card.children].map(x => x.className.split(" ")[0]), ["drag-handle", "card-stage", "card-side"]);
+  assert.match(c.textContent, /3개/);
 });
 
-test("새 줄은 고른 세트·강사로, 승인 상태로 추가된다", async () => {
-  const { c, tables } = await renderPage("../js/pages/curricula.mjs");
-  await pick(c, "강사", "i2");
-  button(tableOf(c, "승인된 커리큘럼").previousElementSibling, "+ 추가").click();
+test("강사 커리큘럼: 학과 탭·강사·과목 하나만 골라도 검색, 아무것도 안 고르면 전체", async () => {
+  const { c } = await renderPage("../js/pages/curricula.mjs", curData());
+  await searchBy(c, { inst: "i2" });
+  assert.deepEqual(lines(c), ["set-ps/i2/s1", "set-web/i2/s2"]);
+  await searchBy(c, { subj: "s2" });
+  assert.deepEqual(lines(c), ["set-web/i1/s2", "set-web/i2/s2"]);
+  await searchBy(c, { set: "set-web", inst: "i1" });
+  assert.deepEqual(lines(c), ["set-web/i1/s2"]);
+  await searchBy(c, { set: "set-ps", subj: "s2" });
+  assert.match(c.textContent, /검색 결과가 없습니다/);
+  await searchBy(c);
+  assert.deepEqual(lines(c), ["set-ps/i2/s1", "set-web/i1/s2", "set-web/i2/s2"]);
+});
+
+test("강사 커리큘럼: 학과 탭이 섞이면 끌기 막고, 한 탭이면 그 탭 순서만 바꾼다", async () => {
+  const { c, tables } = await renderPage("../js/pages/curricula.mjs", curData());
+  assert.ok(c.querySelector(".card-item .drag-handle").classList.contains("off"));
+  await searchBy(c, { set: "set-web" });
+  const cards = [...c.querySelectorAll(".card-item")];
+  assert.ok(!cards[0].querySelector(".drag-handle").classList.contains("off"));
+  const ev = (type) => Object.assign(new dom.window.Event(type), { dataTransfer: { setData() {} } });
+  cards[1].dispatchEvent(ev("dragstart"));
+  cards[0].dispatchEvent(ev("drop"));
+  await flush();
+  const order = (id) => tables.instructor_curricula.find(r => r.id === id).sort_order;
+  assert.ok(order("c2") < order("c1"));
+  assert.equal(order("c5"), 0, "다른 학과 탭은 그대로");
+  assert.equal(order("c4"), 0, "방학 특강은 그대로");
+  assert.deepEqual(lines(c), ["set-web/i2/s2", "set-web/i1/s2"]);
+});
+
+test("새 커리큘럼은 학과 탭을 골라 검색해야 추가되고, 고른 탭·강사·승인 상태로 들어간다", async () => {
+  const { c, tables } = await renderPage("../js/pages/curricula.mjs", curData());
+  const before = tables.instructor_curricula.length;
+  addCard(c);
+  await flush();
+  assert.equal(tables.instructor_curricula.length, before);
+  assert.match(c.textContent, /학과 탭을 고르고 검색/);
+  await searchBy(c, { set: "set-web", inst: "i2" });
+  addCard(c);
   await flush();
   const added = tables.instructor_curricula.at(-1);
   assert.equal(added.set_id, "set-web");
   assert.equal(added.instructor_id, "i2");
   assert.equal(added.status, "approved");
+  assert.equal("is_active" in added, false);
 });
 
 test("방학 특강: 메인 화면에서 고른 세트를 교재·수업 시간 칸과 함께 편집", async () => {

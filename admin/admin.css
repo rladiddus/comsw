@@ -428,3 +428,8 @@ dialog.idle-dialog strong { color:var(--accent); }
 .dept-cell select { width:100%; padding:8px 10px; border:1px solid #d9dde4; border-radius:8px; background:#fff; letter-spacing:1px; color:#f2a20c; }
 .dept-cell select:disabled { background:#f6f7f9; border-color:transparent; opacity:1; -webkit-appearance:none; appearance:none; }
 .dept-others { margin:14px 0 0; font-weight:600; }
+/* 강사 커리큘럼 검색 줄 */
+.search-bar { display:flex; flex-wrap:wrap; align-items:flex-end; gap:12px; margin:12px 0 4px; }
+.search-bar .form-field { margin:0; min-width:180px; }
+.search-bar .publish-btn { height:42px; }
+.card-item .drag-handle.off { color:#ddd; cursor:not-allowed; }

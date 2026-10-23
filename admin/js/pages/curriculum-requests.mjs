@@ -206,20 +206,31 @@ export async function render(container, { supabase, crop = cropImageToSquare, fe
       }
     });
 
-    // ── 3. 로드맵: 이 과목이 들어간 단계마다 현재 / 신규 ──
+    // ── 3. 로드맵: 이 과목이 들어간 단계마다, 이 과목의 줄만 현재 / 신규 ──
+    // 한 단계에 과목이 둘이면 문구 줄도 과목 순서대로 하나씩이다. 신청한 과목의 줄만 바꾸고 다른 과목 줄은 그대로 둔다.
+    // (과목 묶기는 나중에 로드맵에서 설정)
     const roadmapSteps = steps.filter((st) => stepSubjects.some((x) => x.step_id === st.id && x.subject_id === g.subject_id));
     const roadmapViews = roadmapSteps.map((st) => {
-      const now = el("textarea", { value: st.summary ?? "", rows: 2, readOnly: true });
-      const next = el("textarea", { rows: 2, placeholder: "'로드맵 문구 생성'을 누르면 채워집니다" });
+      const members = stepSubjects.filter((x) => x.step_id === st.id)
+        .sort((x, y) => (x.sort_order ?? 0) - (y.sort_order ?? 0));
+      const shared = members.length > 1;
+      const at = members.findIndex((x) => x.subject_id === g.subject_id);
+      const lines = () => String(st.summary ?? "").split("\n");
+      const mine = () => (shared ? lines()[at] ?? "" : st.summary ?? "");
+      const now = el("textarea", { value: mine(), rows: shared ? 1 : 2, readOnly: true });
+      const next = el("textarea", { rows: shared ? 1 : 2, placeholder: "'로드맵 문구 생성'을 누르면 채워집니다" });
       const gen = el("button", { type: "button", className: "ghost-btn ai-btn", textContent: "로드맵 문구 생성" });
       gen.addEventListener("click", async () => {
         gen.disabled = true;
         try {
           setState("로드맵 문구를 만드는 중…");
-          next.value = await ai("roadmap", [
+          const text = await ai("roadmap", [
+            `[과목] ${subject?.name ?? ""}`,
             st.source_text,
             fresh.value.trim() || current.value,
           ].filter(Boolean).join("\n"));
+          // 과목이 함께 묶인 단계는 이 과목 몫인 한 줄만 쓴다.
+          next.value = shared ? text.split("\n").map((x) => x.trim()).find(Boolean) ?? "" : text;
           setState("로드맵 신규 문구를 만들었습니다. 확인 후 아래 '적용'을 눌러주세요.");
         } catch (e) {
           setState(e.message, true);
@@ -227,16 +238,33 @@ export async function render(container, { supabase, crop = cropImageToSquare, fe
           gen.disabled = false;
         }
       });
-      const others = stepSubjects.filter((x) => x.step_id === st.id).map((x) => nameOf(subjects, x.subject_id)).join(", ");
+      const otherLines = shared
+        ? members.map((x, i) => (i === at ? null : `${nameOf(subjects, x.subject_id)}: ${lines()[i] ?? ""}`)).filter(Boolean)
+        : [];
       return {
         step: st,
         next,
+        now,
+        // 이 과목 줄만 바꾼 단계 전체 문구.
+        merged(text) {
+          if (!shared) return text;
+          const all = lines();
+          while (all.length < members.length) all.push("");
+          all[at] = text.replace(/\n+/g, " ");
+          return all.join("\n");
+        },
+        refresh() {
+          now.value = mine();
+        },
         el: el("div", { className: "compare-block" }, [
-          el("h4", { textContent: `${nameOf(tracks, st.track_id)} · ${st.position}단계 (${others})` }),
+          el("h4", { textContent: `${nameOf(tracks, st.track_id)} · ${st.position}단계 · ${subject?.name ?? ""}` }),
           el("div", { className: "compare-row" }, [
             el("label", { className: "form-field" }, [el("span", { textContent: "현재" }), now]),
             el("label", { className: "form-field" }, [el("span", { textContent: "신규" }), next]),
           ]),
+          ...(otherLines.length
+            ? [el("p", { className: "muted", textContent: `같은 단계의 다른 과목 줄(그대로 유지) — ${otherLines.join(" · ")}` })]
+            : []),
           el("div", { className: "form-actions" }, [gen]),
         ]),
       };
@@ -259,11 +287,11 @@ export async function render(container, { supabase, crop = cropImageToSquare, fe
           fresh.value = "";
         }
         for (const v of roadmapTexts) {
-          const text = v.next.value.trim();
-          const { error } = await supabase.from("roadmap_steps").update({ summary: text }).eq("id", v.step.id);
+          const summary = v.merged(v.next.value.trim());
+          const { error } = await supabase.from("roadmap_steps").update({ summary }).eq("id", v.step.id);
           if (error) throw new Error(dbErrorMessage(error));
-          v.step.summary = text;
-          v.el.querySelector("textarea").value = text;
+          v.step.summary = summary;
+          v.refresh();
           v.next.value = "";
         }
         setState("반영했습니다. 공개 사이트에는 위쪽 '적용' 후 보입니다.");

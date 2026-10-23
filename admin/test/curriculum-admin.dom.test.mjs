@@ -117,7 +117,7 @@ test("신청 과목: 학과 커리큘럼·로드맵 문구를 AI로 신규 칸�
   assert.equal(dept.querySelectorAll("textarea")[0].value, "01 포토샵 기초\n02 합성", "현재");
   assert.equal(dept.querySelectorAll("textarea")[1].value, "department 신규");
   assert.match(asked[0][1], /지금 학과 커리큘럼[\s\S]*김민주 선생님 신청 커리큘럼[\s\S]*포토샵 기초 원문/);
-  assert.match(roadmap.querySelector("h4").textContent, /디자인 로드맵 · 1단계 \(포토샵\)/);
+  assert.equal(roadmap.querySelector("h4").textContent, "디자인 로드맵 · 1단계 · 포토샵");
   button(roadmap, "로드맵 문구 생성").click();
   await flush();
   assert.equal(roadmap.querySelectorAll("textarea")[1].value, "roadmap 신규");
@@ -229,4 +229,29 @@ test("학과 커리큘럼 탭은 열 때마다 새로 그린다(신청 과목에
   }
   assert.equal(n, 2);
   assert.equal(c.querySelectorAll(".subpage")[1].textContent, "그림2");
+});
+
+test("로드맵: 두 과목이 묶인 단계는 신청 과목의 줄만 보여 주고, 생성·적용도 그 줄만 바꾼다", async () => {
+  const { render } = await import("../js/pages/curriculum-requests.mjs");
+  const tables = data();
+  tables.roadmap_steps[0].summary = "포토샵 역량 강화\n일러스트 역량 강화";
+  tables.roadmap_step_subjects = [
+    { step_id: "rs1", subject_id: "s2", sort_order: 1 },
+    { step_id: "rs1", subject_id: "s1", sort_order: 0 },
+  ];
+  configureServices({ summarize: async () => ({ text: "포토샵 실무 완성\n두 번째 줄" }) });
+  const c = document.createElement("div");
+  await render(c, { supabase: fakeSupabase(tables) });
+  const roadmap = [...c.querySelectorAll(".request-section")][2];
+  assert.equal(roadmap.querySelector("h4").textContent, "디자인 로드맵 · 1단계 · 포토샵");
+  const [now, next] = roadmap.querySelectorAll("textarea");
+  assert.equal(now.value, "포토샵 역량 강화", "현재는 이 과목 줄만");
+  assert.match(roadmap.textContent, /그대로 유지[\s\S]*일러스트: 일러스트 역량 강화/);
+  button(roadmap, "로드맵 문구 생성").click();
+  await flush();
+  assert.equal(next.value, "포토샵 실무 완성", "이 과목 몫인 한 줄만");
+  button(c, "적용").click();
+  await flush();
+  assert.equal(tables.roadmap_steps[0].summary, "포토샵 실무 완성\n일러스트 역량 강화", "다른 과목 줄은 그대로");
+  assert.equal(now.value, "포토샵 실무 완성");
 });

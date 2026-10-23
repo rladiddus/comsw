@@ -3,8 +3,7 @@ import { dbErrorMessage } from "../fields.mjs";
 import { freeName } from "../order.mjs";
 import { SITE_PAGES } from "../preview.mjs";
 import { mountAiSettings } from '../ai-settings.mjs';
-import { mountImageUpload } from '../image-upload.mjs';
-import { mountMediaCarousel } from "../media-carousel.mjs";
+import { editableUpload, mountMediaCarousel } from "../media-carousel.mjs";
 import { mediaPreview } from "../media-preview.mjs";
 
 const MENU_NAMES = SITE_PAGES.slice(1).map(p => p.name).join(", ");
@@ -39,19 +38,21 @@ async function settingsForm(container, supabase) {
     const preview = () => stage.replaceChildren(mediaPreview(input.value));
     preview();
     input.addEventListener("change", () => { preview(); save(key, input.value.trim()); });
-    const upload = el("div");
-    mountImageUpload(upload, { label: "이미지 직접 올리기", onUploaded: async asset => {
+    const editor = editableUpload(async asset => {
       const { error } = await supabase.from("site_settings").upsert({ key, value: asset.url });
       if (error) throw new Error(dbErrorMessage(error));
       input.value = asset.url;
       preview();
-    } });
+    });
     return el("div", { className: "media-card" }, [
       stage,
-      el("div", { className: "media-fields" }, [
-        el("h4", { textContent: label }),
-        el("label", { className: "form-field" }, [el("span", { textContent: "이미지 주소" }), input]),
-        upload,
+      el("div", { className: "media-side" }, [
+        el("div", { className: "media-fields" }, [
+          el("h4", { textContent: label }),
+          el("label", { className: "form-field" }, [el("span", { textContent: "이미지 주소" }), input]),
+          editor.zone,
+        ]),
+        el("div", { className: "media-actions" }, [editor.button]),
       ]),
     ]);
   }

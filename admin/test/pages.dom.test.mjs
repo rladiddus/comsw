@@ -66,6 +66,9 @@ test("메인 화면: 배경 미디어(미리보기 카드)·메뉴 표·기타 �
   const logo = [...c.querySelectorAll(".media-card")].find(card => card.querySelector("h4")?.textContent === "로드맵 로고");
   assert.equal(logo.querySelector("input").value, "logo");
   assert.ok(logo.querySelector(".media-stage img"), "로고 미리보기");
+  assert.equal(logo.querySelector(".upload-zone").parentElement.hidden, true, "올리기는 '수정'을 눌러야");
+  [...logo.querySelectorAll("button")].find(b => b.textContent === "수정").click();
+  assert.equal(logo.querySelector(".upload-zone").parentElement.hidden, false);
   assert.equal(c.querySelector("table.editor select").value, "left");
 });
 

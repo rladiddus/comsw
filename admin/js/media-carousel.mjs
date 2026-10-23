@@ -9,7 +9,19 @@ function el(tag, props = {}, children = []) {
   return node;
 }
 
-// 메인 화면 > 배경 미디어. 왼쪽 미리보기(번호·좌우 버튼), 오른쪽 주소, 아래 문구와 사용·추가.
+// '수정'을 눌러야 나타나는 이미지 직접 올리기(배경 미디어·기타 설정 공용).
+export function editableUpload(onUploaded) {
+  const zone = el("div", { hidden: true });
+  mountImageUpload(zone, { label: "이미지 직접 올리기", onUploaded });
+  const button = el("button", { type: "button", className: "ghost-btn", textContent: "수정" });
+  button.addEventListener("click", () => {
+    zone.hidden = !zone.hidden;
+    button.textContent = zone.hidden ? "수정" : "수정 닫기";
+  });
+  return { zone, button };
+}
+
+// 메인 화면 > 배경 미디어. 왼쪽 미리보기(번호·좌우 버튼), 오른쪽 주소·문구와 사용·수정·추가·삭제.
 // 고친 칸은 바로 저장한다(공개 사이트에는 '적용' 후).
 export async function mountMediaCarousel(container, { supabase }) {
   const state = el("span", { className: "save-state" });
@@ -114,14 +126,10 @@ export async function mountMediaCarousel(container, { supabase }) {
       }
       if (await save(row, { url: value })) draw();
     });
-    const upload = el("div");
-    mountImageUpload(upload, {
-      label: "이미지 직접 올리기",
-      onUploaded: async (asset) => {
-        if (await save(row, { url: asset.url })) draw();
-      },
+    const editor = editableUpload(async (asset) => {
+      if (await save(row, { url: asset.url })) draw();
     });
-    const caption = el("textarea", { value: row.caption || "", rows: 3, placeholder: "배경 위에 나오는 문구(줄바꿈 가능)" });
+    const caption = el("textarea", { value: row.caption || "", placeholder: "배경 위에 나오는 문구(줄바꿈 가능)" });
     caption.addEventListener("change", () => save(row, { caption: caption.value }));
     const active = el("input", { type: "checkbox", checked: Boolean(row.is_active) });
     active.addEventListener("change", async () => {
@@ -131,22 +139,26 @@ export async function mountMediaCarousel(container, { supabase }) {
     if (index > 0) order.push(button("앞으로", () => move(-1)));
     if (index < rows.length - 1) order.push(button("뒤로", () => move(1)));
 
+    // 왼쪽 미리보기 / 오른쪽 [주소 | 문구] 위, 버튼 아래. 두 쪽 높이는 같게(CSS).
     box.replaceChildren(
       el("div", { className: "media-card" }, [
         stage,
-        el("div", { className: "media-fields" }, [
-          el("label", { className: "form-field" }, [el("span", { textContent: "이미지/영상 주소" }), url]),
-          upload,
-          el("p", { className: "muted", textContent: "영상은 주소로 넣어주세요(유튜브·비메오·구글 드라이브·mp4 등). 이미지는 직접 올릴 수 있습니다." }),
-        ]),
-      ]),
-      el("div", { className: "media-bottom" }, [
-        el("label", { className: "form-field" }, [el("span", { textContent: "문구" }), caption]),
-        el("div", { className: "media-actions" }, [
-          el("label", { className: "consent" }, [active, el("span", { textContent: "사용" })]),
-          button("+ 추가", add, "publish-btn"),
-          ...order,
-          button("삭제", () => remove(row), "ghost-btn danger"),
+        el("div", { className: "media-side" }, [
+          el("div", { className: "media-top" }, [
+            el("div", { className: "media-url" }, [
+              el("label", { className: "form-field" }, [el("span", { textContent: "이미지/영상 주소" }), url]),
+              el("p", { className: "muted", textContent: "영상은 주소로 넣어주세요(유튜브·비메오·구글 드라이브·mp4 등). 이미지는 '수정'에서 직접 올릴 수 있습니다." }),
+              editor.zone,
+            ]),
+            el("label", { className: "form-field media-caption" }, [el("span", { textContent: "문구" }), caption]),
+          ]),
+          el("div", { className: "media-actions" }, [
+            el("label", { className: "consent" }, [active, el("span", { textContent: "사용" })]),
+            editor.button,
+            button("+ 추가", add, "publish-btn"),
+            ...order,
+            button("삭제", () => remove(row), "ghost-btn danger"),
+          ]),
         ]),
       ]),
     );

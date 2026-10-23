@@ -84,7 +84,7 @@ function buildParts(model, { uuid = () => crypto.randomUUID() } = {}) {
       model.departments.map(d => [id(d.key), d.name, d.name_en, d.description, d.image_url, d.drive_folder_id, d.is_active, d.sort_order])),
     insert("site_categories", ["id", "name", "is_active", "sort_order"],
       model.categories.map(c => [id(c.key), c.name, c.is_active, c.sort_order])),
-    insert("subjects", ["id", "name", "duration", "dept_curriculum", "program", "level", "sort_order"],
+    insert("subjects", ["id", "name", "duration", "dept_curriculum", "tools", "level", "sort_order"],
       model.subjects.map(s => [id(s.key), s.name, s.duration, s.dept_curriculum, s.program, s.level, s.sort_order])),
     insert("subject_departments", ["subject_id", "department_id"],
       model.subjects.flatMap(s => unique(s.department_keys).map(d => [id(s.key), id(d)]))),

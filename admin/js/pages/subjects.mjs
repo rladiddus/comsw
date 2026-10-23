@@ -23,7 +23,8 @@ export async function render(container, { supabase }) {
       const {data,error}=await supabase.from('subject_weeks').select('summary').eq('subject_id',row.id).order('sort_order');
       if(error)throw new Error(dbErrorMessage(error));return (data||[]).map(w=>w.summary||'').filter(Boolean).join('\n');
     } },
-    { key: "program", label: "프로그램·준비물", type: "textarea" },
+    { key: "tools", label: "프로그램", type: "textarea" },
+    { key: "supplies", label: "준비물", type: "textarea" },
     { key: "level", label: "학습 수준", type: "text" },
   ];
   const weeks = el("section");

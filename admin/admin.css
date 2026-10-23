@@ -407,7 +407,7 @@ dialog.idle-dialog strong { color:var(--accent); }
 .request-apply { padding:4px 0 12px; }
 /* 커리큘럼 관리 > 학과 커리큘럼: 과목명 / 기간 / 학과별 커리큘럼 요약 / 프로그램·준비물 / 학습 수준 */
 .dept-curriculum-table { background:#fff; border:1px solid var(--line); border-radius:14px; padding:4px 16px; margin-top:8px; }
-.dept-curriculum-row { display:grid; grid-template-columns:24px 140px 110px minmax(0,1.4fr) minmax(0,1fr) 130px 80px; gap:12px; align-items:start; padding:12px 0; border-bottom:1px solid var(--line); }
+.dept-curriculum-row { display:grid; grid-template-columns:24px 130px 100px minmax(0,1.4fr) minmax(0,.8fr) minmax(0,.8fr) 120px 128px; gap:12px; align-items:start; padding:12px 0; border-bottom:1px solid var(--line); }
 .dept-curriculum-row:last-child { border-bottom:0; }
 .dept-curriculum-head { font-weight:700; font-size:12px; color:var(--muted); padding:10px 0; }
 .dept-cell { display:flex; flex-direction:column; gap:6px; min-width:0; }
@@ -415,7 +415,7 @@ dialog.idle-dialog strong { color:var(--accent); }
 .dept-cell input, .dept-cell textarea { width:100%; padding:8px 10px; border:1px solid #d9dde4; border-radius:8px; }
 .dept-cell input[readonly], .dept-cell textarea[readonly] { background:#f6f7f9; border-color:transparent; resize:none; }
 .dept-cell .ai-btn { align-self:flex-start; margin:0; }
-.cell-actions { align-items:flex-end; }
+.cell-actions { flex-direction:row; justify-content:flex-end; align-items:flex-start; }
 @media (max-width:1000px) {
   .dept-curriculum-row { grid-template-columns:24px 1fr 1fr; }
   .dept-curriculum-head { display:none; }
@@ -437,3 +437,36 @@ dialog.idle-dialog strong { color:var(--accent); }
 .search-bar .publish-btn { height:42px; }
 .card-item .drag-handle.off { color:#ddd; cursor:not-allowed; }
 .card-list .more-btn { align-self:center; margin:4px 0 8px; }
+/* 내 커리큘럼: 과목 탭 위 프로그램·준비물 */
+.materials-row { margin:6px 0 4px; }
+.materials-row .form-field { margin:8px 0; }
+.materials-row textarea { width:100%; padding:10px 12px; border:1px solid #d9dde4; border-radius:9px; resize:vertical; }
+/* 로드맵: 한 줄 = 묶음(학과), 오른쪽으로 단계 상자 */
+.roadmap-board { display:flex; flex-direction:column; gap:14px; margin-top:12px; }
+.roadmap-track { display:grid; grid-template-columns:200px minmax(0,1fr); gap:14px; background:#fff; border:1px solid var(--line); border-radius:14px; padding:14px; }
+.roadmap-track-head { display:flex; flex-direction:column; gap:8px; }
+.roadmap-track-head select, .roadmap-track-head input { width:100%; padding:8px 10px; border:1px solid #d9dde4; border-radius:8px; background:#fff; }
+.roadmap-track-head select { font-weight:700; }
+.roadmap-track-tools { display:flex; gap:6px; align-items:center; }
+.roadmap-steps { display:flex; gap:12px; overflow-x:auto; padding-bottom:6px; align-items:stretch; }
+.roadmap-step { flex:0 0 220px; display:flex; flex-direction:column; gap:8px; background:#fafbfc; border:1px solid var(--line); border-radius:12px; padding:10px; }
+.roadmap-step-head { display:flex; align-items:center; gap:4px; }
+.roadmap-step-head strong { margin-right:auto; }
+.roadmap-step textarea { width:100%; padding:8px 10px; border:1px solid #d9dde4; border-radius:8px; resize:vertical; font-size:13px; }
+.roadmap-add-step { flex:0 0 auto; align-self:center; }
+.icon-btn { border:1px solid var(--line); background:#fff; border-radius:6px; min-width:28px; height:28px; cursor:pointer; color:#555; }
+.icon-btn:disabled { opacity:.35; cursor:default; }
+details.multi { position:relative; }
+details.multi > summary { list-style:none; cursor:pointer; padding:8px 28px 8px 10px; border:1px solid #d9dde4; border-radius:8px; background:#fff; font-weight:600; font-size:13px; }
+details.multi > summary::after { content:"▾"; position:absolute; right:10px; top:8px; color:#888; }
+details.multi > summary::-webkit-details-marker { display:none; }
+.multi-list { position:absolute; z-index:20; left:0; right:0; top:calc(100% + 4px); max-height:260px; overflow:auto; background:#fff; border:1px solid var(--line); border-radius:8px; box-shadow:0 8px 24px rgba(0,0,0,.12); padding:6px; }
+.multi-option { display:flex; gap:8px; align-items:center; padding:5px 6px; border-radius:6px; font-size:13px; cursor:pointer; }
+.multi-option:hover { background:#f4f5f7; }
+dialog.roadmap-source { margin:auto; inset:0; border:0; border-radius:14px; padding:0; width:min(760px, 92vw); max-height:80vh; }
+dialog.roadmap-source::backdrop { background:rgba(0,0,0,.45); }
+.roadmap-source-body { padding:20px 24px; overflow:auto; max-height:80vh; }
+.roadmap-source-body h4 { margin:18px 0 6px; color:var(--accent); }
+.roadmap-source-body p { white-space:pre-line; margin:4px 0 10px; line-height:1.55; }
+.roadmap-source-item { border-top:1px solid var(--line); padding-top:8px; }
+@media (max-width: 900px) { .roadmap-track { grid-template-columns:1fr; } }

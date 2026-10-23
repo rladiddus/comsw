@@ -286,7 +286,7 @@ const twoSubjects = () => {
 test("내 커리큘럼: 내 학과는 쌤톡 학과, 위쪽은 '선택 학과', 수업 설정에서 고른 과목이 한 줄 탭으로", async () => {
   const { c } = await setup("mine", twoSubjects());
   tabButton(c, "write").click();
-  const labels = [...c.querySelectorAll(".form-row .form-field > span")].map((s) => s.textContent);
+  const labels = [...c.querySelectorAll(".form-row:not(.materials-row) .form-field > span")].map((s) => s.textContent);
   assert.deepEqual(labels, ["내 학과", "선택 학과"]);
   assert.deepEqual([...c.querySelector("[name=department]").options].map((o) => o.textContent), ["웹학과"]);
   assert.deepEqual([...c.querySelectorAll(".subject-tabs button")].map((b) => b.textContent), ["웹1", "웹2"]);
@@ -368,4 +368,32 @@ test("내 프로필: 수정 요청을 받으면 요청 내용이 보이고, 고�
   form.dispatchEvent(new dom.window.Event("submit", { bubbles: true, cancelable: true }));
   await flush();
   assert.equal(calls.find(([n]) => n === "comsw_save_my_profile")[1].p_career, "2024 새 경력");
+});
+
+test("내 커리큘럼: 과목 탭마다 사용 프로그램·준비물을 쓰고, 바뀐 것만 커리큘럼과 함께 저장한다", async () => {
+  const data = tables();
+  data.instructor_subject_materials = [{ instructor_id: "me", subject_id: "subject", tools: "VS Code", supplies: null }];
+  const { c, calls } = await setup("mine", data);
+  const form = c.querySelector("form.curriculum-form");
+  assert.equal(form.querySelector("[name=tools]").value, "VS Code", "저장해 둔 값");
+  form.querySelector("[name=supplies]").value = "멘토시리즈 웹";
+  form.querySelector("[name=written]").value = "HTML 기초";
+  form.dispatchEvent(new dom.window.Event("submit", { cancelable: true }));
+  await flush();
+  assert.deepEqual(calls[0], ["comsw_save_my_materials", { p_subject_id: "subject", p_tools: "VS Code", p_supplies: "멘토시리즈 웹" }]);
+  assert.equal(calls[1][0], "comsw_submit_my_curriculum");
+});
+
+test("내 커리큘럼: 프로그램·준비물만 바꿔도 저장되고, 안 바꾸면 저장하지 않는다", async () => {
+  const { c, calls } = await setup("mine");
+  const form = c.querySelector("form.curriculum-form");
+  form.dispatchEvent(new dom.window.Event("submit", { cancelable: true }));
+  await flush();
+  assert.equal(calls.length, 0);
+  assert.match(c.textContent, /커리큘럼 내용을 입력해주세요/);
+  form.querySelector("[name=tools]").value = "Figma";
+  form.dispatchEvent(new dom.window.Event("submit", { cancelable: true }));
+  await flush();
+  assert.deepEqual(calls.map((x) => x[0]), ["comsw_save_my_materials"]);
+  assert.match(c.textContent, /승인될 때 함께 반영/);
 });

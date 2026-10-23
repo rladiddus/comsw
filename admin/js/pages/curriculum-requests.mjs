@@ -17,7 +17,7 @@ export async function render(container, { supabase, crop = cropImageToSquare, fe
     }),
   );
   const setState = stateLine(container);
-  const [pending, instructors, subjects, sets, weeks, tracks, steps, stepSubjects] = await Promise.all([
+  const [pending, instructors, subjects, sets, weeks, tracks, steps, stepSubjects, materials] = await Promise.all([
     rows(supabase, "instructor_curricula", (q) => q.eq("status", "pending").order("sort_order")),
     rows(supabase, "instructors"),
     rows(supabase, "subjects"),
@@ -26,12 +26,21 @@ export async function render(container, { supabase, crop = cropImageToSquare, fe
     rows(supabase, "roadmap_tracks"),
     rows(supabase, "roadmap_steps"),
     rows(supabase, "roadmap_step_subjects"),
+    rows(supabase, "instructor_subject_materials"),
   ]);
   const nameOf = (list, id) => list.find((x) => x.id === id)?.name ?? "";
   const ai = async (kind, text) => {
     const fn = getServices().summarize;
     if (!fn) throw new Error("AI 연결을 준비 중입니다");
     return (await fn(kind, text)).text;
+  };
+
+  // 선생님이 이 과목에 적은 프로그램·준비물(저장 = 승인 때 과목 값에 새 항목만 합쳐짐).
+  const materialsLine = (g) => {
+    const m = materials.find((x) => x.instructor_id === g.instructor_id && x.subject_id === g.subject_id);
+    if (!m || !(m.tools || m.supplies)) return [];
+    return [el("p", { className: "muted request-materials", textContent:
+      `선생님이 적은 프로그램: ${m.tools || "없음"} · 준비물: ${m.supplies || "없음"} (승인하면 학과 커리큘럼에 없는 항목만 더해집니다)` })];
   };
 
   // 강사·과목·학과 탭이 같은 신청을 한 묶음으로.
@@ -311,6 +320,7 @@ export async function render(container, { supabase, crop = cropImageToSquare, fe
         el("div", { className: "request-row request-head" },
           ["강사명", "과목명", "단계", "커리큘럼", "이미지"].map((t) => el("span", { textContent: t }))),
         ...rowViews.map((v) => v.line),
+        ...materialsLine(g),
         el("div", { className: "form-actions" }, [edit]),
       ]),
       el("section", { className: "workspace-card request-section" }, [

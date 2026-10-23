@@ -78,8 +78,8 @@ const sample = (n, color) =>
 Object.assign(data.departments[0], { name_en: "Visual Design", description: "포토샵·일러스트로 시작해 브랜드 디자인 포트폴리오까지 완성하는 학과입니다.", image_url: sample("", "#fa491d") });
 Object.assign(data.departments[1], { name_en: "Web Design", description: "웹 퍼블리싱과 UI 디자인을 함께 배웁니다." });
 data.instructors[0].photo_url = "data:image/svg+xml," + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="941" height="1672"><rect width="941" height="1672" fill="#dfe6ee"/><circle cx="470" cy="520" r="230" fill="#8a9bb0"/><rect x="170" y="820" width="600" height="852" rx="280" fill="#8a9bb0"/></svg>');
-Object.assign(data.subjects[0], { duration: "4주", program: "포토샵 CC", level: "★★☆☆☆" });
-Object.assign(data.subjects[1], { duration: "4주", program: "일러스트레이터 CC", level: "★★★☆☆" });
+Object.assign(data.subjects[0], { duration: "4주", tools: "포토샵 CC", supplies: "멘토시리즈 포토샵", level: "★★☆☆☆" });
+Object.assign(data.subjects[1], { duration: "4주", tools: "일러스트레이터 CC", level: "★★★☆☆" });
 // 커리큘럼 관리 > 신청 과목 확인용: 학과 커리큘럼 문구·로드맵·김선생의 승인 대기 2단계.
 data.subjects[0].dept_curriculum = "01 포토샵 기본 툴과 레이어\n02 보정과 합성";
 data.subjects[1].dept_curriculum = "01 벡터 드로잉 기초\n02 로고·아이콘 제작";
@@ -182,6 +182,11 @@ supabase.rpc = async (name, args) => {
     else data.instructor_curricula.push({ id: crypto.randomUUID(), ...payload });
     return { data: existing?.id ?? null, error: null };
   }
+  if (name === "comsw_save_my_materials") {
+    const list = (data.instructor_subject_materials ??= []);
+    const row = { instructor_id: ownId(), subject_id: args.p_subject_id, tools: args.p_tools.trim() || null, supplies: args.p_supplies.trim() || null };
+    list.splice(0, Infinity, ...list.filter((x) => x.instructor_id !== row.instructor_id || x.subject_id !== row.subject_id), row);
+  }
   if (name === "comsw_approve_curriculum") {
     const row = data.instructor_curricula.find((r) => r.id === args.p_id);
     data.instructor_curricula.splice(
@@ -194,6 +199,16 @@ supabase.rpc = async (name, args) => {
       ),
     );
     row.status = "approved";
+    // 실제 DB처럼 이 강사의 프로그램·준비물을 과목 값에 합친다(새 항목만 뒤에).
+    const m = (data.instructor_subject_materials ?? []).find((x) => x.instructor_id === row.instructor_id && x.subject_id === row.subject_id);
+    const subject = data.subjects.find((x) => x.id === row.subject_id);
+    const merge = (old, add) => {
+      const key = (x) => x.replace(/\s/g, "").toLowerCase();
+      const have = new Set(String(old ?? "").split(/[,\n]+/).map(key));
+      const fresh = String(add ?? "").split(/[,\n]+/).map((x) => x.trim()).filter((x) => x && !have.has(key(x)));
+      return fresh.length ? [old, fresh.join(", ")].filter(Boolean).join("\n") : old;
+    };
+    if (m && subject) Object.assign(subject, { tools: merge(subject.tools, m.tools), supplies: merge(subject.supplies, m.supplies) });
   }
   if (name === "comsw_save_my_profile") {
     data.instructor_profile_drafts.splice(0, Infinity, {

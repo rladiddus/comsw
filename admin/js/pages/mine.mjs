@@ -95,7 +95,7 @@ export async function render(container, ctx, { tab } = {}) {
     const own = await requireInstructor(ctx);
     const loadMyMajors = ctx.loadMyMajors ??
       (await import("../ssamtalk-members.mjs")).loadMyMajors;
-    const [depts, subjects, links, sets, submitted, mySubjects, myDepts, majors] = await Promise.all([
+    const [depts, subjects, links, sets, submitted, mySubjects, myDepts, majors, materials] = await Promise.all([
       rows(supabase, "departments", (q) => q.order("sort_order")),
       rows(supabase, "subjects", (q) => q.order("sort_order")),
       rows(supabase, "subject_departments"),
@@ -108,6 +108,7 @@ export async function render(container, ctx, { tab } = {}) {
       rows(supabase, "instructor_subjects", (q) => q.eq("instructor_id", own.id)),
       rows(supabase, "instructor_departments", (q) => q.eq("instructor_id", own.id)),
       loadMyMajors(ctx.uid).catch(() => null),
+      rows(supabase, "instructor_subject_materials", (q) => q.eq("instructor_id", own.id)),
     ]);
     // 내 학과 = 쌤톡 학과(이름이 같은 컴수원 학과). 못 불러오면 컴수원에 저장된 내 학과.
     const myDeptList = majors
@@ -194,7 +195,21 @@ export async function render(container, ctx, { tab } = {}) {
       const steps = [];
       const list = el("div", { className: "step-list" });
       const panel = el("section", { className: "subject-panel" });
-      const entry = { panel, steps, list };
+      // 과목에서 쓰는 프로그램·준비물. 승인되면 학과 커리큘럼의 프로그램·준비물에 합쳐진다.
+      const saved = materials.find((m) => m.subject_id === subject.id);
+      const tools = el("textarea", {
+        name: "tools", rows: 2, maxLength: 2000, value: saved?.tools ?? "",
+        placeholder: "예: Photoshop, Illustrator",
+      });
+      const supplies = el("textarea", {
+        name: "supplies", rows: 2, maxLength: 2000, value: saved?.supplies ?? "",
+        placeholder: "예: 멘토시리즈 포토샵, 이어폰",
+      });
+      panel.append(el("div", { className: "form-row materials-row" }, [
+        el("label", { className: "form-field" }, [el("span", { textContent: "사용 프로그램" }), tools]),
+        el("label", { className: "form-field" }, [el("span", { textContent: "준비물" }), supplies]),
+      ]));
+      const entry = { panel, steps, list, tools, supplies, saved };
       function addStep(label) {
         const box = el("section", { className: "step-row" });
         const stepInput = el("input", {
@@ -310,14 +325,28 @@ export async function render(container, ctx, { tab } = {}) {
         if (filled.some(({ st }) => st.media.busy())) {
           throw new Error("이미지 업로드가 끝난 후 제출해주세요");
         }
+        // 프로그램·준비물은 바뀐 과목만 저장한다.
+        const changed = deptSubjects().map((s) => ({ subject: s, entry: panels.get(s.id) }))
+          .filter(({ entry }) => entry && (
+            entry.tools.value.trim() !== (entry.saved?.tools ?? "") ||
+            entry.supplies.value.trim() !== (entry.saved?.supplies ?? "")
+          ));
         if (!set.value) throw new Error("선택 학과를 골라주세요");
-        if (!filled.length) throw new Error("커리큘럼 내용을 입력해주세요");
+        if (!filled.length && !changed.length) throw new Error("커리큘럼 내용을 입력해주세요");
         const missing = filled.find(({ st }) =>
           !st.stepInput.value.trim() || !st.written.value.trim()
         );
         if (missing) {
           openSubject(missing.subject.id);
           throw new Error(`${missing.subject.name}: 단계와 커리큘럼 내용을 모두 입력해주세요`);
+        }
+        for (const { subject, entry } of changed) {
+          await rpc(supabase, "comsw_save_my_materials", {
+            p_subject_id: subject.id,
+            p_tools: entry.tools.value,
+            p_supplies: entry.supplies.value,
+          });
+          entry.saved = { tools: entry.tools.value.trim(), supplies: entry.supplies.value.trim() };
         }
         for (const { subject, st } of filled) {
           await submit({
@@ -330,7 +359,9 @@ export async function render(container, ctx, { tab } = {}) {
           sent++;
         }
         await done(
-          `${sent}개 단계를 제출했습니다. 학과장 승인 대기 중입니다.`,
+          sent
+            ? `${sent}개 단계를 제출했습니다. 학과장 승인 대기 중입니다.`
+            : "프로그램·준비물을 저장했습니다. 이 과목 커리큘럼이 승인될 때 함께 반영됩니다.",
         );
       } catch (err) {
         setState(

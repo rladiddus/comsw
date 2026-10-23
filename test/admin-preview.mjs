@@ -57,7 +57,12 @@ const data = {
   }],
   instructor_profile_drafts: [],
   instructor_link_requests: [],
-  site_settings: [],
+  site_settings: [{ key: "roadmap_logo_url", value: "" }],
+  main_media: [
+    { id: "media-1", url: "", caption: "A creative design study for\ninspiring change", is_active: true, sort_order: 0 },
+    { id: "media-2", url: "", caption: "두 번째 배경 문구", is_active: false, sort_order: 1 },
+  ],
+  menus: [],
 };
 
 // 조회하기 화면 확인용: 김선생의 승인된 2~4단계(이미지는 내장 SVG).
@@ -65,6 +70,8 @@ const sample = (n, color) =>
   "data:image/svg+xml," + encodeURIComponent(
     `<svg xmlns="http://www.w3.org/2000/svg" width="1000" height="1000"><rect width="1000" height="1000" fill="${color}"/><text x="500" y="540" font-size="140" text-anchor="middle" fill="#fff" font-family="sans-serif">${n}단계</text></svg>`,
   );
+data.main_media[0].url = sample("배경 1", "#222");
+data.main_media[1].url = sample("배경 2", "#fa491d");
 data.instructor_curricula[0].step_label = "1단계";
 data.instructor_curricula[0].media_url = sample(1, "#fa491d");
 for (const [n, color, text] of [

@@ -1,10 +1,11 @@
 import { mountTableEditor } from "../table-editor.mjs";
 import { dbErrorMessage } from "../fields.mjs";
-import { driveThumbnail } from "../drive.mjs";
 import { freeName } from "../order.mjs";
 import { SITE_PAGES } from "../preview.mjs";
 import { mountAiSettings } from '../ai-settings.mjs';
 import { mountImageUpload } from '../image-upload.mjs';
+import { mountMediaCarousel } from "../media-carousel.mjs";
+import { mediaPreview } from "../media-preview.mjs";
 
 const MENU_NAMES = SITE_PAGES.slice(1).map(p => p.name).join(", ");
 
@@ -31,18 +32,28 @@ async function settingsForm(container, supabase) {
     state.classList.toggle("err", Boolean(e));
   }
 
-  function imageField(key, label) {
-    const input = el("input", { type: "text", value: value(key) });
-    const img = el("img", { className: "thumb", alt: "" });
-    img.addEventListener("error", () => { img.hidden = true; });
-    const preview = () => { const s = driveThumbnail(input.value); img.hidden = !s; if (s) img.src = s; };
+  // 배경 미디어와 같은 배치: 왼쪽 미리보기, 오른쪽 이름·주소·올리기.
+  function imageCard(key, label) {
+    const input = el("input", { type: "text", value: value(key), placeholder: "https://… 이미지 주소" });
+    const stage = el("div", { className: "media-stage" });
+    const preview = () => stage.replaceChildren(mediaPreview(input.value));
     preview();
     input.addEventListener("change", () => { preview(); save(key, input.value.trim()); });
-    const upload=el('div');mountImageUpload(upload,{onUploaded:async asset=>{
-      const {error}=await supabase.from('site_settings').upsert({key,value:asset.url});
-      if(error)throw new Error(dbErrorMessage(error));input.value=asset.url;preview();
-    }});
-    return [el("label", { textContent: label }), input, img,upload];
+    const upload = el("div");
+    mountImageUpload(upload, { label: "이미지 직접 올리기", onUploaded: async asset => {
+      const { error } = await supabase.from("site_settings").upsert({ key, value: asset.url });
+      if (error) throw new Error(dbErrorMessage(error));
+      input.value = asset.url;
+      preview();
+    } });
+    return el("div", { className: "media-card" }, [
+      stage,
+      el("div", { className: "media-fields" }, [
+        el("h4", { textContent: label }),
+        el("label", { className: "form-field" }, [el("span", { textContent: "이미지 주소" }), input]),
+        upload,
+      ]),
+    ]);
   }
 
   const select = el("select", {}, [
@@ -55,28 +66,15 @@ async function settingsForm(container, supabase) {
   container.append(
     el("h3", { textContent: "기타 설정" }),
     el("div", { className: "editor-bar" }, [state]),
-    el("div", { className: "settings-form" }, [
-      ...imageField("roadmap_logo_url", "로드맵 로고"),
-      el("label", { textContent: "방학 특강 커리큘럼" }), select,
-      ...imageField("vacation_background_url", "방학 특강 배경"),
-    ]),
+    imageCard("roadmap_logo_url", "로드맵 로고"),
+    el("label", { className: "form-field settings-select" }, [el("span", { textContent: "방학 특강 커리큘럼" }), select]),
+    imageCard("vacation_background_url", "방학 특강 배경"),
   );
 }
 
 export async function render(container, { supabase, preview }) {
   container.append(el("h2", { textContent: "메인 화면" }));
-  mountTableEditor(container, {
-    supabase,
-    table: "main_media",
-    title: "배경 미디어",
-    description: "메인 화면 배경으로 나오는 이미지·영상과 문구입니다. 사용에 체크한 것만 나옵니다.",
-    columns: [
-      { key: "url", label: "이미지/영상 주소", type: "image", required: true },
-      { key: "caption", label: "문구", type: "textarea" },
-      { key: "is_active", label: "사용", type: "checkbox" },
-    ],
-    defaults: { url: "", is_active: false },
-  });
+  await mountMediaCarousel(container, { supabase });
   mountTableEditor(container, {
     supabase,
     table: "menus",

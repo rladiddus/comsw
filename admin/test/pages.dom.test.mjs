@@ -57,21 +57,22 @@ async function renderPage(path, ctx = {}) {
   return container;
 }
 
-test("메인 화면: 배경 미디어·메뉴 표와 기타 설정", async () => {
+test("메인 화면: 배경 미디어(미리보기 카드)·메뉴 표·기타 설정(미리보기 카드)", async () => {
   const c = await renderPage("../js/pages/main-page.mjs");
   assert.deepEqual([...c.querySelectorAll("h3")].map(h => h.textContent), ["배경 미디어", "메뉴", "기타 설정"]);
-  assert.equal(c.querySelectorAll("table.editor").length, 2);
-  const selects = [...c.querySelectorAll(".settings-form select")];
-  assert.equal(selects[0].value, "s1");
-  assert.equal(c.querySelector(".settings-form input").value, "logo");
-  const sideSelect = c.querySelectorAll("table.editor")[1].querySelector("select");
-  assert.equal(sideSelect.value, "left");
+  assert.equal(c.querySelectorAll("table.editor").length, 1, "메뉴만 표");
+  assert.ok(c.querySelector(".media-editor .media-stage video"), "mp4는 영상으로 미리보기");
+  assert.equal(c.querySelector(".settings-select select").value, "s1");
+  const logo = [...c.querySelectorAll(".media-card")].find(card => card.querySelector("h4")?.textContent === "로드맵 로고");
+  assert.equal(logo.querySelector("input").value, "logo");
+  assert.ok(logo.querySelector(".media-stage img"), "로고 미리보기");
+  assert.equal(c.querySelector("table.editor select").value, "left");
 });
 
 test("메인 화면: 메뉴 줄마다 PC·태블릿 미리보기", async () => {
   const opened = [];
   const c = await renderPage("../js/pages/main-page.mjs", { preview: (name, tablet) => opened.push([name, tablet]) });
-  const buttons = [...c.querySelectorAll("table.editor")[1].querySelectorAll("tbody button")];
+  const buttons = [...c.querySelector("table.editor").querySelectorAll("tbody button")];
   buttons.find(b => b.textContent === "미리보기").click();
   buttons.find(b => b.textContent === "태블릿").click();
   assert.deepEqual(opened, [["전체 수업", false], ["전체 수업", true]]);

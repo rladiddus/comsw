@@ -78,6 +78,23 @@ const sample = (n, color) =>
 Object.assign(data.departments[0], { name_en: "Visual Design", description: "포토샵·일러스트로 시작해 브랜드 디자인 포트폴리오까지 완성하는 학과입니다.", image_url: sample("", "#fa491d") });
 Object.assign(data.departments[1], { name_en: "Web Design", description: "웹 퍼블리싱과 UI 디자인을 함께 배웁니다." });
 data.instructors[0].photo_url = "data:image/svg+xml," + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="941" height="1672"><rect width="941" height="1672" fill="#dfe6ee"/><circle cx="470" cy="520" r="230" fill="#8a9bb0"/><rect x="170" y="820" width="600" height="852" rx="280" fill="#8a9bb0"/></svg>');
+// 커리큘럼 관리 > 신청 과목 확인용: 학과 커리큘럼 문구·로드맵·김선생의 승인 대기 2단계.
+data.subjects[0].dept_curriculum = "01 포토샵 기본 툴과 레이어\n02 보정과 합성";
+data.subjects[1].dept_curriculum = "01 벡터 드로잉 기초\n02 로고·아이콘 제작";
+data.subject_weeks = [
+  { id: "sw1", subject_id: "photoshop", week_label: "1단계", summary: "인터페이스와 레이어 기초", sort_order: 0 },
+  { id: "sw2", subject_id: "photoshop", week_label: "2단계", summary: "선택 도구와 보정", sort_order: 1 },
+];
+data.roadmap_tracks = [{ id: "rt1", name: "시각편집 로드맵", department_id: "design", sort_order: 0 }];
+data.roadmap_steps = [{ id: "rs1", track_id: "rt1", position: 1, source_text: "포토샵과 일러스트로 디자인 툴 기초를 다집니다", summary: "툴 기초\n이미지 편집" }];
+data.roadmap_step_subjects = [{ step_id: "rs1", subject_id: "photoshop", sort_order: 0 }, { step_id: "rs1", subject_id: "illustrator", sort_order: 1 }];
+for (const [n, text] of [[1, "포토샵 화면 구성과 레이어 개념을 익히고 간단한 포스터를 만듭니다."], [2, "선택 도구와 마스크, 보정 레이어로 사진을 자연스럽게 합성합니다."]]) {
+  data.instructor_curricula.push({
+    id: `pending-${n}`, instructor_id: "demo-teacher", set_id: "design-set", subject_id: "photoshop",
+    step_label: `${n}단계`, written: text, summary: null, status: "pending", sort_order: 10 + n,
+    media_url: sample(`신청 ${n}`, n === 1 ? "#c0392b" : "#2980b9"), updated_at: new Date().toISOString(),
+  });
+}
 data.main_media[0].url = sample("배경 1", "#222");
 data.loading_items[0].image_url = sample("", "#334");
 data.loading_items[1].image_url = sample("", "#6a4");
@@ -208,8 +225,13 @@ configureServices({
     filename: file.name,
     url: kind === "profile-source" ? null : URL.createObjectURL(file),
   }),
-  summarize: async () => ({
-    text: "기본 도구와 레이어를 활용한 포스터 제작 (예시 요약)",
+  // 화면 확인용 AI(실제 호출 없음): 종류별 예시 문장.
+  summarize: async (kind) => ({
+    text: {
+      week: "기본 도구와 레이어를 활용한 포스터 제작 (예시 요약)",
+      department: "01 포토샵 기본 툴과 레이어 이해 (예시)\n02 마스크·보정으로 사진 합성 (예시)",
+      roadmap: "툴 기초 다지기\n사진 합성 입문",
+    }[kind] ?? "예시 문장",
     cached: false,
   }),
   generateProfile: async () => {
@@ -236,7 +258,7 @@ async function show() {
       return a;
     }),
   );
-  const paths = { main: "main-page" };
+  const paths = { departments: "department-tabs", instructors: "instructor-tabs", "curriculum-admin": "curriculum-admin" };
   await mountPage(
     document.querySelector("#demoContent"),
     () => import(`../admin/js/pages/${paths[id] || id}.mjs`),

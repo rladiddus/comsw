@@ -10,16 +10,15 @@ import { configureServices, createServices } from './services.mjs';
 
 const $ = sel => document.querySelector(sel);
 const PAGES = {
-  main: () => import("./pages/main-page.mjs"),
-  loading: () => import("./pages/loading.mjs"),
+  settings: () => import("./pages/settings.mjs"),
   seminars: () => import("./pages/seminars.mjs"),
-  departments: () => import("./pages/departments.mjs"),
+  departments: () => import("./pages/department-tabs.mjs"),
   subjects: () => import("./pages/subjects.mjs"),
   roadmap: () => import("./pages/roadmap.mjs"),
   prep: () => import("./pages/prep.mjs"),
-  instructors: () => import("./pages/instructors.mjs"),
-  accounts: () => import("./pages/accounts.mjs"),
+  instructors: () => import("./pages/instructor-tabs.mjs"),
   curricula: () => import("./pages/curricula.mjs"),
+  "curriculum-admin": () => import("./pages/curriculum-admin.mjs"),
   recruitment: () => import("./pages/recruitment.mjs"),
   vacation: () => import("./pages/vacation.mjs"),
   mine: () => import('./pages/mine.mjs'),

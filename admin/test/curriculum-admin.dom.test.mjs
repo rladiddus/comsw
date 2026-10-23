@@ -1,0 +1,176 @@
+import test from "node:test";
+import assert from "node:assert/strict";
+import { JSDOM } from "jsdom";
+import { fakeSupabase } from "./fake-supabase.mjs";
+import { configureServices } from "../js/services.mjs";
+
+const dom = new JSDOM("<!doctype html><body></body>");
+globalThis.document = dom.window.document;
+globalThis.File = dom.window.File;
+globalThis.confirm = () => true;
+const flush = async () => { for (let i = 0; i < 20; i++) await new Promise((r) => setTimeout(r, 0)); };
+const button = (root, text) => [...root.querySelectorAll("button")].find((b) => b.textContent === text);
+
+const data = () => ({
+  departments: [{ id: "d1", name: "시각편집학과", sort_order: 0 }, { id: "d2", name: "웹학과", sort_order: 1 }],
+  subjects: [
+    { id: "s1", name: "포토샵", sort_order: 0, dept_curriculum: "01 포토샵 기초\n02 합성" },
+    { id: "s2", name: "일러스트", sort_order: 1, dept_curriculum: "01 벡터" },
+    { id: "s3", name: "웹1", sort_order: 2 },
+  ],
+  subject_departments: [{ subject_id: "s1", department_id: "d1" }, { subject_id: "s2", department_id: "d1" }, { subject_id: "s3", department_id: "d2" }],
+  subject_weeks: [{ id: "w1", subject_id: "s1", week_label: "1단계", summary: "인터페이스와 레이어", sort_order: 0 }],
+  instructors: [{ id: "i1", name: "김민주" }, { id: "i2", name: "조해리" }],
+  curriculum_sets: [{ id: "set1", name: "시각편집학과", department_id: "d1" }],
+  instructor_curricula: [
+    { id: "c1", instructor_id: "i1", subject_id: "s1", set_id: "set1", step_label: "1단계", written: "포토샵 기초 원문", status: "pending", sort_order: 0, media_url: "https://img.example/a.webp" },
+    { id: "c2", instructor_id: "i1", subject_id: "s1", set_id: "set1", step_label: "2단계", written: "합성 원문", status: "pending", sort_order: 1 },
+    { id: "c3", instructor_id: "i2", subject_id: "s2", set_id: "set1", step_label: "1단계", written: "일러 원문", status: "pending", sort_order: 2 },
+    { id: "c4", instructor_id: "i2", subject_id: "s2", set_id: "set1", step_label: "1단계", written: "승인된 것", status: "approved", sort_order: 3 },
+  ],
+  roadmap_tracks: [{ id: "t1", name: "디자인 로드맵" }],
+  roadmap_steps: [{ id: "rs1", track_id: "t1", position: 1, source_text: "디자인 첫걸음", summary: "툴 기초\n편집" }],
+  roadmap_step_subjects: [{ step_id: "rs1", subject_id: "s1" }],
+});
+
+test("메뉴 묶음: 제목·하위 탭, 첫 탭만 그리고 다른 탭은 처음 열 때 그린다", async () => {
+  const { subpages } = await import("../js/subpages.mjs");
+  const drawn = [];
+  const render = subpages("기본 설정", [
+    ["a", "메인 화면", async () => ({ render: (c) => { drawn.push("a"); c.append("메인"); } })],
+    ["b", "로딩 화면", async () => ({ render: (c) => { drawn.push("b"); c.append("로딩"); } })],
+  ]);
+  const c = document.createElement("div");
+  await render(c, {});
+  assert.equal(c.querySelector(".page-head h2").textContent, "기본 설정");
+  assert.deepEqual([...c.querySelectorAll(".tab-bar button")].map((b) => b.textContent), ["메인 화면", "로딩 화면"]);
+  assert.deepEqual(drawn, ["a"]);
+  button(c, "로딩 화면").click();
+  await flush();
+  assert.deepEqual(drawn, ["a", "b"]);
+  button(c, "메인 화면").click();
+  await flush();
+  assert.deepEqual(drawn, ["a", "b"], "한 번 그린 탭은 다시 그리지 않는다");
+});
+
+test("학과별 과목: 학과를 고르면 그 학과 과목, 더하기·빼기는 학과-과목 연결표에 저장", async () => {
+  const { render } = await import("../js/pages/department-subjects.mjs");
+  const tables = data();
+  const c = document.createElement("div");
+  await render(c, { supabase: fakeSupabase(tables) });
+  const names = () => [...c.querySelectorAll(".dept-subject span")].map((s) => s.textContent);
+  assert.deepEqual(names(), ["포토샵", "일러스트"]);
+  const dept = c.querySelector("select");
+  dept.value = "d2";
+  dept.dispatchEvent(new dom.window.Event("change"));
+  assert.deepEqual(names(), ["웹1"]);
+  const pick = c.querySelector(".link-pick");
+  pick.value = "s1";
+  pick.dispatchEvent(new dom.window.Event("change"));
+  await flush();
+  assert.ok(tables.subject_departments.some((l) => l.subject_id === "s1" && l.department_id === "d2"));
+  assert.deepEqual(names(), ["포토샵", "웹1"]);
+  button(c.querySelector(".dept-subject"), "빼기").click();
+  await flush();
+  assert.ok(!tables.subject_departments.some((l) => l.subject_id === "s1" && l.department_id === "d2"));
+});
+
+test("신청 과목: 강사·과목별 묶음, 강사명/과목명/단계/커리큘럼/이미지 순, 수정 → AI 요약 → 저장(승인)", async () => {
+  const { render } = await import("../js/pages/curriculum-requests.mjs");
+  const tables = data();
+  const sb = fakeSupabase(tables);
+  const rpcs = [];
+  sb.rpc = async (name, args) => { rpcs.push([name, args]); return { data: null, error: null }; };
+  const asked = [];
+  configureServices({ summarize: async (kind, text) => { asked.push([kind, text]); return { text: `${kind} 결과` }; } });
+  const c = document.createElement("div");
+  await render(c, { supabase: sb });
+  assert.deepEqual([...c.querySelectorAll(".subject-tabs button")].map((b) => b.textContent), ["김민주 · 포토샵 (2단계)", "조해리 · 일러스트 (1단계)"]);
+  assert.deepEqual([...c.querySelectorAll(".request-head span")].map((s) => s.textContent), ["강사명", "과목명", "단계", "커리큘럼", "이미지"]);
+  const rowsEl = [...c.querySelectorAll(".request-row:not(.request-head)")];
+  assert.equal(rowsEl.length, 2);
+  assert.equal(rowsEl[0].children[0].textContent, "김민주");
+  assert.ok(rowsEl[0].querySelector("textarea").readOnly);
+  button(c, "수정").click();
+  button(rowsEl[0], "AI 요약").click();
+  await flush();
+  assert.equal(rowsEl[0].querySelectorAll("textarea")[1].value, "week 결과");
+  rowsEl[1].querySelector("textarea").value = "합성 원문 다듬음";
+  button(c, "저장").click();
+  await flush();
+  assert.equal(tables.instructor_curricula.find((r) => r.id === "c1").summary, "week 결과");
+  assert.equal(tables.instructor_curricula.find((r) => r.id === "c2").written, "합성 원문 다듬음");
+  assert.deepEqual(rpcs.map(([n, a]) => [n, a.p_id]), [["comsw_approve_curriculum", "c1"], ["comsw_approve_curriculum", "c2"]]);
+  assert.match(c.textContent, /승인됨/);
+});
+
+test("신청 과목: 학과 커리큘럼·로드맵 문구를 AI로 신규 칸에 만들고, 적용하면 실제로 반영", async () => {
+  const { render } = await import("../js/pages/curriculum-requests.mjs");
+  const tables = data();
+  const asked = [];
+  configureServices({ summarize: async (kind, text) => { asked.push([kind, text]); return { text: `${kind} 신규` }; } });
+  const c = document.createElement("div");
+  await render(c, { supabase: fakeSupabase(tables) });
+  button(c, "학과 커리큘럼 생성").click();
+  await flush();
+  const [dept, roadmap] = [...c.querySelectorAll(".request-section")].slice(1);
+  assert.equal(dept.querySelectorAll("textarea")[0].value, "01 포토샵 기초\n02 합성", "현재");
+  assert.equal(dept.querySelectorAll("textarea")[1].value, "department 신규");
+  assert.match(asked[0][1], /지금 학과 커리큘럼[\s\S]*김민주 선생님 신청 커리큘럼[\s\S]*포토샵 기초 원문/);
+  assert.match(roadmap.querySelector("h4").textContent, /디자인 로드맵 · 1단계 \(포토샵\)/);
+  button(roadmap, "로드맵 문구 생성").click();
+  await flush();
+  assert.equal(roadmap.querySelectorAll("textarea")[1].value, "roadmap 신규");
+  button(c, "적용").click();
+  await flush();
+  assert.equal(tables.subjects.find((s) => s.id === "s1").dept_curriculum, "department 신규");
+  assert.equal(tables.roadmap_steps[0].summary, "roadmap 신규");
+  assert.equal(dept.querySelectorAll("textarea")[0].value, "department 신규", "현재 칸도 새 문구로");
+});
+
+test("신청 과목: 저장소 이미지는 다시 자르고, 못 읽는 이미지는 새로 올리라고 안내", async () => {
+  const { render } = await import("../js/pages/curriculum-requests.mjs");
+  const tables = data();
+  configureServices({ upload: async () => ({ url: "https://img.example/recropped.webp" }) });
+  let fetched = null;
+  const c = document.createElement("div");
+  await render(c, {
+    supabase: fakeSupabase(tables),
+    crop: async (file) => file,
+    fetcher: async (url) => {
+      fetched = url;
+      if (url.includes("drive")) throw new Error("CORS");
+      return { ok: true, blob: async () => new dom.window.Blob(["x"], { type: "image/png" }) };
+    },
+  });
+  button(c, "수정").click();
+  const row = c.querySelectorAll(".request-row:not(.request-head)")[0];
+  button(row, "다시 자르기").click();
+  await flush();
+  assert.equal(fetched, "https://img.example/a.webp");
+  assert.equal(row.querySelector(".submission-thumb img").getAttribute("src"), "https://img.example/recropped.webp");
+  tables.instructor_curricula[0].media_url = "https://drive.google.com/file/d/x/view";
+  const c2 = document.createElement("div");
+  await render(c2, { supabase: fakeSupabase(tables), fetcher: async () => { throw new Error("CORS"); } });
+  button(c2, "수정").click();
+  button(c2.querySelectorAll(".request-row:not(.request-head)")[0], "다시 자르기").click();
+  await flush();
+  assert.match(c2.textContent, /새로 올리기/);
+});
+
+test("학과 커리큘럼: 학과를 고르면 과목별 문구, 수정 → AI 생성 → 저장", async () => {
+  const { render } = await import("../js/pages/department-curriculum.mjs");
+  const tables = data();
+  configureServices({ summarize: async (kind, text) => ({ text: `${kind}:${text}` }) });
+  const c = document.createElement("div");
+  await render(c, { supabase: fakeSupabase(tables) });
+  const items = [...c.querySelectorAll(".dept-curriculum-item")];
+  assert.deepEqual(items.map((i) => i.querySelector("h4").textContent), ["포토샵", "일러스트"]);
+  button(items[0], "수정").click();
+  button(items[0], "AI 생성").click();
+  await flush();
+  assert.equal(items[0].querySelector("textarea").value, "department:인터페이스와 레이어");
+  button(items[0], "저장").click();
+  await flush();
+  assert.equal(tables.subjects[0].dept_curriculum, "department:인터페이스와 레이어");
+});

@@ -27,9 +27,10 @@ export function stateLine(container) {
 }
 // 화면 안 탭 막대를 붙인다(패널 배치는 호출하는 쪽). items: [[이름, 탭 글자, 패널]].
 // 지금까지 붙은 제목·안내와 탭을 한 덩어리(.page-head)로 묶어 스크롤해도 고정되게 한다.
-export function mountTabs(container, items, initial) {
+export function mountTabs(container, items, initial, onOpen) {
   const bar = el("div", { className: "tab-bar", role: "tablist" });
   const open = (name) => {
+    onOpen?.(name);
     for (const [key, , panel] of items) panel.hidden = key !== name;
     for (const b of bar.children) {
       b.classList.toggle("active", b.dataset.tab === name);

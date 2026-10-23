@@ -160,7 +160,7 @@ test("신청 과목: 저장소 이미지는 다시 자르고, 못 읽는 드라�
   assert.equal(button(c2, "커리큘럼 다듬기"), undefined);
 });
 
-test("학과 커리큘럼: 요약은 보기만, '수정'은 프로그램·준비물(따로)과 학습 수준(별 다섯 단계)만, AI 생성 버튼 없음", async () => {
+test("학과 커리큘럼: 요약은 보기만, '수정'은 과목명·기간·프로그램·준비물(따로)·학습 수준(별 다섯 단계), AI 생성 버튼 없음", async () => {
   const { render, LEVELS } = await import("../js/pages/department-curriculum.mjs");
   const tables = data();
   tables.subjects[0].level = "★★★☆☆";
@@ -175,7 +175,9 @@ test("학과 커리큘럼: 요약은 보기만, '수정'은 프로그램·준비
   assert.deepEqual([...level.options].map((o) => o.value), ["", ...LEVELS]);
   assert.equal(level.value, "★★★☆☆");
   button(items[0], "수정").click();
-  assert.ok(items[0].querySelector(".cell-name input").readOnly, "과목명은 고정");
+  assert.equal(items[0].querySelector(".cell-name input").readOnly, false, "과목명도 고친다");
+  items[0].querySelector(".cell-name input").value = "포토샵 기초";
+  items[0].querySelector(".cell-duration input").value = "3개월";
   assert.ok(items[0].querySelector(".cell-dept_curriculum textarea").readOnly, "요약은 고정");
   items[0].querySelector(".cell-tools textarea").value = "포토샵 2024";
   items[0].querySelector(".cell-supplies textarea").value = "멘토시리즈 포토샵";
@@ -185,6 +187,8 @@ test("학과 커리큘럼: 요약은 보기만, '수정'은 프로그램·준비
   assert.equal(tables.subjects[0].tools, "포토샵 2024");
   assert.equal(tables.subjects[0].supplies, "멘토시리즈 포토샵");
   assert.equal(tables.subjects[0].level, "★★★★★");
+  assert.equal(tables.subjects[0].name, "포토샵 기초");
+  assert.equal(tables.subjects[0].duration, "3개월");
   assert.equal(tables.subjects[0].dept_curriculum, "01 포토샵 기초\n02 합성");
 });
 
@@ -197,7 +201,7 @@ test("학과 커리큘럼 순서: 학과 과목만 옮기고 다른 학과 과�
   assert.deepEqual(deptReorderUpdates(subjects, ["a", "b", "c"], 1, 1), []);
 });
 
-test("학과 커리큘럼: ⠿로 끌어 놓으면 순서를 저장하고, 순서 없는 과목은 끌 수 없다", async () => {
+test("학과 커리큘럼: ⠿로 끌어 놓으면 순서를 저장하고, 승인 전 신규 과목(순서 없음)은 보이지 않는다", async () => {
   const { render } = await import("../js/pages/department-curriculum.mjs");
   const tables = data();
   tables.subjects.push({ id: "s4", name: "기타과목", sort_order: null });
@@ -205,13 +209,13 @@ test("학과 커리큘럼: ⠿로 끌어 놓으면 순서를 저장하고, 순�
   const c = document.createElement("div");
   await render(c, { supabase: fakeSupabase(tables) });
   const items = () => [...c.querySelectorAll(".dept-curriculum-row:not(.dept-curriculum-head)")];
-  assert.equal(items().length, 3);
-  assert.ok(items()[2].querySelector(".drag-handle.off"), "순서 없는 과목은 손잡이 없음");
+  assert.equal(items().length, 2);
+  assert.ok(![...c.querySelector('select[aria-label="추가할 과목"]').options].some((o) => o.value === "s4"), "추가 목록에도 없음");
   items()[1].querySelector(".drag-handle").dispatchEvent(new dom.window.Event("pointerdown"));
   items()[1].dispatchEvent(new dom.window.Event("dragstart"));
   items()[0].dispatchEvent(new dom.window.Event("drop", { cancelable: true }));
   await flush();
-  assert.deepEqual(items().map((i) => i.querySelector(".cell-name input").value), ["일러스트", "포토샵", "기타과목"]);
+  assert.deepEqual(items().map((i) => i.querySelector(".cell-name input").value), ["일러스트", "포토샵"]);
   assert.equal(tables.subjects.find((s) => s.id === "s2").sort_order, 0);
 });
 
@@ -279,6 +283,20 @@ test("학과 커리큘럼: '+ 과목 추가'는 다른 과목을 이 학과에 �
   assert.deepEqual(names(), ["일러스트", "인디자인"]);
   assert.ok(tables.subjects.some((s) => s.id === "s1"), "과목은 그대로");
   assert.ok(!tables.subject_departments.some((l) => l.subject_id === "s1" && l.department_id === "d1"));
+  assert.match(c.textContent, /'기타 과목'으로 옮겼습니다/, "마지막 학과에서 빼면 기타 과목으로");
+});
+
+test("학과 커리큘럼: '단계'는 그 과목 단계(사이트 전체 수업) 편집기를 아래에 연다", async () => {
+  const { render } = await import("../js/pages/department-curriculum.mjs");
+  const tables = data();
+  tables.subject_weeks = [{ id: "w1", subject_id: "s1", week_label: "1단계", sort_order: 0 }, { id: "w2", subject_id: "s2", week_label: "1단계", sort_order: 0 }];
+  const c = document.createElement("div");
+  await render(c, { supabase: fakeSupabase(tables) });
+  button(c.querySelector(".dept-curriculum-row:not(.dept-curriculum-head)"), "단계").click();
+  await flush();
+  const weeks = c.querySelector(".subject-weeks");
+  assert.match(weeks.querySelector("h3").textContent, /단계 — 포토샵/);
+  assert.equal(weeks.querySelectorAll("tbody tr").length, 1);
 });
 
 test("신청 과목: 선생님이 적은 프로그램·준비물을 신청 내용 아래에 보여 준다", async () => {

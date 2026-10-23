@@ -46,8 +46,12 @@ export function fakeSupabase(tables, { unique = {} } = {}) {
         upsert: row => { calls.push(["upsert", table, row]); return Promise.resolve({ error: null }); },
         insert: row => {
           calls.push(["insert", table, row]);
-          rows.push({ id: `new${rows.length}`, ...row });
-          return Promise.resolve({ error: null });
+          const added = (Array.isArray(row) ? row : [row]).map((r, i) => ({ id: `new${rows.length + i}`, ...r }));
+          for (const r of added) rows.push(r);
+          // insert(...).select().single()이면 넣은 줄을 돌려준다.
+          return Object.assign(Promise.resolve({ error: null }), {
+            select: () => ({ single: () => Promise.resolve({ data: { ...added[0] }, error: null }) }),
+          });
         },
       };
     },

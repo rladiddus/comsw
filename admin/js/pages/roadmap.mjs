@@ -68,11 +68,14 @@ export async function render(container, { supabase }) {
   };
   const deptOf = (track) => draftOf(track)?.department_id ?? track.department_id;
   // 학과가 있으면 그 학과 과목만(전체 수업 순서), 없으면 모든 과목.
+  // 승인 전 신규 과목(학과 연결 있음, 전체수업 순서 없음)은 빼고, 첫 승인 뒤에 나온다.
+  const pending = (s) => s.sort_order == null && links.some((l) => l.subject_id === s.id);
   const choices = (track) => {
     const dept = deptOf(track);
-    if (!dept) return [...subjects].sort((a, b) => a.name.localeCompare(b.name, "ko"));
+    const ready = subjects.filter((s) => !pending(s));
+    if (!dept) return ready.sort((a, b) => a.name.localeCompare(b.name, "ko"));
     const ids = new Set(links.filter((l) => l.department_id === dept).map((l) => l.subject_id));
-    return ordered(subjects.filter((s) => ids.has(s.id)));
+    return ordered(ready.filter((s) => ids.has(s.id)));
   };
 
   function open(dialog) {

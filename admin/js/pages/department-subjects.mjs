@@ -1,14 +1,16 @@
 import { el, rows, stateLine } from "../teacher-workspace.mjs";
 import { dbErrorMessage } from "../fields.mjs";
 
-// 학과 > 학과별 과목: 학과를 고르면 그 학과의 과목이 나온다('과목·단계'의 학과 칸과 같은 연결표).
-// 여기서 과목을 더하거나 빼면 과목·단계 화면과 선생님 수업 설정의 과목 목록에도 그대로 반영된다.
+// 학과 관리 > 학과별 과목: 학과를 고르면 그 학과의 과목이 나온다(학과 커리큘럼과 같은 연결표).
+// 여기서 과목을 더하거나 빼면 학과 커리큘럼과 선생님 수업 설정의 과목 목록에도 그대로 반영된다.
+// 학과 커리큘럼과 같게: 기타 과목을 더하면 전체수업 맨 뒤에 넣고, 마지막 학과에서 빼면 DB가 기타 과목으로 보낸다.
+// 승인 전 신규 과목은 '신규 과목 추가'에서 다루므로 더하기 목록에 넣지 않는다.
 export async function render(container, { supabase }) {
   container.append(
     el("h2", { textContent: "학과별 과목" }),
     el("p", {
       className: "desc",
-      textContent: "학과를 고르면 그 학과에 들어간 과목이 나옵니다. 과목을 더하거나 빼면 '과목·단계'의 학과 칸에도 반영됩니다.",
+      textContent: "학과를 고르면 그 학과에 들어간 과목이 나옵니다. 과목을 더하거나 빼면 '커리큘럼 관리 > 학과 커리큘럼'에도 반영됩니다.",
     }),
   );
   const setState = stateLine(container);
@@ -26,8 +28,15 @@ export async function render(container, { supabase }) {
   );
   const inDept = () => subjects.filter((s) => links.some((l) => l.department_id === dept.value && l.subject_id === s.id));
 
+  const pending = (s) => s.sort_order == null && links.some((l) => l.subject_id === s.id);
   async function add(subjectId) {
-    const { error } = await supabase.from("subject_departments").insert({ subject_id: subjectId, department_id: dept.value });
+    const subject = subjects.find((s) => s.id === subjectId);
+    let { error } = await supabase.from("subject_departments").insert({ subject_id: subjectId, department_id: dept.value });
+    if (!error && subject.sort_order == null) {
+      const sort_order = subjects.reduce((m, s) => Math.max(m, s.sort_order ?? -1), -1) + 1;
+      ({ error } = await supabase.from("subjects").update({ sort_order }).eq("id", subjectId));
+      if (!error) subject.sort_order = sort_order;
+    }
     if (error) return setState(dbErrorMessage(error), true);
     links.push({ subject_id: subjectId, department_id: dept.value });
     setState("과목을 더했습니다");
@@ -40,12 +49,13 @@ export async function render(container, { supabase }) {
       .eq("subject_id", subject.id).eq("department_id", dept.value);
     if (error) return setState(dbErrorMessage(error), true);
     links.splice(links.findIndex((l) => l.subject_id === subject.id && l.department_id === dept.value), 1);
+    if (!links.some((l) => l.subject_id === subject.id)) subject.sort_order = null; // DB가 기타 과목으로 보낸 것과 같게
     setState("과목을 뺐습니다");
     draw();
   }
   function draw() {
     const mine = inDept();
-    const rest = subjects.filter((s) => !mine.includes(s));
+    const rest = subjects.filter((s) => !mine.includes(s) && !pending(s));
     const pick = el("select", { className: "link-pick" }, [
       el("option", { value: "", textContent: "+ 과목 추가" }),
       ...rest.map((s) => el("option", { value: s.id, textContent: s.name })),

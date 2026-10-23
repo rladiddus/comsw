@@ -71,51 +71,58 @@ test("학과 삭제 경고에 채용 공고 수", async () => {
   assert.equal(lastConfirm, "'웹학과' 학과을(를) 삭제하면 채용 공고 1개도 함께 삭제됩니다. 삭제할까요?");
 });
 
-test("과목: 전체수업 과목과 기타 과목으로 나뉘고 기타 과목엔 ↑↓가 없다", async () => {
-  const { c } = await renderPage("../js/pages/subjects.mjs");
-  assert.deepEqual(headings(c).slice(0, 2), ["전체수업 과목", "기타 과목"]);
-  const main = tableOf(c, "전체수업 과목"), other = tableOf(c, "기타 과목");
-  assert.equal(main.querySelectorAll("tbody tr").length, 2);
-  assert.equal(other.querySelectorAll("tbody tr").length, 1);
-  assert.ok(buttons(main, "↑").length > 0);
-  assert.equal(buttons(other, "↑").length, 0);
-  assert.equal(main.querySelector(".chip").firstChild.textContent, "시각편집학과");
+const otherRows = (c) => [...c.querySelectorAll(".other-subject-row")];
+const otherNames = (c) => otherRows(c).map(r => r.querySelector("input").value);
+
+test("기타 과목: 학과 없는 과목만 이름순, '수정'으로 과목명·기간 저장", async () => {
+  const { c, tables } = await renderPage("../js/pages/other-subjects.mjs");
+  assert.deepEqual(otherNames(c), ["웹1", "캐드"]);
+  const r = otherRows(c)[1];
+  buttons(r, "수정")[0].click();
+  r.querySelector('[aria-label="과목명"]').value = "오토캐드";
+  r.querySelector('[aria-label="기간"]').value = "2개월";
+  buttons(r, "저장")[0].click();
+  await flush();
+  assert.deepEqual([tables.subjects.find(x => x.id === "s3").name, tables.subjects.find(x => x.id === "s3").duration], ["오토캐드", "2개월"]);
 });
 
-test("과목: '전체수업에서 빼기'는 순서를 비우고 두 목록을 다시 읽는다", async () => {
-  const { c, tables } = await renderPage("../js/pages/subjects.mjs");
-  buttons(tableOf(c, "전체수업 과목"), "전체수업에서 빼기")[1].click();
+test("기타 과목: '단계'로 그 과목 단계만 열고, '학과에 넣기'는 학과 연결 + 전체수업 맨 뒤", async () => {
+  const { c, tables } = await renderPage("../js/pages/other-subjects.mjs");
+  buttons(otherRows(c)[0], "단계")[0].click();
   await flush();
-  assert.equal(tables.subjects.find(s => s.id === "s2").sort_order, null);
-  assert.equal(tableOf(c, "기타 과목").querySelectorAll("tbody tr").length, 2);
-  buttons(tableOf(c, "기타 과목"), "전체수업에 넣기")[0].click();
+  assert.deepEqual([...tableOf(c, "단계").querySelectorAll("tbody tr")].map(tr => tr.querySelector("input").value), ["1주차"]);
+  const r = otherRows(c)[1];
+  r.querySelector('[aria-label="넣을 학과"]').value = "d2";
+  buttons(r, "학과에 넣기")[0].click();
   await flush();
-  assert.equal(tableOf(c, "전체수업 과목").querySelectorAll("tbody tr").length, 2);
+  assert.ok(tables.subject_departments.some(l => l.subject_id === "s3" && l.department_id === "d2"));
+  assert.equal(tables.subjects.find(x => x.id === "s3").sort_order, 2);
+  assert.deepEqual(otherNames(c), ["웹1"]);
 });
 
-test("과목: 단계 버튼으로 그 과목 단계만 연다", async () => {
-  const { c } = await renderPage("../js/pages/subjects.mjs");
-  buttons(tableOf(c, "전체수업 과목"), "단계")[0].click();
-  await flush();
-  const weeks = tableOf(c, "단계");
-  assert.deepEqual([...weeks.querySelectorAll("tbody tr")].map(tr => tr.querySelector("input").value), ["1주차", "2주차"]);
-});
-
-test("과목 삭제 경고에 단계·강사 커리큘럼이 나온다", async () => {
-  const { c } = await renderPage("../js/pages/subjects.mjs");
-  buttons(tableOf(c, "전체수업 과목"), "삭제")[0].click();
-  await flush();
-  assert.equal(lastConfirm, "'포토샵' 과목을(를) 삭제하면 단계 2개, 강사 커리큘럼 1개도 함께 삭제됩니다. 삭제할까요?");
-});
-
-test("기타 과목 '+ 추가'는 전체수업 과목과 겹치지 않는 이름, 순서 없음으로 넣는다", async () => {
+test("기타 과목 삭제 경고에 단계·강사 담당 과목 연결이 나온다", async () => {
   const tables = data();
-  tables.subjects.push({ id: "s9", name: "새 과목 1", sort_order: 2 });
-  const { c, supabase } = await renderPage("../js/pages/subjects.mjs", tables);
-  const addBtns = [...c.querySelectorAll(".editor-bar button")].filter(b => b.textContent === "+ 추가");
-  addBtns[1].click();
+  tables.instructor_subjects = [{ instructor_id: "i1", subject_id: "s2" }];
+  const { c } = await renderPage("../js/pages/other-subjects.mjs", tables);
+  buttons(otherRows(c)[0], "삭제")[0].click();
   await flush();
-  assert.deepEqual(supabase.calls.filter(x => x[0] === "insert").at(-1), ["insert", "subjects", { sort_order: null, name: "새 과목 2" }]);
+  assert.equal(lastConfirm, "'웹1' 과목을(를) 삭제하면 단계 1개, 강사 담당 과목 1개도 함께 삭제됩니다. 삭제할까요?");
+});
+
+test("신규 과목 추가: 과목명·학과를 정해 만들면 순서 없이 학과에 연결되고 '승인 기다리는 과목'에 나온다", async () => {
+  const { c, tables } = await renderPage("../js/pages/new-subjects.mjs");
+  const make = buttons(c, "과목 만들기")[0];
+  c.querySelector('[aria-label="과목명"]').value = "블렌더";
+  make.click();
+  await flush();
+  assert.match(c.textContent, /학과를 하나 이상 골라주세요/);
+  c.querySelector('.subject-checks input[value="d2"]').checked = true;
+  make.click();
+  await flush();
+  const made = tables.subjects.find(x => x.name === "블렌더");
+  assert.equal(made.sort_order ?? null, null);
+  assert.deepEqual(tables.subject_departments.filter(l => l.subject_id === made.id).map(l => l.department_id), ["d2"]);
+  assert.match(c.querySelector(".new-subjects").textContent, /승인 기다리는 과목 1개.*블렌더 · 웹학과/);
 });
 
 const more = () => Object.assign(data(), {
@@ -207,15 +214,6 @@ test("채용 공고: 고른 학과의 공고만, 14칸", async () => {
   assert.equal(table.querySelectorAll("thead th").length, 15);
 });
 
-
-test("과목 삭제 경고에 강사 담당 과목 연결도 나온다", async () => {
-  const tables = data();
-  tables.instructor_subjects = [{ instructor_id: "i1", subject_id: "s2" }];
-  const { c } = await renderPage("../js/pages/subjects.mjs", tables);
-  buttons(tableOf(c, "전체수업 과목"), "삭제")[1].click();
-  await flush();
-  assert.equal(lastConfirm, "'웹1' 과목을(를) 삭제하면 단계 1개, 강사 담당 과목 1개도 함께 삭제됩니다. 삭제할까요?");
-});
 
 const tracksOf = (c) => [...c.querySelectorAll(".roadmap-track")];
 const stepTitles = (track) => [...track.querySelectorAll(".roadmap-step-head strong")].map((x) => x.textContent);

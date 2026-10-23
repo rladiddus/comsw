@@ -13,7 +13,6 @@ const PAGES = {
   settings: () => import("./pages/settings.mjs"),
   seminars: () => import("./pages/seminars.mjs"),
   departments: () => import("./pages/department-tabs.mjs"),
-  subjects: () => import("./pages/subjects.mjs"),
   roadmap: () => import("./pages/roadmap.mjs"),
   prep: () => import("./pages/prep.mjs"),
   instructors: () => import("./pages/instructor-tabs.mjs"),

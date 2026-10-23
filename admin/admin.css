@@ -410,7 +410,7 @@ dialog.idle-dialog strong { color:var(--accent); }
 .request-apply { padding:4px 0 12px; }
 /* 커리큘럼 관리 > 학과 커리큘럼: 과목명 / 기간 / 학과별 커리큘럼 요약 / 프로그램·준비물 / 학습 수준 */
 .dept-curriculum-table { background:#fff; border:1px solid var(--line); border-radius:14px; padding:4px 16px; margin-top:8px; }
-.dept-curriculum-row { display:grid; grid-template-columns:24px 130px 100px minmax(0,1.4fr) minmax(0,.8fr) minmax(0,.8fr) 120px 128px; gap:12px; align-items:start; padding:12px 0; border-bottom:1px solid var(--line); }
+.dept-curriculum-row { display:grid; grid-template-columns:24px 130px 100px minmax(0,1.4fr) minmax(0,.8fr) minmax(0,.8fr) 120px 150px; gap:12px; align-items:start; padding:12px 0; border-bottom:1px solid var(--line); }
 .dept-curriculum-row:last-child { border-bottom:0; }
 .dept-curriculum-head { font-weight:700; font-size:12px; color:var(--muted); padding:10px 0; }
 .dept-cell { display:flex; flex-direction:column; gap:6px; min-width:0; }
@@ -418,7 +418,7 @@ dialog.idle-dialog strong { color:var(--accent); }
 .dept-cell input, .dept-cell textarea { width:100%; padding:8px 10px; border:1px solid #d9dde4; border-radius:8px; }
 .dept-cell input[readonly], .dept-cell textarea[readonly] { background:#f6f7f9; border-color:transparent; resize:none; }
 .dept-cell .ai-btn { align-self:flex-start; margin:0; }
-.cell-actions { flex-direction:row; justify-content:flex-end; align-items:flex-start; }
+.cell-actions { flex-direction:row; justify-content:flex-end; align-items:flex-start; flex-wrap:wrap; gap:6px; }
 @media (max-width:1000px) {
   .dept-curriculum-row { grid-template-columns:24px 1fr 1fr; }
   .dept-curriculum-head { display:none; }
@@ -483,3 +483,9 @@ dialog.roadmap-source::backdrop { background:rgba(0,0,0,.45); }
 .card-item.no-sort { grid-template-columns:minmax(240px,380px) minmax(0,1fr); padding-left:16px; }
 .card-item.no-sort.collapsed { grid-template-columns:128px minmax(0,1fr); padding-left:12px; }
 @media (max-width:900px) { .card-item.no-sort { grid-template-columns:minmax(0,1fr); } .card-item.no-sort .card-side { grid-column:1; } }
+/* 커리큘럼 관리 > 기타 과목 */
+.other-subject-row { display:grid; grid-template-columns:minmax(140px,1.4fr) minmax(90px,1fr) auto minmax(110px,.9fr) auto auto auto; gap:8px; align-items:center; padding:8px 0; border-bottom:1px solid var(--line); }
+.other-subject-row input, .other-subject-row select { width:100%; padding:7px 10px; border:1px solid #d9dde4; border-radius:8px; background:#fff; }
+.other-subject-row input[readonly] { background:#f6f7f9; border-color:transparent; }
+@media (max-width:900px) { .other-subject-row { grid-template-columns:1fr 1fr; } }
+.subject-weeks { margin-top:20px; }

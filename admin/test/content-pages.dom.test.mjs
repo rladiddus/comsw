@@ -154,14 +154,17 @@ const openTab = async (c, label) => {
 const shownPanel = (c) => [...c.querySelectorAll(".subpage")].find(p => !p.hidden);
 const prepCards = (c) => [...shownPanel(c).querySelectorAll(".card-item")].map(x => x.querySelector("textarea").value);
 
-test("준비물: 교재 / 준비물 / AI 툴 탭, 그 분류가 있는 과목만 목록에", async () => {
+const prepSubjects = (c) => [...shownPanel(c).querySelectorAll(".prep-subject > h3")].map(h => h.textContent);
+
+test("준비물: 교재 / 준비물 / AI 툴 탭, 드롭다운 없이 그 분류가 있는 과목을 모두(이름순)", async () => {
   const { c } = await renderPage("../js/pages/prep.mjs", prepData());
   assert.deepEqual([...c.querySelectorAll("[role=tab]")].map(t => t.textContent), ["교재", "준비물", "AI 툴"]);
-  assert.deepEqual([...shownPanel(c).querySelector(".picker select").options].map(o => o.textContent), ["포토샵"]);
+  assert.equal(c.querySelector(".picker"), null);
+  assert.deepEqual(prepSubjects(c), ["포토샵"]);
   assert.deepEqual(prepCards(c), ["멘토 포토샵"]);
   await openTab(c, "준비물");
-  assert.deepEqual([...shownPanel(c).querySelector(".picker select").options].map(o => o.textContent), ["웹1", "포토샵"]);
-  assert.deepEqual(prepCards(c), ["마우스", "USB"]);
+  assert.deepEqual(prepSubjects(c), ["웹1", "포토샵"]);
+  assert.deepEqual(prepCards(c), ["마우스", "USB", "이어폰"]);
   await openTab(c, "AI 툴");
   assert.match(shownPanel(c).textContent, /AI 툴 항목이 있는 과목이 없습니다/);
 });
@@ -181,8 +184,14 @@ test("준비물: 카드는 분류·내용·링크·정가·설명, 수정 때 �
   assert.equal(ins[2].category, "textbook");
 });
 
-test("준비물: 과목의 항목을 다 지우면 그 과목은 목록에서 빠진다", async () => {
+test("준비물: 과목의 항목을 다 지우면 그 과목은 탭에서 빠진다", async () => {
   const { c } = await renderPage("../js/pages/prep.mjs", prepData());
+  await openTab(c, "준비물");
+  globalThis.confirm = () => true;
+  [...shownPanel(c).querySelectorAll(".prep-subject")[1].querySelectorAll("button")].find(b => b.textContent === "삭제").click();
+  await flush();
+  assert.deepEqual(prepSubjects(c), ["웹1"]);
+  await openTab(c, "교재");
   globalThis.confirm = () => true;
   [...shownPanel(c).querySelectorAll("button")].find(b => b.textContent === "삭제").click();
   await flush();

@@ -14,6 +14,8 @@ const MESSAGES = {
   "functions/failed-precondition": "로그인 정보가 완전하지 않습니다. 관리자에게 문의해주세요.",
   "auth/too-many-requests": TOO_MANY,
   "functions/resource-exhausted": TOO_MANY,
+  // 연결이 끊기거나 서버 함수가 실패하면 Firebase는 영어 "internal"만 준다.
+  "functions/internal": "서버에 연결하지 못했습니다. 새로고침한 뒤 다시 시도해주세요.",
 };
 
 export function loginErrorMessage(code, fallback = "로그인하지 못했습니다. 잠시 후 다시 시도해주세요.") {

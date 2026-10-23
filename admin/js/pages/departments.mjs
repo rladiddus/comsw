@@ -17,7 +17,6 @@ export async function render(container, { supabase }) {
     fields: [
       { key: "name", label: "학과명", type: "text", required: true },
       { key: "name_en", label: "영문", type: "text", placeholder: "Visual Design" },
-      { key: "drive_folder_id", label: "드라이브 폴더 ID", type: "text", wide: true },
       { key: "description", label: "소개 문구", type: "textarea", wide: true },
     ],
     defaults: (rows) => ({ name: freeName("새 학과", rows, "name") }),

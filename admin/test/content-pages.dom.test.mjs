@@ -56,7 +56,7 @@ test("학과: 카드(대표 이미지 왼쪽·내용 오른쪽, 처음엔 접힘
   const kids = [...cards[0].children].map((x) => x.className);
   assert.deepEqual(kids, ["drag-handle", "card-stage", "card-side"], "이미지는 왼쪽");
   const labels = [...cards[0].querySelectorAll(".card-fields .card-line > span")].map((s) => s.textContent);
-  assert.deepEqual(labels, ["학과명", "영문", "드라이브 폴더 ID", "소개 문구"]);
+  assert.deepEqual(labels, ["학과명", "영문", "소개 문구"], "드라이브 폴더 ID는 숨김");
   assert.equal(cards[0].querySelector(".card-line input").value, "시각편집학과");
   assert.ok(cards.every((x) => x.classList.contains("collapsed")), "처음엔 접힘");
   buttons(cards[0], "펼치기")[0].click();

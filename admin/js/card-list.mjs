@@ -23,7 +23,8 @@ export function reorderUpdates(rows, from, to) {
 // 줄마다 [⠿ 끌어 옮기기 | 이미지 미리보기 | 칸들(2열) / 사용·삭제·수정·접기]. imageSide:'right'면 이미지가 오른쪽.
 // '수정'을 누르면 칸이 열리고 이미지 주소·직접 올리기가 나오며 버튼이 '저장'(주황). 사용 체크는 바로 저장.
 // 처음에는 접힌 채로 보인다. 접으면 미리보기가 작아지고 칸들이 한 줄('이름 : 값 · …'), 접은 채로도 수정·저장(이미지는 펼쳐서).
-// fields: [{ key, label, type: 'text'|'textarea'|'select', options?(values) => [[값, 글자]], fallback?, required?, wide?, placeholder? }]
+// fields: [{ key, label, type: 'text'|'textarea'|'select'|'links', options?(values) => [[값, 글자]], fallback?, required?, wide?, placeholder? }]
+// links(다대다, 예: 강사 학과·담당 과목): { through, own, other, ordered?, options: () => [[값, 글자]] }. 수정 중에만 ×·추가, 저장 때 한꺼번에 반영.
 export async function mountCardList(container, {
   supabase,
   table,
@@ -35,6 +36,8 @@ export async function mountCardList(container, {
   imageRequired = false,
   imageSide = "left",
   activeKey = "is_active",
+  activeLabel = "사용",
+  stageClass = "",
   defaults = () => ({}),
   deleteConfirm = async (row, index) => `${index + 1}번을 삭제할까요?`,
   preview = (values) => [mediaPreview(values[imageKey])],
@@ -66,6 +69,7 @@ export async function mountCardList(container, {
       .order("sort_order", { ascending: true, nullsFirst: false });
     if (error) return setState(dbErrorMessage(error), true);
     rows = data || [];
+    await loadLinks();
     for (const r of rows) {
       if (seen.has(r.id)) continue;
       seen.add(r.id);
@@ -74,6 +78,41 @@ export async function mountCardList(container, {
     expandNew = false;
     draw();
   }
+  // 다대다 칸: 줄마다 연결된 값 목록(순서 있는 칸은 sort_order 순).
+  const links = {};
+  async function loadLinks() {
+    for (const f of fields.filter((f) => f.type === "links")) {
+      links[f.key] = new Map(rows.map((r) => [r.id, []]));
+      if (!rows.length) continue;
+      const cols = [f.own, f.other, ...(f.ordered ? ["sort_order"] : [])].join(", ");
+      const { data, error } = await supabase.from(f.through).select(cols).in(f.own, rows.map((r) => r.id));
+      if (error) {
+        setState(dbErrorMessage(error), true);
+        continue;
+      }
+      const sorted = f.ordered ? [...data].sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0)) : data;
+      for (const l of sorted) links[f.key].get(l[f.own])?.push(l[f.other]);
+    }
+  }
+  async function saveLinks(row, f, next) {
+    const before = links[f.key].get(row.id);
+    for (const v of before.filter((v) => !next.includes(v))) {
+      const { error } = await supabase.from(f.through).delete().eq(f.own, row.id).eq(f.other, v);
+      if (error) throw error;
+    }
+    const added = next.filter((v) => !before.includes(v));
+    for (const v of added) {
+      const { error } = await supabase.from(f.through).insert({
+        [f.own]: row.id,
+        [f.other]: v,
+        // 새로 더한 것은 기존 것 뒤로(사이트 표시 순서).
+        ...(f.ordered ? { sort_order: 1000 + next.indexOf(v) } : {}),
+      });
+      if (error) throw error;
+    }
+    links[f.key].set(row.id, [...next]);
+  }
+
   async function update(row, patch) {
     setState("저장 중…");
     const { error } = await supabase.from(table).update(patch).eq("id", row.id);
@@ -115,9 +154,49 @@ export async function mountCardList(container, {
   });
 
   function card(row, index) {
-    const stage = el("div", { className: "card-stage" });
+    const stage = el("div", { className: `card-stage ${stageClass}`.trim() });
     const inputs = {};
-    const values = () => Object.fromEntries([...fields.map((f) => f.key), imageKey].map((k) => [k, inputs[k].value]));
+    const plain = fields.filter((f) => f.type !== "links");
+    const values = () => Object.fromEntries([...plain.map((f) => f.key), imageKey].map((k) => [k, inputs[k].value]));
+    const chosen = {}; // links 칸: 수정 중인 값 목록
+    let isEditing = false;
+    function chipsFor(f) {
+      const wrap = el("div", { className: "links card-links" });
+      const labelOf = (v) => f.options().find(([x]) => x === v)?.[1] ?? v;
+      const draw = () => {
+        const chips = chosen[f.key].map((v) => {
+          const chip = el("span", { className: "chip" }, [el("span", { textContent: labelOf(v) })]);
+          if (isEditing) {
+            const x = el("button", { type: "button", textContent: "×", title: "빼기" });
+            x.addEventListener("click", () => {
+              chosen[f.key] = chosen[f.key].filter((y) => y !== v);
+              draw();
+            });
+            chip.append(x);
+          }
+          return chip;
+        });
+        const extra = [];
+        if (isEditing) {
+          const pick = el("select", { className: "link-pick" }, [
+            el("option", { value: "", textContent: "+ 추가" }),
+            ...f.options().filter(([v]) => !chosen[f.key].includes(v)).map(([v, l]) => el("option", { value: v, textContent: l })),
+          ]);
+          pick.setAttribute("aria-label", `${f.label} 추가`);
+          pick.addEventListener("change", () => {
+            if (!pick.value) return;
+            chosen[f.key] = [...chosen[f.key], pick.value];
+            draw();
+          });
+          extra.push(pick);
+        } else if (!chips.length) {
+          extra.push(el("span", { className: "muted", textContent: "없음" }));
+        }
+        wrap.replaceChildren(...chips, ...extra);
+      };
+      wrap.redraw = draw;
+      return wrap;
+    }
     // 선택 칸: 목록에 없는 예전 값은 '(현재) 값'으로 남긴다. 다른 칸 값에 따라 목록이 바뀔 수 있다.
     const fillSelect = (f, value) => {
       const select = inputs[f.key];
@@ -132,6 +211,12 @@ export async function mountCardList(container, {
     const line = (label, input, wide = false) =>
       el("label", { className: `card-line${wide ? " wide" : ""}` }, [el("span", { textContent: label }), input]);
     const lines = fields.map((f) => {
+      if (f.type === "links") {
+        chosen[f.key] = [...(links[f.key]?.get(row.id) ?? [])];
+        inputs[f.key] = chipsFor(f);
+        inputs[f.key].redraw();
+        return line(f.label, inputs[f.key], f.wide);
+      }
       if (f.type === "select") {
         inputs[f.key] = el("select", { disabled: true });
       } else if (f.type === "textarea") {
@@ -143,7 +228,7 @@ export async function mountCardList(container, {
     });
     inputs[imageKey] = el("input", { type: "text", value: row[imageKey] ?? "", placeholder: "https://… 이미지 주소", readOnly: true });
     for (const f of fields.filter((f) => f.type === "select")) fillSelect(f, row[f.key]);
-    for (const f of fields) {
+    for (const f of plain) {
       inputs[f.key].addEventListener(f.type === "select" ? "change" : "input", () => {
         // 다른 칸에 따라 바뀌는 선택 칸(예: 폰트 → 두께)을 다시 채운다.
         for (const g of fields) if (g !== f && g.type === "select" && g.dependsOn === f.key) fillSelect(g, "");
@@ -152,6 +237,7 @@ export async function mountCardList(container, {
     }
     inputs[imageKey].addEventListener("change", paint);
     const active = el("input", { type: "checkbox", checked: Boolean(row[activeKey]) });
+    active.setAttribute("aria-label", activeLabel);
     active.addEventListener("change", () => update(row, { [activeKey]: active.checked }));
     const upload = el("div", { className: "card-upload", hidden: true }, [line(`${imageLabel} 주소`, inputs[imageKey], true)]);
     mountImageUpload(upload, {
@@ -166,7 +252,13 @@ export async function mountCardList(container, {
     const fold = el("button", { type: "button", className: "ghost-btn fold-btn" });
     const editing = (on) => {
       upload.hidden = !on;
-      for (const input of Object.values(inputs)) {
+      isEditing = on;
+      for (const f of fields.filter((f) => f.type === "links")) {
+        if (!on) chosen[f.key] = [...(links[f.key]?.get(row.id) ?? [])];
+        inputs[f.key].redraw();
+      }
+      for (const [key, input] of Object.entries(inputs)) {
+        if (fields.find((f) => f.key === key)?.type === "links") continue;
         if (input.tagName === "SELECT") input.disabled = !on;
         else input.readOnly = !on;
       }
@@ -181,7 +273,16 @@ export async function mountCardList(container, {
       if (imageRequired && !v[imageKey].trim()) return setState("이미지를 올리거나 주소를 넣어주세요", true);
       edit.disabled = true;
       const patch = Object.fromEntries(Object.entries(v).map(([k, x]) => [k, x.trim() || null]));
-      if (await update(row, patch)) editing(false);
+      let ok = await update(row, patch);
+      if (ok) {
+        try {
+          for (const f of fields.filter((f) => f.type === "links")) await saveLinks(row, f, chosen[f.key]);
+        } catch (error) {
+          setState(dbErrorMessage(error), true);
+          ok = false;
+        }
+      }
+      if (ok) editing(false);
       edit.disabled = false;
     });
     remove.addEventListener("click", async () => {
@@ -198,7 +299,7 @@ export async function mountCardList(container, {
       el("div", { className: "card-fields" }, lines),
       upload,
       el("div", { className: "media-actions" }, [
-        el("label", { className: "consent" }, [active, el("span", { textContent: "사용" })]),
+        el("label", { className: "consent" }, [active, el("span", { textContent: activeLabel })]),
         remove,
         edit,
         fold,

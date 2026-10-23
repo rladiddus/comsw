@@ -60,18 +60,38 @@ const pick = async (c, label, value) => {
   await flush();
 };
 
-test("강사: 학과·담당 과목 칩과 사이트 표시 체크", async () => {
+test("강사: 카드(사진 왼쪽, 처음엔 접힘)에 학과·담당 과목 칩과 사이트 표시", async () => {
   const { c } = await renderPage("../js/pages/instructors.mjs");
-  const rows = rowsOf(c, "강사");
-  assert.equal(rows.length, 2);
-  assert.deepEqual([...rows[0].querySelectorAll(".chip span")].map(s => s.textContent), ["웹학과", "웹1"]);
-  assert.ok(rows[0].querySelector("input[type=checkbox]").checked);
+  const cards = [...c.querySelectorAll(".card-item")];
+  assert.equal(cards.length, 2);
+  assert.ok(cards.every(x => x.classList.contains("collapsed")));
+  assert.deepEqual([...cards[0].children].map(x => x.className), ["drag-handle", "card-stage portrait", "card-side"]);
+  assert.deepEqual([...cards[0].querySelectorAll(".chip span")].map(s => s.textContent), ["웹학과", "웹1"]);
+  const show = cards[0].querySelector(".media-actions input[type=checkbox]");
+  assert.ok(show.checked);
+  assert.equal(show.closest("label").textContent, "사이트 표시");
+});
+
+test("강사: 수정 중에만 칩을 빼고 더하며, 저장할 때 연결표에 반영", async () => {
+  const { c, tables } = await renderPage("../js/pages/instructors.mjs");
+  const card = c.querySelectorAll(".card-item")[0];
+  assert.equal(card.querySelector(".chip button"), null, "보기 중에는 × 없음");
+  button(card, "수정").click();
+  const subjects = [...card.querySelectorAll(".card-line")].find(l => l.firstElementChild.textContent === "담당 과목");
+  button(subjects, "×").click();
+  const add = subjects.querySelector(".link-pick");
+  add.value = "s1";
+  add.dispatchEvent(new dom.window.Event("change"));
+  button(card, "저장").click();
+  await flush();
+  assert.deepEqual(tables.instructor_subjects.filter(r => r.instructor_id === "i1").map(r => r.subject_id), ["s1"]);
+  assert.deepEqual([...subjects.querySelectorAll(".chip span")].map(s => s.textContent), ["포토샵"]);
 });
 
 test("강사 삭제 경고에 커리큘럼 수", async () => {
   const { c } = await renderPage("../js/pages/instructors.mjs");
   globalThis.confirm = msg => { lastConfirm = msg; return false; };
-  button(rowsOf(c, "강사")[0], "삭제").click();
+  button(c.querySelectorAll(".card-item")[0], "삭제").click();
   await flush();
   globalThis.confirm = msg => { lastConfirm = msg; return true; };
   assert.match(lastConfirm, /강사 커리큘럼 2개/);

@@ -355,3 +355,12 @@ dialog.idle-dialog strong { color:var(--accent); }
 .card-line { grid-template-columns:110px minmax(0,1fr); }
 .card-line > span:first-child { white-space:nowrap; }
 .card-item.collapsed .card-line textarea { overflow:hidden; white-space:nowrap; text-overflow:ellipsis; }
+/* 접힌 카드: 여러 줄 칸(소개 문구·경력 등)은 남는 폭을 다 써서 길게 보인다 */
+.card-item.collapsed .card-line.wide { flex:1 1 320px; min-width:0; }
+.card-item.collapsed .card-line.wide textarea { width:100%; }
+/* 다대다 칩(강사 학과·담당 과목) */
+.card-links { display:flex; flex-wrap:wrap; gap:6px; align-items:center; min-height:34px; }
+.card-links .link-pick { padding:4px 8px; border:1px dashed var(--accent); border-radius:999px; color:var(--accent); background:#fff; font-size:12px; }
+.card-item.collapsed .card-links { min-height:0; flex-wrap:nowrap; overflow:hidden; max-width:360px; }
+/* 강사 사진(세로형)은 잘리지 않게 */
+.card-stage.portrait > img { object-fit:contain; background:#f4f5f7; }

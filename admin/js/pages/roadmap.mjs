@@ -259,7 +259,9 @@ export async function render(container, { supabase }) {
     } else {
       picker = el("div", { className: "multi-view", textContent: sd.subjects.length ? listLabel(sd.subjects) : "과목 없음" });
     }
-    const summary = el("textarea", { value: sd.summary, rows: 4, readOnly: !editing, placeholder: editing ? "요약(사이트 상자 문구)" : "" });
+    // 높이는 문구 줄 수만큼(최소 2줄) — 빈 공간 없이 한 화면에 더 많은 줄이 보이게.
+    const lineCount = (sd.summary || "").split("\n").length;
+    const summary = el("textarea", { value: sd.summary, rows: Math.max(2, lineCount), readOnly: !editing, placeholder: editing ? "요약(사이트 상자 문구)" : "" });
     summary.setAttribute("aria-label", `${step.position}단계 요약`);
     summary.addEventListener("input", () => { sd.summary = summary.value; });
     const source = el("button", { type: "button", className: "ghost-btn", textContent: "원문 보기" });

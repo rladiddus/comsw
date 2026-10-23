@@ -452,7 +452,7 @@ dialog.idle-dialog strong { color:var(--accent); }
 .roadmap-track-head select { font-weight:700; }
 .roadmap-track-tools { display:flex; gap:6px; align-items:center; }
 .roadmap-steps { display:flex; gap:12px; overflow-x:auto; padding-bottom:6px; align-items:stretch; }
-.roadmap-step { position:relative; flex:0 0 220px; display:flex; flex-direction:column; gap:8px; background:#fafbfc; border:1px solid var(--line); border-radius:12px; padding:10px; }
+.roadmap-step { position:relative; flex:0 0 220px; display:flex; flex-direction:column; gap:6px; background:#fafbfc; border:1px solid var(--line); border-radius:12px; padding:10px; }
 .roadmap-step-head { display:flex; align-items:center; gap:4px; }
 .roadmap-step-head strong { margin-right:auto; }
 .roadmap-step-head .drag-handle { font-size:16px; padding:0 2px; }
@@ -460,6 +460,7 @@ dialog.idle-dialog strong { color:var(--accent); }
 .roadmap-track-head select:disabled, .roadmap-track-head input[readonly], .roadmap-step textarea[readonly] { background:#f6f7f9; border-color:transparent; color:#333; opacity:1; resize:none; }
 .multi-view { padding:8px 10px; border-radius:8px; background:#f6f7f9; font-weight:600; font-size:13px; min-height:35px; }
 .roadmap-step textarea { width:100%; padding:8px 10px; border:1px solid #d9dde4; border-radius:8px; resize:vertical; font-size:13px; }
+.roadmap-step > .ghost-btn { padding:6px 10px; }
 .roadmap-add-step { flex:0 0 auto; align-self:center; }
 .icon-btn { border:1px solid var(--line); background:#fff; border-radius:6px; min-width:28px; height:28px; cursor:pointer; color:#555; }
 .icon-btn:disabled { opacity:.35; cursor:default; }

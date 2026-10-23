@@ -190,3 +190,23 @@ test("방학 특강: 세트를 고르지 않았으면 안내", async () => {
   assert.match(c.textContent, /메인 화면 > 기타 설정/);
   assert.equal(tableOf(c, "승인된 커리큘럼"), undefined);
 });
+
+test("끌어 놓기: 줄 아래쪽 절반이면 뒤 경계에 점선, 제자리엔 점선 없음, 놓으면 그 경계로 옮긴다", async () => {
+  const { dropTarget } = await import("../js/card-list.mjs");
+  const box = document.createElement("div");
+  box.getBoundingClientRect = () => ({ top: 100, height: 40 });
+  const moves = [];
+  let from = 0;
+  dropTarget(box, 1, () => from, (f, t) => moves.push([f, t]));
+  const at = (type, clientY) => box.dispatchEvent(Object.assign(new dom.window.Event(type, { cancelable: true }), { clientY }));
+  at("dragover", 130);
+  assert.ok(box.classList.contains("drop-after"));
+  at("dragover", 105);
+  assert.ok(!box.classList.contains("drop-before"), "0번을 1번 앞에 놓으면 제자리");
+  at("drop", 130);
+  assert.deepEqual(moves, [[0, 1]]);
+  assert.ok(!box.classList.contains("drop-after"));
+  from = 3;
+  at("drop", 105);
+  assert.deepEqual(moves.at(-1), [3, 1]);
+});

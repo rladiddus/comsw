@@ -10,6 +10,34 @@ function el(tag, props = {}, children = []) {
 }
 
 // 끌어 놓은 자리로 옮긴 뒤 0..n-1로 다시 매기고, 순서가 바뀐 줄만 돌려준다.
+// 끌어 놓기: 줄 위쪽 절반이면 그 줄 앞, 아래쪽 절반이면 뒤 경계에 점선을 긋고, 놓으면 move(from, to).
+// 제자리(옮겨도 순서가 같은 곳)에는 점선을 긋지 않는다. 카드 목록·학과 커리큘럼이 같이 쓴다.
+export function dropTarget(box, index, from, move) {
+  const clear = () => box.classList.remove("drop-before", "drop-after");
+  const spot = (e) => {
+    const r = box.getBoundingClientRect();
+    const after = e.clientY > r.top + r.height / 2;
+    const f = from();
+    let to = after ? index + 1 : index;
+    if (to > f) to -= 1;
+    return { after, f, to };
+  };
+  box.addEventListener("dragover", (e) => {
+    e.preventDefault();
+    const { after, f, to } = spot(e);
+    const show = f >= 0 && to !== f;
+    box.classList.toggle("drop-after", show && after);
+    box.classList.toggle("drop-before", show && !after);
+  });
+  box.addEventListener("dragleave", (e) => { if (!box.contains(e.relatedTarget)) clear(); });
+  box.addEventListener("drop", (e) => {
+    e.preventDefault();
+    clear();
+    const { f, to } = spot(e);
+    if (f >= 0 && to !== f) move(f, to);
+  });
+}
+
 export function reorderUpdates(rows, from, to) {
   return subsetReorderUpdates(rows, rows.map((r) => r.id), from, to);
 }
@@ -340,20 +368,11 @@ export async function mountCardList(container, {
       box.classList.add("dragging");
     });
     box.addEventListener("dragend", () => {
+      dragFrom = -1;
       box.draggable = false;
       box.classList.remove("dragging");
     });
-    box.addEventListener("dragover", (e) => {
-      e.preventDefault();
-      box.classList.add("drag-over");
-    });
-    box.addEventListener("dragleave", () => box.classList.remove("drag-over"));
-    box.addEventListener("drop", (e) => {
-      e.preventDefault();
-      box.classList.remove("drag-over");
-      if (dragFrom >= 0) reorder(dragFrom, index);
-      dragFrom = -1;
-    });
+    dropTarget(box, index, () => dragFrom, reorder);
     return box;
   }
 

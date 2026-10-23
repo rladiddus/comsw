@@ -1,6 +1,7 @@
 import { el, rows, stateLine } from "../teacher-workspace.mjs";
 import { dbErrorMessage } from "../fields.mjs";
 import { subsetReorderUpdates } from "../order.mjs";
+import { dropTarget } from "../card-list.mjs";
 
 export const LEVELS = ["★☆☆☆☆", "★★☆☆☆", "★★★☆☆", "★★★★☆", "★★★★★"];
 
@@ -105,20 +106,11 @@ export async function render(container, { supabase }) {
         box.classList.add("dragging");
       });
       box.addEventListener("dragend", () => {
+        dragFrom = -1;
         box.draggable = false;
         box.classList.remove("dragging");
       });
-      box.addEventListener("dragover", (e) => {
-        e.preventDefault();
-        box.classList.add("drag-over");
-      });
-      box.addEventListener("dragleave", () => box.classList.remove("drag-over"));
-      box.addEventListener("drop", (e) => {
-        e.preventDefault();
-        box.classList.remove("drag-over");
-        if (dragFrom >= 0) reorder(dragFrom, index);
-        dragFrom = -1;
-      });
+      dropTarget(box, index, () => dragFrom, reorder);
     }
     return box;
   }

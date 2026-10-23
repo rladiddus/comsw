@@ -2,7 +2,6 @@ import { el, rows, rpc, stateLine } from "../teacher-workspace.mjs";
 import { dbErrorMessage } from "../fields.mjs";
 import { driveThumbnail } from "../drive.mjs";
 import { getServices } from "../services.mjs";
-import { mountImageUpload } from "../image-upload.mjs";
 import { cropImageToSquare } from "../image-crop.mjs";
 
 // 커리큘럼 관리 > 신청 과목: 선생님이 승인 요청한 커리큘럼을 학과장·관리자가 다듬어 저장(=승인)하고,
@@ -75,21 +74,6 @@ export async function render(container, { supabase, crop = cropImageToSquare, fe
       const written = el("textarea", { value: r.written ?? "", rows: 4, readOnly: true });
       const summary = el("textarea", { value: r.summary ?? "", rows: 2, readOnly: true, placeholder: "AI 요약 또는 직접 작성" });
       const aiBtn = el("button", { type: "button", className: "ghost-btn ai-btn", textContent: "AI 요약", hidden: true });
-      // 커리큘럼 다듬기: 선생님 원문을 AI로 맞춤법·말투만 다듬어 원문 칸을 바꾼다(내용은 그대로).
-      const refineBtn = el("button", { type: "button", className: "ghost-btn ai-btn", textContent: "커리큘럼 다듬기", hidden: true });
-      refineBtn.addEventListener("click", async () => {
-        refineBtn.disabled = true;
-        try {
-          if (!written.value.trim()) throw new Error("커리큘럼 원문을 먼저 입력해주세요");
-          setState("커리큘럼을 다듬는 중…");
-          written.value = await ai("refine", written.value);
-          setState("커리큘럼을 다듬었습니다. 확인 후 '저장'을 눌러주세요.");
-        } catch (e) {
-          setState(e.message, true);
-        } finally {
-          refineBtn.disabled = false;
-        }
-      });
       aiBtn.addEventListener("click", async () => {
         aiBtn.disabled = true;
         try {
@@ -109,21 +93,11 @@ export async function render(container, { supabase, crop = cropImageToSquare, fe
         media ? el("img", { src: driveThumbnail(media), alt: `${r.step_label} 이미지` }) : el("span", { textContent: "이미지 없음" }),
       );
       paintThumb();
-      const upload = el("div", { hidden: true });
-      mountImageUpload(upload, {
-        kind: "curriculum",
-        label: "새로 올리기",
-        crop,
-        onUploaded: (asset) => {
-          media = asset.url;
-          paintThumb();
-        },
-      });
       const recrop = el("button", { type: "button", className: "ghost-btn", textContent: "다시 자르기", hidden: true });
       recrop.addEventListener("click", async () => {
         recrop.disabled = true;
         try {
-          // 원본을 읽을 수 있는 저장소 이미지만 다시 자를 수 있다(예전 드라이브 링크는 '새로 올리기').
+          // 원본을 읽을 수 있는 저장소 이미지만 다시 자를 수 있다(예전 드라이브 링크는 안 됨).
           let file;
           try {
             const res = await fetcher(media);
@@ -131,7 +105,7 @@ export async function render(container, { supabase, crop = cropImageToSquare, fe
             const blob = await res.blob();
             file = new File([blob], "recrop.png", { type: blob.type || "image/png" });
           } catch {
-            throw new Error("이 이미지는 다시 자를 수 없습니다. '새로 올리기'로 다시 올려주세요.");
+            throw new Error("이 이미지는 예전 드라이브 링크라 다시 자를 수 없습니다.");
           }
           const cropped = await crop(file);
           if (!cropped) return;
@@ -153,15 +127,15 @@ export async function render(container, { supabase, crop = cropImageToSquare, fe
         el("div", { className: "request-cell" }, [step]),
         el("div", { className: "request-cell request-text" }, [
           written,
-          el("div", { className: "request-summary" }, [summary, aiBtn, refineBtn]),
+          el("div", { className: "request-summary" }, [summary, aiBtn]),
         ]),
-        el("div", { className: "request-cell request-image" }, [thumb, recrop, upload]),
+        el("div", { className: "request-cell request-image" }, [thumb, recrop]),
       ]);
       return {
         line,
         setEditing(on) {
           step.readOnly = written.readOnly = summary.readOnly = !on;
-          aiBtn.hidden = refineBtn.hidden = recrop.hidden = upload.hidden = !on;
+          aiBtn.hidden = !on;
           recrop.hidden = !on || !media;
         },
         values: () => ({ step_label: step.value.trim(), written: written.value, summary: summary.value.trim() || null, media_url: media || null }),

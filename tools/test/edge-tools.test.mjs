@@ -4,7 +4,6 @@ import { createHandler } from "../../supabase/functions/comsw-tools/handler.mjs"
 import { createStorage } from "../../supabase/functions/comsw-tools/storage.mjs";
 import {
   checkImage,
-  PROMPTS,
   requireMember,
   summaryReservation,
   usageCost,
@@ -141,9 +140,4 @@ test("본인 사진 원본은 Supabase 비공개 버킷에만 저장하고 링�
   assert.equal(uploads[0][0], "comsw-private");
   assert.equal(saved.path, `supabase:${uploads[0][1]}`);
   await assert.rejects(storage.download("firebase:public/a.webp"), /본인 사진/);
-});
-
-test("커리큘럼 다듬기: 지시문이 있고, 출력이 길어 예산 예약도 더 크게 잡는다", () => {
-  assert.ok(PROMPTS.refine.includes("다듬"));
-  assert.ok(summaryReservation("p", "원문", 2000, 2000) > summaryReservation("p", "원문", 2000));
 });

@@ -6,8 +6,6 @@ export const PROMPTS = {
     "제시된 커리큘럼을 두 문장으로 정리. 각 문장은 01, 02로 시작하고 25글자 내외. ~합니다, ~입니다로 끝나지않고 단어로 마무리. 예를 들어 포토샵 기본 툴 사용법 이렇게. 그리고 01과 02는 줄바꿈",
   roadmap:
     "주어진 문장을 10자 내의 두 문장으로 정리. 두 문장은 서로 줄바꿈으로 표기",
-  refine:
-    "선생님이 쓴 수업 커리큘럼 원문을 다듬어줘. 내용과 순서는 바꾸지 말고 맞춤법과 띄어쓰기를 바로잡아, 수강생이 이해하기 쉬운 공식적인 교육 안내 말투로 자연스럽게 정리. 설명이나 머리말 없이 다듬은 본문만 작성.",
   profile:
     "첨부 사진과 동일한 인물로 보이도록 얼굴 특징과 자연스러운 비율을 유지. 세련되고 전문적인 강사 프로필 사진. 따뜻하고 균형 잡힌 톤, 부드러운 스튜디오 조명. 머리부터 가슴 위까지 들어오는 상반신 구도. 얼굴 정면, 시선 카메라. 몸은 화면 기준 왼쪽으로 약 15도, 인물의 왼쪽 어깨가 카메라에 조금 더 가까운 자연스러운 자세. 원본 의상 색상을 참고하여 현대적이고 단정한 의상. 얼굴과 머리가 잘리지 않도록 충분한 여백. 배경은 완전 투명, 세로형 강사 소개용 PNG. 글자·로고 없음.",
 };
@@ -48,10 +46,10 @@ export function safeFilename(name) {
     -120,
   );
 }
-export function summaryReservation(prompt, text, fx, outputTokens = 512) {
+export function summaryReservation(prompt, text, fx) {
   // UTF-8 바이트 수는 토큰 수의 상한. 고정 모델에 실제 단가보다 높은 보수적 단가를 적용한다.
   const bytes = new TextEncoder().encode(`${prompt}\n${text}`).length;
-  return Math.max(1, Math.ceil((bytes * 5 + outputTokens * 30) / 1e6 * fx));
+  return Math.max(1, Math.ceil((bytes * 5 + 512 * 30) / 1e6 * fx));
 }
 export function usageCost(usage, fx, image = false) {
   if (

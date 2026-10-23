@@ -128,7 +128,7 @@ test("신청 과목: 학과 커리큘럼·로드맵 문구를 AI로 신규 칸�
   assert.equal(dept.querySelectorAll("textarea")[0].value, "department 신규", "현재 칸도 새 문구로");
 });
 
-test("신청 과목: 저장소 이미지는 다시 자르고, 못 읽는 이미지는 새로 올리라고 안내", async () => {
+test("신청 과목: 저장소 이미지는 다시 자르고, 못 읽는 드라이브 이미지는 안내만(새로 올리기·다듬기 버튼 없음)", async () => {
   const { render } = await import("../js/pages/curriculum-requests.mjs");
   const tables = data();
   configureServices({ upload: async () => ({ url: "https://img.example/recropped.webp" }) });
@@ -155,7 +155,9 @@ test("신청 과목: 저장소 이미지는 다시 자르고, 못 읽는 이미�
   button(c2, "수정").click();
   button(c2.querySelectorAll(".request-row:not(.request-head)")[0], "다시 자르기").click();
   await flush();
-  assert.match(c2.textContent, /새로 올리기/);
+  assert.match(c2.textContent, /다시 자를 수 없습니다/);
+  assert.equal(button(c2, "새로 올리기"), undefined);
+  assert.equal(button(c2, "커리큘럼 다듬기"), undefined);
 });
 
 test("학과 커리큘럼: 학과를 고르면 과목명/기간/요약/프로그램/학습 수준 줄, 수정 → AI 생성 → 저장", async () => {
@@ -177,20 +179,6 @@ test("학과 커리큘럼: 학과를 고르면 과목명/기간/요약/프로그
   await flush();
   assert.equal(tables.subjects[0].dept_curriculum, "department:인터페이스와 레이어");
   assert.equal(tables.subjects[0].duration, "4주");
-});
-
-test("신청 과목: '커리큘럼 다듬기'는 원문 칸을 AI로 다듬는다", async () => {
-  const { render } = await import("../js/pages/curriculum-requests.mjs");
-  const asked = [];
-  configureServices({ summarize: async (kind, text) => { asked.push(kind); return { text: `다듬은 ${text}` }; } });
-  const c = document.createElement("div");
-  await render(c, { supabase: fakeSupabase(data()) });
-  button(c, "수정").click();
-  const row = c.querySelectorAll(".request-row:not(.request-head)")[0];
-  button(row, "커리큘럼 다듬기").click();
-  await flush();
-  assert.deepEqual(asked, ["refine"]);
-  assert.equal(row.querySelector("textarea").value, "다듬은 포토샵 기초 원문");
 });
 
 test("학과 커리큘럼 탭은 열 때마다 새로 그린다(신청 과목에서 적용한 문구가 바로 보이게)", async () => {

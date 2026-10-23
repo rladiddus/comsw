@@ -82,10 +82,10 @@ test("메인 화면: 메뉴 줄마다 PC·태블릿 미리보기", async () => {
   assert.deepEqual(opened, [["전체 수업", false], ["전체 수업", true]]);
 });
 
-test("로딩 화면: 줄이 그려진다", async () => {
+test("로딩 화면: 카드가 그려진다", async () => {
   const c = await renderPage("../js/pages/loading.mjs");
   assert.equal(c.querySelector("h2").textContent, "로딩 화면");
-  assert.equal(c.querySelectorAll("tbody tr").length, 1);
+  assert.equal(c.querySelectorAll(".loading-card").length, 1);
 });
 
 test("특강: 신청자 명단을 열면 인원·연락처가 보이고 CSV를 내려받는다", async () => {

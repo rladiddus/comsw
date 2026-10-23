@@ -292,3 +292,27 @@ dialog.idle-dialog strong { color:var(--accent); }
 /* 프로필 수정 요청 메모 */
 .review-note { margin-top:10px; }
 .review-note textarea { width:100%; padding:10px 12px; border:1px solid #d9dde4; border-radius:9px; }
+/* 로딩 화면 카드: ⠿ | 미리보기(오른쪽 높이만큼 늘어남) | 제목-값 줄 / 삭제·수정 */
+.loading-list { display:flex; flex-direction:column; gap:12px; margin-top:12px; }
+.loading-card { display:grid; grid-template-columns:28px minmax(240px,380px) minmax(0,1fr); gap:16px; align-items:stretch; background:#fff; border:1px solid var(--line); border-radius:14px; padding:14px 16px 14px 8px; }
+.loading-card.dragging { opacity:.5; }
+.loading-card.drag-over { outline:2px dashed var(--accent); outline-offset:2px; }
+.drag-handle { display:flex; align-items:center; justify-content:center; color:#aaa; font-size:20px; cursor:grab; user-select:none; border-radius:8px; }
+.drag-handle:hover { background:#f4f5f7; color:#555; }
+.loading-stage { position:relative; min-height:200px; background:#111; border-radius:10px; overflow:hidden; display:flex; align-items:center; justify-content:center; }
+.loading-stage > img { position:absolute; inset:0; width:100%; height:100%; object-fit:cover; }
+.loading-stage > .muted { color:#bbb; padding:12px; text-align:center; }
+.loading-caption { position:relative; z-index:1; padding:0 16px; color:#fff; text-align:center; text-shadow:0 2px 12px #000a; line-height:1.2; overflow-wrap:anywhere; }
+.loading-side { display:flex; flex-direction:column; justify-content:space-between; gap:12px; min-width:0; }
+.loading-fields { display:flex; flex-direction:column; gap:8px; }
+.loading-line { display:grid; grid-template-columns:90px minmax(0,1fr); gap:12px; align-items:center; font-weight:600; }
+.loading-line input[type=text] { width:100%; padding:8px 10px; border:1px solid #d9dde4; border-radius:8px; font-weight:400; }
+.loading-line input[readonly] { background:#f6f7f9; color:#333; border-color:transparent; }
+.loading-line .consent input { width:18px; height:18px; }
+.loading-upload { display:flex; flex-direction:column; gap:8px; padding-top:4px; }
+.loading-upload .upload-zone { padding:8px 10px; }
+@media (max-width:900px) {
+  .loading-card { grid-template-columns:24px minmax(0,1fr); }
+  .loading-side { grid-column:2; }
+}
+.loading-line input[readonly]::placeholder { color:transparent; }

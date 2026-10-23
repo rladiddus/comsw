@@ -10,7 +10,9 @@ import { fileURLToPath } from "node:url";
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const admin = join(root, "admin");
 const indexPath = join(admin, "index.html");
-const hash = (file) => createHash("sha1").update(readFileSync(file)).digest("hex").slice(0, 8);
+// 줄바꿈(CRLF/LF)은 맞춰서 읽어 윈도·GitHub에서 같은 값이 나오게 한다.
+export const read = (file) => readFileSync(file, "utf8").replace(/\r\n/g, "\n");
+const hash = (file) => createHash("sha1").update(read(file)).digest("hex").slice(0, 8);
 const rel = (file) => {
   const r = relative(admin, file).split("\\").join("/");
   return r.startsWith(".") ? r : `./${r}`;
@@ -23,7 +25,7 @@ export function stamped() {
   const modules = [...walk(join(admin, "js")), join(root, "supabase/functions/comsw-tools/policy.mjs")];
   const imports = Object.fromEntries(modules.map((f) => [rel(f), `${rel(f)}?v=${hash(f)}`]));
   const map = `<script type="importmap">\n${JSON.stringify({ imports }, null, 2)}\n  </script>`;
-  return readFileSync(indexPath, "utf8")
+  return read(indexPath)
     .replace(/<script type="importmap">[\s\S]*?<\/script>|<!-- importmap -->/, map)
     .replace(/\.\/admin\.css(\?v=\w+)?/, `./admin.css?v=${hash(join(admin, "admin.css"))}`)
     .replace(/src="\.\/js\/main\.mjs(\?v=\w+)?"/, `src="${imports["./js/main.mjs"]}"`);
@@ -31,13 +33,12 @@ export function stamped() {
 
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   const next = stamped();
-  const now = readFileSync(indexPath, "utf8");
   if (process.argv.includes("--check")) {
-    if (next !== now) {
+    if (next !== read(indexPath)) {
       console.error("admin/index.html 버전이 오래됐습니다. node scripts/stamp-admin.mjs 를 실행하세요.");
       process.exit(1);
     }
-  } else if (next !== now) {
+  } else if (next !== read(indexPath)) {
     writeFileSync(indexPath, next);
     console.log("admin/index.html 갱신");
   }

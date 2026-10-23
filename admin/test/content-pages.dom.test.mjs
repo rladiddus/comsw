@@ -183,38 +183,71 @@ test("과목 삭제 경고에 강사 담당 과목 연결도 나온다", async (
 
 const tracksOf = (c) => [...c.querySelectorAll(".roadmap-track")];
 const stepTitles = (track) => [...track.querySelectorAll(".roadmap-step-head strong")].map((x) => x.textContent);
+const editTrack = async (c, i) => { buttons(tracksOf(c)[i], "수정")[0].click(); await flush(); };
+const drag = async (from, to) => {
+  from.dispatchEvent(new dom.window.Event("dragstart", { bubbles: true }));
+  to.dispatchEvent(new dom.window.Event("drop", { bubbles: true, cancelable: true }));
+  from.dispatchEvent(new dom.window.Event("dragend", { bubbles: true }));
+  await flush();
+};
 
-test("로드맵: 줄마다 왼쪽 학과·이름, 오른쪽으로 단계 상자(번호순), 고른 과목·요약이 보인다", async () => {
+test("로드맵: 처음엔 보기(학과·이름·요약 잠김, 과목은 글자로), 단계는 번호순", async () => {
   const tables = more();
   tables.roadmap_steps[1].summary = "포토샵 역량 강화";
   const { c } = await renderPage("../js/pages/roadmap.mjs", tables);
   const [web, office] = tracksOf(c);
   assert.equal(web.querySelector('select[aria-label="학과"]').value, "d2");
+  assert.ok(web.querySelector('select[aria-label="학과"]').disabled);
+  assert.ok(web.querySelector('input[aria-label="로드맵 이름"]').readOnly);
   assert.equal(office.querySelector('select[aria-label="학과"]').value, "", "학과 없음");
   assert.deepEqual(stepTitles(web), ["1단계", "2단계"]);
   const first = web.querySelector(".roadmap-step");
-  assert.equal(first.querySelector("summary").textContent, "포토샵");
+  assert.equal(first.querySelector(".multi-view").textContent, "포토샵");
+  assert.equal(first.querySelector("details"), null, "보기에서는 과목 목록 없음");
+  assert.ok(first.querySelector("textarea").readOnly);
   assert.equal(first.querySelector("textarea").value, "포토샵 역량 강화");
+  assert.equal(buttons(web, "+ 과목 추가").length, 0);
 });
 
-test("로드맵: 과목 목록은 고른 학과의 과목만(이미 고른 학과 밖 과목은 표시), 체크하면 저장·해제하면 삭제", async () => {
+test("로드맵: '수정' 뒤 과목 목록은 고른 학과 과목만(학과 밖은 표시), 체크·요약은 '저장' 때 저장", async () => {
   const { c, tables } = await renderPage("../js/pages/roadmap.mjs", more());
+  await editTrack(c, 0);
   const step = tracksOf(c)[0].querySelectorAll(".roadmap-step")[1];
-  const names = [...step.querySelectorAll(".multi-option span")].map((x) => x.textContent);
-  assert.deepEqual(names, ["웹1"], "웹학과 과목만");
+  assert.deepEqual([...step.querySelectorAll(".multi-option span")].map((x) => x.textContent), ["웹1"], "웹학과 과목만");
   const box = step.querySelector('.multi-option input[value="s2"]');
   box.checked = true;
   box.dispatchEvent(new dom.window.Event("change"));
-  await flush();
-  assert.ok(tables.roadmap_step_subjects.some((x) => x.step_id === "p2" && x.subject_id === "s2"));
   assert.equal(step.querySelector("summary").textContent, "웹1");
   const outside = tracksOf(c)[0].querySelector(".roadmap-step");
   assert.match(outside.textContent, /포토샵 \(학과 밖\)/);
   const off = outside.querySelector('.multi-option input[value="s1"]');
   off.checked = false;
   off.dispatchEvent(new dom.window.Event("change"));
+  const summary = outside.querySelector("textarea");
+  summary.value = "새 요약";
+  summary.dispatchEvent(new dom.window.Event("input"));
+  assert.ok(tables.roadmap_step_subjects.some((x) => x.step_id === "p1"), "저장 전에는 그대로");
+  buttons(tracksOf(c)[0], "저장")[0].click();
   await flush();
+  assert.ok(tables.roadmap_step_subjects.some((x) => x.step_id === "p2" && x.subject_id === "s2"));
   assert.ok(!tables.roadmap_step_subjects.some((x) => x.step_id === "p1"));
+  assert.equal(tables.roadmap_steps.find((x) => x.id === "p1").summary, "새 요약");
+  assert.equal(buttons(tracksOf(c)[0], "수정").length, 1, "저장하면 보기로");
+});
+
+test("로드맵: '취소'는 고친 것을 버리고, 학과를 바꾸면 과목 목록이 그 학과로", async () => {
+  const { c, tables } = await renderPage("../js/pages/roadmap.mjs", more());
+  await editTrack(c, 0);
+  const dept = tracksOf(c)[0].querySelector('select[aria-label="학과"]');
+  dept.value = "d1";
+  dept.dispatchEvent(new dom.window.Event("change"));
+  await flush();
+  const step = tracksOf(c)[0].querySelectorAll(".roadmap-step")[1];
+  assert.deepEqual([...step.querySelectorAll(".multi-option span")].map((x) => x.textContent), ["포토샵"]);
+  buttons(tracksOf(c)[0], "취소")[0].click();
+  await flush();
+  assert.equal(tables.roadmap_tracks[0].department_id, "d2");
+  assert.equal(tracksOf(c)[0].querySelector('select[aria-label="학과"]').value, "d2");
 });
 
 test("로드맵: '원문 보기'는 고른 과목의 승인된 커리큘럼을 모아 팝업, 바깥을 누르면 닫힌다", async () => {
@@ -230,47 +263,46 @@ test("로드맵: '원문 보기'는 고른 과목의 승인된 커리큘럼을 �
   assert.ok(!popup.open);
 });
 
-test("로드맵: 요약을 고치면 저장, '+ 과목 추가'는 다음 번호 단계, ◀ ▶는 단계 자리를 바꾼다", async () => {
+test("로드맵: 단계는 끌어서 좌우 순서, 줄은 끌어서 위아래 순서(점선 미리보기는 공용 dropTarget)", async () => {
   const { c, tables } = await renderPage("../js/pages/roadmap.mjs", more());
-  const summary = tracksOf(c)[0].querySelector(".roadmap-step textarea");
-  summary.value = "새 요약";
-  summary.dispatchEvent(new dom.window.Event("change"));
-  await flush();
-  assert.equal(tables.roadmap_steps.find((x) => x.id === "p1").summary, "새 요약");
-  buttons(tracksOf(c)[0], "+ 과목 추가")[0].click();
-  await flush();
-  assert.deepEqual(stepTitles(tracksOf(c)[0]), ["1단계", "2단계", "3단계"]);
-  buttons(tracksOf(c)[0].querySelector(".roadmap-step"), "▶")[0].click();
-  await flush();
+  const stepsBox = () => [...tracksOf(c)[0].querySelectorAll(".roadmap-step")];
+  assert.ok(stepsBox()[0].classList.contains("drop-x"), "단계는 세로 점선");
+  await drag(stepsBox()[1], stepsBox()[0]);
   const pos = (id) => tables.roadmap_steps.find((x) => x.id === id).position;
   assert.deepEqual([pos("p1"), pos("p2")], [2, 1]);
-  assert.equal(tracksOf(c)[0].querySelectorAll(".roadmap-step")[1].querySelector("summary").textContent, "포토샵");
+  assert.equal(stepsBox()[1].querySelector(".multi-view").textContent, "포토샵");
+  await drag(tracksOf(c)[1], tracksOf(c)[0]);
+  assert.deepEqual(tracksOf(c).map((t) => t.querySelector('input[aria-label="로드맵 이름"]').value), ["사무 자격증", "웹학과"]);
+  assert.deepEqual(stepTitles(tracksOf(c)[1]), ["1단계", "2단계"], "단계를 끌어도 줄은 안 움직임");
 });
 
-test("로드맵: 단계 삭제는 뒤 단계 번호를 당기고, ▲ ▼는 줄 순서, 줄 삭제 경고에 단계 수", async () => {
+test("로드맵: 수정 중 '+ 과목 추가'는 다음 번호 단계, × 삭제는 뒤 번호를 당기고, 줄 삭제 경고에 단계 수", async () => {
   globalThis.confirm = msg => { lastConfirm = msg; return true; };
   try {
     const { c, tables } = await renderPage("../js/pages/roadmap.mjs", more());
+    await editTrack(c, 0);
+    buttons(tracksOf(c)[0], "+ 과목 추가")[0].click();
+    await flush();
+    assert.deepEqual(stepTitles(tracksOf(c)[0]), ["1단계", "2단계", "3단계"]);
     buttons(tracksOf(c)[0].querySelector(".roadmap-step"), "×")[0].click();
     await flush();
-    assert.deepEqual(tables.roadmap_steps.filter((x) => x.track_id === "t1").map((x) => [x.id, x.position]), [["p2", 1]]);
-    buttons(tracksOf(c)[1], "▲")[0].click();
+    assert.deepEqual(tables.roadmap_steps.filter((x) => x.track_id === "t1").sort((a, b) => a.position - b.position).map((x) => x.position), [1, 2]);
+    assert.equal(tables.roadmap_steps.find((x) => x.id === "p2").position, 1);
+    buttons(tracksOf(c)[0], "삭제")[0].click();
     await flush();
-    assert.deepEqual(tracksOf(c).map((t) => t.querySelector('input[aria-label="로드맵 이름"]').value), ["사무 자격증", "웹학과"]);
-    buttons(tracksOf(c)[1], "삭제")[0].click();
-    await flush();
-    assert.equal(lastConfirm, "'웹학과' 로드맵을(를) 삭제하면 단계 1개도 함께 삭제됩니다. 삭제할까요?");
+    assert.equal(lastConfirm, "'웹학과' 로드맵을(를) 삭제하면 단계 2개도 함께 삭제됩니다. 삭제할까요?");
     assert.equal(tracksOf(c).length, 1);
   } finally {
     globalThis.confirm = msg => { lastConfirm = msg; return false; };
   }
 });
 
-test("로드맵 줄 추가를 두 번 눌러도 이름이 겹치지 않는다 (같은 이름 묶음은 사이트에서 합쳐져 사라짐)", async () => {
+test("로드맵 줄 추가를 두 번 눌러도 이름이 겹치지 않고, 새 줄은 바로 수정 상태", async () => {
   const { c, supabase } = await renderPage("../js/pages/roadmap.mjs", more());
   const add = () => buttons(c, "+ 로드맵 줄 추가")[0].click();
   add(); await flush(); add(); await flush();
   const names = supabase.calls.filter(x => x[0] === "insert" && x[1] === "roadmap_tracks").map(x => x[2].name);
   assert.equal(names.length, 2);
   assert.notEqual(names[0], names[1]);
+  assert.equal(buttons(tracksOf(c).at(-1), "저장").length, 1);
 });

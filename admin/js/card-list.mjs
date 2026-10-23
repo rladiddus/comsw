@@ -11,12 +11,14 @@ function el(tag, props = {}, children = []) {
 
 // 끌어 놓은 자리로 옮긴 뒤 0..n-1로 다시 매기고, 순서가 바뀐 줄만 돌려준다.
 // 끌어 놓기: 줄 위쪽 절반이면 그 줄 앞, 아래쪽 절반이면 뒤 경계에 점선을 긋고, 놓으면 move(from, to).
-// 제자리(옮겨도 순서가 같은 곳)에는 점선을 긋지 않는다. 카드 목록·학과 커리큘럼이 같이 쓴다.
-export function dropTarget(box, index, from, move) {
+// 제자리(옮겨도 순서가 같은 곳)에는 점선을 긋지 않는다. 카드 목록·학과 커리큘럼·로드맵이 같이 쓴다.
+// axis "x"면 왼쪽/오른쪽 절반으로 보고 세로 점선을 긋는다(로드맵 단계처럼 옆으로 놓인 목록).
+export function dropTarget(box, index, from, move, axis = "y") {
+  if (axis === "x") box.classList.add("drop-x");
   const clear = () => box.classList.remove("drop-before", "drop-after");
   const spot = (e) => {
     const r = box.getBoundingClientRect();
-    const after = e.clientY > r.top + r.height / 2;
+    const after = axis === "x" ? e.clientX > r.left + r.width / 2 : e.clientY > r.top + r.height / 2;
     const f = from();
     let to = after ? index + 1 : index;
     if (to > f) to -= 1;

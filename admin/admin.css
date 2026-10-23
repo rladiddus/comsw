@@ -361,6 +361,16 @@ dialog.idle-dialog strong { color:var(--accent); }
 /* 다대다 칩(강사 학과·담당 과목) */
 .card-links { display:flex; flex-wrap:wrap; gap:6px; align-items:center; min-height:34px; }
 .card-links .link-pick { padding:4px 8px; border:1px dashed var(--accent); border-radius:999px; color:var(--accent); background:#fff; font-size:12px; }
-.card-item.collapsed .card-links { min-height:0; flex-wrap:nowrap; overflow:hidden; max-width:360px; }
-/* 강사 사진(세로형)은 잘리지 않게 */
-.card-stage.portrait > img { object-fit:contain; background:#f4f5f7; }
+/* 칩은 한 단어씩 그대로(줄어들어 세로로 꺾이지 않게), 많으면 다음 줄로 */
+.card-links .chip { flex-shrink:0; white-space:nowrap; }
+.card-item.collapsed .card-links { min-height:0; flex-wrap:wrap; }
+.card-item.collapsed .card-line:has(.card-links) { flex:1 1 260px; min-width:0; flex-wrap:wrap; }
+/* 강사 사진: 세로로 길게(좌우는 조금 잘림, 얼굴이 보이게 위쪽 기준) */
+.card-item.stage-portrait { grid-template-columns:28px 220px minmax(0,1fr); }
+.card-item.stage-portrait .card-stage { aspect-ratio:3/4; align-self:start; min-height:0; }
+.card-item.stage-portrait .card-stage > img { object-fit:cover; object-position:center top; }
+.card-item.stage-portrait.collapsed { grid-template-columns:28px 84px minmax(0,1fr); align-items:start; }
+.card-item.stage-portrait.collapsed .card-stage { height:auto; aspect-ratio:3/4; }
+@media (max-width:900px) {
+  .card-item.stage-portrait { grid-template-columns:24px 140px minmax(0,1fr); }
+}

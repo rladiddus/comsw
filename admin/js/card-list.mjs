@@ -305,7 +305,7 @@ export async function mountCardList(container, {
         fold,
       ]),
     ]);
-    const box = el("article", { className: `card-item image-${imageSide}` }, [
+    const box = el("article", { className: `card-item image-${imageSide}${stageClass ? ` stage-${stageClass}` : ""}` }, [
       handle,
       ...(imageSide === "right" ? [side, stage] : [stage, side]),
     ]);

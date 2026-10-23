@@ -41,6 +41,7 @@ const data = {
   instructor_subjects: [
     { instructor_id: "demo-teacher", subject_id: "photoshop", sort_order: 1 },
     { instructor_id: "demo-teacher", subject_id: "illustrator", sort_order: 2 },
+    { instructor_id: "demo-teacher", subject_id: "web1", sort_order: 3 },
     { instructor_id: "unlinked", subject_id: "web1", sort_order: 1 },
   ],
   instructor_curricula: [{
@@ -76,6 +77,7 @@ const sample = (n, color) =>
   );
 Object.assign(data.departments[0], { name_en: "Visual Design", description: "포토샵·일러스트로 시작해 브랜드 디자인 포트폴리오까지 완성하는 학과입니다.", image_url: sample("", "#fa491d") });
 Object.assign(data.departments[1], { name_en: "Web Design", description: "웹 퍼블리싱과 UI 디자인을 함께 배웁니다." });
+data.instructors[0].photo_url = "data:image/svg+xml," + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="941" height="1672"><rect width="941" height="1672" fill="#dfe6ee"/><circle cx="470" cy="520" r="230" fill="#8a9bb0"/><rect x="170" y="820" width="600" height="852" rx="280" fill="#8a9bb0"/></svg>');
 data.main_media[0].url = sample("배경 1", "#222");
 data.loading_items[0].image_url = sample("", "#334");
 data.loading_items[1].image_url = sample("", "#6a4");

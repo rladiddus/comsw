@@ -1,19 +1,37 @@
 import { mountCardList } from "../card-list.mjs";
 import { cascadeMessage } from "../format.mjs";
 import { countRows } from "../count.mjs";
-import { mountInstructorReview } from "../instructor-review.mjs";
+import { el } from "../teacher-workspace.mjs";
 
 // 사이트 '학과 강사소개'에 나오는 강사. 사이트 표시를 끈 강사는 커리큘럼에만 쓰인다(동명이인 구분용 등).
 // 로딩 화면·학과와 같은 카드(프로필 사진 왼쪽, 처음엔 접힘, 끌어서 순서 = 사이트 순서).
+// 위에서 학과·과목·이름으로 검색한다(아무것도 안 고르면 전체). 선생님 프로필 승인은 '승인 대기' 탭.
 export async function render(container, { supabase }) {
   container.append(Object.assign(document.createElement("h2"), { textContent: "강사" }));
-  const reviewBox = document.createElement("div");
-  container.append(reviewBox);
   const [{ data: depts }, { data: subjects }] = await Promise.all([
     supabase.from("departments").select("id, name").order("sort_order"),
     supabase.from("subjects").select("id, name").order("sort_order"),
   ]);
-  const editor = await mountCardList(container, {
+  const field = (label, input) => {
+    input.setAttribute("aria-label", label);
+    return el("label", { className: "form-field" }, [el("span", { textContent: label }), input]);
+  };
+  const choose = (list) => el("select", {}, [
+    el("option", { value: "", textContent: "전체" }),
+    ...(list || []).map((x) => el("option", { value: x.id, textContent: x.name })),
+  ]);
+  const deptPick = choose(depts);
+  const subjPick = choose(subjects);
+  const namePick = el("input", { type: "search", placeholder: "이름 일부" });
+  const search = el("button", { type: "button", className: "publish-btn", textContent: "검색" });
+  const count = el("span", { className: "muted" });
+  container.append(el("div", { className: "search-bar" }, [
+    field("학과", deptPick), field("과목", subjPick), field("이름", namePick), search, count,
+  ]));
+  const list = el("div");
+  container.append(list);
+
+  const editor = await mountCardList(list, {
     supabase,
     table: "instructors",
     title: "강사",
@@ -57,5 +75,17 @@ export async function render(container, { supabase }) {
       ["강사 커리큘럼", await countRows(supabase, "instructor_curricula", "instructor_id", row.id)],
     ]),
   });
-  await mountInstructorReview(reviewBox, supabase, () => editor.reload());
+  const run = () => {
+    const [d, s, n] = [deptPick.value, subjPick.value, namePick.value.trim()];
+    count.textContent = `${editor.setFilter((r, linked) =>
+      (!d || linked("departments").includes(d)) &&
+      (!s || linked("subjects").includes(s)) &&
+      (!n || (r.name || "").includes(n))
+    )}명`;
+  };
+  search.addEventListener("click", run);
+  namePick.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") run();
+  });
+  run();
 }

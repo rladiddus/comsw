@@ -97,6 +97,38 @@ test("강사 삭제 경고에 커리큘럼 수", async () => {
   assert.match(lastConfirm, /강사 커리큘럼 2개/);
 });
 
+test("강사: 학과·과목·이름 하나만 골라도 검색, 아무것도 안 고르면 전체", async () => {
+  const { c } = await renderPage("../js/pages/instructors.mjs");
+  const bar = c.querySelector(".search-bar");
+  const names = () => [...c.querySelectorAll(".card-item")].map(x => x.querySelector(".card-side input[type=text]").value);
+  const searchBy = async ({ dept = "", subj = "", name = "" } = {}) => {
+    bar.querySelector('[aria-label="학과"]').value = dept;
+    bar.querySelector('[aria-label="과목"]').value = subj;
+    bar.querySelector('[aria-label="이름"]').value = name;
+    button(bar, "검색").click();
+    await flush();
+  };
+  await searchBy({ dept: "d2" });
+  assert.deepEqual(names(), ["김민주"]);
+  await searchBy({ subj: "s1" });
+  assert.match(c.textContent, /검색 결과가 없습니다/);
+  await searchBy({ name: "해리" });
+  assert.deepEqual(names(), ["조해리"]);
+  assert.match(bar.textContent, /1명/);
+  await searchBy();
+  assert.deepEqual(names(), ["김민주", "조해리"]);
+});
+
+test("강사 메뉴: 강사 / 승인 대기 / 계정 연결 탭, 승인 대기는 그 탭에만", async () => {
+  const { c } = await renderPage("../js/pages/instructor-tabs.mjs", { ...data(), instructor_profile_drafts: [] });
+  assert.deepEqual([...c.querySelectorAll("[role=tab]")].map(t => t.textContent), ["강사", "승인 대기", "계정 연결"]);
+  const panels = c.querySelectorAll(".subpage");
+  assert.doesNotMatch(panels[0].textContent, /승인 대기 프로필/);
+  [...c.querySelectorAll("[role=tab]")][1].click();
+  await flush();
+  assert.match(panels[1].textContent, /승인 대기 프로필이 없습니다/);
+});
+
 const curData = () => {
   const t = data();
   t.curriculum_sets.unshift({ id: "set-ps", name: "시각편집학과", department_id: "d1", sort_order: -1 });

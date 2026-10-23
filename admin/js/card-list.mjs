@@ -155,7 +155,8 @@ export async function mountCardList(container, {
   }
   // 검색: 보이는 줄만 거른다(불러온 줄은 그대로).
   let match = () => true;
-  const visible = () => sortRows(rows).filter((r) => match(r));
+  // 검색 함수는 (줄, 다대다 칸 key → 연결된 값 목록)을 받는다.
+  const visible = () => sortRows(rows).filter((r) => match(r, (key) => links[key]?.get(r.id) ?? []));
   // 끌기 가능 여부는 그릴 때 한 번만 계산한다(카드마다 다시 정렬하면 줄이 많을 때 멈춘다).
   let dragOk = true;
   // 줄이 많으면(예: 강사 커리큘럼 수백 개) 한 번에 PAGE개씩만 그린다.

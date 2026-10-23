@@ -84,29 +84,6 @@ test("등록한 커리큘럼이 있으면 조회하기가 먼저 열리고, 조�
   assert.ok(!("instructor_id" in call[1]));
 });
 
-test("등록하기: 과목·단계·내용·이미지가 한 줄에 있고 + 단계 추가로 여러 단계를 한 번에 승인 요청한다", async () => {
-  const { c, calls } = await setup("mine");
-  tabButton(c, "write").click();
-  assert.match(c.textContent, /기본 4단계로 작성해주세요/);
-  const row = c.querySelector(".step-row");
-  const order = [...row.children].map((x) => x.querySelector("span")?.textContent ?? x.textContent);
-  assert.deepEqual(order, ["과목", "단계", "개인 수업 커리큘럼", "커리큘럼 이미지", "단계 삭제"], "한 줄: 과목·단계·내용·이미지");
-  assert.equal(row.querySelector("[name=step_label]").value, "1단계");
-  findButton(c, "+ 단계 추가").click();
-  const rowsEl = [...c.querySelectorAll(".step-row")];
-  assert.equal(rowsEl[1].querySelector("[name=step_label]").value, "2단계");
-  rowsEl[0].querySelector("[name=written]").value = "첫 단계";
-  rowsEl[1].querySelector("[name=written]").value = "둘째 단계";
-  findButton(rowsEl[1], "링크로 업로드").click();
-  const link = rowsEl[1].querySelector("input[type=url]");
-  link.value = "https://example.com/a.png";
-  link.dispatchEvent(new dom.window.Event("change"));
-  submitForm(c);
-  await flush();
-  const sent = calls.filter(([n]) => n === "comsw_submit_my_curriculum").map(([, a]) => [a.p_step_label, a.p_written, a.p_media_url]);
-  assert.deepEqual(sent, [["1단계", "첫 단계", ""], ["2단계", "둘째 단계", "https://example.com/a.png"]]);
-});
-
 test("등록하기: 이미지는 직접 업로드가 기본이고 링크로 바꿀 수 있다", async () => {
   const { c } = await setup("mine");
   tabButton(c, "write").click();
@@ -234,16 +211,6 @@ test("수업 설정: 학과를 추가·삭제하고 과목을 체크해 저장�
   assert.deepEqual(majors.saved, ["AI학과"]);
 });
 
-test("내 커리큘럼: 내 학과는 쌤톡 학과, 단계 과목은 수업 설정에서 고른 과목만, 위쪽은 '선택 학과'", async () => {
-  const { c } = await setup("mine", withAi());
-  c.querySelector('.tab-bar [data-tab=write]').click();
-  const labels = [...c.querySelectorAll(".form-row .form-field > span")].map((s) => s.textContent);
-  assert.deepEqual(labels, ["내 학과", "선택 학과"]);
-  assert.deepEqual([...c.querySelector("[name=department]").options].map((o) => o.textContent), ["웹학과"]);
-  assert.deepEqual([...c.querySelector(".step-row [name=subject_id]").options].map((o) => o.textContent), ["웹1"]);
-  assert.ok(findButton(c, "내 프로필 > 수업 설정에서 학과·과목 바꾸기"));
-});
-
 test("내 프로필: 프로필 사진 확인 칸은 없다", async () => {
   const { c } = await setup("profile");
   assert.equal(c.querySelector(".profile-preview"), null);
@@ -308,4 +275,80 @@ test("조회하기 수정: 등록하기와 같은 한 줄 배치이고 과목·�
   assert.ok(row.querySelector(".media-picker"));
   const [subject, step] = row.querySelectorAll("input[readonly]");
   assert.deepEqual([subject.value, step.value], ["웹1", "1주차"]);
+});
+
+const twoSubjects = () => {
+  const t = withAi();
+  t.instructor_subjects.push({ instructor_id: "me", subject_id: "web2", sort_order: 2 });
+  return t;
+};
+
+test("내 커리큘럼: 내 학과는 쌤톡 학과, 위쪽은 '선택 학과', 수업 설정에서 고른 과목이 한 줄 탭으로", async () => {
+  const { c } = await setup("mine", twoSubjects());
+  tabButton(c, "write").click();
+  const labels = [...c.querySelectorAll(".form-row .form-field > span")].map((s) => s.textContent);
+  assert.deepEqual(labels, ["내 학과", "선택 학과"]);
+  assert.deepEqual([...c.querySelector("[name=department]").options].map((o) => o.textContent), ["웹학과"]);
+  assert.deepEqual([...c.querySelectorAll(".subject-tabs button")].map((b) => b.textContent), ["웹1", "웹2"]);
+  assert.ok(findButton(c, "내 프로필 > 수업 설정에서 학과·과목 바꾸기"));
+  const row = c.querySelector(".subject-panel:not([hidden]) .step-row");
+  const order = [...row.children].map((x) => x.querySelector("span")?.textContent ?? x.textContent);
+  assert.deepEqual(order, ["단계", "개인 수업 커리큘럼", "커리큘럼 이미지", "단계 삭제"], "과목은 탭이 정한다");
+});
+
+test("등록하기: 과목 탭마다 단계를 쓰고(+ 단계 추가), 내용 있는 단계만 한 번에 승인 요청", async () => {
+  const { c, calls } = await setup("mine", twoSubjects());
+  tabButton(c, "write").click();
+  const visible = () => c.querySelector(".subject-panel:not([hidden])");
+  visible().querySelector("[name=written]").value = "웹1 첫 단계";
+  findButton(visible(), "+ 단계 추가").click();
+  const second = visible().querySelectorAll(".step-row")[1];
+  assert.equal(second.querySelector("[name=step_label]").value, "2단계");
+  second.querySelector("[name=written]").value = "웹1 둘째 단계";
+  findButton(second, "링크로 업로드").click();
+  const link = second.querySelector("input[type=url]");
+  link.value = "https://example.com/a.png";
+  link.dispatchEvent(new dom.window.Event("change"));
+  findButton(c.querySelector(".subject-tabs"), "웹2").click();
+  assert.equal(visible().querySelectorAll(".step-row").length, 1, "웹2 탭은 따로");
+  visible().querySelector("[name=written]").value = "웹2 첫 단계";
+  findButton(c.querySelector(".subject-tabs"), "웹1").click();
+  assert.equal(visible().querySelectorAll(".step-row").length, 2, "탭을 오가도 쓴 내용 유지");
+  submitForm(c);
+  await flush();
+  const sent = calls.filter(([n]) => n === "comsw_submit_my_curriculum")
+    .map(([, a]) => [a.p_subject_id, a.p_step_label, a.p_written, a.p_media_url]);
+  assert.deepEqual(sent, [
+    ["subject", "1단계", "웹1 첫 단계", ""],
+    ["subject", "2단계", "웹1 둘째 단계", "https://example.com/a.png"],
+    ["web2", "1단계", "웹2 첫 단계", ""],
+  ]);
+});
+
+test("등록하기: 아무것도 안 쓰면 제출하지 않고, 이미지만 넣은 단계는 내용을 쓰라고 그 과목 탭을 연다", async () => {
+  const { c, calls } = await setup("mine", twoSubjects());
+  tabButton(c, "write").click();
+  submitForm(c);
+  await flush();
+  assert.match(c.textContent, /커리큘럼 내용을 입력해주세요/);
+  findButton(c.querySelector(".subject-tabs"), "웹2").click();
+  const panel = c.querySelector(".subject-panel:not([hidden])");
+  findButton(panel, "링크로 업로드").click();
+  const link = panel.querySelector("input[type=url]");
+  link.value = "https://example.com/b.png";
+  link.dispatchEvent(new dom.window.Event("change"));
+  findButton(c.querySelector(".subject-tabs"), "웹1").click();
+  submitForm(c);
+  await flush();
+  assert.match(c.textContent, /웹2: 단계와 커리큘럼 내용을 모두 입력해주세요/);
+  assert.equal(c.querySelector(".subject-tabs .active").textContent, "웹2");
+  assert.equal(calls.filter(([n]) => n === "comsw_submit_my_curriculum").length, 0);
+});
+
+test("제목부터 탭까지 한 덩어리로 고정된다", async () => {
+  for (const page of ["mine", "profile"]) {
+    const { c } = await setup(page);
+    const head = c.querySelector(".page-head");
+    assert.ok(head.querySelector("h2") && head.querySelector(".tab-bar"), page);
+  }
 });

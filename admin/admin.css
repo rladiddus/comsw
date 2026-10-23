@@ -240,3 +240,21 @@ dialog.idle-dialog { width:min(420px,calc(100vw - 32px)); margin:auto; padding:2
 dialog.idle-dialog::backdrop { background:#0006; }
 dialog.idle-dialog h3 { margin:0 0 8px; }
 dialog.idle-dialog strong { color:var(--accent); }
+/* 등록하기: 과목 탭(한 줄, 많으면 가로 스크롤) + 탭 안 단계 줄(단계 | 내용 | 이미지 | 삭제) */
+.subject-tabs { display:flex; gap:6px; overflow-x:auto; margin:14px 0 4px; padding-bottom:6px; }
+.subject-tabs button { flex-shrink:0; padding:8px 16px; border:1px solid var(--line); border-radius:999px; background:#fff; color:#444; font-weight:600; cursor:pointer; white-space:nowrap; }
+.subject-tabs button.active { background:var(--accent); border-color:var(--accent); color:#fff; }
+.subject-panel .step-row { grid-template-columns:96px minmax(0,1fr) 420px auto; }
+@media (max-width:1000px) {
+  .subject-panel .step-row { grid-template-columns:96px auto; }
+  .subject-panel .step-row > .form-field:nth-of-type(2), .subject-panel .step-row > .step-media { grid-column:1 / -1; }
+}
+@media (max-width:640px) {
+  .subject-panel .step-row { grid-template-columns:1fr; }
+}
+/* 제목(내 커리큘럼·내 프로필)부터 탭까지 고정, 그 아래만 스크롤. 내용 안쪽 여백만큼 위로 붙인다. */
+.page-head { position:sticky; top:-32px; z-index:6; background:var(--bg); margin-top:-32px; padding-top:32px; }
+.page-head h2 { margin-top:0; }
+.page-head .tab-bar { position:static; margin-top:8px; }
+@media(max-width:1100px) { .page-head { top:-24px; margin-top:-24px; padding-top:24px; } }
+@media(max-width:900px) { .page-head { top:-20px; margin-top:-20px; padding-top:20px; } }

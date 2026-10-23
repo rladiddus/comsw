@@ -183,64 +183,89 @@ export async function render(container, ctx, { tab } = {}) {
       );
       return subjects.filter((s) => ids.includes(s.id) && myIds.has(s.id));
     };
-    const stepsBox = el("div", { className: "step-list" });
-    const steps = [];
-    function addStep(subjectId, label) {
-      const box = el("section", { className: "step-row" });
-      const [subject, subjectField] = select("과목", "subject_id");
-      options(subject, deptSubjects());
-      if (subjectId) subject.value = subjectId;
-      const stepInput = el("input", {
-        name: "step_label",
-        type: "text",
-        value: label,
-        maxLength: 80,
-        required: true,
-      });
-      const remove = el("button", {
+    // 과목마다 탭 하나. 탭 안에서 그 과목의 단계를 쓴다(과목이 많아도 아래로 길어지지 않게).
+    // 학과를 바꿔도 이미 쓴 과목 탭 내용은 남겨 두고, 제출은 지금 학과의 과목만 한다.
+    const subjectTabs = el("div", { className: "subject-tabs", role: "tablist" });
+    const panelsBox = el("div", { className: "subject-panels" });
+    const panels = new Map(); // 과목 id → { panel, steps }
+    let current = null;
+    function panelFor(subject) {
+      if (panels.has(subject.id)) return panels.get(subject.id);
+      const steps = [];
+      const list = el("div", { className: "step-list" });
+      const panel = el("section", { className: "subject-panel" });
+      const entry = { panel, steps, list };
+      function addStep(label) {
+        const box = el("section", { className: "step-row" });
+        const stepInput = el("input", {
+          name: "step_label",
+          type: "text",
+          value: label,
+          maxLength: 80,
+          required: true,
+        });
+        const remove = el("button", {
+          type: "button",
+          className: "ghost-btn danger",
+          textContent: "단계 삭제",
+        });
+        const written = el("textarea", {
+          name: "written",
+          rows: 5,
+          maxLength: 12000,
+          placeholder: "이 단계에서 배우는 내용과 결과물을 적어주세요.",
+        });
+        // 한 줄: 단계 | 개인 수업 커리큘럼 | 커리큘럼 이미지 | 삭제 (과목은 위 탭)
+        const mediaBox = el("div", { className: "step-media" });
+        box.append(
+          el("label", { className: "form-field" }, [
+            el("span", { textContent: "단계" }),
+            stepInput,
+          ]),
+          el("label", { className: "form-field" }, [
+            el("span", { textContent: "개인 수업 커리큘럼" }),
+            written,
+          ]),
+          mediaBox,
+          remove,
+        );
+        const step = { box, stepInput, written, media: mediaPicker(mediaBox) };
+        remove.addEventListener("click", () => {
+          if (steps.length === 1) {
+            setState("단계는 하나 이상 있어야 합니다", true);
+            return;
+          }
+          steps.splice(steps.indexOf(step), 1);
+          box.remove();
+        });
+        steps.push(step);
+        list.append(box);
+      }
+      const add = el("button", {
         type: "button",
-        className: "ghost-btn danger",
-        textContent: "단계 삭제",
+        className: "ghost-btn add-step",
+        textContent: "+ 단계 추가",
       });
-      const written = el("textarea", {
-        name: "written",
-        rows: 5,
-        maxLength: 12000,
-        required: true,
-        placeholder: "이 단계에서 배우는 내용과 결과물을 적어주세요.",
-      });
-      // 한 줄: 과목 | 단계 | 개인 수업 커리큘럼 | 커리큘럼 이미지 | 삭제
-      const mediaBox = el("div", { className: "step-media" });
-      box.append(
-        subjectField,
-        el("label", { className: "form-field" }, [
-          el("span", { textContent: "단계" }),
-          stepInput,
-        ]),
-        el("label", { className: "form-field" }, [
-          el("span", { textContent: "개인 수업 커리큘럼" }),
-          written,
-        ]),
-        mediaBox,
-        remove,
-      );
-      const media = mediaPicker(mediaBox);
-      const step = { box, subject, stepInput, written, media };
-      remove.addEventListener("click", () => {
-        if (steps.length === 1) {
-          setState("단계는 하나 이상 있어야 합니다", true);
-          return;
-        }
-        steps.splice(steps.indexOf(step), 1);
-        box.remove();
-      });
-      steps.push(step);
-      stepsBox.append(box);
+      add.addEventListener("click", () => addStep(nextStep(steps.at(-1)?.stepInput.value)));
+      panel.append(list, add);
+      addStep("1단계");
+      panels.set(subject.id, entry);
+      panelsBox.append(panel);
+      return entry;
+    }
+    function openSubject(id) {
+      current = id;
+      for (const [sid, { panel }] of panels) panel.hidden = sid !== id;
+      for (const b of subjectTabs.children) {
+        b.classList.toggle("active", b.dataset.subject === id);
+        b.setAttribute("aria-selected", String(b.dataset.subject === id));
+      }
     }
     const refill = () => {
+      const mine = deptSubjects();
       subjectHint.textContent = !myDeptList.length
         ? "내 학과가 없습니다. 수업 설정에서 학과를 추가해주세요."
-        : deptSubjects().length
+        : mine.length
         ? ""
         : "이 학과에서 고른 과목이 없습니다. 수업 설정에서 수업하는 과목을 체크해주세요.";
       options(
@@ -249,34 +274,25 @@ export async function render(container, ctx, { tab } = {}) {
           s.department_id === dept.value || s.department_id == null
         ),
       );
-      for (const s of steps) {
-        const keep = s.subject.value;
-        options(s.subject, deptSubjects());
-        if ([...s.subject.options].some((o) => o.value === keep)) {
-          s.subject.value = keep;
-        }
-      }
+      subjectTabs.replaceChildren(...mine.map((s) => {
+        panelFor(s);
+        const b = el("button", { type: "button", role: "tab", textContent: s.name });
+        b.dataset.subject = s.id;
+        b.addEventListener("click", () => openSubject(s.id));
+        return b;
+      }));
+      openSubject(mine.some((s) => s.id === current) ? current : mine[0]?.id ?? null);
     };
     refill();
     dept.addEventListener("change", refill);
-    addStep(null, "1단계");
-    const add = el("button", {
-      type: "button",
-      className: "ghost-btn add-step",
-      textContent: "+ 단계 추가",
-    });
-    add.addEventListener("click", () => {
-      const last = steps.at(-1);
-      addStep(last?.subject.value, nextStep(last?.stepInput.value));
-    });
     const send = el("button", {
       type: "submit",
       className: "publish-btn",
       textContent: "승인 요청하기",
     });
     form.append(
-      stepsBox,
-      add,
+      subjectTabs,
+      panelsBox,
       el("div", { className: "form-actions" }, [send]),
     );
     form.addEventListener("submit", async (e) => {
@@ -285,22 +301,32 @@ export async function render(container, ctx, { tab } = {}) {
       send.disabled = true;
       let sent = 0;
       try {
-        if (steps.some((s) => s.media.busy())) {
+        // 지금 학과의 과목 탭에서 내용을 쓴 단계만 보낸다(빈 단계는 건너뜀).
+        const filled = deptSubjects().flatMap((s) =>
+          (panels.get(s.id)?.steps ?? [])
+            .filter((st) => st.written.value.trim() || st.media.value())
+            .map((st) => ({ subject: s, st }))
+        );
+        if (filled.some(({ st }) => st.media.busy())) {
           throw new Error("이미지 업로드가 끝난 후 제출해주세요");
         }
-        const list = steps.map((s) => ({
-          set_id: set.value,
-          subject_id: s.subject.value,
-          step_label: s.stepInput.value.trim(),
-          written: s.written.value,
-          media_url: s.media.value(),
-        }));
-        if (
-          !set.value ||
-          list.some((r) => !r.subject_id || !r.step_label || !r.written.trim())
-        ) throw new Error("학과·과목·단계와 커리큘럼 내용을 모두 입력해주세요");
-        for (const row of list) {
-          await submit(row);
+        if (!set.value) throw new Error("선택 학과를 골라주세요");
+        if (!filled.length) throw new Error("커리큘럼 내용을 입력해주세요");
+        const missing = filled.find(({ st }) =>
+          !st.stepInput.value.trim() || !st.written.value.trim()
+        );
+        if (missing) {
+          openSubject(missing.subject.id);
+          throw new Error(`${missing.subject.name}: 단계와 커리큘럼 내용을 모두 입력해주세요`);
+        }
+        for (const { subject, st } of filled) {
+          await submit({
+            set_id: set.value,
+            subject_id: subject.id,
+            step_label: st.stepInput.value.trim(),
+            written: st.written.value,
+            media_url: st.media.value(),
+          });
           sent++;
         }
         await done(

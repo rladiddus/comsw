@@ -25,7 +25,8 @@ export function stateLine(container) {
     node.classList.toggle("err", error);
   };
 }
-// 화면 안 탭 막대만 붙인다(패널 배치는 호출하는 쪽). items: [[이름, 탭 글자, 패널]].
+// 화면 안 탭 막대를 붙인다(패널 배치는 호출하는 쪽). items: [[이름, 탭 글자, 패널]].
+// 지금까지 붙은 제목·안내와 탭을 한 덩어리(.page-head)로 묶어 스크롤해도 고정되게 한다.
 export function mountTabs(container, items, initial) {
   const bar = el("div", { className: "tab-bar", role: "tablist" });
   const open = (name) => {
@@ -41,7 +42,7 @@ export function mountTabs(container, items, initial) {
     b.addEventListener("click", () => open(name));
     bar.append(b);
   }
-  container.append(bar);
+  container.append(el("div", { className: "page-head" }, [...container.childNodes, bar]));
   open(initial ?? items[0][0]);
   return open;
 }

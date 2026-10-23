@@ -40,6 +40,7 @@ const data = {
   ],
   instructor_subjects: [
     { instructor_id: "demo-teacher", subject_id: "photoshop", sort_order: 1 },
+    { instructor_id: "demo-teacher", subject_id: "illustrator", sort_order: 2 },
     { instructor_id: "unlinked", subject_id: "web1", sort_order: 1 },
   ],
   instructor_curricula: [{

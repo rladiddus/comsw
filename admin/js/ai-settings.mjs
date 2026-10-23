@@ -36,6 +36,7 @@ export async function mountAiSettings(container, supabase) {
       week: "단계별 커리큘럼 요약",
       department: "학과별 커리큘럼 요약",
       roadmap: "로드맵 요약",
+      refine: "커리큘럼 다듬기",
       profile: "프로필 사진 지시문",
     };
     for (const [kind, defaultPrompt] of Object.entries(PROMPTS)) {

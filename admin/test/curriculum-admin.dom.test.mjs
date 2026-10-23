@@ -158,19 +158,55 @@ test("신청 과목: 저장소 이미지는 다시 자르고, 못 읽는 이미�
   assert.match(c2.textContent, /새로 올리기/);
 });
 
-test("학과 커리큘럼: 학과를 고르면 과목별 문구, 수정 → AI 생성 → 저장", async () => {
+test("학과 커리큘럼: 학과를 고르면 과목명/기간/요약/프로그램/학습 수준 줄, 수정 → AI 생성 → 저장", async () => {
   const { render } = await import("../js/pages/department-curriculum.mjs");
   const tables = data();
   configureServices({ summarize: async (kind, text) => ({ text: `${kind}:${text}` }) });
   const c = document.createElement("div");
   await render(c, { supabase: fakeSupabase(tables) });
-  const items = [...c.querySelectorAll(".dept-curriculum-item")];
-  assert.deepEqual(items.map((i) => i.querySelector("h4").textContent), ["포토샵", "일러스트"]);
+  assert.deepEqual([...c.querySelectorAll(".dept-curriculum-head span")].map((s) => s.textContent).filter(Boolean),
+    ["과목명", "기간", "학과별 커리큘럼 요약", "프로그램·준비물", "학습 수준"]);
+  const items = [...c.querySelectorAll(".dept-curriculum-row:not(.dept-curriculum-head)")];
+  assert.deepEqual(items.map((i) => i.querySelector(".cell-name input").value), ["포토샵", "일러스트"]);
+  assert.equal(items[0].querySelector(".cell-dept_curriculum textarea").value, "01 포토샵 기초\n02 합성");
   button(items[0], "수정").click();
   button(items[0], "AI 생성").click();
   await flush();
-  assert.equal(items[0].querySelector("textarea").value, "department:인터페이스와 레이어");
+  items[0].querySelector(".cell-duration input").value = "4주";
   button(items[0], "저장").click();
   await flush();
   assert.equal(tables.subjects[0].dept_curriculum, "department:인터페이스와 레이어");
+  assert.equal(tables.subjects[0].duration, "4주");
+});
+
+test("신청 과목: '커리큘럼 다듬기'는 원문 칸을 AI로 다듬는다", async () => {
+  const { render } = await import("../js/pages/curriculum-requests.mjs");
+  const asked = [];
+  configureServices({ summarize: async (kind, text) => { asked.push(kind); return { text: `다듬은 ${text}` }; } });
+  const c = document.createElement("div");
+  await render(c, { supabase: fakeSupabase(data()) });
+  button(c, "수정").click();
+  const row = c.querySelectorAll(".request-row:not(.request-head)")[0];
+  button(row, "커리큘럼 다듬기").click();
+  await flush();
+  assert.deepEqual(asked, ["refine"]);
+  assert.equal(row.querySelector("textarea").value, "다듬은 포토샵 기초 원문");
+});
+
+test("학과 커리큘럼 탭은 열 때마다 새로 그린다(신청 과목에서 적용한 문구가 바로 보이게)", async () => {
+  const { subpages } = await import("../js/subpages.mjs");
+  let n = 0;
+  const render = subpages("커리큘럼 관리", [
+    ["a", "신청 과목", async () => ({ render: () => {} })],
+    ["b", "학과 커리큘럼", async () => ({ render: (p) => p.append(`그림${++n}`) }), { fresh: true }],
+  ]);
+  const c = document.createElement("div");
+  await render(c, {});
+  for (let i = 0; i < 2; i++) {
+    button(c, "학과 커리큘럼").click();
+    await flush();
+    button(c, "신청 과목").click();
+  }
+  assert.equal(n, 2);
+  assert.equal(c.querySelectorAll(".subpage")[1].textContent, "그림2");
 });

@@ -226,11 +226,12 @@ configureServices({
     url: kind === "profile-source" ? null : URL.createObjectURL(file),
   }),
   // 화면 확인용 AI(실제 호출 없음): 종류별 예시 문장.
-  summarize: async (kind) => ({
+  summarize: async (kind, source) => ({
     text: {
       week: "기본 도구와 레이어를 활용한 포스터 제작 (예시 요약)",
       department: "01 포토샵 기본 툴과 레이어 이해 (예시)\n02 마스크·보정으로 사진 합성 (예시)",
       roadmap: "툴 기초 다지기\n사진 합성 입문",
+      refine: `${String(source).trim()} (맞춤법·말투를 다듬은 예시)`,
     }[kind] ?? "예시 문장",
     cached: false,
   }),

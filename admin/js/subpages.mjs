@@ -5,11 +5,16 @@ import { el, mountTabs } from "./teacher-workspace.mjs";
 export function subpages(title, tabs) {
   return async function render(container, ctx) {
     container.append(el("h2", { textContent: title }));
-    const panels = tabs.map(([id, label, load]) => ({ id, label, load, panel: el("div", { className: "subpage" }) }));
+    // fresh: 열 때마다 새로 그린다(다른 탭에서 바꾼 내용이 바로 보이게).
+    const panels = tabs.map(([id, label, load, opts = {}]) => ({ id, label, load, fresh: opts.fresh, panel: el("div", { className: "subpage" }) }));
     const rendering = new Map();
     const open = (id) => {
       const t = panels.find((p) => p.id === id);
       if (!t) return null;
+      if (t.fresh && rendering.has(id)) {
+        rendering.delete(id);
+        t.panel.replaceChildren();
+      }
       if (!rendering.has(id)) rendering.set(id, t.load().then((mod) => mod.render(t.panel, ctx)));
       return rendering.get(id);
     };

@@ -75,6 +75,21 @@ export async function render(container, { supabase, crop = cropImageToSquare, fe
       const written = el("textarea", { value: r.written ?? "", rows: 4, readOnly: true });
       const summary = el("textarea", { value: r.summary ?? "", rows: 2, readOnly: true, placeholder: "AI 요약 또는 직접 작성" });
       const aiBtn = el("button", { type: "button", className: "ghost-btn ai-btn", textContent: "AI 요약", hidden: true });
+      // 커리큘럼 다듬기: 선생님 원문을 AI로 맞춤법·말투만 다듬어 원문 칸을 바꾼다(내용은 그대로).
+      const refineBtn = el("button", { type: "button", className: "ghost-btn ai-btn", textContent: "커리큘럼 다듬기", hidden: true });
+      refineBtn.addEventListener("click", async () => {
+        refineBtn.disabled = true;
+        try {
+          if (!written.value.trim()) throw new Error("커리큘럼 원문을 먼저 입력해주세요");
+          setState("커리큘럼을 다듬는 중…");
+          written.value = await ai("refine", written.value);
+          setState("커리큘럼을 다듬었습니다. 확인 후 '저장'을 눌러주세요.");
+        } catch (e) {
+          setState(e.message, true);
+        } finally {
+          refineBtn.disabled = false;
+        }
+      });
       aiBtn.addEventListener("click", async () => {
         aiBtn.disabled = true;
         try {
@@ -138,7 +153,7 @@ export async function render(container, { supabase, crop = cropImageToSquare, fe
         el("div", { className: "request-cell" }, [step]),
         el("div", { className: "request-cell request-text" }, [
           written,
-          el("div", { className: "request-summary" }, [summary, aiBtn]),
+          el("div", { className: "request-summary" }, [summary, aiBtn, refineBtn]),
         ]),
         el("div", { className: "request-cell request-image" }, [thumb, recrop, upload]),
       ]);
@@ -146,7 +161,7 @@ export async function render(container, { supabase, crop = cropImageToSquare, fe
         line,
         setEditing(on) {
           step.readOnly = written.readOnly = summary.readOnly = !on;
-          aiBtn.hidden = recrop.hidden = upload.hidden = !on;
+          aiBtn.hidden = refineBtn.hidden = recrop.hidden = upload.hidden = !on;
           recrop.hidden = !on || !media;
         },
         values: () => ({ step_label: step.value.trim(), written: written.value, summary: summary.value.trim() || null, media_url: media || null }),

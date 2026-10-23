@@ -390,7 +390,8 @@ dialog.idle-dialog strong { color:var(--accent); }
 .request-cell input, .request-cell textarea { width:100%; padding:8px 10px; border:1px solid #d9dde4; border-radius:8px; }
 .request-cell input[readonly], .request-cell textarea[readonly] { background:#f6f7f9; border-color:transparent; resize:none; }
 .request-text { display:flex; flex-direction:column; gap:8px; }
-.request-summary { display:flex; gap:8px; align-items:flex-start; }
+.request-summary { display:flex; gap:8px; align-items:flex-start; flex-wrap:wrap; }
+.request-summary .ai-btn { margin-top:0; white-space:nowrap; }
 .request-summary textarea { flex:1; }
 .request-image { display:flex; flex-direction:column; gap:8px; align-items:flex-start; }
 .compare-row { display:grid; grid-template-columns:1fr 1fr; gap:16px; }
@@ -399,15 +400,22 @@ dialog.idle-dialog strong { color:var(--accent); }
 .compare-block { border-top:1px solid var(--line); padding-top:10px; margin-top:10px; }
 .compare-block:first-of-type { border-top:0; margin-top:0; padding-top:0; }
 .compare-block h4 { margin:0 0 4px; }
-.request-apply { position:sticky; bottom:0; background:var(--bg); padding:12px 0; }
-/* 커리큘럼 관리 > 학과 커리큘럼 */
-.dept-curriculum { display:grid; grid-template-columns:repeat(auto-fill,minmax(360px,1fr)); gap:12px; margin-top:8px; }
-.dept-curriculum-item { background:#fff; border:1px solid var(--line); border-radius:12px; padding:14px; display:flex; flex-direction:column; gap:8px; }
-.dept-curriculum-item h4 { margin:0; }
-.dept-curriculum-item textarea { width:100%; padding:8px 10px; border:1px solid #d9dde4; border-radius:8px; }
-.dept-curriculum-item textarea[readonly] { background:#f6f7f9; border-color:transparent; resize:none; }
-.dept-curriculum-item .media-actions { justify-content:flex-end; }
+.request-apply { padding:4px 0 12px; }
+/* 커리큘럼 관리 > 학과 커리큘럼: 과목명 / 기간 / 학과별 커리큘럼 요약 / 프로그램·준비물 / 학습 수준 */
+.dept-curriculum-table { background:#fff; border:1px solid var(--line); border-radius:14px; padding:4px 16px; margin-top:8px; }
+.dept-curriculum-row { display:grid; grid-template-columns:140px 110px minmax(0,1.4fr) minmax(0,1fr) 110px 80px; gap:12px; align-items:start; padding:12px 0; border-bottom:1px solid var(--line); }
+.dept-curriculum-row:last-child { border-bottom:0; }
+.dept-curriculum-head { font-weight:700; font-size:12px; color:var(--muted); padding:10px 0; }
+.dept-cell { display:flex; flex-direction:column; gap:6px; min-width:0; }
+.dept-cell .cell-label { display:none; font-size:12px; font-weight:700; color:var(--muted); }
+.dept-cell input, .dept-cell textarea { width:100%; padding:8px 10px; border:1px solid #d9dde4; border-radius:8px; }
+.dept-cell input[readonly], .dept-cell textarea[readonly] { background:#f6f7f9; border-color:transparent; resize:none; }
+.dept-cell .ai-btn { align-self:flex-start; margin:0; }
+.cell-actions { align-items:flex-end; }
 @media (max-width:1000px) {
+  .dept-curriculum-row { grid-template-columns:1fr 1fr; }
+  .dept-curriculum-head { display:none; }
+  .dept-cell .cell-label { display:block; }
   .request-row { grid-template-columns:1fr 1fr; }
   .request-head { display:none; }
   .compare-row { grid-template-columns:1fr; }

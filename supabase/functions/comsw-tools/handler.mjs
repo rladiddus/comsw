@@ -247,7 +247,7 @@ export function createHandler(
       }
       if (body.action === "summarize") {
         if (
-          !["week", "department", "roadmap"].includes(body.kind) ||
+          !["week", "department", "roadmap", "refine"].includes(body.kind) ||
           !member.manager
         ) throw new Error("요약 권한이 없습니다");
         const text = String(body.text || "").trim();
@@ -256,6 +256,8 @@ export function createHandler(
           throw new Error("요약할 원문은 12,000자 이하로 입력해주세요");
         }
         const model = "gpt-4.1-mini";
+        // 다듬기는 원문 전체를 돌려주므로 출력을 더 길게 허용한다(예산 예약도 그만큼).
+        const outputTokens = body.kind === "refine" ? 2000 : 512;
         const key = await digest(
           JSON.stringify([model, body.kind, prompt, text]),
         );
@@ -263,13 +265,13 @@ export function createHandler(
           await withBudget(
             body.kind,
             key,
-            summaryReservation(prompt, text, fx),
+            summaryReservation(prompt, text, fx, outputTokens),
             async () => {
               const data = await openai("responses", {
                 model,
                 instructions: prompt,
                 input: text,
-                max_output_tokens: 512,
+                max_output_tokens: outputTokens,
                 store: false,
               });
               const summary = (data.output || []).flatMap((o) =>

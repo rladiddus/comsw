@@ -365,12 +365,13 @@ dialog.idle-dialog strong { color:var(--accent); }
 .card-links .chip { flex-shrink:0; white-space:nowrap; }
 .card-item.collapsed .card-links { min-height:0; flex-wrap:wrap; }
 .card-item.collapsed .card-line:has(.card-links) { flex:1 1 260px; min-width:0; flex-wrap:wrap; }
-/* 강사 사진: 세로로 길게(좌우는 조금 잘림, 얼굴이 보이게 위쪽 기준) */
+/* 강사 사진: 연노란 파스텔 배경. 사진은 칸 높이에 꼭 맞추고(위아래는 안 자름), 칸보다 넓으면 좌우만 잘린다. */
 .card-item.stage-portrait { grid-template-columns:28px 220px minmax(0,1fr); }
-.card-item.stage-portrait .card-stage { aspect-ratio:3/4; align-self:start; min-height:0; }
-.card-item.stage-portrait .card-stage > img { object-fit:cover; object-position:center top; }
-.card-item.stage-portrait.collapsed { grid-template-columns:28px 84px minmax(0,1fr); align-items:start; }
-.card-item.stage-portrait.collapsed .card-stage { height:auto; aspect-ratio:3/4; }
+.card-item.stage-portrait .card-stage { background:#fff6cc; aspect-ratio:3/4; align-self:start; min-height:0; }
+.card-item.stage-portrait .card-stage > img { position:absolute; top:0; left:50%; height:100%; width:auto; max-width:none; transform:translateX(-50%); object-fit:initial; }
+.card-item.stage-portrait.collapsed { grid-template-columns:28px 110px minmax(0,1fr); align-items:stretch; }
+.card-item.stage-portrait.collapsed .card-stage { aspect-ratio:auto; align-self:stretch; height:auto; min-height:72px; }
 @media (max-width:900px) {
   .card-item.stage-portrait { grid-template-columns:24px 140px minmax(0,1fr); }
 }
+.card-item.stage-portrait .card-stage > .muted { color:#9a8440; font-size:11px; }

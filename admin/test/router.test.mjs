@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { NAV, navFor, routeFrom } from "../js/router.mjs";
 
 test("메뉴 순서와 준비 상태", () => {
-  assert.deepEqual(NAV.map(n => n.id), ["settings", "seminars", "departments", "subjects", "roadmap", "prep", "instructors", "curricula", "curriculum-admin", "recruitment", "vacation", "mine", "profile"]);
+  assert.deepEqual(NAV.map(n => n.id), ["settings", "instructors", "departments", "curriculum-admin", "curricula", "roadmap", "prep", "seminars", "vacation", "recruitment", "subjects", "mine", "profile"]);
   assert.ok(NAV.every(n => n.ready));
 });
 

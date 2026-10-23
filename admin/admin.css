@@ -479,3 +479,7 @@ dialog.roadmap-source::backdrop { background:rgba(0,0,0,.45); }
 .roadmap-source-item { border-top:1px solid var(--line); padding-top:8px; }
 @media (max-width: 900px) { .roadmap-track { grid-template-columns:20px minmax(0,1fr); } .roadmap-track .roadmap-steps { grid-column:1 / -1; } }
 .prep-subject { margin-top:18px; }
+/* 순서를 못 바꾸는 카드 목록(강사 커리큘럼): ⠿ 칸 없이 */
+.card-item.no-sort { grid-template-columns:minmax(240px,380px) minmax(0,1fr); padding-left:16px; }
+.card-item.no-sort.collapsed { grid-template-columns:128px minmax(0,1fr); padding-left:12px; }
+@media (max-width:900px) { .card-item.no-sort { grid-template-columns:minmax(0,1fr); } .card-item.no-sort .card-side { grid-column:1; } }

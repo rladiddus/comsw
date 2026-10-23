@@ -12,7 +12,7 @@ const el = (tag, props = {}, children = []) => {
 
 // 학과별 강사 커리큘럼(승인된 줄 = 사이트에 나오는 줄). 방학 특강 세트는 '방학 특강' 화면에서 고친다.
 // 위에서 학과 탭·강사·과목 중 고른 것으로 검색하고(아무것도 안 고르면 전체), 아래 카드에서 고친다.
-// 순서는 학과 탭마다 따로라서, 검색 결과에 학과 탭이 하나일 때만 끌어 옮길 수 있다.
+// 순서는 바꾸지 않는다(⠿ 없음, 사용자 요청). 보이는 순서 = 학과 탭 순서 → 탭 안의 순서.
 export async function render(container, { supabase }) {
   container.append(el("h2", { textContent: "강사 커리큘럼" }));
   const [{ data: sets }, { data: settings }, { data: depts }, { data: instructors }, { data: subjects }] = await Promise.all([
@@ -72,7 +72,7 @@ export async function render(container, { supabase }) {
   const editor = await mountCardList(list, {
     supabase,
     table: "instructor_curricula",
-    description: "사이트에 나오는 커리큘럼입니다. 왼쪽 ⠿를 끌어 놓은 순서가 사이트 순서입니다(학과 탭 하나를 고르고 검색했을 때).",
+    description: "사이트에 나오는 커리큘럼입니다.",
     imageKey: "media_url",
     imageLabel: "이미지·영상",
     activeKey: null,
@@ -83,7 +83,7 @@ export async function render(container, { supabase }) {
         (setOrder.get(a.set_id) ?? 999) - (setOrder.get(b.set_id) ?? 999) ||
         (a.sort_order ?? Infinity) - (b.sort_order ?? Infinity)
       ),
-    orderScope: (row) => row.set_id,
+    sortable: false,
     canAdd: () => setPick.value ? true : "새 커리큘럼은 학과 탭을 고르고 검색한 뒤 추가해주세요",
     fields: [
       { key: "set_id", label: "학과 탭", type: "select", options: () => tabs.map((s) => [s.id, s.name]) },

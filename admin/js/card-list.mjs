@@ -65,6 +65,7 @@ export async function mountCardList(container, {
   query = (q) => q, // 불러올 조건
   sortRows = (rows) => rows, // 보이는 순서
   orderScope = null, // 순서를 따로 매기는 묶음(예: 학과 탭). 보이는 줄의 묶음이 하나일 때만 끌어 옮길 수 있다.
+  sortable = true, // false면 ⠿ 손잡이 없이 순서를 못 바꾼다.
   canAdd = () => true, // true 또는 못 더하는 이유
   activeLabel = "사용",
   stageClass = "",
@@ -357,8 +358,8 @@ export async function mountCardList(container, {
         fold,
       ]),
     ]);
-    const box = el("article", { className: `card-item image-${imageSide}${stageClass ? ` stage-${stageClass}` : ""}` }, [
-      handle,
+    const box = el("article", { className: `card-item image-${imageSide}${stageClass ? ` stage-${stageClass}` : ""}${sortable ? "" : " no-sort"}` }, [
+      ...(sortable ? [handle] : []),
       ...(imageSide === "right" ? [side, stage] : [stage, side]),
     ]);
     const setFolded = (on) => {
@@ -370,6 +371,7 @@ export async function mountCardList(container, {
     };
     fold.addEventListener("click", () => setFolded(!box.classList.contains("collapsed")));
     setFolded(collapsed.has(row.id));
+    if (!sortable) return box;
     // 끌어서 순서 바꾸기: 손잡이를 잡았을 때만 줄 전체가 끌린다.
     handle.addEventListener("pointerdown", () => { box.draggable = dragOk; });
     box.addEventListener("dragstart", (e) => {

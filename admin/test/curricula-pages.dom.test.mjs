@@ -155,7 +155,7 @@ test("강사 커리큘럼: 방학 특강·승인 대기는 빼고, 학과 탭 �
   assert.deepEqual(lines(c), ["set-ps/i2/s1", "set-web/i1/s2", "set-web/i2/s2"]);
   const card = c.querySelector(".card-item");
   assert.ok(card.classList.contains("collapsed"));
-  assert.deepEqual([...card.children].map(x => x.className.split(" ")[0]), ["drag-handle", "card-stage", "card-side"]);
+  assert.deepEqual([...card.children].map(x => x.className.split(" ")[0]), ["card-stage", "card-side"]);
   assert.match(c.textContent, /3개/);
 });
 
@@ -173,21 +173,18 @@ test("강사 커리큘럼: 학과 탭·강사·과목 하나만 골라도 검색
   assert.deepEqual(lines(c), ["set-ps/i2/s1", "set-web/i1/s2", "set-web/i2/s2"]);
 });
 
-test("강사 커리큘럼: 학과 탭이 섞이면 끌기 막고, 한 탭이면 그 탭 순서만 바꾼다", async () => {
+test("강사 커리큘럼: 순서 바꾸기 손잡이(⠿)가 없고 끌어도 순서가 그대로", async () => {
   const { c, tables } = await renderPage("../js/pages/curricula.mjs", curData());
-  assert.ok(c.querySelector(".card-item .drag-handle").classList.contains("off"));
   await searchBy(c, { set: "set-web" });
+  assert.equal(c.querySelector(".drag-handle"), null);
   const cards = [...c.querySelectorAll(".card-item")];
-  assert.ok(!cards[0].querySelector(".drag-handle").classList.contains("off"));
+  assert.ok(cards.every(x => x.classList.contains("no-sort")));
   const ev = (type) => Object.assign(new dom.window.Event(type), { dataTransfer: { setData() {} } });
   cards[1].dispatchEvent(ev("dragstart"));
   cards[0].dispatchEvent(ev("drop"));
   await flush();
-  const order = (id) => tables.instructor_curricula.find(r => r.id === id).sort_order;
-  assert.ok(order("c2") < order("c1"));
-  assert.equal(order("c5"), 0, "다른 학과 탭은 그대로");
-  assert.equal(order("c4"), 0, "방학 특강은 그대로");
-  assert.deepEqual(lines(c), ["set-web/i2/s2", "set-web/i1/s2"]);
+  assert.equal(tables.instructor_curricula.find(r => r.id === "c1").sort_order, 0);
+  assert.deepEqual(lines(c), ["set-web/i1/s2", "set-web/i2/s2"]);
 });
 
 test("새 커리큘럼은 학과 탭을 골라 검색해야 추가되고, 고른 탭·강사·승인 상태로 들어간다", async () => {

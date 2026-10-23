@@ -403,7 +403,7 @@ dialog.idle-dialog strong { color:var(--accent); }
 .request-apply { padding:4px 0 12px; }
 /* 커리큘럼 관리 > 학과 커리큘럼: 과목명 / 기간 / 학과별 커리큘럼 요약 / 프로그램·준비물 / 학습 수준 */
 .dept-curriculum-table { background:#fff; border:1px solid var(--line); border-radius:14px; padding:4px 16px; margin-top:8px; }
-.dept-curriculum-row { display:grid; grid-template-columns:140px 110px minmax(0,1.4fr) minmax(0,1fr) 110px 80px; gap:12px; align-items:start; padding:12px 0; border-bottom:1px solid var(--line); }
+.dept-curriculum-row { display:grid; grid-template-columns:24px 140px 110px minmax(0,1.4fr) minmax(0,1fr) 130px 80px; gap:12px; align-items:start; padding:12px 0; border-bottom:1px solid var(--line); }
 .dept-curriculum-row:last-child { border-bottom:0; }
 .dept-curriculum-head { font-weight:700; font-size:12px; color:var(--muted); padding:10px 0; }
 .dept-cell { display:flex; flex-direction:column; gap:6px; min-width:0; }
@@ -413,10 +413,18 @@ dialog.idle-dialog strong { color:var(--accent); }
 .dept-cell .ai-btn { align-self:flex-start; margin:0; }
 .cell-actions { align-items:flex-end; }
 @media (max-width:1000px) {
-  .dept-curriculum-row { grid-template-columns:1fr 1fr; }
+  .dept-curriculum-row { grid-template-columns:24px 1fr 1fr; }
   .dept-curriculum-head { display:none; }
   .dept-cell .cell-label { display:block; }
   .request-row { grid-template-columns:1fr 1fr; }
   .request-head { display:none; }
   .compare-row { grid-template-columns:1fr; }
 }
+/* 학과 커리큘럼: 끌어 옮기기, 고정 칸, 학습 수준 별 드롭다운 */
+.dept-curriculum-row .drag-handle { align-self:center; }
+.dept-curriculum-row .drag-handle.off { cursor:default; }
+.dept-curriculum-row.dragging { opacity:.5; }
+.dept-curriculum-row.drag-over { outline:2px dashed var(--accent); outline-offset:2px; }
+.dept-cell select { width:100%; padding:8px 10px; border:1px solid #d9dde4; border-radius:8px; background:#fff; letter-spacing:1px; color:#f2a20c; }
+.dept-cell select:disabled { background:#f6f7f9; border-color:transparent; opacity:1; -webkit-appearance:none; appearance:none; }
+.dept-others { margin:14px 0 0; font-weight:600; }

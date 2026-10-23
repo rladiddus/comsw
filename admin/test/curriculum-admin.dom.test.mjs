@@ -160,25 +160,57 @@ test("신청 과목: 저장소 이미지는 다시 자르고, 못 읽는 드라�
   assert.equal(button(c2, "커리큘럼 다듬기"), undefined);
 });
 
-test("학과 커리큘럼: 학과를 고르면 과목명/기간/요약/프로그램/학습 수준 줄, 수정 → AI 생성 → 저장", async () => {
-  const { render } = await import("../js/pages/department-curriculum.mjs");
+test("학과 커리큘럼: 요약은 보기만, '수정'은 프로그램·준비물과 학습 수준(별 다섯 단계)만, AI 생성 버튼 없음", async () => {
+  const { render, LEVELS } = await import("../js/pages/department-curriculum.mjs");
   const tables = data();
-  configureServices({ summarize: async (kind, text) => ({ text: `${kind}:${text}` }) });
+  tables.subjects[0].level = "★★★☆☆";
   const c = document.createElement("div");
   await render(c, { supabase: fakeSupabase(tables) });
   assert.deepEqual([...c.querySelectorAll(".dept-curriculum-head span")].map((s) => s.textContent).filter(Boolean),
     ["과목명", "기간", "학과별 커리큘럼 요약", "프로그램·준비물", "학습 수준"]);
   const items = [...c.querySelectorAll(".dept-curriculum-row:not(.dept-curriculum-head)")];
   assert.deepEqual(items.map((i) => i.querySelector(".cell-name input").value), ["포토샵", "일러스트"]);
-  assert.equal(items[0].querySelector(".cell-dept_curriculum textarea").value, "01 포토샵 기초\n02 합성");
+  assert.equal(button(c, "AI 생성"), undefined);
+  const level = items[0].querySelector(".cell-level select");
+  assert.deepEqual([...level.options].map((o) => o.value), ["", ...LEVELS]);
+  assert.equal(level.value, "★★★☆☆");
   button(items[0], "수정").click();
-  button(items[0], "AI 생성").click();
-  await flush();
-  items[0].querySelector(".cell-duration input").value = "4주";
+  assert.ok(items[0].querySelector(".cell-name input").readOnly, "과목명은 고정");
+  assert.ok(items[0].querySelector(".cell-dept_curriculum textarea").readOnly, "요약은 고정");
+  items[0].querySelector(".cell-program textarea").value = "포토샵 2024";
+  level.value = "★★★★★";
   button(items[0], "저장").click();
   await flush();
-  assert.equal(tables.subjects[0].dept_curriculum, "department:인터페이스와 레이어");
-  assert.equal(tables.subjects[0].duration, "4주");
+  assert.equal(tables.subjects[0].program, "포토샵 2024");
+  assert.equal(tables.subjects[0].level, "★★★★★");
+  assert.equal(tables.subjects[0].dept_curriculum, "01 포토샵 기초\n02 합성");
+});
+
+test("학과 커리큘럼 순서: 학과 과목만 옮기고 다른 학과 과목 자리와 순서 없는 과목은 그대로", async () => {
+  const { deptReorderUpdates } = await import("../js/pages/department-curriculum.mjs");
+  const subjects = [
+    { id: "a", sort_order: 0 }, { id: "x", sort_order: 1 }, { id: "b", sort_order: 2 }, { id: "c", sort_order: 3 }, { id: "z", sort_order: null },
+  ];
+  assert.deepEqual(deptReorderUpdates(subjects, ["a", "b", "c"], 2, 0), [{ id: "c", sort_order: 0 }, { id: "a", sort_order: 2 }, { id: "b", sort_order: 3 }]);
+  assert.deepEqual(deptReorderUpdates(subjects, ["a", "b", "c"], 1, 1), []);
+});
+
+test("학과 커리큘럼: ⠿로 끌어 놓으면 순서를 저장하고, 순서 없는 과목은 끌 수 없다", async () => {
+  const { render } = await import("../js/pages/department-curriculum.mjs");
+  const tables = data();
+  tables.subjects.push({ id: "s4", name: "기타과목", sort_order: null });
+  tables.subject_departments.push({ subject_id: "s4", department_id: "d1" });
+  const c = document.createElement("div");
+  await render(c, { supabase: fakeSupabase(tables) });
+  const items = () => [...c.querySelectorAll(".dept-curriculum-row:not(.dept-curriculum-head)")];
+  assert.equal(items().length, 3);
+  assert.ok(items()[2].querySelector(".drag-handle.off"), "순서 없는 과목은 손잡이 없음");
+  items()[1].querySelector(".drag-handle").dispatchEvent(new dom.window.Event("pointerdown"));
+  items()[1].dispatchEvent(new dom.window.Event("dragstart"));
+  items()[0].dispatchEvent(new dom.window.Event("drop", { cancelable: true }));
+  await flush();
+  assert.deepEqual(items().map((i) => i.querySelector(".cell-name input").value), ["일러스트", "포토샵", "기타과목"]);
+  assert.equal(tables.subjects.find((s) => s.id === "s2").sort_order, 0);
 });
 
 test("학과 커리큘럼 탭은 열 때마다 새로 그린다(신청 과목에서 적용한 문구가 바로 보이게)", async () => {

@@ -139,12 +139,41 @@ const pick = async (c, value) => {
 
 
 
-test("준비물: 고른 과목의 준비물만 보이고 새 줄은 그 과목으로", async () => {
-  const { c, supabase } = await renderPage("../js/pages/prep.mjs", more());
-  await pick(c, "s1");
-  assert.equal(c.querySelectorAll("table.editor tbody tr").length, 1);
-  assert.equal(c.querySelector("table.editor tbody textarea").value, "멘토 포토샵");
-  [...c.querySelectorAll(".editor-bar button")].find(b => b.textContent === "+ 추가").click();
+const prepData = () => Object.assign(more(), {
+  course_prep_items: [
+    { id: "c1", subject_id: "s1", category: "textbook", content: "멘토 포토샵", sort_order: 0 },
+    { id: "c2", subject_id: "s1", category: "supply", content: "이어폰", sort_order: 1 },
+    { id: "c3", subject_id: "s2", category: "supply", content: "마우스", sort_order: 0 },
+    { id: "c4", subject_id: "s2", category: "supply", content: "USB", sort_order: 1 },
+  ],
+});
+const openTab = async (c, label) => {
+  [...c.querySelectorAll("[role=tab]")].find(t => t.textContent === label).click();
+  await flush();
+};
+const shownPanel = (c) => [...c.querySelectorAll(".subpage")].find(p => !p.hidden);
+const prepCards = (c) => [...shownPanel(c).querySelectorAll(".card-item")].map(x => x.querySelector("textarea").value);
+
+test("준비물: 교재 / 준비물 / AI 툴 탭, 그 분류가 있는 과목만 목록에", async () => {
+  const { c } = await renderPage("../js/pages/prep.mjs", prepData());
+  assert.deepEqual([...c.querySelectorAll("[role=tab]")].map(t => t.textContent), ["교재", "준비물", "AI 툴"]);
+  assert.deepEqual([...shownPanel(c).querySelector(".picker select").options].map(o => o.textContent), ["포토샵"]);
+  assert.deepEqual(prepCards(c), ["멘토 포토샵"]);
+  await openTab(c, "준비물");
+  assert.deepEqual([...shownPanel(c).querySelector(".picker select").options].map(o => o.textContent), ["웹1", "포토샵"]);
+  assert.deepEqual(prepCards(c), ["마우스", "USB"]);
+  await openTab(c, "AI 툴");
+  assert.match(shownPanel(c).textContent, /AI 툴 항목이 있는 과목이 없습니다/);
+});
+
+test("준비물: 카드는 분류·내용·링크·정가·설명, 수정 때 분류는 못 고치고 새 항목은 그 과목·분류로", async () => {
+  const { c, supabase } = await renderPage("../js/pages/prep.mjs", prepData());
+  const card = shownPanel(c).querySelector(".card-item");
+  assert.deepEqual([...card.querySelectorAll(".card-line > span")].map(s => s.textContent).slice(0, 4), ["분류", "내용", "링크", "정가·설명"]);
+  [...card.querySelectorAll("button")].find(b => b.textContent === "수정").click();
+  assert.ok(card.querySelector("select").disabled, "분류는 잠김");
+  assert.equal(card.querySelector("textarea").readOnly, false);
+  [...shownPanel(c).querySelectorAll(".editor-bar button")].find(b => b.textContent === "+ 추가").click();
   await flush();
   const ins = supabase.calls.filter(x => x[0] === "insert").at(-1);
   assert.equal(ins[1], "course_prep_items");
@@ -152,15 +181,13 @@ test("준비물: 고른 과목의 준비물만 보이고 새 줄은 그 과목�
   assert.equal(ins[2].category, "textbook");
 });
 
-test("준비물: 과목 목록에는 준비물이 있는 과목만, 나머지는 '+ 다른 과목'에서 골라 시작", async () => {
-  const { c } = await renderPage("../js/pages/prep.mjs", more());
-  assert.deepEqual([...c.querySelector(".picker select").options].map(o => o.textContent), ["포토샵"]);
-  const other = c.querySelector('select[aria-label="다른 과목"]');
-  assert.deepEqual([...other.options].map(o => o.textContent), ["+ 다른 과목", "웹1", "캐드"]);
-  other.value = "s3";
-  other.dispatchEvent(new dom.window.Event("change"));
+test("준비물: 과목의 항목을 다 지우면 그 과목은 목록에서 빠진다", async () => {
+  const { c } = await renderPage("../js/pages/prep.mjs", prepData());
+  globalThis.confirm = () => true;
+  [...shownPanel(c).querySelectorAll("button")].find(b => b.textContent === "삭제").click();
   await flush();
-  assert.equal(c.querySelectorAll("table.editor tbody tr").length, 0, "캐드는 아직 준비물 없음");
+  globalThis.confirm = msg => { lastConfirm = msg; return false; };
+  assert.match(shownPanel(c).textContent, /교재 항목이 있는 과목이 없습니다/);
 });
 
 test("채용 공고: 고른 학과의 공고만, 14칸", async () => {

@@ -53,6 +53,34 @@ test("선생님은 자기 프로그램·준비물만 함수로 저장하고, 승
   assert.equal((await subject(db, subjectId)).tools, "Photoshop\nIllustrator");
 });
 
+test("승인하면 선생님 준비물 중 수업별 준비물에 없는 것만 '준비물' 분류로 맨 뒤에 들어간다", async () => {
+  const { db, subjectId, setId } = await setup();
+  await as(db, null);
+  await db.query(`delete from course_prep_items where subject_id = $1`, [subjectId]);
+  await db.query(`insert into course_prep_items(subject_id, category, content, sort_order) values ($1, 'textbook', '멘토시리즈 포토샵', 5)`, [subjectId]);
+  await as(db, "authenticated", TEACHER);
+  await db.query(`select comsw_save_my_materials($1, '', $2)`, [subjectId, "멘토시리즈  포토샵, 이어폰\n마우스, 이어폰"]);
+  const submit = async (step) => (await db.query(
+    `select comsw_submit_my_curriculum($1, $2, $3, '원문', '', '') id`, [setId, subjectId, step])).rows[0].id;
+  const first = await submit("1단계");
+  await as(db, "authenticated", ADMIN);
+  await db.query(`select comsw_approve_curriculum($1)`, [first]);
+  const items = async () => {
+    await as(db, null);
+    return (await db.query(`select category, content, sort_order from course_prep_items where subject_id = $1 order by sort_order`, [subjectId])).rows;
+  };
+  assert.deepEqual(await items(), [
+    { category: "textbook", content: "멘토시리즈 포토샵", sort_order: 5 },
+    { category: "supply", content: "이어폰", sort_order: 6 },
+    { category: "supply", content: "마우스", sort_order: 7 },
+  ]);
+  await as(db, "authenticated", TEACHER);
+  const second = await submit("2단계");
+  await as(db, "authenticated", ADMIN);
+  await db.query(`select comsw_approve_curriculum($1)`, [second]);
+  assert.equal((await items()).length, 3, "다시 승인해도 두 번 들어가지 않는다");
+});
+
 test("다른 강사의 프로그램·준비물은 선생님에게 안 보인다", async () => {
   const { db, subjectId } = await setup();
   await as(db, null);

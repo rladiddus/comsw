@@ -48,7 +48,8 @@ export function reorderUpdates(rows, from, to) {
 // 줄마다 [⠿ 끌어 옮기기 | 이미지 미리보기 | 칸들(2열) / 사용·삭제·수정·접기]. imageSide:'right'면 이미지가 오른쪽.
 // '수정'을 누르면 칸이 열리고 이미지 주소·직접 올리기가 나오며 버튼이 '저장'(주황). 사용 체크는 바로 저장.
 // 처음에는 접힌 채로 보인다. 접으면 미리보기가 작아지고 칸들이 한 줄('이름 : 값 · …'), 접은 채로도 수정·저장(이미지는 펼쳐서).
-// fields: [{ key, label, type: 'text'|'textarea'|'select'|'links', options?(values) => [[값, 글자]], fallback?, required?, wide?, placeholder? }]
+// fields: [{ key, label, type: 'text'|'textarea'|'select'|'links', options?(values) => [[값, 글자]], fallback?, required?, wide?, placeholder?, locked? }]
+// locked: 보여 주기만 하고 '수정' 중에도 못 고치는 칸.
 // links(다대다, 예: 강사 학과·담당 과목): { through, own, other, ordered?, options: () => [[값, 글자]] }. 수정 중에만 ×·추가, 저장 때 한꺼번에 반영.
 export async function mountCardList(container, {
   supabase,
@@ -71,6 +72,7 @@ export async function mountCardList(container, {
   deleteConfirm = async (row, index) => `${index + 1}번을 삭제할까요?`,
   preview = (values) => [mediaPreview(values[imageKey])],
   itemName = (row, index) => `${index + 1}번`,
+  onRows = () => {}, // 불러올 때마다 지금 줄 목록(예: 다 지우면 과목 목록에서 빼기)
 }) {
   const state = el("span", { className: "save-state" });
   const list = el("div", { className: "card-list" });
@@ -106,6 +108,7 @@ export async function mountCardList(container, {
     }
     expandNew = false;
     draw();
+    onRows(rows);
   }
   // 다대다 칸: 줄마다 연결된 값 목록(순서 있는 칸은 sort_order 순).
   const links = {};
@@ -302,7 +305,8 @@ export async function mountCardList(container, {
         inputs[f.key].redraw();
       }
       for (const [key, input] of Object.entries(inputs)) {
-        if (fields.find((f) => f.key === key)?.type === "links") continue;
+        const f = fields.find((f) => f.key === key);
+        if (f?.type === "links" || f?.locked) continue;
         if (input.tagName === "SELECT") input.disabled = !on;
         else input.readOnly = !on;
       }

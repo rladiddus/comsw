@@ -74,6 +74,8 @@ const sample = (n, color) =>
   "data:image/svg+xml," + encodeURIComponent(
     `<svg xmlns="http://www.w3.org/2000/svg" width="1000" height="1000"><rect width="1000" height="1000" fill="${color}"/><text x="500" y="540" font-size="140" text-anchor="middle" fill="#fff" font-family="sans-serif">${n}단계</text></svg>`,
   );
+Object.assign(data.departments[0], { name_en: "Visual Design", description: "포토샵·일러스트로 시작해 브랜드 디자인 포트폴리오까지 완성하는 학과입니다.", image_url: sample("", "#fa491d") });
+Object.assign(data.departments[1], { name_en: "Web Design", description: "웹 퍼블리싱과 UI 디자인을 함께 배웁니다." });
 data.main_media[0].url = sample("배경 1", "#222");
 data.loading_items[0].image_url = sample("", "#334");
 data.loading_items[1].image_url = sample("", "#6a4");

@@ -48,15 +48,24 @@ const tableOf = (c, title) => {
 };
 const buttons = (scope, text) => [...scope.querySelectorAll("button")].filter(b => b.textContent === text);
 
-test("학과: 학과 표와 카테고리 표", async () => {
+test("학과: 카드(내용 왼쪽·대표 이미지 오른쪽, 접기)와 카테고리 표", async () => {
   const { c } = await renderPage("../js/pages/departments.mjs");
   assert.deepEqual(headings(c), ["학과", "카테고리"]);
-  assert.equal(tableOf(c, "학과").querySelectorAll("tbody tr").length, 2);
+  const cards = [...c.querySelectorAll(".card-item")];
+  assert.equal(cards.length, 2);
+  const kids = [...cards[0].children].map((x) => x.className);
+  assert.deepEqual(kids, ["drag-handle", "card-side", "card-stage"], "이미지는 오른쪽");
+  const labels = [...cards[0].querySelectorAll(".card-fields .card-line > span")].map((s) => s.textContent);
+  assert.deepEqual(labels, ["학과명", "영문", "드라이브 폴더 ID", "소개 문구"]);
+  assert.equal(cards[0].querySelector(".card-line input").value, "시각편집학과");
+  buttons(cards[0], "접기")[0].click();
+  assert.ok(cards[0].classList.contains("collapsed"));
+  assert.equal(tableOf(c, "카테고리").tagName, "TABLE");
 });
 
 test("학과 삭제 경고에 채용 공고 수", async () => {
   const { c } = await renderPage("../js/pages/departments.mjs");
-  buttons(tableOf(c, "학과").querySelectorAll("tbody tr")[1], "삭제")[0].click();
+  buttons(c.querySelectorAll(".card-item")[1], "삭제")[0].click();
   await flush();
   assert.equal(lastConfirm, "'웹학과' 학과을(를) 삭제하면 채용 공고 1개도 함께 삭제됩니다. 삭제할까요?");
 });

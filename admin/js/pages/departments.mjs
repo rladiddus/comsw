@@ -1,25 +1,29 @@
 import { mountTableEditor } from "../table-editor.mjs";
+import { mountCardList } from "../card-list.mjs";
 import { freeName } from "../order.mjs";
 import { cascadeMessage } from "../format.mjs";
 import { countRows } from "../count.mjs";
 
-export function render(container, { supabase }) {
+// 학과: 로딩 화면과 같은 카드(내용 왼쪽, 대표 이미지 오른쪽, 끌어서 순서, 접기·펼치기).
+export async function render(container, { supabase }) {
   container.append(Object.assign(document.createElement("h2"), { textContent: "학과" }));
-  mountTableEditor(container, {
+  await mountCardList(container, {
     supabase,
     table: "departments",
     title: "학과",
-    description: "사용에 체크한 학과만 사이트 학과 목록에 나옵니다. 영문 이름은 커리큘럼 제목에 쓰입니다.",
-    columns: [
+    description:
+      "사용에 체크한 학과만 사이트 학과 목록에 나옵니다. 영문 이름은 커리큘럼 제목에 쓰입니다. 왼쪽 ⠿를 끌어 순서를 바꿀 수 있습니다.",
+    imageSide: "right",
+    imageLabel: "대표 이미지",
+    fields: [
       { key: "name", label: "학과명", type: "text", required: true },
-      { key: "name_en", label: "영문", type: "text" },
-      { key: "description", label: "소개 문구", type: "textarea" },
-      { key: "image_url", label: "대표 이미지", type: "image" },
-      { key: "drive_folder_id", label: "드라이브 폴더 ID", type: "text" },
-      { key: "is_active", label: "사용", type: "checkbox" },
+      { key: "name_en", label: "영문", type: "text", placeholder: "Visual Design" },
+      { key: "drive_folder_id", label: "드라이브 폴더 ID", type: "text", wide: true },
+      { key: "description", label: "소개 문구", type: "textarea", wide: true },
     ],
-    defaults: rows => ({ name: freeName("새 학과", rows, "name"), is_active: false }),
-    deleteConfirm: async row => cascadeMessage("학과", row.name, [
+    defaults: (rows) => ({ name: freeName("새 학과", rows, "name") }),
+    itemName: (row) => `'${row.name}' 학과`,
+    deleteConfirm: async (row) => cascadeMessage("학과", row.name, [
       ["채용 공고", await countRows(supabase, "recruitment_posts", "department_id", row.id)],
       ["과목 연결", await countRows(supabase, "subject_departments", "department_id", row.id)],
       ["강사 연결", await countRows(supabase, "instructor_departments", "department_id", row.id)],

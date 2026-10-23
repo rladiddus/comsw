@@ -25,14 +25,14 @@ test("끌어 놓은 자리로 옮기고 순서가 바뀐 줄만 다시 매긴다
 test("카드: 맨 왼쪽 손잡이, 미리보기에 문구를 그 폰트로, [문구][폰트]/[크기][두께], 사용·삭제·수정·접기", async () => {
   const c = document.createElement("div");
   await render(c, { supabase: fakeSupabase(data()) });
-  const card = c.querySelector(".loading-card");
+  const card = c.querySelector(".card-item");
   assert.equal(card.firstElementChild.className, "drag-handle");
   const caption = card.querySelector(".loading-caption");
   assert.equal(caption.textContent, "For Masterpieces");
   assert.match(caption.style.fontFamily, /Great Vibes/);
-  const lines = [...card.querySelectorAll(".loading-fields > .loading-line")].map((l) => l.firstElementChild.textContent);
+  const lines = [...card.querySelectorAll(".card-fields > .card-line")].map((l) => l.firstElementChild.textContent);
   assert.deepEqual(lines, ["문구", "폰트", "폰트 크기", "두께"]);
-  assert.ok(card.querySelector(".loading-line input").readOnly);
+  assert.ok(card.querySelector(".card-line input").readOnly);
   assert.deepEqual([...card.querySelectorAll(".media-actions > *")].map((b) => b.textContent), ["사용", "삭제", "수정", "접기"]);
 });
 
@@ -40,26 +40,26 @@ test("수정 → 칸이 열리고 이미지 올리기가 나오며 '저장'(주�
   const tables = data();
   const c = document.createElement("div");
   await render(c, { supabase: fakeSupabase(tables) });
-  const card = c.querySelector(".loading-card");
-  assert.equal(card.querySelector(".loading-upload").hidden, true);
+  const card = c.querySelector(".card-item");
+  assert.equal(card.querySelector(".card-upload").hidden, true);
   button(card, "수정").click();
-  assert.equal(card.querySelector(".loading-upload").hidden, false);
+  assert.equal(card.querySelector(".card-upload").hidden, false);
   const save = button(card, "저장");
   assert.equal(save.className, "publish-btn");
-  const text = card.querySelector(".loading-line input");
+  const text = card.querySelector(".card-line input");
   text.value = "For Dreams";
   save.click();
   await flush();
   assert.equal(tables.loading_items[0].text, "For Dreams");
   assert.ok(button(card, "수정"));
-  assert.equal(card.querySelector(".loading-upload").hidden, true);
+  assert.equal(card.querySelector(".card-upload").hidden, true);
 });
 
 test("손잡이로 끌어 다른 줄에 놓으면 순서를 저장한다", async () => {
   const tables = data();
   const c = document.createElement("div");
   await render(c, { supabase: fakeSupabase(tables) });
-  const cards = () => [...c.querySelectorAll(".loading-card")];
+  const cards = () => [...c.querySelectorAll(".card-item")];
   cards()[2].querySelector(".drag-handle").dispatchEvent(new dom.window.Event("pointerdown"));
   cards()[2].dispatchEvent(new dom.window.Event("dragstart"));
   cards()[0].dispatchEvent(new dom.window.Event("drop", { cancelable: true }));
@@ -72,14 +72,14 @@ test("폰트·크기·두께는 드롭다운, 두께는 고른 폰트가 가진 
   const tables = data();
   const c = document.createElement("div");
   await render(c, { supabase: fakeSupabase(tables) });
-  const card = c.querySelector(".loading-card");
-  const [font, size, weight] = card.querySelectorAll(".loading-fields select");
+  const card = c.querySelector(".card-item");
+  const [font, size, weight] = card.querySelectorAll(".card-fields select");
   assert.equal(font.value, "Great Vibes");
   assert.deepEqual([...font.options].map((o) => o.value), ["Paperlogy", "Great Vibes"]);
   assert.equal(size.selectedOptions[0].textContent, "보통", "예전 값(1.25rem…)과 같은 단계");
   assert.deepEqual([...weight.options].map((o) => o.value), ["400"]);
   assert.ok(font.disabled, "수정 전에는 고를 수 없다");
-  const oldSize = c.querySelectorAll(".loading-card")[1].querySelectorAll(".loading-fields select")[1];
+  const oldSize = c.querySelectorAll(".card-item")[1].querySelectorAll(".card-fields select")[1];
   assert.equal(oldSize.selectedOptions[0].textContent, "(현재) 48px", "목록에 없는 예전 값은 남겨 둔다");
   [...card.querySelectorAll("button")].find((b) => b.textContent === "수정").click();
   font.value = "Paperlogy";
@@ -96,16 +96,16 @@ test("접으면 한 줄(작은 미리보기)이 되고, 접은 채로도 수정�
   const tables = data();
   const c = document.createElement("div");
   await render(c, { supabase: fakeSupabase(tables) });
-  const card = c.querySelector(".loading-card");
+  const card = c.querySelector(".card-item");
   [...card.querySelectorAll("button")].find((b) => b.textContent === "접기").click();
   assert.ok(card.classList.contains("collapsed"));
   assert.ok([...card.querySelectorAll("button")].some((b) => b.textContent === "펼치기"));
   [...card.querySelectorAll("button")].find((b) => b.textContent === "수정").click();
-  card.querySelector(".loading-line input").value = "접은 채로 수정";
+  card.querySelector(".card-line input").value = "접은 채로 수정";
   [...card.querySelectorAll("button")].find((b) => b.textContent === "저장").click();
   await flush();
   assert.equal(tables.loading_items[0].text, "접은 채로 수정");
   const all = [...c.querySelectorAll("button")].find((b) => b.textContent === "모두 접기");
   all.click();
-  assert.equal(c.querySelectorAll(".loading-card.collapsed").length, 3);
+  assert.equal(c.querySelectorAll(".card-item.collapsed").length, 3);
 });

@@ -436,3 +436,4 @@ dialog.idle-dialog strong { color:var(--accent); }
 .search-bar .form-field { margin:0; min-width:180px; }
 .search-bar .publish-btn { height:42px; }
 .card-item .drag-handle.off { color:#ddd; cursor:not-allowed; }
+.card-list .more-btn { align-self:center; margin:4px 0 8px; }

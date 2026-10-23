@@ -210,3 +210,17 @@ test("끌어 놓기: 줄 아래쪽 절반이면 뒤 경계에 점선, 제자리�
   at("drop", 105);
   assert.deepEqual(moves.at(-1), [3, 1]);
 });
+
+test("강사 커리큘럼: 줄이 많으면 30개씩 그리고 '더 보기'로 이어서, 검색하면 처음부터", async () => {
+  const t = curData();
+  for (let k = 0; k < 70; k++) {
+    t.instructor_curricula.push({ id: `m${k}`, set_id: "set-web", instructor_id: "i1", subject_id: "s1", step_label: `${k}단계`, status: "approved", sort_order: 10 + k });
+  }
+  const { c } = await renderPage("../js/pages/curricula.mjs", t);
+  assert.equal(c.querySelectorAll(".card-item").length, 30);
+  button(c, "더 보기 (43개 남음)").click();
+  assert.equal(c.querySelectorAll(".card-item").length, 60);
+  await searchBy(c, { subj: "s1" });
+  assert.equal(c.querySelectorAll(".card-item").length, 30);
+  assert.match(c.textContent, /71개/);
+});

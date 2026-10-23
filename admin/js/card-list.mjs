@@ -154,8 +154,11 @@ export async function mountCardList(container, {
   // 검색: 보이는 줄만 거른다(불러온 줄은 그대로).
   let match = () => true;
   const visible = () => sortRows(rows).filter((r) => match(r));
-  const scopes = () => new Set(visible().map((r) => (orderScope ? orderScope(r) : "")));
-  const canDrag = () => scopes().size <= 1;
+  // 끌기 가능 여부는 그릴 때 한 번만 계산한다(카드마다 다시 정렬하면 줄이 많을 때 멈춘다).
+  let dragOk = true;
+  // 줄이 많으면(예: 강사 커리큘럼 수백 개) 한 번에 PAGE개씩만 그린다.
+  const PAGE = 30;
+  let limit = PAGE;
   async function reorder(from, to) {
     const shown = visible();
     const scope = orderScope ? orderScope(shown[from]) : "";
@@ -177,6 +180,7 @@ export async function mountCardList(container, {
     });
     if (error) return setState(dbErrorMessage(error), true);
     expandNew = true;
+    limit = Math.max(limit, visible().length + 1); // 맨 아래에 생긴 새 카드까지 보이게
     await load();
     setState("추가했습니다. 맨 아래에서 '수정'을 눌러 내용을 넣어주세요.");
   });
@@ -331,7 +335,6 @@ export async function mountCardList(container, {
     });
     paint();
 
-    const dragOk = canDrag();
     const handle = el("span", {
       className: `drag-handle${dragOk ? "" : " off"}`,
       textContent: "⠿",
@@ -378,7 +381,16 @@ export async function mountCardList(container, {
 
   function draw() {
     const shown = visible();
-    list.replaceChildren(...shown.map(card));
+    dragOk = new Set(shown.map((r) => (orderScope ? orderScope(r) : ""))).size <= 1;
+    list.replaceChildren(...shown.slice(0, limit).map(card));
+    if (shown.length > limit) {
+      const more = el("button", { type: "button", className: "ghost-btn more-btn", textContent: `더 보기 (${shown.length - limit}개 남음)` });
+      more.addEventListener("click", () => {
+        limit += PAGE;
+        draw();
+      });
+      list.append(more);
+    }
     if (!shown.length) {
       list.append(el("p", { className: "muted", textContent: rows.length ? "검색 결과가 없습니다." : "아직 항목이 없습니다." }));
     }
@@ -389,6 +401,7 @@ export async function mountCardList(container, {
     // 검색 조건을 바꿔 다시 그린다. 결과 개수를 돌려준다.
     setFilter(fn) {
       match = fn || (() => true);
+      limit = PAGE;
       draw();
       return visible().length;
     },

@@ -22,7 +22,7 @@ export function reorderUpdates(rows, from, to) {
 // 카드 목록 편집기(로딩 화면·학과 등).
 // 줄마다 [⠿ 끌어 옮기기 | 이미지 미리보기 | 칸들(2열) / 사용·삭제·수정·접기]. imageSide:'right'면 이미지가 오른쪽.
 // '수정'을 누르면 칸이 열리고 이미지 주소·직접 올리기가 나오며 버튼이 '저장'(주황). 사용 체크는 바로 저장.
-// 접으면 미리보기가 작아지고 칸들이 한 줄('이름 : 값 · …'), 접은 채로도 수정·저장(이미지는 펼쳐서).
+// 처음에는 접힌 채로 보인다. 접으면 미리보기가 작아지고 칸들이 한 줄('이름 : 값 · …'), 접은 채로도 수정·저장(이미지는 펼쳐서).
 // fields: [{ key, label, type: 'text'|'textarea'|'select', options?(values) => [[값, 글자]], fallback?, required?, wide?, placeholder? }]
 export async function mountCardList(container, {
   supabase,
@@ -43,7 +43,7 @@ export async function mountCardList(container, {
   const state = el("span", { className: "save-state" });
   const list = el("div", { className: "card-list" });
   const add = el("button", { type: "button", className: "publish-btn", textContent: "+ 추가" });
-  const foldAll = el("button", { type: "button", className: "ghost-btn", textContent: "모두 접기" });
+  const foldAll = el("button", { type: "button", className: "ghost-btn", textContent: "모두 펼치기" });
   container.append(
     ...(title ? [el("h3", { textContent: title })] : []),
     ...(description ? [el("p", { className: "desc", textContent: description })] : []),
@@ -56,13 +56,22 @@ export async function mountCardList(container, {
   };
   let rows = [];
   let dragFrom = -1;
-  const collapsed = new Set(); // 접은 카드(새로 그려도 유지)
+  // 처음 보이는 카드는 접힌 채로. '+ 추가'로 만든 카드만 펼쳐서 바로 쓰게 한다.
+  const collapsed = new Set();
+  const seen = new Set();
+  let expandNew = false;
 
   async function load() {
     const { data, error } = await supabase.from(table).select("*")
       .order("sort_order", { ascending: true, nullsFirst: false });
     if (error) return setState(dbErrorMessage(error), true);
     rows = data || [];
+    for (const r of rows) {
+      if (seen.has(r.id)) continue;
+      seen.add(r.id);
+      if (!expandNew) collapsed.add(r.id);
+    }
+    expandNew = false;
     draw();
   }
   async function update(row, patch) {
@@ -91,6 +100,7 @@ export async function mountCardList(container, {
       sort_order: nextOrder(rows),
     });
     if (error) return setState(dbErrorMessage(error), true);
+    expandNew = true;
     await load();
     setState("추가했습니다. 맨 아래에서 '수정'을 눌러 내용을 넣어주세요.");
   });

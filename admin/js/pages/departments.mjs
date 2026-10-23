@@ -4,7 +4,7 @@ import { freeName } from "../order.mjs";
 import { cascadeMessage } from "../format.mjs";
 import { countRows } from "../count.mjs";
 
-// 학과: 로딩 화면과 같은 카드(내용 왼쪽, 대표 이미지 오른쪽, 끌어서 순서, 접기·펼치기).
+// 학과: 로딩 화면과 같은 카드(대표 이미지 왼쪽, 내용 오른쪽, 끌어서 순서, 접기·펼치기).
 export async function render(container, { supabase }) {
   container.append(Object.assign(document.createElement("h2"), { textContent: "학과" }));
   await mountCardList(container, {
@@ -13,7 +13,6 @@ export async function render(container, { supabase }) {
     title: "학과",
     description:
       "사용에 체크한 학과만 사이트 학과 목록에 나옵니다. 영문 이름은 커리큘럼 제목에 쓰입니다. 왼쪽 ⠿를 끌어 순서를 바꿀 수 있습니다.",
-    imageSide: "right",
     imageLabel: "대표 이미지",
     fields: [
       { key: "name", label: "학과명", type: "text", required: true },

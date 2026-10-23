@@ -33,7 +33,8 @@ test("카드: 맨 왼쪽 손잡이, 미리보기에 문구를 그 폰트로, [�
   const lines = [...card.querySelectorAll(".card-fields > .card-line")].map((l) => l.firstElementChild.textContent);
   assert.deepEqual(lines, ["문구", "폰트", "폰트 크기", "두께"]);
   assert.ok(card.querySelector(".card-line input").readOnly);
-  assert.deepEqual([...card.querySelectorAll(".media-actions > *")].map((b) => b.textContent), ["사용", "삭제", "수정", "접기"]);
+  assert.deepEqual([...card.querySelectorAll(".media-actions > *")].map((b) => b.textContent), ["사용", "삭제", "수정", "펼치기"]);
+  assert.ok(card.classList.contains("collapsed"), "처음에는 접힌 채로");
 });
 
 test("수정 → 칸이 열리고 이미지 올리기가 나오며 '저장'(주황), 저장하면 다시 '수정'", async () => {
@@ -92,20 +93,40 @@ test("폰트·크기·두께는 드롭다운, 두께는 고른 폰트가 가진 
   assert.deepEqual([saved.font_family, saved.font_size, saved.font_weight], ["Paperlogy", "1.5rem, 4.5vw, 4rem", "800"]);
 });
 
-test("접으면 한 줄(작은 미리보기)이 되고, 접은 채로도 수정·저장할 수 있다", async () => {
+test("처음에는 접힌 한 줄(작은 미리보기), 접은 채로도 수정·저장, 펼치기·모두 접기", async () => {
   const tables = data();
   const c = document.createElement("div");
   await render(c, { supabase: fakeSupabase(tables) });
   const card = c.querySelector(".card-item");
-  [...card.querySelectorAll("button")].find((b) => b.textContent === "접기").click();
-  assert.ok(card.classList.contains("collapsed"));
-  assert.ok([...card.querySelectorAll("button")].some((b) => b.textContent === "펼치기"));
+  assert.equal(c.querySelectorAll(".card-item.collapsed").length, 3, "모두 접힌 채로 시작");
   [...card.querySelectorAll("button")].find((b) => b.textContent === "수정").click();
   card.querySelector(".card-line input").value = "접은 채로 수정";
   [...card.querySelectorAll("button")].find((b) => b.textContent === "저장").click();
   await flush();
   assert.equal(tables.loading_items[0].text, "접은 채로 수정");
-  const all = [...c.querySelectorAll("button")].find((b) => b.textContent === "모두 접기");
-  all.click();
+  [...card.querySelectorAll("button")].find((b) => b.textContent === "펼치기").click();
+  assert.ok(!card.classList.contains("collapsed"));
+  [...c.querySelectorAll("button")].find((b) => b.textContent === "모두 펼치기").click();
+  assert.equal(c.querySelectorAll(".card-item.collapsed").length, 0);
+  [...c.querySelectorAll("button")].find((b) => b.textContent === "모두 접기").click();
   assert.equal(c.querySelectorAll(".card-item.collapsed").length, 3);
+});
+
+test("+ 추가로 만든 카드는 펼친 채로 나온다", async () => {
+  const tables = data();
+  const sb = fakeSupabase(tables);
+  const insert = sb.from;
+  sb.from = (t) => {
+    const q = insert(t);
+    q.insert = (row) => { tables.loading_items.push({ id: "new", ...row }); return Promise.resolve({ error: null }); };
+    return q;
+  };
+  const c = document.createElement("div");
+  await render(c, { supabase: sb });
+  [...c.querySelectorAll("button")].find((b) => b.textContent === "+ 추가").click();
+  for (let i = 0; i < 12; i++) await new Promise((r) => setTimeout(r, 0));
+  const cards = [...c.querySelectorAll(".card-item")];
+  assert.equal(cards.length, 4);
+  assert.ok(!cards[3].classList.contains("collapsed"), "새 카드는 펼침");
+  assert.ok(cards[0].classList.contains("collapsed"), "기존 카드는 접힌 채로");
 });

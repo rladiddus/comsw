@@ -48,18 +48,19 @@ const tableOf = (c, title) => {
 };
 const buttons = (scope, text) => [...scope.querySelectorAll("button")].filter(b => b.textContent === text);
 
-test("학과: 카드(내용 왼쪽·대표 이미지 오른쪽, 접기)와 카테고리 표", async () => {
+test("학과: 카드(대표 이미지 왼쪽·내용 오른쪽, 처음엔 접힘)와 카테고리 표", async () => {
   const { c } = await renderPage("../js/pages/departments.mjs");
   assert.deepEqual(headings(c), ["학과", "카테고리"]);
   const cards = [...c.querySelectorAll(".card-item")];
   assert.equal(cards.length, 2);
   const kids = [...cards[0].children].map((x) => x.className);
-  assert.deepEqual(kids, ["drag-handle", "card-side", "card-stage"], "이미지는 오른쪽");
+  assert.deepEqual(kids, ["drag-handle", "card-stage", "card-side"], "이미지는 왼쪽");
   const labels = [...cards[0].querySelectorAll(".card-fields .card-line > span")].map((s) => s.textContent);
   assert.deepEqual(labels, ["학과명", "영문", "드라이브 폴더 ID", "소개 문구"]);
   assert.equal(cards[0].querySelector(".card-line input").value, "시각편집학과");
-  buttons(cards[0], "접기")[0].click();
-  assert.ok(cards[0].classList.contains("collapsed"));
+  assert.ok(cards.every((x) => x.classList.contains("collapsed")), "처음엔 접힘");
+  buttons(cards[0], "펼치기")[0].click();
+  assert.ok(!cards[0].classList.contains("collapsed"));
   assert.equal(tableOf(c, "카테고리").tagName, "TABLE");
 });
 

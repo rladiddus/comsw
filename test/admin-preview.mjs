@@ -121,6 +121,30 @@ for (const [n, color, text] of [
   });
 }
 
+// 매뉴얼 캡처용 예시: 신규 과목(승인 대기)·기타 과목·준비물·특강·방학 특강·채용 공고.
+data.subjects.push(
+  { id: "photoshop2", name: "포토샵2", sort_order: null },
+  { id: "cad", name: "캐드", sort_order: null, duration: "1개월" },
+);
+data.subject_departments.push({ subject_id: "photoshop2", department_id: "design" });
+data.course_prep_items = [
+  { id: "p1", subject_id: "photoshop", department_id: "design", category: "textbook", content: "멘토시리즈 포토샵", link_url: "https://www.kedustore.com/", extra: "25,000원", image_url: sample("", "#2f6fed"), sort_order: 0 },
+  { id: "p2", subject_id: "illustrator", department_id: "design", category: "textbook", content: "멘토시리즈 일러스트레이터", link_url: "https://www.kedustore.com/", extra: "27,000원", image_url: sample("", "#1c9a6c"), sort_order: 0 },
+  { id: "p3", subject_id: "web1", department_id: "web", category: "textbook", content: "HTML·CSS 첫걸음", extra: "22,000원", sort_order: 0 },
+];
+data.seminars = [
+  { id: "sem1", title: "AI로 만드는 포트폴리오", subtitle: "생성형 AI 실습", datetime_text: "2026년 11월 18일 14:00-16:00", instructor: "김선생", place: "본관 3층", capacity: 30, poster_url: sample("특강", "#8a4fd8"), sort_order: 0 },
+];
+data.seminar_applications = [];
+data.curriculum_sets.push({ id: "vac-set", name: "2026년 겨울방학특강", department_id: null, is_vacation: true, sort_order: 9 });
+data.site_settings.push({ key: "vacation_set_id", value: "vac-set" });
+data.instructor_curricula.push(
+  { id: "vac-1", instructor_id: "demo-teacher", set_id: "vac-set", subject_id: "photoshop", step_label: "1단계", summary: "포토샵 기초 집중 과정", class_time: "2시간 X 10일", supplies: "멘토시리즈 포토샵", status: "approved", sort_order: 0, media_url: sample("방특", "#fa491d") },
+  { id: "vac-pool", instructor_id: "unlinked", set_id: "web-set", subject_id: "web1", step_label: "1단계", written: "방학 동안 웹페이지 한 개를 완성합니다.", status: "pending", vacation: true, sort_order: 20 },
+);
+data.recruitment_posts = [{ id: "r1", department_id: "design", company: "예시디자인", job_title: "편집 디자이너", location: "수원", sort_order: 0 }];
+data.instructor_profile_drafts.push({ instructor_id: "unlinked", name: "최웹", career: "웹 퍼블리싱 강의 7년\nUI 디자인 실무 5년", message: "직접 만들어 보며 배우는 웹 수업", status: "pending", updated_at: new Date().toISOString() });
+
 // 확인할 사람. 선생님과 학과장이 같은 예시 데이터를 써서 '제출 → 학과장 승인' 흐름을 이어 볼 수 있다.
 const PEOPLE = {
   newbie: { role: "teacher", uid: "newbie", name: "이새봄", badge: "선생님 · 처음 방문" },

@@ -504,8 +504,8 @@ dialog.roadmap-source::backdrop { background:rgba(0,0,0,.45); }
 .dept-choice input { margin:0; }
 .dept-choice:has(input:checked) { border-color:var(--accent); background:#fff5f0; font-weight:600; }
 /* 내 커리큘럼 등록: 내 학과 / 선택 학과 / □ 방특 */
-.form-row.curriculum-head-row { grid-template-columns:1fr 1fr auto; align-items:end; }
-.vacation-check .consent { display:inline-flex; align-items:center; gap:6px; height:42px; padding:0 12px; border:1px solid #d9dde4; border-radius:9px; background:#fff; font-weight:600; white-space:nowrap; }
+.form-row.curriculum-head-row { grid-template-columns:1fr 1fr auto; align-items:start; }
+.vacation-check .consent { display:inline-flex; align-items:center; gap:6px; padding:8px 12px; border:1px solid #d9dde4; border-radius:9px; background:#fff; font-weight:600; white-space:nowrap; }
 .vacation-check .consent input { width:auto; margin:0; }
 @media (max-width:700px) { .form-row.curriculum-head-row { grid-template-columns:1fr; } }
 /* 방학 특강 > 방특 신청 */

@@ -527,3 +527,10 @@ dialog.roadmap-source::backdrop { background:rgba(0,0,0,.45); }
 .card-item.collapsed .card-fields.span-grid .card-line { display:flex; align-items:center; gap:6px; min-width:0; }
 .card-item.collapsed .card-fields.span-grid .card-line + .card-line::before { content:none; }
 .card-item.collapsed .card-fields.span-grid .card-line :is(input, select, textarea) { flex:1; min-width:0; width:auto; }
+/* 수업별 준비물: 학과 → 과목, 탭 공통 추가 */
+.prep-dept { margin-top:22px; }
+.prep-dept > h3 { margin:0 0 4px; padding-bottom:6px; border-bottom:2px solid var(--line); }
+.prep-subject > h4 { margin:12px 0 0; }
+.prep-add { margin:10px 0; }
+.form-row.prep-add-row { grid-template-columns:minmax(140px,1fr) minmax(0,2fr) minmax(0,1.4fr) minmax(0,1fr); align-items:start; }
+@media (max-width:900px) { .form-row.prep-add-row { grid-template-columns:1fr; } }

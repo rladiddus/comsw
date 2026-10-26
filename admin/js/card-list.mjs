@@ -79,6 +79,7 @@ export async function mountCardList(container, {
   itemName = (row, index) => `${index + 1}번`,
   onRows = () => {}, // 불러올 때마다 지금 줄 목록(예: 다 지우면 과목 목록에서 빼기)
   actions = [], // 카드마다 더 붙일 버튼 [{ label, onClick(row) }] (예: 특강 신청자 명단)
+  toolbar = true, // false면 '+ 추가'·'모두 펼치기'를 숨긴다(여러 목록을 위에서 한 번에 다룰 때, 반환값 setFold 사용)
 }) {
   const state = el("span", { className: "save-state" });
   const list = el("div", { className: "card-list" });
@@ -87,7 +88,7 @@ export async function mountCardList(container, {
   container.append(
     ...(title ? [el("h3", { textContent: title })] : []),
     ...(description ? [el("p", { className: "desc", textContent: description })] : []),
-    el("div", { className: "editor-bar" }, [add, foldAll, state]),
+    el("div", { className: "editor-bar" }, [...(toolbar ? [add, foldAll] : []), state]),
     list,
   );
   const setState = (text, err = false) => {
@@ -196,15 +197,15 @@ export async function mountCardList(container, {
     await load();
     setState("추가했습니다. 맨 아래에서 '수정'을 눌러 내용을 넣어주세요.");
   });
-  foldAll.addEventListener("click", () => {
-    const fold = foldAll.textContent === "모두 접기";
+  function setFold(fold) {
     for (const r of rows) {
       if (fold) collapsed.add(r.id);
       else collapsed.delete(r.id);
     }
     foldAll.textContent = fold ? "모두 펼치기" : "모두 접기";
     draw();
-  });
+  }
+  foldAll.addEventListener("click", () => setFold(foldAll.textContent === "모두 접기"));
 
   function card(row, index) {
     const stage = el("div", { className: `card-stage ${stageClass}`.trim() });
@@ -454,6 +455,7 @@ export async function mountCardList(container, {
   await load();
   return {
     reload: load,
+    setFold, // true = 모두 접기, false = 모두 펼치기
     // 검색 조건을 바꿔 다시 그린다. 결과 개수를 돌려준다.
     setFilter(fn) {
       match = fn || (() => true);

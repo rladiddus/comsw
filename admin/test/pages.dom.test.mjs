@@ -93,6 +93,8 @@ test("특강: 신청자 명단을 열면 인원·연락처가 보이고 CSV를 �
   const card = c.querySelector(".card-item");
   assert.ok(card.classList.contains("image-left") && card.classList.contains("collapsed"), "포스터 왼쪽, 처음엔 접힘");
   assert.ok(card.querySelector(".drag-handle"), "끌어서 순서");
+  assert.deepEqual([...card.querySelectorAll(".card-fields > .card-line")].map(l => [l.firstChild.textContent, l.style.gridColumn]),
+    [["특강명", "span 6"], ["소주제", "span 6"], ["일시", "span 3"], ["강사명", "span 3"], ["장소", "span 3"], ["정원", "span 3"]]);
   const btn = [...card.querySelectorAll("button")].find(b => b.textContent === "신청자 명단");
   btn.click();
   await flush();

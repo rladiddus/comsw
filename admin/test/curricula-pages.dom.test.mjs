@@ -211,9 +211,11 @@ test("방학 특강: 메인 화면에서 고른 세트의 승인된 강의를 �
   assert.equal(cards.length, 1);
   assert.ok(cards[0].classList.contains("image-left") && cards[0].classList.contains("collapsed"));
   assert.deepEqual([...cards[0].children].map(x => x.className.split(" ")[0]), ["drag-handle", "card-stage", "card-side"]);
-  const labels = [...cards[0].querySelectorAll(".card-line > span")].map(s => s.textContent);
-  assert.ok(["교재·준비물", "교재 설명", "수업 시간"].every(h => labels.includes(h)), labels.join(","));
-  assert.equal(cards[0].querySelector('.card-line textarea').value, "", "원문");
+  const labels = [...cards[0].querySelectorAll(".card-fields > .card-line > span")].map(s => s.textContent);
+  assert.deepEqual(labels, ["과목", "단계", "수업 시간", "강사", "커리큘럼", "교재·준비물", "교재 설명"], "윗줄 4칸, 아랫줄 3칸");
+  const spans = [...cards[0].querySelectorAll(".card-fields > .card-line")].map(l => l.style.gridColumn);
+  assert.deepEqual(spans, ["span 3", "span 3", "span 3", "span 3", "span 4", "span 4", "span 4"]);
+  assert.ok(cards[0].querySelector(".card-fields").classList.contains("span-grid"));
 });
 
 test("방학 특강: 세트를 고르지 않았으면 안내", async () => {

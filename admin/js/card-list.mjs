@@ -51,6 +51,7 @@ export function reorderUpdates(rows, from, to) {
 // 처음에는 접힌 채로 보인다. 접으면 미리보기가 작아지고 칸들이 한 줄('이름 : 값 · …'), 접은 채로도 수정·저장(이미지는 펼쳐서).
 // fields: [{ key, label, type: 'text'|'textarea'|'select'|'links', options?(values) => [[값, 글자]], fallback?, required?, wide?, placeholder?, locked? }]
 // locked: 보여 주기만 하고 '수정' 중에도 못 고치는 칸.
+// span(1~12): 칸 너비를 12칸 격자로 정한다(예: 윗줄 3+3+3+3, 아랫줄 4+4+4). 하나라도 있으면 이름이 칸 위에 붙는다.
 // ai(예: 'week') + source(원문 칸 key): '수정' 중에만 'AI 요약' 버튼이 나오고, 결과를 칸에 넣는다(저장은 '저장'으로).
 // links(다대다, 예: 강사 학과·담당 과목): { through, own, other, ordered?, options: () => [[값, 글자]] }. 수정 중에만 ×·추가, 저장 때 한꺼번에 반영.
 export async function mountCardList(container, {
@@ -285,6 +286,7 @@ export async function mountCardList(container, {
     const paint = () => stage.replaceChildren(...preview(values()));
     const line = (label, input, wide = false) =>
       el("label", { className: `card-line${wide ? " wide" : ""}` }, [el("span", { textContent: label }), input]);
+    const spanGrid = fields.some((f) => f.span);
     const lines = fields.map((f) => {
       if (f.type === "links") {
         chosen[f.key] = [...(links[f.key]?.get(row.id) ?? [])];
@@ -301,6 +303,9 @@ export async function mountCardList(container, {
       }
       if (f.ai) return line(f.label, el("div", { className: "card-ai" }, [inputs[f.key], aiButton(f)]), f.wide);
       return line(f.label, inputs[f.key], f.wide);
+    });
+    lines.forEach((node, i) => {
+      if (fields[i].span) node.style.gridColumn = `span ${fields[i].span}`;
     });
     inputs[imageKey] = el("input", { type: "text", value: row[imageKey] ?? "", placeholder: "https://… 이미지 주소", readOnly: true });
     for (const f of fields.filter((f) => f.type === "select")) fillSelect(f, row[f.key]);
@@ -386,7 +391,7 @@ export async function mountCardList(container, {
       title: dragOk ? "끌어서 순서 바꾸기" : "한 묶음(예: 학과 탭)만 보일 때 순서를 바꿀 수 있습니다",
     });
     const side = el("div", { className: "card-side" }, [
-      el("div", { className: "card-fields" }, lines),
+      el("div", { className: `card-fields${spanGrid ? " span-grid" : ""}` }, lines),
       upload,
       el("div", { className: "media-actions" }, [
         ...(activeKey ? [el("label", { className: "consent" }, [active, el("span", { textContent: activeLabel })])] : []),

@@ -494,3 +494,7 @@ dialog.roadmap-source::backdrop { background:rgba(0,0,0,.45); }
 .card-ai { display:flex; flex-direction:column; align-items:flex-start; gap:4px; min-width:0; }
 .card-ai textarea { width:100%; }
 .card-ai .ai-btn { margin-top:0; }
+/* 카드 칸을 12칸 격자로 줄 맞춤(span). 이름은 칸 위에. 접으면 한 줄, 좁은 화면은 한 칸씩. */
+.card-fields.span-grid { grid-template-columns:repeat(12, minmax(0,1fr)); }
+.card-fields.span-grid .card-line { grid-template-columns:minmax(0,1fr); gap:4px; align-items:start; }
+@media (max-width:900px) { .card-item:not(.collapsed) .card-fields.span-grid .card-line { grid-column:1 / -1 !important; } }

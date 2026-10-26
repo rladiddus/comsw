@@ -25,3 +25,13 @@ test("다음 달 과목은 원래 과목의 학과에 순서 없이 생기고, �
   await as(db, "anon");
   await assert.rejects(db.query(`select comsw_create_month_subject($1, '웹툰3')`, [s.id]));
 });
+
+test("과목 이름에 괄호 같은 특수문자가 있어도 다음 달 과목을 만든다", async () => {
+  const db = await seeded();
+  await as(db, null);
+  const { rows: [s] } = await db.query(`insert into subjects(name) values ('AI(기초) 1') returning id`);
+  await as(db, "authenticated", TEACHER);
+  const { rows: [{ id }] } = await db.query(`select comsw_create_month_subject($1, 'AI(기초) 2') id`, [s.id]);
+  assert.ok(id);
+  await assert.rejects(db.query(`select comsw_create_month_subject($1, 'AI(기초)x')`, [s.id]), /숫자만/);
+});

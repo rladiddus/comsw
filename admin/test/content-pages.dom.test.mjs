@@ -116,7 +116,10 @@ test("신규 과목 추가: 과목명·학과를 정해 만들면 순서 없이 
   make.click();
   await flush();
   assert.match(c.textContent, /학과를 하나 이상 골라주세요/);
-  c.querySelector('.subject-checks input[value="d2"]').checked = true;
+  c.querySelector('.dept-choice input[value="d2"]').checked = true;
+  const fields = [...c.querySelectorAll(".form-field > span:first-child")].map(s => s.textContent);
+  assert.deepEqual(fields.slice(0, 2), ["학과", "과목명"], "학과가 먼저");
+  assert.equal(c.querySelectorAll(".dept-choices > .dept-choice").length, 2, "학과마다 상자 하나");
   make.click();
   await flush();
   const made = tables.subjects.find(x => x.name === "블렌더");

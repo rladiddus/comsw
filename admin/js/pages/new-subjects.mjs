@@ -24,13 +24,14 @@ export async function render(container, { supabase }) {
   name.setAttribute("aria-label", "과목명");
   const checks = depts.map((d) => {
     const box = el("input", { type: "checkbox", value: d.id });
-    return [box, el("label", { className: "consent" }, [box, el("span", { textContent: d.name })])];
+    return [box, el("label", { className: "dept-choice" }, [box, el("span", { textContent: d.name })])];
   });
   const create = el("button", { type: "button", className: "publish-btn", textContent: "과목 만들기" });
   const list = el("div", { className: "new-subjects" });
   container.append(
+    // 학과(한 줄씩 상자) → 과목명 순서.
+    el("div", { className: "form-field" }, [el("span", { textContent: "학과" }), el("div", { className: "dept-choices" }, checks.map(([, l]) => l))]),
     el("label", { className: "form-field" }, [el("span", { textContent: "과목명" }), name]),
-    el("div", { className: "form-field" }, [el("span", { textContent: "학과" }), el("div", { className: "subject-checks" }, checks.map(([, l]) => l))]),
     el("div", { className: "form-actions" }, [create]),
     list,
   );

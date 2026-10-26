@@ -43,6 +43,22 @@ async function preview(menuName, tablet = false) {
   }
 }
 
+// 메뉴 화면 제목 옆에 그 메뉴 내용이 나오는 사이트 페이지 미리보기(PC·태블릿).
+function addPagePreview(content, site) {
+  const title = content.querySelector("h2");
+  if (!title || title.parentElement.classList.contains("page-title-row")) return;
+  const button = (text, tablet) => {
+    const b = document.createElement("button");
+    Object.assign(b, { type: "button", className: "ghost-btn", textContent: text, title: `'${site}' 페이지를 '적용' 전 내용으로 봅니다` });
+    b.addEventListener("click", () => preview(site, tablet));
+    return b;
+  };
+  const row = document.createElement("div");
+  row.className = "page-title-row";
+  title.replaceWith(row);
+  row.append(title, button(`미리보기 · ${site}`, false), button("태블릿", true));
+}
+
 async function refreshPublished() {
   const { data, error } = await supabase.from("site_snapshots")
     .select("created_at").order("id", { ascending: false }).limit(1).maybeSingle();
@@ -80,6 +96,8 @@ async function route() {
   const load = item.ready && PAGES[id] ? PAGES[id] : () => import("./pages/placeholder.mjs");
   try {
     await mountPage($("#content"), load, { supabase, ...session, label: item.label, id, preview });
+    // 늦게 끝난 이전 페이지에 붙지 않게, 아직 이 메뉴일 때만.
+    if (item.site && canManage(session.role) && routeFrom(location.hash, session.role) === id) addPagePreview($("#content"), item.site);
   } catch (err) { toast(dbErrorMessage(err)); }
 }
 

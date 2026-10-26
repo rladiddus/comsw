@@ -164,7 +164,7 @@ const openTab = async (c, label) => {
 const shownPanel = (c) => [...c.querySelectorAll(".subpage")].find(p => !p.hidden);
 const prepCards = (c) => [...shownPanel(c).querySelectorAll(".card-item")].map(x => x.querySelector("textarea").value);
 
-const prepSubjects = (c) => [...shownPanel(c).querySelectorAll(".prep-subject > h4")].map(h => h.textContent);
+const prepSubjects = (c) => [...shownPanel(c).querySelectorAll(".prep-subject")].map(s => s.dataset.subject);
 const prepDepts = (c) => [...shownPanel(c).querySelectorAll(".prep-dept > h3")].map(h => h.textContent);
 
 test("준비물: 교재 / 준비물 / AI 툴 탭, 그 분류가 있는 과목을 학과별로 묶어 모두", async () => {
@@ -188,9 +188,11 @@ test("준비물: 교재 / 준비물 / AI 툴 탭, 그 분류가 있는 과목을
 test("준비물: 카드는 분류·내용·링크·정가·설명(분류 잠김), 탭의 '+ 추가'는 과목을 고르고 내용을 써서 그 분류로", async () => {
   const { c, supabase } = await renderPage("../js/pages/prep.mjs", prepData());
   const card = shownPanel(c).querySelector(".card-item");
-  assert.deepEqual([...card.querySelectorAll(".card-line > span")].map(s => s.textContent).slice(0, 4), ["분류", "내용", "링크", "정가·설명"]);
+  assert.deepEqual([...card.querySelectorAll(".card-line > span")].map(s => s.textContent).slice(0, 5), ["과목", "분류", "내용", "링크", "정가·설명"]);
+  assert.equal(card.querySelector(".card-line select").selectedOptions[0].textContent, "포토샵", "과목명은 카드 안");
+  assert.equal(shownPanel(c).querySelector(".prep-subject h4"), null);
   [...card.querySelectorAll("button")].find(b => b.textContent === "수정").click();
-  assert.ok(card.querySelector("select").disabled, "분류는 잠김");
+  assert.ok([...card.querySelectorAll(".card-line select")].every(s => s.disabled), "과목·분류는 잠김");
   assert.equal(card.querySelector("textarea").readOnly, false);
   const panel = shownPanel(c);
   [...panel.querySelectorAll("button")].find(b => b.textContent === "+ 추가").click();

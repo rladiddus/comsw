@@ -53,7 +53,7 @@ test("메뉴 묶음: 제목·하위 탭, 첫 탭만 그리고 다른 탭은 처�
   assert.deepEqual(drawn, ["a", "b"], "한 번 그린 탭은 다시 그리지 않는다");
 });
 
-test("학과별 과목: 왼쪽은 학과 과목(순서대로), 오른쪽은 다른 과목(검색), 추가·빼기는 연결표에 저장", async () => {
+test("학과별 과목: 왼쪽은 학과 과목(순서대로), 오른쪽은 다른 과목(검색), 추가·빼기는 '저장'을 눌러야 연결표에 저장", async () => {
   const { render } = await import("../js/pages/department-subjects.mjs");
   const tables = data();
   tables.subjects.push({ id: "s4", name: "새과목", sort_order: null });
@@ -74,14 +74,22 @@ test("학과별 과목: 왼쪽은 학과 과목(순서대로), 오른쪽은 다�
   assert.deepEqual(names(right), ["포토샵"]);
   button(right, "추가").click();
   await flush();
-  assert.ok(tables.subject_departments.some((l) => l.subject_id === "s1" && l.department_id === "d2"));
   assert.deepEqual(names(left).slice(0, 2), ["포토샵", "웹1"], "전체수업 순서대로");
+  assert.ok(!tables.subject_departments.some((l) => l.subject_id === "s1" && l.department_id === "d2"), "저장 전에는 DB 그대로");
+  assert.match(c.textContent, /저장 안 된 변경 1개/);
+  button(c, "저장").click();
+  await flush();
+  assert.ok(tables.subject_departments.some((l) => l.subject_id === "s1" && l.department_id === "d2"));
   button(left.querySelector(".dept-subject-row"), "빼기").click();
+  button(c, "되돌리기").click();
+  assert.deepEqual(names(left).slice(0, 2), ["포토샵", "웹1"], "되돌리면 다시 보임");
+  button(left.querySelector(".dept-subject-row"), "빼기").click();
+  button(c, "저장").click();
   await flush();
   assert.ok(!tables.subject_departments.some((l) => l.subject_id === "s1" && l.department_id === "d2"));
 });
 
-test("학과별 과목: ⠿로 끌면 학과 커리큘럼과 같은 순서 값(전체수업 순서)이 바뀐다", async () => {
+test("학과별 과목: ⠿로 끈 순서를 저장하면 학과 커리큘럼과 같은 순서 값(전체수업 순서)이 바뀐다", async () => {
   const { render } = await import("../js/pages/department-subjects.mjs");
   const tables = data();
   const c = document.createElement("div");
@@ -90,6 +98,9 @@ test("학과별 과목: ⠿로 끌면 학과 커리큘럼과 같은 순서 값(�
   rows()[1].querySelector(".drag-handle").dispatchEvent(new dom.window.Event("pointerdown"));
   rows()[1].dispatchEvent(new dom.window.Event("dragstart"));
   rows()[0].dispatchEvent(new dom.window.Event("drop", { cancelable: true }));
+  await flush();
+  assert.equal(tables.subjects.find((s) => s.id === "s2").sort_order, 1, "저장 전에는 그대로");
+  button(c, "저장").click();
   await flush();
   assert.equal(tables.subjects.find((s) => s.id === "s2").sort_order, 0);
   assert.equal(tables.subjects.find((s) => s.id === "s1").sort_order, 1);

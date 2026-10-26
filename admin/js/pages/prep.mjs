@@ -5,7 +5,7 @@ import { dbErrorMessage } from "../fields.mjs";
 const CATEGORIES = [["textbook", "교재"], ["supply", "준비물"], ["ai", "AI 툴"]];
 const empty = (label) => el("p", { className: "muted", textContent: `${label} 항목이 있는 과목이 없습니다.` });
 
-// 교재 / 준비물 / AI 툴 탭마다 그 분류 항목이 있는 과목을 학과별로 묶어 보여 준다(학과 → 과목 제목 + 카드 목록).
+// 교재 / 준비물 / AI 툴 탭마다 그 분류 항목이 있는 과목을 학과별로 묶어 보여 준다(학과 제목 → 과목별 카드, 과목명은 카드 안 첫 칸).
 // 과목이 여러 학과에 있으면 학과 순서상 첫 학과에만, 학과가 없으면 맨 아래 '기타 과목'에 둔다.
 // '+ 추가'·'모두 펼치기'는 탭에 하나씩: '+ 추가'는 과목을 고르고 내용을 써서 넣는다(이미지는 카드 '수정'에서).
 // 카드는 '수정'으로 이미지·내용·링크·정가·설명만 고치고, ⠿를 끌어 그 과목 안에서 순서를 바꾼다.
@@ -109,7 +109,8 @@ export async function render(container, { supabase }) {
       const deptBox = el("section", { className: "prep-dept" }, [el("h3", { textContent: g.name })]);
       panel.append(deptBox);
       for (const subjectId of ids) {
-        const section = el("section", { className: "prep-subject" }, [el("h4", { textContent: nameOf.get(subjectId) })]);
+        const section = el("section", { className: "prep-subject" });
+        section.dataset.subject = nameOf.get(subjectId);
         deptBox.append(section);
         mounts.push(mountCardList(section, {
           supabase,
@@ -118,6 +119,7 @@ export async function render(container, { supabase }) {
           activeKey: null,
           query: (q) => q.eq("subject_id", subjectId).eq("category", cat),
           fields: [
+            { key: "subject_id", label: "과목", type: "select", locked: true, options: () => [[subjectId, nameOf.get(subjectId)]] },
             { key: "category", label: "분류", type: "select", locked: true, options: () => CATEGORIES },
             { key: "content", label: "내용", type: "textarea", required: true, wide: true },
             { key: "link_url", label: "링크", type: "text", wide: true },

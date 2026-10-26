@@ -53,26 +53,47 @@ test("메뉴 묶음: 제목·하위 탭, 첫 탭만 그리고 다른 탭은 처�
   assert.deepEqual(drawn, ["a", "b"], "한 번 그린 탭은 다시 그리지 않는다");
 });
 
-test("학과별 과목: 학과를 고르면 그 학과 과목, 더하기·빼기는 학과-과목 연결표에 저장", async () => {
+test("학과별 과목: 왼쪽은 학과 과목(순서대로), 오른쪽은 다른 과목(검색), 추가·빼기는 연결표에 저장", async () => {
+  const { render } = await import("../js/pages/department-subjects.mjs");
+  const tables = data();
+  tables.subjects.push({ id: "s4", name: "새과목", sort_order: null });
+  tables.subject_departments.push({ subject_id: "s4", department_id: "d2" });
+  const c = document.createElement("div");
+  await render(c, { supabase: fakeSupabase(tables) });
+  const [left, right] = c.querySelectorAll(".dept-subject-list");
+  const names = (box) => [...box.querySelectorAll(".dept-subject-row > span:not(.drag-handle)")].map((s) => s.textContent).filter(Boolean);
+  assert.deepEqual(names(left), ["포토샵", "일러스트"]);
+  assert.deepEqual(names(right), ["웹1"], "승인 전 신규 과목은 오른쪽에 없음");
+  const dept = c.querySelector('select[aria-label="학과"]');
+  dept.value = "d2";
+  dept.dispatchEvent(new dom.window.Event("change"));
+  assert.deepEqual(names(left), ["웹1", "새과목 (승인 전 신규 과목)"]);
+  const search = c.querySelector('input[aria-label="과목 검색"]');
+  search.value = "포토";
+  search.dispatchEvent(new dom.window.Event("input"));
+  assert.deepEqual(names(right), ["포토샵"]);
+  button(right, "추가").click();
+  await flush();
+  assert.ok(tables.subject_departments.some((l) => l.subject_id === "s1" && l.department_id === "d2"));
+  assert.deepEqual(names(left).slice(0, 2), ["포토샵", "웹1"], "전체수업 순서대로");
+  button(left.querySelector(".dept-subject-row"), "빼기").click();
+  await flush();
+  assert.ok(!tables.subject_departments.some((l) => l.subject_id === "s1" && l.department_id === "d2"));
+});
+
+test("학과별 과목: ⠿로 끌면 학과 커리큘럼과 같은 순서 값(전체수업 순서)이 바뀐다", async () => {
   const { render } = await import("../js/pages/department-subjects.mjs");
   const tables = data();
   const c = document.createElement("div");
   await render(c, { supabase: fakeSupabase(tables) });
-  const names = () => [...c.querySelectorAll(".dept-subject span")].map((s) => s.textContent);
-  assert.deepEqual(names(), ["포토샵", "일러스트"]);
-  const dept = c.querySelector("select");
-  dept.value = "d2";
-  dept.dispatchEvent(new dom.window.Event("change"));
-  assert.deepEqual(names(), ["웹1"]);
-  const pick = c.querySelector(".link-pick");
-  pick.value = "s1";
-  pick.dispatchEvent(new dom.window.Event("change"));
+  const rows = () => [...c.querySelectorAll(".dept-subject-list")[0].querySelectorAll(".dept-subject-row")];
+  rows()[1].querySelector(".drag-handle").dispatchEvent(new dom.window.Event("pointerdown"));
+  rows()[1].dispatchEvent(new dom.window.Event("dragstart"));
+  rows()[0].dispatchEvent(new dom.window.Event("drop", { cancelable: true }));
   await flush();
-  assert.ok(tables.subject_departments.some((l) => l.subject_id === "s1" && l.department_id === "d2"));
-  assert.deepEqual(names(), ["포토샵", "웹1"]);
-  button(c.querySelector(".dept-subject"), "빼기").click();
-  await flush();
-  assert.ok(!tables.subject_departments.some((l) => l.subject_id === "s1" && l.department_id === "d2"));
+  assert.equal(tables.subjects.find((s) => s.id === "s2").sort_order, 0);
+  assert.equal(tables.subjects.find((s) => s.id === "s1").sort_order, 1);
+  assert.equal(tables.subjects.find((s) => s.id === "s3").sort_order, 2, "다른 학과 과목은 그대로");
 });
 
 test("신청 과목: '수정'·'학과 커리큘럼 생성'·'로드맵 문구 생성'은 박스 맨 아래가 아니라 제목 옆", async () => {

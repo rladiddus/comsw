@@ -18,7 +18,7 @@ async function settingsForm(container, supabase) {
   const state = el("span", { className: "save-state" });
   const [{ data: settings, error }, { data: sets }] = await Promise.all([
     supabase.from("site_settings").select("key, value"),
-    supabase.from("curriculum_sets").select("id, name").is("department_id", null).order("sort_order"),
+    supabase.from("curriculum_sets").select("id, name").eq("is_vacation", true).order("name"),
   ]);
   if (error) { state.textContent = dbErrorMessage(error); state.classList.add("err"); }
   const value = key => settings?.find(s => s.key === key)?.value ?? "";

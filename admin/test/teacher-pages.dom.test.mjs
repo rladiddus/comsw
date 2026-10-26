@@ -287,13 +287,27 @@ test("내 커리큘럼: 내 학과는 쌤톡 학과, 위쪽은 '선택 학과', 
   const { c } = await setup("mine", twoSubjects());
   tabButton(c, "write").click();
   const labels = [...c.querySelectorAll(".form-row:not(.materials-row) .form-field > span")].map((s) => s.textContent);
-  assert.deepEqual(labels, ["내 학과", "선택 학과"]);
+  assert.deepEqual(labels, ["내 학과", "선택 학과", "방학 특강"]);
   assert.deepEqual([...c.querySelector("[name=department]").options].map((o) => o.textContent), ["웹학과"]);
   assert.deepEqual([...c.querySelectorAll(".subject-tabs button")].map((b) => b.textContent), ["웹1", "웹2"]);
   assert.ok(findButton(c, "내 프로필 > 수업 설정에서 학과·과목 바꾸기"));
   const row = c.querySelector(".subject-panel:not([hidden]) .step-row");
   const order = [...row.children].map((x) => x.querySelector("span")?.textContent ?? x.textContent);
   assert.deepEqual(order, ["단계", "개인 수업 커리큘럼", "커리큘럼 이미지", "단계 삭제"], "과목은 탭이 정한다");
+});
+
+test("등록하기: 선택 학과에 방학 특강 그룹은 없고, '방특'에 체크하면 방특으로 제출", async () => {
+  const data = twoSubjects();
+  data.curriculum_sets.push({ id: "vac", name: "2026년 여름방학특강", department_id: null, is_vacation: true });
+  const { c, calls } = await setup("mine", data);
+  tabButton(c, "write").click();
+  assert.deepEqual([...c.querySelector("[name=set_id]").options].map((o) => o.textContent), ["웹학과"]);
+  c.querySelector(".subject-panel:not([hidden]) [name=written]").value = "방학 특강 원문";
+  c.querySelector("[name=vacation]").checked = true;
+  submitForm(c);
+  await flush();
+  const sent = calls.filter(([n]) => n === "comsw_submit_my_curriculum").map(([, a]) => [a.p_set_id, a.p_vacation]);
+  assert.deepEqual(sent, [["set", true]]);
 });
 
 test("등록하기: 과목 탭마다 단계를 쓰고(+ 단계 추가), 내용 있는 단계만 한 번에 승인 요청", async () => {

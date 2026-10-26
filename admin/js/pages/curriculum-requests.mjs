@@ -18,7 +18,8 @@ export async function render(container, { supabase, crop = cropImageToSquare, fe
   );
   const setState = stateLine(container);
   const [pending, instructors, subjects, sets, weeks, tracks, steps, stepSubjects, materials] = await Promise.all([
-    rows(supabase, "instructor_curricula", (q) => q.eq("status", "pending").order("sort_order")),
+    // 방특 제출은 '방학 특강'에서 그룹에 담으므로 여기서는 뺀다.
+    rows(supabase, "instructor_curricula", (q) => q.eq("status", "pending").eq("vacation", false).order("sort_order")),
     rows(supabase, "instructors"),
     rows(supabase, "subjects"),
     rows(supabase, "curriculum_sets"),

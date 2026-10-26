@@ -503,3 +503,27 @@ dialog.roadmap-source::backdrop { background:rgba(0,0,0,.45); }
 .dept-choice { display:inline-flex; align-items:center; gap:8px; padding:9px 14px; border:1px solid var(--line); border-radius:10px; background:#fff; white-space:nowrap; cursor:pointer; }
 .dept-choice input { margin:0; }
 .dept-choice:has(input:checked) { border-color:var(--accent); background:#fff5f0; font-weight:600; }
+/* 내 커리큘럼 등록: 내 학과 / 선택 학과 / □ 방특 */
+.form-row.curriculum-head-row { grid-template-columns:1fr 1fr auto; align-items:end; }
+.vacation-check .consent { display:inline-flex; align-items:center; gap:6px; height:42px; padding:0 12px; border:1px solid #d9dde4; border-radius:9px; background:#fff; font-weight:600; white-space:nowrap; }
+.vacation-check .consent input { width:auto; margin:0; }
+@media (max-width:700px) { .form-row.curriculum-head-row { grid-template-columns:1fr; } }
+/* 방학 특강 > 방특 신청 */
+.vacation-pool { margin:12px 0 20px; }
+.vacation-pool-item { border-top:1px solid var(--line); padding:8px 0; }
+.vacation-pool-item summary { display:flex; align-items:center; gap:10px; cursor:pointer; }
+.vacation-pool-item summary .publish-btn { margin-left:auto; padding:6px 12px; }
+/* 학과 관리 > 학과별 과목: 왼쪽 학과 과목(순서), 오른쪽 다른 과목(검색) */
+.dept-subject-columns { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); gap:16px; align-items:start; }
+.dept-subject-columns .form-field { margin:0 0 10px; }
+.dept-subject-list { display:flex; flex-direction:column; }
+.dept-subject-row { position:relative; display:grid; grid-template-columns:20px minmax(0,1fr) auto; gap:8px; align-items:center; padding:7px 4px; border-bottom:1px solid var(--line); }
+.dept-subject-columns section:last-child .dept-subject-row { grid-template-columns:minmax(0,1fr) auto; }
+.dept-subject-row.dragging { opacity:.5; }
+.dept-subject-row .ghost-btn { padding:4px 10px; }
+@media (max-width:900px) { .dept-subject-columns { grid-template-columns:1fr; } }
+/* 접어도 span 격자 줄(윗줄·아랫줄)을 지킨다 */
+.card-item.collapsed .card-fields.span-grid { display:grid; grid-template-columns:repeat(12, minmax(0,1fr)); gap:6px 12px; }
+.card-item.collapsed .card-fields.span-grid .card-line { display:flex; align-items:center; gap:6px; min-width:0; }
+.card-item.collapsed .card-fields.span-grid .card-line + .card-line::before { content:none; }
+.card-item.collapsed .card-fields.span-grid .card-line :is(input, select, textarea) { flex:1; min-width:0; width:auto; }

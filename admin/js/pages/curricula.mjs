@@ -15,21 +15,21 @@ const el = (tag, props = {}, children = []) => {
 // 순서는 바꾸지 않는다(⠿ 없음, 사용자 요청). 보이는 순서 = 학과 탭 순서 → 탭 안의 순서.
 export async function render(container, { supabase }) {
   container.append(el("h2", { textContent: "강사 커리큘럼" }));
-  const [{ data: sets }, { data: settings }, { data: depts }, { data: instructors }, { data: subjects }] = await Promise.all([
+  const [{ data: sets }, { data: depts }, { data: instructors }, { data: subjects }] = await Promise.all([
     supabase.from("curriculum_sets").select("*").order("sort_order"),
-    supabase.from("site_settings").select("key, value").eq("key", "vacation_set_id"),
     supabase.from("departments").select("id, name").order("sort_order"),
     supabase.from("instructors").select("id, name").order("sort_order"),
     supabase.from("subjects").select("id, name").order("sort_order"),
   ]);
-  const vacationId = settings?.[0]?.value;
-  const tabs = (sets || []).filter((s) => s.id !== vacationId);
+  // 방학 특강 그룹(is_vacation)은 '방학 특강' 화면에서 고친다.
+  const tabs = (sets || []).filter((s) => !s.is_vacation);
 
   const setsBox = el("details");
   setsBox.append(el("summary", { textContent: "학과 탭(커리큘럼 세트) 관리" }));
   container.append(setsBox);
   mountTableEditor(setsBox, {
     supabase, table: "curriculum_sets", title: "커리큘럼 세트",
+    filter: (q) => q.eq("is_vacation", false),
     description: "세트 이름이 사이트에서 탭 이름으로 쓰입니다. 바꾸거나 추가한 뒤에는 이 화면을 다시 열어 주세요.",
     columns: [
       { key: "name", label: "이름", type: "text", required: true },

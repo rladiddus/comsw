@@ -30,7 +30,8 @@ export function fakeSupabase(tables, { unique = {} } = {}) {
           return { error: null };
         };
         const q = {
-          eq: (k, v) => { filters.push(r => r[k] === v); eqs.push([k, v]); return q; },
+          // 참/거짓 칸은 실제 DB처럼 비어 있으면 false(기본값)로 본다.
+          eq: (k, v) => { filters.push(r => (typeof v === "boolean" ? Boolean(r[k]) : r[k]) === v); eqs.push([k, v]); return q; },
           in: (k, vs) => { filters.push(r => vs.includes(r[k])); return q; },
           is: (k, v) => { filters.push(r => (r[k] ?? null) === v); return q; },
           not: (k, _op, v) => { filters.push(r => (r[k] ?? null) !== v); return q; },

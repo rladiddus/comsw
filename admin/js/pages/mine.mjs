@@ -133,6 +133,7 @@ export async function render(container, ctx, { tab } = {}) {
         p_written: row.written,
         p_summary: "",
         p_media_url: row.media_url,
+        p_vacation: Boolean(row.vacation),
       });
     const done = async (message) => {
       await render(container, ctx, { tab: "list" });
@@ -163,7 +164,13 @@ export async function render(container, ctx, { tab } = {}) {
     };
     const [dept, deptField] = select("내 학과", "department");
     const [set, setField] = select("선택 학과", "set_id");
-    form.append(el("div", { className: "form-row" }, [deptField, setField]));
+    // '방특'에 체크하면 학과 승인 대신 관리 화면 '방학 특강'에서 그룹에 담는다.
+    const vacation = el("input", { type: "checkbox", name: "vacation" });
+    const vacationField = el("div", { className: "form-field vacation-check" }, [
+      el("span", { textContent: "방학 특강" }),
+      el("label", { className: "consent" }, [vacation, el("span", { textContent: "방특" })]),
+    ]);
+    form.append(el("div", { className: "form-row curriculum-head-row" }, [deptField, setField, vacationField]));
     const settingsLink = el("button", {
       type: "button",
       className: "link-btn",
@@ -285,8 +292,9 @@ export async function render(container, ctx, { tab } = {}) {
         : "이 학과에서 고른 과목이 없습니다. 수업 설정에서 수업하는 과목을 체크해주세요.";
       options(
         set,
+        // 방학 특강 그룹은 '방특' 체크로 내므로 선택 학과 목록에서 뺀다.
         sets.filter((s) =>
-          s.department_id === dept.value || s.department_id == null
+          !s.is_vacation && (s.department_id === dept.value || s.department_id == null)
         ),
       );
       subjectTabs.replaceChildren(...mine.map((s) => {
@@ -355,12 +363,13 @@ export async function render(container, ctx, { tab } = {}) {
             step_label: st.stepInput.value.trim(),
             written: st.written.value,
             media_url: st.media.value(),
+            vacation: vacation.checked,
           });
           sent++;
         }
         await done(
           sent
-            ? `${sent}개 단계를 제출했습니다. 학과장 승인 대기 중입니다.`
+            ? `${sent}개 단계를 제출했습니다. ${vacation.checked ? "방학 특강 담당자가 확인합니다." : "학과장 승인 대기 중입니다."}`
             : "프로그램·준비물을 저장했습니다. 이 과목 커리큘럼이 승인될 때 함께 반영됩니다.",
         );
       } catch (err) {
@@ -416,7 +425,7 @@ export async function render(container, ctx, { tab } = {}) {
           el("h4", { textContent: title }),
           el("p", {
             className: "muted",
-            textContent: sets.find((s) => s.id === row.set_id)?.name || "",
+            textContent: [sets.find((s) => s.id === row.set_id)?.name, row.vacation && "방특"].filter(Boolean).join(" · "),
           }),
           el("p", { className: "submission-text", textContent: row.written || "" }),
           actions,

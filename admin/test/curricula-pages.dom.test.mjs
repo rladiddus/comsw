@@ -22,7 +22,7 @@ const data = () => ({
   instructor_subjects: [{ instructor_id: "i1", subject_id: "s2", sort_order: 0 }],
   curriculum_sets: [
     { id: "set-web", name: "웹학과", department_id: "d2", sort_order: 0 },
-    { id: "set-vac", name: "2026년 여름방학특강", department_id: null, sort_order: 1 },
+    { id: "set-vac", name: "2026년 여름방학특강", department_id: null, sort_order: 1, is_vacation: true },
   ],
   site_settings: [{ key: "vacation_set_id", value: "set-vac" }],
   instructor_curricula: [
@@ -206,7 +206,7 @@ test("새 커리큘럼은 학과 탭을 골라 검색해야 추가되고, 고른
 
 test("방학 특강: 메인 화면에서 고른 세트의 승인된 강의를 카드(이미지 왼쪽, 접힘, 끌기)로, 교재·수업 시간 칸 포함", async () => {
   const { c } = await renderPage("../js/pages/vacation.mjs");
-  assert.match(c.textContent, /2026년 여름방학특강/);
+  assert.equal(c.querySelector('select[aria-label="방학 특강 그룹"]').selectedOptions[0].textContent, "2026년 여름방학특강 (사이트에 나옴)");
   const cards = [...c.querySelectorAll(".card-item")];
   assert.equal(cards.length, 1);
   assert.ok(cards[0].classList.contains("image-left") && cards[0].classList.contains("collapsed"));
@@ -218,12 +218,36 @@ test("방학 특강: 메인 화면에서 고른 세트의 승인된 강의를 �
   assert.ok(cards[0].querySelector(".card-fields").classList.contains("span-grid"));
 });
 
-test("방학 특강: 세트를 고르지 않았으면 안내", async () => {
+test("방학 특강: 그룹이 없으면 안내하고, '방학특강 추가'로 그룹을 만든다", async () => {
   const tables = data();
-  tables.site_settings = [];
+  tables.curriculum_sets = tables.curriculum_sets.filter(s => !s.is_vacation);
   const { c } = await renderPage("../js/pages/vacation.mjs", tables);
-  assert.match(c.textContent, /메인 화면 > 기타 설정/);
+  assert.match(c.textContent, /방학 특강 그룹이 없습니다/);
   assert.equal(c.querySelector(".card-item"), null);
+  button(c, "방학특강 추가").click();
+  c.querySelector('[aria-label="새 방학 특강 이름"]').value = "2027년 겨울방학특강";
+  button(c, "만들기").click();
+  await flush();
+  assert.deepEqual(tables.curriculum_sets.at(-1), { id: tables.curriculum_sets.at(-1).id, name: "2027년 겨울방학특강", is_vacation: true });
+  assert.equal(c.querySelector('select[aria-label="방학 특강 그룹"]').value, tables.curriculum_sets.at(-1).id);
+  assert.match(c.textContent, /강의 목록 — 2027년 겨울방학특강/);
+});
+
+test("방학 특강: '방특'으로 낸 커리큘럼은 과목·강사별로 모이고, '이 그룹에 담기'는 그룹으로 옮겨 승인", async () => {
+  const tables = data();
+  tables.instructor_curricula.push(
+    { id: "v1", set_id: "set-web", instructor_id: "i1", subject_id: "s1", step_label: "1단계", written: "방특 원문1", status: "pending", vacation: true, sort_order: 9 },
+    { id: "v2", set_id: "set-web", instructor_id: "i1", subject_id: "s1", step_label: "2단계", written: "방특 원문2", status: "pending", vacation: true, sort_order: 10 },
+  );
+  const { c, supabase } = await renderPage("../js/pages/vacation.mjs", tables);
+  const items = [...c.querySelectorAll(".vacation-pool-item")];
+  assert.equal(items.length, 1, "일반 승인 대기(c3)는 빠지고 방특만");
+  assert.match(items[0].querySelector("summary").textContent, /포토샵 · 김민주 1단계, 2단계/);
+  globalThis.confirm = () => true;
+  button(items[0], "이 그룹에 담기").click();
+  await flush();
+  assert.deepEqual(tables.instructor_curricula.filter(r => r.vacation).map(r => r.set_id), ["set-vac", "set-vac"]);
+  assert.deepEqual(supabase.rpcCalls.map(([n, a]) => [n, a.p_id]), [["comsw_approve_curriculum", "v1"], ["comsw_approve_curriculum", "v2"]]);
 });
 
 test("끌어 놓기: 줄 아래쪽 절반이면 뒤 경계에 점선, 제자리엔 점선 없음, 놓으면 그 경계로 옮긴다", async () => {

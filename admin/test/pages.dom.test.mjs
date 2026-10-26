@@ -16,7 +16,7 @@ const DATA = {
   main_media: [{ id: "m1", url: "video.mp4", caption: "캡션", is_active: true, sort_order: 0 }],
   menus: [{ id: "n1", name: "전체 수업", is_active: true, side: "left", sort_order: 1 }],
   site_settings: [{ key: "roadmap_logo_url", value: "logo" }, { key: "vacation_set_id", value: "s1" }],
-  curriculum_sets: [{ id: "s1", name: "2026년 여름방학특강", department_id: null, sort_order: 0 }],
+  curriculum_sets: [{ id: "s1", name: "2026년 여름방학특강", department_id: null, sort_order: 0, is_vacation: true }],
   loading_items: [{ id: "l1", image_url: "img", text: "For", is_active: false, sort_order: 0 }],
   seminars: [{ id: "x1", title: "AI 특강", capacity: 25, sort_order: 0 }],
   seminar_applications: [

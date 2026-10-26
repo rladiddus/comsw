@@ -90,7 +90,10 @@ test("로딩 화면: 카드가 그려진다", async () => {
 
 test("특강: 신청자 명단을 열면 인원·연락처가 보이고 CSV를 내려받는다", async () => {
   const c = await renderPage("../js/pages/seminars.mjs");
-  const btn = [...c.querySelectorAll(".actions button")].find(b => b.textContent === "신청자 명단");
+  const card = c.querySelector(".card-item");
+  assert.ok(card.classList.contains("image-right") && card.classList.contains("collapsed"), "포스터 오른쪽, 처음엔 접힘");
+  assert.ok(card.querySelector(".drag-handle"), "끌어서 순서");
+  const btn = [...card.querySelectorAll("button")].find(b => b.textContent === "신청자 명단");
   btn.click();
   await flush();
   assert.equal(c.querySelector("section h3").textContent, "신청자 명단 — AI 특강 (2명)");
@@ -114,10 +117,10 @@ test("신청자 수 조회가 실패하면 삭제를 묻지 않는다", async ()
     q.select = (cols, opts) => (opts?.head ? { eq: () => Promise.resolve({ count: null, error: { message: "boom" } }) } : realSelect(cols, opts));
     return q;
   };
-  render(container, { supabase: sb });
+  await render(container, { supabase: sb });
   await flush();
   lastConfirm = "";
-  container.querySelector("table.editor button.danger").click();
+  container.querySelector(".card-item button.danger").click();
   await flush();
   assert.equal(lastConfirm, "");
   assert.match(container.querySelector(".save-state").textContent, /신청자 수를 확인하지 못했습니다/);
@@ -125,7 +128,7 @@ test("신청자 수 조회가 실패하면 삭제를 묻지 않는다", async ()
 
 test("특강 삭제 경고에 신청자 수가 나온다 (취소하면 지우지 않음)", async () => {
   const c = await renderPage("../js/pages/seminars.mjs");
-  c.querySelector("table.editor button.danger").click();
+  c.querySelector(".card-item button.danger").click();
   await flush();
   assert.equal(lastConfirm, "'AI 특강' 특강을 삭제하면 신청자 2명의 명단도 함께 삭제됩니다. 삭제할까요?");
 });

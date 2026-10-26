@@ -1,4 +1,4 @@
-import { mountTableEditor } from "../table-editor.mjs";
+import { mountCardList } from "../card-list.mjs";
 import { dbErrorMessage } from "../fields.mjs";
 import { toCsv } from "../csv.mjs";
 import { deleteSeminarMessage, formatSeoul } from "../format.mjs";
@@ -27,7 +27,8 @@ async function applicantCount(supabase, seminarId) {
   return count;
 }
 
-export function render(container, { supabase }) {
+// 특강 목록은 다른 카드 목록처럼 포스터 오른쪽, 처음엔 접힘, '수정'으로 고치고, ⠿를 끌어 순서 = 사이트 순서.
+export async function render(container, { supabase }) {
   const roster = el("section");
   container.append(el("h2", { textContent: "특강·세미나" }));
 
@@ -66,23 +67,28 @@ export function render(container, { supabase }) {
     roster.scrollIntoView({ behavior: "smooth" });
   }
 
-  mountTableEditor(container, {
+  const list = el("div");
+  container.append(list, roster);
+  await mountCardList(list, {
     supabase,
     table: "seminars",
     title: "특강 목록",
-    description: "일시는 '2026년 8월 18일 14:00-16:00'처럼 적어주세요. 날짜가 지나면 사이트에서 신청이 자동으로 마감됩니다.",
-    columns: [
-      { key: "poster_url", label: "포스터", type: "image" },
+    description: "일시는 '2026년 8월 18일 14:00-16:00'처럼 적어주세요. 날짜가 지나면 사이트에서 신청이 자동으로 마감됩니다. 왼쪽 ⠿를 끌어 놓은 순서가 사이트 순서입니다.",
+    imageKey: "poster_url",
+    imageLabel: "포스터",
+    imageSide: "right",
+    activeKey: null,
+    fields: [
       { key: "title", label: "특강명", type: "text", required: true },
       { key: "subtitle", label: "소주제", type: "text" },
       { key: "datetime_text", label: "일시", type: "text" },
       { key: "instructor", label: "강사명", type: "text" },
       { key: "place", label: "장소", type: "text" },
-      { key: "capacity", label: "정원", type: "number" },
+      { key: "capacity", label: "정원", type: "text", placeholder: "숫자" },
     ],
-    defaults: rows => ({ title: freeName("새 특강", rows, "title") }),
-    deleteConfirm: async row => deleteSeminarMessage(row.title, await applicantCount(supabase, row.id)),
-    extraActions: [{ label: "신청자 명단", onClick: showRoster }],
+    defaults: (rows) => ({ title: freeName("새 특강", rows, "title") }),
+    itemName: (row) => `'${row.title}'`,
+    deleteConfirm: async (row) => deleteSeminarMessage(row.title, await applicantCount(supabase, row.id)),
+    actions: [{ label: "신청자 명단", onClick: showRoster }],
   });
-  container.append(roster);
 }

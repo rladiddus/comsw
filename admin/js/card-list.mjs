@@ -77,6 +77,7 @@ export async function mountCardList(container, {
   preview = (values) => [mediaPreview(values[imageKey])],
   itemName = (row, index) => `${index + 1}번`,
   onRows = () => {}, // 불러올 때마다 지금 줄 목록(예: 다 지우면 과목 목록에서 빼기)
+  actions = [], // 카드마다 더 붙일 버튼 [{ label, onClick(row) }] (예: 특강 신청자 명단)
 }) {
   const state = el("span", { className: "save-state" });
   const list = el("div", { className: "card-list" });
@@ -364,7 +365,14 @@ export async function mountCardList(container, {
       edit.disabled = false;
     });
     remove.addEventListener("click", async () => {
-      if (!confirm(await deleteConfirm(row, index))) return;
+      // 경고 문구를 못 만들면(예: 신청자 수 조회 실패) 묻지도 지우지도 않는다.
+      let message;
+      try {
+        message = await deleteConfirm(row, index);
+      } catch (err) {
+        return setState(err.message, true);
+      }
+      if (!confirm(message)) return;
       const { error } = await supabase.from(table).delete().eq("id", row.id);
       if (error) return setState(dbErrorMessage(error), true);
       await load();
@@ -382,6 +390,11 @@ export async function mountCardList(container, {
       upload,
       el("div", { className: "media-actions" }, [
         ...(activeKey ? [el("label", { className: "consent" }, [active, el("span", { textContent: activeLabel })])] : []),
+        ...actions.map(({ label, onClick }) => {
+          const b = el("button", { type: "button", className: "ghost-btn", textContent: label });
+          b.addEventListener("click", () => onClick(row));
+          return b;
+        }),
         remove,
         edit,
         fold,

@@ -204,12 +204,16 @@ test("새 커리큘럼은 학과 탭을 골라 검색해야 추가되고, 고른
   assert.equal("is_active" in added, false);
 });
 
-test("방학 특강: 메인 화면에서 고른 세트를 교재·수업 시간 칸과 함께 편집", async () => {
+test("방학 특강: 메인 화면에서 고른 세트의 승인된 강의를 카드(이미지 오른쪽, 접힘, 끌기)로, 교재·수업 시간 칸 포함", async () => {
   const { c } = await renderPage("../js/pages/vacation.mjs");
   assert.match(c.textContent, /2026년 여름방학특강/);
-  const headers = [...tableOf(c, "승인된 커리큘럼").querySelectorAll("th")].map(th => th.textContent);
-  assert.ok(["교재·준비물", "교재 설명", "수업 시간"].every(h => headers.includes(h)), headers.join(","));
-  assert.equal(rowsOf(c, "승인된 커리큘럼").length, 1);
+  const cards = [...c.querySelectorAll(".card-item")];
+  assert.equal(cards.length, 1);
+  assert.ok(cards[0].classList.contains("image-right") && cards[0].classList.contains("collapsed"));
+  assert.deepEqual([...cards[0].children].map(x => x.className.split(" ")[0]), ["drag-handle", "card-side", "card-stage"]);
+  const labels = [...cards[0].querySelectorAll(".card-line > span")].map(s => s.textContent);
+  assert.ok(["교재·준비물", "교재 설명", "수업 시간"].every(h => labels.includes(h)), labels.join(","));
+  assert.equal(cards[0].querySelector('.card-line textarea').value, "", "원문");
 });
 
 test("방학 특강: 세트를 고르지 않았으면 안내", async () => {
@@ -217,7 +221,7 @@ test("방학 특강: 세트를 고르지 않았으면 안내", async () => {
   tables.site_settings = [];
   const { c } = await renderPage("../js/pages/vacation.mjs", tables);
   assert.match(c.textContent, /메인 화면 > 기타 설정/);
-  assert.equal(tableOf(c, "승인된 커리큘럼"), undefined);
+  assert.equal(c.querySelector(".card-item"), null);
 });
 
 test("끌어 놓기: 줄 아래쪽 절반이면 뒤 경계에 점선, 제자리엔 점선 없음, 놓으면 그 경계로 옮긴다", async () => {

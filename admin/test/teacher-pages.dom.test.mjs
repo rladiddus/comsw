@@ -475,3 +475,14 @@ test("+ 개월 추가: '웹툰1' 탭에서 누르면 '웹툰2' 탭이 열리고,
   const sent = calls.filter(([n]) => n === "comsw_submit_my_curriculum").map(([, a]) => [a.p_subject_id, a.p_step_label]);
   assert.deepEqual(sent, [["made", "1단계"]], "만든 과목 id로 제출");
 });
+
+test("수업 설정: 학과 과목은 연결한 순서가 아니라 학과 관리와 같은 전체수업 순서", async () => {
+  const data = withAi();
+  data.subjects.find((s) => s.id === "subject").sort_order = 5; // 웹1이 나중 순서
+  data.subjects.find((s) => s.id === "web2").sort_order = 1;
+  const { c } = await setup("profile", data);
+  findButton(c, "수업 설정").click();
+  const box = c.querySelector(".class-settings");
+  findButton(box, "수정").click();
+  assert.deepEqual([...box.querySelectorAll(".subject-check")].map((l) => l.textContent), ["웹2", "웹1"]);
+});

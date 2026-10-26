@@ -41,9 +41,11 @@ export async function mountClassSettings(
   const checked = new Set(mySubjects.map((s) => s.subject_id));
   // 컴수원에 없는 쌤톡 학과는 건드리지 않고 그대로 남긴다.
   const otherMajors = (majors || []).filter((n) => !byName(n));
+  // 학과 과목은 학과 관리·학과 커리큘럼과 같은 순서(전체수업 순서, 순서 없는 과목은 뒤에 이름순).
   const subjectsOf = (deptId) =>
     links.filter((l) => l.department_id === deptId)
-      .map((l) => subjects.find((s) => s.id === l.subject_id)).filter(Boolean);
+      .map((l) => subjects.find((s) => s.id === l.subject_id)).filter(Boolean)
+      .sort((a, b) => (a.sort_order ?? Infinity) - (b.sort_order ?? Infinity) || a.name.localeCompare(b.name, "ko"));
   const list = el("div", { className: "class-list" });
   const actions = el("div", { className: "form-actions" });
   const save = el("button", {

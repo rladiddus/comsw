@@ -1,5 +1,5 @@
 import { getServices } from "./services.mjs";
-import { cropImageToSquare } from "./image-crop.mjs";
+import { chooseThumbnail } from "./image-crop.mjs";
 
 export function validateImage(file) {
   if (!file || !["image/png", "image/jpeg", "image/webp"].includes(file.type)) {
@@ -16,7 +16,7 @@ export function mountImageUpload(
     kind = "image",
     onUploaded,
     upload,
-    crop = cropImageToSquare,
+    crop = chooseThumbnail, // 커리큘럼: 썸네일 영역('#crop=…')을 고르고 원본을 올린다
     label = "이미지 올리기",
   } = {},
 ) {
@@ -49,15 +49,15 @@ export function mountImageUpload(
       button.disabled = true;
       box.setAttribute("aria-busy", "true");
       state.textContent = kind === "curriculum"
-        ? "정사각형으로 자를 부분을 선택해주세요…"
+        ? "썸네일로 보일 부분을 골라주세요…"
         : "이미지를 올리는 중…";
       state.classList.remove("err");
-      const file = kind === "curriculum" ? await crop(files[0]) : files[0];
-      if (!file) {
+      const file = files[0];
+      const fragment = kind === "curriculum" ? await crop(file) : "";
+      if (fragment === null) {
         state.textContent = "이미지 첨부를 취소했습니다";
         return;
       }
-      validateImage(file);
       state.textContent = "이미지를 올리는 중…";
       const fn = upload ?? getServices().upload;
       if (!fn) {
@@ -66,7 +66,7 @@ export function mountImageUpload(
         );
       }
       const asset = await fn(file, kind);
-      await onUploaded?.(asset);
+      await onUploaded?.(fragment ? { ...asset, url: `${asset.url}${fragment}` } : asset);
       state.textContent = kind === "profile-source"
         ? "본인 사진을 비공개로 보관했습니다. 프로필을 저장해주세요."
         : "이미지를 올렸습니다";

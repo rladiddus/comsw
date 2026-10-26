@@ -411,3 +411,44 @@ test("내 커리큘럼: 프로그램·준비물만 바꿔도 저장되고, 안 �
   assert.deepEqual(calls.map((x) => x[0]), ["comsw_save_my_materials"]);
   assert.match(c.textContent, /승인될 때 함께 반영/);
 });
+
+test("타강사 커리큘럼: 선생님에겐 없고, 학과장은 체크하면 강사 검색·선택으로 바뀌어 그 강사 학과·과목으로 대신 승인 요청", async () => {
+  const mine = await setup("mine", twoSubjects());
+  tabButton(mine.c, "write").click();
+  assert.equal(mine.c.querySelector('[aria-label="타강사 커리큘럼"]'), null, "선생님에겐 없음");
+
+  const data = twoSubjects();
+  data.instructors.push({ id: "other", name: "김민주" }, { id: "x", name: "조해리" });
+  data.instructor_departments.push({ instructor_id: "other", department_id: "dept" });
+  data.instructor_subjects.push({ instructor_id: "other", subject_id: "web2", sort_order: 0 });
+  const c = document.createElement("div");
+  document.body.replaceChildren(c);
+  const sb = fakeSupabase(data);
+  sb.rpc = async () => ({ data: [], error: null });
+  const { render } = await import("../js/pages/mine.mjs");
+  const ctx = { supabase: sb, uid: "uid", role: "head", displayName: "선생님", loadMyMajors: async () => ["웹학과"], saveMyMajors: async () => {} };
+  await render(c, ctx);
+  await flush();
+  tabButton(c, "write").click();
+  const toggle = c.querySelector('[aria-label="타강사 커리큘럼"]');
+  assert.equal(toggle.checked, false, "기본은 꺼짐");
+  assert.match(c.querySelector(".proxy-title h3").textContent, /선생님 선생님의 수업/);
+  toggle.checked = true;
+  toggle.dispatchEvent(new dom.window.Event("change"));
+  const find = c.querySelector('[aria-label="강사 검색"]');
+  find.value = "민주";
+  find.dispatchEvent(new dom.window.Event("input"));
+  const pick = c.querySelector('[aria-label="강사 선택"]');
+  assert.deepEqual([...pick.options].map((o) => o.textContent), ["강사 고르기", "김민주 선생님"]);
+  pick.value = "other";
+  pick.dispatchEvent(new dom.window.Event("change"));
+  await flush();
+  tabButton(c, "write").click();
+  assert.equal(c.querySelector('[aria-label="강사 선택"]').value, "other");
+  assert.deepEqual([...c.querySelectorAll(".subject-tabs button")].map((b) => b.textContent), ["웹2"], "그 강사의 과목");
+  c.querySelector(".subject-panel:not([hidden]) [name=written]").value = "대신 쓴 원문";
+  submitForm(c);
+  await flush();
+  const added = data.instructor_curricula.at(-1);
+  assert.deepEqual([added.instructor_id, added.subject_id, added.status, added.written], ["other", "web2", "pending", "대신 쓴 원문"]);
+});

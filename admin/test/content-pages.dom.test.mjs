@@ -155,6 +155,7 @@ const prepData = () => Object.assign(more(), {
     { id: "c2", subject_id: "s1", category: "supply", content: "이어폰", sort_order: 1 },
     { id: "c3", subject_id: "s2", category: "supply", content: "마우스", sort_order: 0 },
     { id: "c4", subject_id: "s2", category: "supply", content: "USB", sort_order: 1 },
+    { id: "c5", subject_id: "s3", category: "supply", content: "삼각자", sort_order: 0, department_id: "d2" },
   ],
 });
 const openTab = async (c, label) => {
@@ -175,8 +176,8 @@ test("준비물: 교재 / 준비물 / AI 툴 탭, 그 분류가 있는 과목을
   assert.deepEqual(prepCards(c), ["멘토 포토샵"]);
   await openTab(c, "준비물");
   assert.deepEqual(prepDepts(c), ["시각편집학과", "웹학과"]);
-  assert.deepEqual(prepSubjects(c), ["포토샵", "웹1"]);
-  assert.deepEqual(prepCards(c), ["이어폰", "마우스", "USB"]);
+  assert.deepEqual(prepSubjects(c), ["포토샵", "웹1", "캐드"], "학과 없는 캐드도 항목에 고른 학과(웹학과) 아래");
+  assert.deepEqual(prepCards(c), ["이어폰", "마우스", "USB", "삼각자"]);
   assert.equal([...shownPanel(c).querySelectorAll("button")].filter(b => b.textContent === "+ 추가").length, 1, "추가는 탭에 하나");
   assert.equal([...shownPanel(c).querySelectorAll("button")].filter(b => b.textContent === "모두 펼치기").length, 1, "모두 펼치기도 탭에 하나");
   [...shownPanel(c).querySelectorAll("button")].find(b => b.textContent === "모두 펼치기").click();
@@ -200,17 +201,22 @@ test("준비물: 카드는 분류·내용·링크·정가·설명(분류 잠김)
   [...panel.querySelectorAll("button")].find(b => b.textContent === "+ 추가").click();
   const form = panel.querySelector(".prep-add");
   assert.equal(form.hidden, false);
-  assert.deepEqual([...form.querySelectorAll("optgroup")].map(g => g.label), ["시각편집학과", "웹학과", "기타 과목"]);
+  assert.ok(form.querySelector('[aria-label="과목"]').disabled, "학과를 먼저");
   [...form.querySelectorAll("button")].find(b => b.textContent === "저장").click();
   await flush();
-  assert.match(panel.textContent, /과목을 골라주세요/);
+  assert.match(panel.textContent, /학과를 골라주세요/);
+  const deptPick = form.querySelector('[aria-label="학과"]');
+  deptPick.value = "d2";
+  deptPick.dispatchEvent(new dom.window.Event("change"));
+  assert.deepEqual([...form.querySelectorAll("optgroup")].map(g => [g.label, [...g.children].map(o => o.textContent)]),
+    [["웹학과", ["웹1"]], ["다른 과목", ["캐드", "포토샵"]]]);
   form.querySelector('[aria-label="과목"]').value = "s2";
   form.querySelector('[aria-label="내용"]').value = "멘토 웹";
   [...form.querySelectorAll("button")].find(b => b.textContent === "저장").click();
   await flush();
   const ins = supabase.calls.filter(x => x[0] === "insert").at(-1);
   assert.equal(ins[1], "course_prep_items");
-  assert.deepEqual([ins[2].subject_id, ins[2].category, ins[2].content, ins[2].sort_order], ["s2", "textbook", "멘토 웹", 0]);
+  assert.deepEqual([ins[2].subject_id, ins[2].department_id, ins[2].category, ins[2].content, ins[2].sort_order], ["s2", "d2", "textbook", "멘토 웹", 0]);
   assert.deepEqual(prepSubjects(c), ["포토샵", "웹1"], "새 과목이 학과 묶음에 나타남");
 });
 
@@ -220,7 +226,7 @@ test("준비물: 과목의 항목을 다 지우면 그 과목은 탭에서 빠�
   globalThis.confirm = () => true;
   [...shownPanel(c).querySelectorAll(".prep-subject")[0].querySelectorAll("button")].find(b => b.textContent === "삭제").click();
   await flush();
-  assert.deepEqual(prepSubjects(c), ["웹1"]);
+  assert.deepEqual(prepSubjects(c), ["웹1", "캐드"]);
   assert.deepEqual(prepDepts(c), ["웹학과"], "과목이 없는 학과 제목도 빠짐");
   await openTab(c, "교재");
   globalThis.confirm = () => true;

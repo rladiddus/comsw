@@ -8,8 +8,9 @@ import {
 } from "../teacher-workspace.mjs";
 import { mountImageUpload } from "../image-upload.mjs";
 import { driveThumbnail } from "../drive.mjs";
+import { applyCrop, stripCrop } from "../image-crop.mjs";
 
-// 이미지: 직접 업로드(정사각형 크롭) 또는 링크. 고른 방식의 값 하나만 제출한다.
+// 이미지: 직접 업로드(원본 + 썸네일 영역 #crop) 또는 링크. 고른 방식의 값 하나만 제출한다.
 function mediaPicker(container, initial = "") {
   let url = initial;
   // 첨부 이미지는 업로드 칸 오른쪽의 고정 크기 칸에 보여 준다(줄 높이가 바뀌지 않게).
@@ -22,7 +23,10 @@ function mediaPicker(container, initial = "") {
   const show = () => {
     preview.hidden = !url;
     empty.hidden = Boolean(url);
-    if (url) preview.src = driveThumbnail(url);
+    // 썸네일은 고른 영역('#crop=…')만, 크게 보기는 원본.
+    preview.removeAttribute("style");
+    preview.classList.remove("thumb-cropped");
+    if (url) applyCrop(Object.assign(preview, { src: driveThumbnail(url) }), url);
   };
   const link = el("input", {
     type: "url",
@@ -80,7 +84,9 @@ const nextStep = (label) => {
   return `${n + 1}단계`;
 };
 
-export async function render(container, ctx, { tab } = {}) {
+// 학과장·관리자는 '타강사 커리큘럼'에 체크하고 강사를 고르면(as) 그 강사의 학과·과목으로 대신 등록·조회한다.
+// 대신 낸 줄도 그 강사의 승인 대기 줄이 되어 '신청 과목'(방특이면 '방학 특강')에서 승인한다.
+export async function render(container, ctx, { tab, as } = {}) {
   const { supabase } = ctx;
   container.replaceChildren(
     el("h2", { textContent: "내 커리큘럼" }),
@@ -93,6 +99,11 @@ export async function render(container, ctx, { tab } = {}) {
   const setState = stateLine(container);
   try {
     const own = await requireInstructor(ctx);
+    const staff = ["admin", "head"].includes(ctx.role);
+    const target = staff && as
+      ? (await rows(supabase, "instructors", (q) => q.eq("id", as)))[0] ?? own
+      : own;
+    const proxy = target.id !== own.id; // 다른 강사 대신
     const loadMyMajors = ctx.loadMyMajors ??
       (await import("../ssamtalk-members.mjs")).loadMyMajors;
     const [depts, subjects, links, sets, submitted, mySubjects, myDepts, majors, materials] = await Promise.all([
@@ -103,12 +114,13 @@ export async function render(container, ctx, { tab } = {}) {
       rows(
         supabase,
         "instructor_curricula",
-        (q) => q.eq("instructor_id", own.id).order("sort_order"),
+        (q) => q.eq("instructor_id", target.id).order("sort_order"),
       ),
-      rows(supabase, "instructor_subjects", (q) => q.eq("instructor_id", own.id)),
-      rows(supabase, "instructor_departments", (q) => q.eq("instructor_id", own.id)),
-      loadMyMajors(ctx.uid).catch(() => null),
-      rows(supabase, "instructor_subject_materials", (q) => q.eq("instructor_id", own.id)),
+      rows(supabase, "instructor_subjects", (q) => q.eq("instructor_id", target.id)),
+      rows(supabase, "instructor_departments", (q) => q.eq("instructor_id", target.id)),
+      // 대신 쓸 때는 그 강사의 컴수원 학과(쌤톡 학과는 본인 것만 읽을 수 있음).
+      proxy ? null : loadMyMajors(ctx.uid).catch(() => null),
+      rows(supabase, "instructor_subject_materials", (q) => q.eq("instructor_id", target.id)),
     ]);
     // 내 학과 = 쌤톡 학과(이름이 같은 컴수원 학과). 못 불러오면 컴수원에 저장된 내 학과.
     const myDeptList = majors
@@ -125,7 +137,28 @@ export async function render(container, ctx, { tab } = {}) {
     };
     const subjectName = (id) =>
       subjects.find((s) => s.id === id)?.name || "과목";
-    const submit = (row) =>
+    // 대신 낼 때: 제출 함수(본인 전용)와 같은 규칙으로 직접 넣는다 — 같은 학과 탭·과목·단계·방특 여부의 대기 줄이 있으면 고친다.
+    const submitAs = async (row) => {
+      const stepLabel = String(row.step_label || "").trim();
+      const { data: same, error } = await supabase.from("instructor_curricula").select("id, sort_order")
+        .eq("instructor_id", target.id).eq("set_id", row.set_id).eq("subject_id", row.subject_id)
+        .eq("step_label", stepLabel).eq("status", "pending").eq("vacation", Boolean(row.vacation));
+      if (error) throw new Error(error.message);
+      const values = { written: String(row.written || "").trim(), media_url: row.media_url || null };
+      if (same?.length) {
+        const { error: e } = await supabase.from("instructor_curricula").update(values).eq("id", same[0].id);
+        if (e) throw new Error(e.message);
+        return same[0].id;
+      }
+      const { data: inSet } = await supabase.from("instructor_curricula").select("sort_order").eq("set_id", row.set_id);
+      const { error: e } = await supabase.from("instructor_curricula").insert({
+        ...values, instructor_id: target.id, set_id: row.set_id, subject_id: row.subject_id, step_label: stepLabel,
+        status: "pending", vacation: Boolean(row.vacation),
+        sort_order: (inSet || []).reduce((m, r) => Math.max(m, r.sort_order ?? -1), -1) + 1,
+      });
+      if (e) throw new Error(e.message);
+    };
+    const submit = (row) => proxy ? submitAs(row) :
       rpc(supabase, "comsw_submit_my_curriculum", {
         p_set_id: row.set_id,
         p_subject_id: row.subject_id,
@@ -136,7 +169,7 @@ export async function render(container, ctx, { tab } = {}) {
         p_vacation: Boolean(row.vacation),
       });
     const done = async (message) => {
-      await render(container, ctx, { tab: "list" });
+      await render(container, ctx, { tab: "list", as: proxy ? target.id : undefined });
       container.querySelector(".save-state").before(
         el("p", { className: "notice", textContent: message }),
       );
@@ -144,12 +177,47 @@ export async function render(container, ctx, { tab } = {}) {
 
     // ── 등록하기 ──
     const form = el("form", { className: "workspace-card curriculum-form" });
+    // 제목: 본인이면 'OOO 선생님의 수업'. 학과장·관리자는 '타강사 커리큘럼'에 체크하면 강사 검색·선택으로 바뀐다.
+    const heading = el("h3", { textContent: `${target.name} 선생님의 수업` });
+    const titleRow = el("div", { className: "box-title proxy-title" }, [heading]);
+    if (staff) {
+      const others = (await rows(supabase, "instructors", (q) => q.order("name"))).filter((i) => i.id !== own.id);
+      const toggle = el("input", { type: "checkbox", checked: proxy });
+      toggle.setAttribute("aria-label", "타강사 커리큘럼");
+      const find = el("input", { type: "search", placeholder: "강사 이름 검색" });
+      find.setAttribute("aria-label", "강사 검색");
+      const pickTeacher = el("select");
+      pickTeacher.setAttribute("aria-label", "강사 선택");
+      const fillTeachers = () => {
+        const word = find.value.trim();
+        pickTeacher.replaceChildren(
+          el("option", { value: "", textContent: "강사 고르기" }),
+          ...others.filter((i) => !word || i.name.includes(word)).map((i) => el("option", { value: i.id, textContent: `${i.name} 선생님` })),
+        );
+        pickTeacher.value = proxy && others.some((i) => i.id === target.id && (!word || i.name.includes(word))) ? target.id : "";
+      };
+      find.addEventListener("input", fillTeachers);
+      pickTeacher.addEventListener("change", () => {
+        if (pickTeacher.value) render(container, ctx, { tab: "write", as: pickTeacher.value });
+      });
+      const showPicker = (on) => titleRow.replaceChildren(...(on ? [find, pickTeacher] : [heading]), toggleLabel);
+      const toggleLabel = el("label", { className: "consent proxy-toggle" }, [toggle, el("span", { textContent: "타강사 커리큘럼" })]);
+      toggle.addEventListener("change", () => {
+        if (toggle.checked) {
+          fillTeachers();
+          showPicker(true);
+        } else if (proxy) render(container, ctx, { tab: "write" });
+        else showPicker(false);
+      });
+      fillTeachers();
+      showPicker(proxy);
+    }
     form.append(
-      el("h3", { textContent: `${own.name} 선생님의 수업` }),
+      titleRow,
       el("p", {
         className: "desc",
         textContent:
-          "기본 4단계로 작성해주세요. 이미지는 가로·세로 모두 1000px 이상이면 어떤 비율도 괜찮습니다. 첨부 후 정사각형으로 자릅니다. 요약은 학과장이 정리합니다.",
+          "기본 4단계로 작성해주세요. 이미지는 가로·세로 모두 1000px 이상이면 어떤 비율도 괜찮습니다. 첨부 후 사이트 카드에 보일 부분(세로 직사각형)을 고르고, 크게 볼 때는 원본이 보입니다. 요약은 학과장이 정리합니다.",
       }),
     );
     const select = (label, name) => {
@@ -349,11 +417,20 @@ export async function render(container, ctx, { tab } = {}) {
           throw new Error(`${missing.subject.name}: 단계와 커리큘럼 내용을 모두 입력해주세요`);
         }
         for (const { subject, entry } of changed) {
-          await rpc(supabase, "comsw_save_my_materials", {
-            p_subject_id: subject.id,
-            p_tools: entry.tools.value,
-            p_supplies: entry.supplies.value,
-          });
+          if (proxy) {
+            // 대신 쓸 때는 그 강사의 프로그램·준비물로 저장(학과장·관리자 권한)
+            const { error } = await supabase.from("instructor_subject_materials").upsert({
+              instructor_id: target.id, subject_id: subject.id,
+              tools: entry.tools.value.trim() || null, supplies: entry.supplies.value.trim() || null,
+            });
+            if (error) throw new Error(error.message);
+          } else {
+            await rpc(supabase, "comsw_save_my_materials", {
+              p_subject_id: subject.id,
+              p_tools: entry.tools.value,
+              p_supplies: entry.supplies.value,
+            });
+          }
           entry.saved = { tools: entry.tools.value.trim(), supplies: entry.supplies.value.trim() };
         }
         for (const { subject, st } of filled) {
@@ -398,7 +475,7 @@ export async function render(container, ctx, { tab } = {}) {
     const zoom = el("dialog", { className: "image-zoom" });
     zoom.addEventListener("click", () => zoom.close?.());
     const openZoom = (url, alt) => {
-      zoom.replaceChildren(el("img", { src: driveThumbnail(url), alt }));
+      zoom.replaceChildren(el("img", { src: driveThumbnail(stripCrop(url)), alt }));
       if (zoom.showModal) zoom.showModal();
       else zoom.setAttribute("open", "");
     };
@@ -435,7 +512,7 @@ export async function render(container, ctx, { tab } = {}) {
             type: "button",
             className: "submission-thumb",
             title: "크게 보기",
-          }, [el("img", { src: driveThumbnail(row.media_url), alt: `${title} 이미지` })])
+          }, [applyCrop(el("img", { src: driveThumbnail(row.media_url), alt: `${title} 이미지` }), row.media_url)])
           : el("div", { className: "submission-thumb empty", textContent: "이미지 없음" });
         if (row.media_url) {
           thumb.addEventListener("click", () => openZoom(row.media_url, `${title} 이미지`));
@@ -452,12 +529,12 @@ export async function render(container, ctx, { tab } = {}) {
             del.disabled = true;
             try {
               const { error } = await supabase.from("instructor_curricula")
-                .delete().eq("id", row.id).eq("instructor_id", own.id).eq(
+                .delete().eq("id", row.id).eq("instructor_id", target.id).eq(
                   "status",
                   "pending",
                 );
               if (error) throw new Error(error.message);
-              await render(container, ctx, { tab: "list" });
+              await render(container, ctx, { tab: "list", as: proxy ? target.id : undefined });
             } catch (e) {
               setState(e.message, true);
               del.disabled = false;

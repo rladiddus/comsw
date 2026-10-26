@@ -2,12 +2,12 @@ import { el, rows, rpc, stateLine } from "../teacher-workspace.mjs";
 import { dbErrorMessage } from "../fields.mjs";
 import { driveThumbnail } from "../drive.mjs";
 import { getServices } from "../services.mjs";
-import { cropImageToSquare } from "../image-crop.mjs";
+import { chooseThumbnail, stripCrop, applyCrop } from "../image-crop.mjs";
 
 // 커리큘럼 관리 > 신청 과목: 선생님이 승인 요청한 커리큘럼을 학과장·관리자가 다듬어 저장(=승인)하고,
 // 그 과목의 학과 커리큘럼 요약과 로드맵 문구를 AI로 새로 만들어 '적용'한다.
 // 강사·과목·학과 탭이 같은 신청을 한 묶음으로 보여 준다.
-export async function render(container, { supabase, crop = cropImageToSquare, fetcher = fetch }) {
+export async function render(container, { supabase, crop = chooseThumbnail }) {
   container.append(
     el("h2", { textContent: "신청 과목" }),
     el("p", {
@@ -100,31 +100,20 @@ export async function render(container, { supabase, crop = cropImageToSquare, fe
       let media = r.media_url ?? "";
       const thumb = el("div", { className: "submission-thumb" });
       const paintThumb = () => thumb.replaceChildren(
-        media ? el("img", { src: driveThumbnail(media), alt: `${r.step_label} 이미지` }) : el("span", { textContent: "이미지 없음" }),
+        media ? applyCrop(el("img", { src: driveThumbnail(media), alt: `${r.step_label} 이미지` }), media) : el("span", { textContent: "이미지 없음" }),
       );
       paintThumb();
       const recrop = el("button", { type: "button", className: "ghost-btn", textContent: "다시 자르기", hidden: true });
       recrop.addEventListener("click", async () => {
         recrop.disabled = true;
         try {
-          // 원본을 읽을 수 있는 저장소 이미지만 다시 자를 수 있다(예전 드라이브 링크는 안 됨).
-          let file;
-          try {
-            const res = await fetcher(media);
-            if (!res.ok) throw new Error();
-            const blob = await res.blob();
-            file = new File([blob], "recrop.png", { type: blob.type || "image/png" });
-          } catch {
-            throw new Error("이 이미지는 예전 드라이브 링크라 다시 자를 수 없습니다.");
-          }
-          const cropped = await crop(file);
-          if (!cropped) return;
-          const fn = getServices().upload;
-          if (!fn) throw new Error("이미지 업로드 연결을 준비 중입니다");
-          setState("다시 자른 이미지를 올리는 중…");
-          media = (await fn(cropped, "curriculum")).url;
+          // 원본은 그대로 두고 썸네일 영역('#crop=…')만 다시 고른다(새로 올리지 않음). 예전 드라이브 링크는 안 됨.
+          if (/drive.google.com/.test(media)) throw new Error("이 이미지는 예전 드라이브 링크라 다시 자를 수 없습니다.");
+          const fragment = await crop(media);
+          if (!fragment) return;
+          media = `${stripCrop(media)}${fragment}`;
           paintThumb();
-          setState("다시 잘랐습니다. '저장'을 눌러야 반영됩니다.");
+          setState("썸네일 영역을 다시 골랐습니다. '저장'을 눌러야 반영됩니다.");
         } catch (e) {
           setState(e.message, true);
         } finally {

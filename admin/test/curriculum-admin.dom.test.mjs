@@ -174,30 +174,23 @@ test("신청 과목: 학과 커리큘럼·로드맵 문구를 AI로 신규 칸�
   assert.equal(dept.querySelectorAll("textarea")[0].value, "department 신규", "현재 칸도 새 문구로");
 });
 
-test("신청 과목: 저장소 이미지는 다시 자르고, 못 읽는 드라이브 이미지는 안내만(새로 올리기·다듬기 버튼 없음)", async () => {
+test("신청 과목: '다시 자르기'는 원본은 두고 썸네일 영역만 다시 고르며, 드라이브 이미지는 안내만(새로 올리기·다듬기 버튼 없음)", async () => {
   const { render } = await import("../js/pages/curriculum-requests.mjs");
   const tables = data();
-  configureServices({ upload: async () => ({ url: "https://img.example/recropped.webp" }) });
-  let fetched = null;
+  let asked = null;
   const c = document.createElement("div");
-  await render(c, {
-    supabase: fakeSupabase(tables),
-    crop: async (file) => file,
-    fetcher: async (url) => {
-      fetched = url;
-      if (url.includes("drive")) throw new Error("CORS");
-      return { ok: true, blob: async () => new dom.window.Blob(["x"], { type: "image/png" }) };
-    },
-  });
+  await render(c, { supabase: fakeSupabase(tables), crop: async (url) => { asked = url; return "#crop=0.2,0,0.6,1"; } });
   button(c, "수정").click();
   const row = c.querySelectorAll(".request-row:not(.request-head)")[0];
   button(row, "다시 자르기").click();
   await flush();
-  assert.equal(fetched, "https://img.example/a.webp");
-  assert.equal(row.querySelector(".submission-thumb img").getAttribute("src"), "https://img.example/recropped.webp");
+  assert.equal(asked, "https://img.example/a.webp");
+  const img = row.querySelector(".submission-thumb img");
+  assert.equal(img.getAttribute("src"), "https://img.example/a.webp#crop=0.2,0,0.6,1");
+  assert.ok(img.classList.contains("thumb-cropped"), "썸네일은 고른 영역만");
   tables.instructor_curricula[0].media_url = "https://drive.google.com/file/d/x/view";
   const c2 = document.createElement("div");
-  await render(c2, { supabase: fakeSupabase(tables), fetcher: async () => { throw new Error("CORS"); } });
+  await render(c2, { supabase: fakeSupabase(tables) });
   button(c2, "수정").click();
   button(c2.querySelectorAll(".request-row:not(.request-head)")[0], "다시 자르기").click();
   await flush();

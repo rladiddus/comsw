@@ -266,7 +266,10 @@ export async function render(container, { supabase, crop = cropImageToSquare, fe
           now.value = mine();
         },
         el: el("div", { className: "compare-block" }, [
-          el("h4", { textContent: `${nameOf(tracks, st.track_id)} · ${st.position}단계 · ${subject?.name ?? ""}` }),
+          el("div", { className: "box-title" }, [
+            el("h4", { textContent: `${nameOf(tracks, st.track_id)} · ${st.position}단계 · ${subject?.name ?? ""}` }),
+            gen,
+          ]),
           el("div", { className: "compare-row" }, [
             el("label", { className: "form-field" }, [el("span", { textContent: "현재" }), now]),
             el("label", { className: "form-field" }, [el("span", { textContent: "신규" }), next]),
@@ -274,7 +277,6 @@ export async function render(container, { supabase, crop = cropImageToSquare, fe
           ...(otherLines.length
             ? [el("p", { className: "muted", textContent: `같은 단계의 다른 과목 줄(그대로 유지) — ${otherLines.join(" · ")}` })]
             : []),
-          el("div", { className: "form-actions" }, [gen]),
         ]),
       };
     });
@@ -316,20 +318,19 @@ export async function render(container, { supabase, crop = cropImageToSquare, fe
         el("div", { className: "request-title" }, [
           el("h3", { textContent: `신청 내용 · ${nameOf(sets, g.set_id)}` }),
           status,
+          edit,
         ]),
         el("div", { className: "request-row request-head" },
           ["강사명", "과목명", "단계", "커리큘럼", "이미지"].map((t) => el("span", { textContent: t }))),
         ...rowViews.map((v) => v.line),
         ...materialsLine(g),
-        el("div", { className: "form-actions" }, [edit]),
       ]),
       el("section", { className: "workspace-card request-section" }, [
-        el("h3", { textContent: `학과 커리큘럼 · ${subject?.name ?? ""}` }),
+        el("div", { className: "box-title" }, [el("h3", { textContent: `학과 커리큘럼 · ${subject?.name ?? ""}` }), genDept]),
         el("div", { className: "compare-row" }, [
           el("label", { className: "form-field" }, [el("span", { textContent: "현재" }), current]),
           el("label", { className: "form-field" }, [el("span", { textContent: "신규" }), fresh]),
         ]),
-        el("div", { className: "form-actions" }, [genDept]),
       ]),
       el("section", { className: "workspace-card request-section" }, [
         el("h3", { textContent: "로드맵 문구" }),

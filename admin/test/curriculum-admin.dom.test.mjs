@@ -75,6 +75,20 @@ test("학과별 과목: 학과를 고르면 그 학과 과목, 더하기·빼기
   assert.ok(!tables.subject_departments.some((l) => l.subject_id === "s1" && l.department_id === "d2"));
 });
 
+test("신청 과목: '수정'·'학과 커리큘럼 생성'·'로드맵 문구 생성'은 박스 맨 아래가 아니라 제목 옆", async () => {
+  const { render } = await import("../js/pages/curriculum-requests.mjs");
+  const c = document.createElement("div");
+  await render(c, { supabase: fakeSupabase(data()), services: async () => ({}) });
+  await flush();
+  const titleOf = (text) => [...c.querySelectorAll("button")].find((b) => b.textContent === text)?.parentElement;
+  assert.equal(titleOf("수정").className, "request-title");
+  assert.equal(titleOf("학과 커리큘럼 생성").className, "box-title");
+  for (const b of [...c.querySelectorAll("button")].filter((b) => b.textContent === "로드맵 문구 생성")) {
+    assert.equal(b.parentElement.className, "box-title");
+  }
+  assert.equal(c.querySelector(".request-section > .form-actions"), null);
+});
+
 test("신청 과목: 강사·과목별 묶음, 강사명/과목명/단계/커리큘럼/이미지 순, 수정 → AI 요약 → 저장(승인)", async () => {
   const { render } = await import("../js/pages/curriculum-requests.mjs");
   const tables = data();

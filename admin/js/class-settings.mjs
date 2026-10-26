@@ -6,8 +6,11 @@ export async function mountClassSettings(
   container,
   { supabase, uid, own, loadMyMajors, saveMyMajors },
 ) {
+  // '수정' 버튼은 보기 화면일 때만 제목 옆에 붙는다.
+  const heading = el("h3", { textContent: "수업 설정" });
+  const title = el("div", { className: "box-title" }, [heading]);
   const box = el("section", { className: "workspace-card class-settings" }, [
-    el("h3", { textContent: "수업 설정" }),
+    title,
     el("p", {
       className: "desc",
       textContent:
@@ -66,6 +69,7 @@ export async function mountClassSettings(
       textContent: "수정",
     });
     edit.addEventListener("click", () => {
+      title.replaceChildren(heading);
       summary.hidden = true;
       editor.hidden = false;
       draw();
@@ -80,8 +84,8 @@ export async function mountClassSettings(
           }),
         ])
       ),
-      el("div", { className: "form-actions" }, [edit]),
     );
+    title.replaceChildren(heading, edit);
     summary.hidden = false;
     editor.hidden = true;
   }

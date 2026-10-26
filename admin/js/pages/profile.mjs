@@ -178,7 +178,7 @@ export async function render(container, ctx) {
         el("p", { className: "submission-text", textContent: text || "-" }),
       ]);
     const view = el("section", { className: "workspace-card profile-view" }, [
-      el("h3", { textContent: "선생님 소개" }),
+      el("div", { className: "box-title" }, [el("h3", { textContent: "선생님 소개" }), edit]),
       el("p", {
         className: pending || asked ? "notice" : "muted",
         textContent: asked
@@ -193,7 +193,6 @@ export async function render(container, ctx) {
         item("한마디", shown.message),
       ]),
       item("본인 사진", sourceId ? "비공개로 보관 중" : "올린 사진 없음"),
-      el("div", { className: "form-actions" }, [edit]),
     ]);
     const cancel = el("button", {
       type: "button",

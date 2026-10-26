@@ -2,6 +2,7 @@ import { dbErrorMessage } from "./fields.mjs";
 import { nextOrder, subsetReorderUpdates } from "./order.mjs";
 import { mountImageUpload } from "./image-upload.mjs";
 import { mediaPreview } from "./media-preview.mjs";
+import { getServices } from "./services.mjs";
 
 function el(tag, props = {}, children = []) {
   const node = Object.assign(document.createElement(tag), props);
@@ -50,6 +51,7 @@ export function reorderUpdates(rows, from, to) {
 // 처음에는 접힌 채로 보인다. 접으면 미리보기가 작아지고 칸들이 한 줄('이름 : 값 · …'), 접은 채로도 수정·저장(이미지는 펼쳐서).
 // fields: [{ key, label, type: 'text'|'textarea'|'select'|'links', options?(values) => [[값, 글자]], fallback?, required?, wide?, placeholder?, locked? }]
 // locked: 보여 주기만 하고 '수정' 중에도 못 고치는 칸.
+// ai(예: 'week') + source(원문 칸 key): '수정' 중에만 'AI 요약' 버튼이 나오고, 결과를 칸에 넣는다(저장은 '저장'으로).
 // links(다대다, 예: 강사 학과·담당 과목): { through, own, other, ordered?, options: () => [[값, 글자]] }. 수정 중에만 ×·추가, 저장 때 한꺼번에 반영.
 export async function mountCardList(container, {
   supabase,
@@ -59,6 +61,7 @@ export async function mountCardList(container, {
   fields,
   imageKey = "image_url",
   imageLabel = "이미지",
+  uploadKind = "image", // 직접 올리기 종류(예: 'curriculum')
   imageRequired = false,
   imageSide = "left",
   activeKey = "is_active", // null이면 사용 체크 없음
@@ -255,6 +258,29 @@ export async function mountCardList(container, {
       }
       select.value = value || f.fallback || list[0]?.[0] || "";
     };
+    const aiButtons = [];
+    function aiButton(f) {
+      const button = el("button", { type: "button", className: "ghost-btn ai-btn", textContent: "AI 요약", hidden: true });
+      button.addEventListener("click", async () => {
+        const source = inputs[f.source]?.value ?? "";
+        if (!source.trim()) return setState("요약할 원문을 먼저 입력해주세요", true);
+        const summarize = getServices().summarize;
+        if (!summarize) return setState("AI 연결을 준비 중입니다", true);
+        button.disabled = true;
+        setState("AI 요약 중…");
+        try {
+          const result = await summarize(f.ai, source);
+          inputs[f.key].value = result.text;
+          setState(result.cached ? "변경 없는 원문 — 이전 요약 사용. '저장'을 눌러주세요" : "요약했습니다. 확인 후 '저장'을 눌러주세요");
+        } catch (err) {
+          setState(err.message, true);
+        } finally {
+          button.disabled = false;
+        }
+      });
+      aiButtons.push(button);
+      return button;
+    }
     const paint = () => stage.replaceChildren(...preview(values()));
     const line = (label, input, wide = false) =>
       el("label", { className: `card-line${wide ? " wide" : ""}` }, [el("span", { textContent: label }), input]);
@@ -272,6 +298,7 @@ export async function mountCardList(container, {
       } else {
         inputs[f.key] = el("input", { type: "text", value: row[f.key] ?? "", placeholder: f.placeholder ?? "", readOnly: true });
       }
+      if (f.ai) return line(f.label, el("div", { className: "card-ai" }, [inputs[f.key], aiButton(f)]), f.wide);
       return line(f.label, inputs[f.key], f.wide);
     });
     inputs[imageKey] = el("input", { type: "text", value: row[imageKey] ?? "", placeholder: "https://… 이미지 주소", readOnly: true });
@@ -289,6 +316,7 @@ export async function mountCardList(container, {
     active.addEventListener("change", () => update(row, { [activeKey]: active.checked }));
     const upload = el("div", { className: "card-upload", hidden: true }, [line(`${imageLabel} 주소`, inputs[imageKey], true)]);
     mountImageUpload(upload, {
+      kind: uploadKind,
       label: "이미지 직접 올리기",
       onUploaded: (asset) => {
         inputs[imageKey].value = asset.url;
@@ -311,6 +339,7 @@ export async function mountCardList(container, {
         if (input.tagName === "SELECT") input.disabled = !on;
         else input.readOnly = !on;
       }
+      for (const b of aiButtons) b.hidden = !on;
       edit.textContent = on ? "저장" : "수정";
       edit.className = on ? "publish-btn" : "ghost-btn";
     };

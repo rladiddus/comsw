@@ -90,7 +90,7 @@ test("기타 과목: '단계'로 그 과목 단계만 열고, '학과에 넣기'
   const { c, tables } = await renderPage("../js/pages/other-subjects.mjs");
   buttons(otherRows(c)[0], "단계")[0].click();
   await flush();
-  assert.deepEqual([...tableOf(c, "단계").querySelectorAll("tbody tr")].map(tr => tr.querySelector("input").value), ["1주차"]);
+  assert.deepEqual([...c.querySelectorAll(".subject-weeks .card-item")].map(x => x.querySelector(".card-side input").value), ["1주차"]);
   const r = otherRows(c)[1];
   r.querySelector('[aria-label="넣을 학과"]').value = "d2";
   buttons(r, "학과에 넣기")[0].click();

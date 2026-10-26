@@ -300,7 +300,32 @@ test("학과 커리큘럼: '+ 과목 추가'는 다른 과목을 이 학과에 �
   assert.match(c.textContent, /'기타 과목'으로 옮겼습니다/, "마지막 학과에서 빼면 기타 과목으로");
 });
 
-test("학과 커리큘럼: '단계'는 그 과목 단계(사이트 전체 수업) 편집기를 아래에 연다", async () => {
+test("학과 커리큘럼: '단계'는 그 과목 단계를 카드(대표 이미지 왼쪽)로 열고, 수정 중에만 AI 요약", async () => {
+  const { render } = await import("../js/pages/department-curriculum.mjs");
+  const tables = data();
+  tables.subject_weeks = [{ id: "w1", subject_id: "s1", week_label: "1단계", written: "포토샵 원문", sort_order: 0 }, { id: "w2", subject_id: "s2", week_label: "1단계", sort_order: 0 }];
+  configureServices({ summarize: async (kind, text) => ({ text: `${kind}:${text}` }) });
+  const c = document.createElement("div");
+  await render(c, { supabase: fakeSupabase(tables) });
+  button(c.querySelector(".dept-curriculum-row:not(.dept-curriculum-head)"), "단계").click();
+  await flush();
+  const weeks = c.querySelector(".subject-weeks");
+  assert.match(weeks.querySelector("h3").textContent, /단계 — 포토샵/);
+  const cards = [...weeks.querySelectorAll(".card-item")];
+  assert.equal(cards.length, 1);
+  assert.deepEqual([...cards[0].children].map((x) => x.className.split(" ")[0]), ["drag-handle", "card-stage", "card-side"]);
+  const ai = button(cards[0], "AI 요약");
+  assert.ok(ai.hidden, "보기 중에는 AI 요약 숨김");
+  button(cards[0], "수정").click();
+  assert.equal(ai.hidden, false);
+  ai.click();
+  await flush();
+  button(cards[0], "저장").click();
+  await flush();
+  assert.equal(tables.subject_weeks[0].summary, "week:포토샵 원문");
+});
+
+test("학과 커리큘럼: '단계' 편집기는 그 과목 단계만", async () => {
   const { render } = await import("../js/pages/department-curriculum.mjs");
   const tables = data();
   tables.subject_weeks = [{ id: "w1", subject_id: "s1", week_label: "1단계", sort_order: 0 }, { id: "w2", subject_id: "s2", week_label: "1단계", sort_order: 0 }];
@@ -310,7 +335,7 @@ test("학과 커리큘럼: '단계'는 그 과목 단계(사이트 전체 수업
   await flush();
   const weeks = c.querySelector(".subject-weeks");
   assert.match(weeks.querySelector("h3").textContent, /단계 — 포토샵/);
-  assert.equal(weeks.querySelectorAll("tbody tr").length, 1);
+  assert.equal(weeks.querySelectorAll(".card-item").length, 1);
 });
 
 test("신청 과목: 선생님이 적은 프로그램·준비물을 신청 내용 아래에 보여 준다", async () => {

@@ -491,3 +491,6 @@ dialog.roadmap-source::backdrop { background:rgba(0,0,0,.45); }
 .other-subject-row input[readonly] { background:#f6f7f9; border-color:transparent; }
 @media (max-width:900px) { .other-subject-row { grid-template-columns:1fr 1fr; } }
 .subject-weeks { margin-top:20px; }
+.card-ai { display:flex; flex-direction:column; align-items:flex-start; gap:4px; min-width:0; }
+.card-ai textarea { width:100%; }
+.card-ai .ai-btn { margin-top:0; }

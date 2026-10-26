@@ -119,11 +119,12 @@ export async function render(container, { supabase }) {
           activeKey: null,
           query: (q) => q.eq("subject_id", subjectId).eq("category", cat),
           fields: [
-            { key: "subject_id", label: "과목", type: "select", locked: true, options: () => [[subjectId, nameOf.get(subjectId)]] },
-            { key: "category", label: "분류", type: "select", locked: true, options: () => CATEGORIES },
-            { key: "content", label: "내용", type: "textarea", required: true, wide: true },
-            { key: "link_url", label: "링크", type: "text", wide: true },
-            { key: "extra", label: "정가·설명", type: "text", wide: true },
+            // 한 줄, 칸 너비 고정(12칸 격자): 과목 2 / 분류 1 / 내용 4 / 링크 3 / 정가·설명 2 — 카드마다 같은 자리.
+            { key: "subject_id", label: "과목", type: "select", locked: true, span: 2, options: () => [[subjectId, nameOf.get(subjectId)]] },
+            { key: "category", label: "분류", type: "select", locked: true, span: 1, options: () => CATEGORIES },
+            { key: "content", label: "내용", type: "textarea", required: true, span: 4 },
+            { key: "link_url", label: "링크", type: "text", span: 3 },
+            { key: "extra", label: "정가·설명", type: "text", span: 2 },
           ],
           defaults: () => ({ subject_id: subjectId, category: cat }),
           itemName: (row) => `'${row.content || label}'`,

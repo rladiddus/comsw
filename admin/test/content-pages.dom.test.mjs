@@ -190,6 +190,8 @@ test("준비물: 카드는 분류·내용·링크·정가·설명(분류 잠김)
   const card = shownPanel(c).querySelector(".card-item");
   assert.deepEqual([...card.querySelectorAll(".card-line > span")].map(s => s.textContent).slice(0, 5), ["과목", "분류", "내용", "링크", "정가·설명"]);
   assert.equal(card.querySelector(".card-line select").selectedOptions[0].textContent, "포토샵", "과목명은 카드 안");
+  assert.deepEqual([...card.querySelectorAll(".card-fields > .card-line")].map(l => l.style.gridColumn),
+    ["span 2", "span 1", "span 4", "span 3", "span 2"], "카드마다 같은 칸 너비(한 줄)");
   assert.equal(shownPanel(c).querySelector(".prep-subject h4"), null);
   [...card.querySelectorAll("button")].find(b => b.textContent === "수정").click();
   assert.ok([...card.querySelectorAll(".card-line select")].every(s => s.disabled), "과목·분류는 잠김");

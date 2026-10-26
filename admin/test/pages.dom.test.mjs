@@ -91,7 +91,7 @@ test("로딩 화면: 카드가 그려진다", async () => {
 test("특강: 신청자 명단을 열면 인원·연락처가 보이고 CSV를 내려받는다", async () => {
   const c = await renderPage("../js/pages/seminars.mjs");
   const card = c.querySelector(".card-item");
-  assert.ok(card.classList.contains("image-right") && card.classList.contains("collapsed"), "포스터 오른쪽, 처음엔 접힘");
+  assert.ok(card.classList.contains("image-left") && card.classList.contains("collapsed"), "포스터 왼쪽, 처음엔 접힘");
   assert.ok(card.querySelector(".drag-handle"), "끌어서 순서");
   const btn = [...card.querySelectorAll("button")].find(b => b.textContent === "신청자 명단");
   btn.click();

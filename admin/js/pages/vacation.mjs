@@ -2,7 +2,7 @@ import { mountCardList } from "../card-list.mjs";
 import { el } from "../teacher-workspace.mjs";
 
 // 방학 특강 페이지의 커리큘럼(메인 화면 > 기타 설정에서 고른 세트의 승인된 줄). 배경 이미지도 거기서 고른다.
-// 다른 카드 목록처럼 이미지 오른쪽, 처음엔 접힘, '수정'으로 고치고(수정 중 AI 요약), ⠿를 끌어 순서 = 사이트 순서.
+// 다른 카드 목록처럼 이미지 왼쪽, 처음엔 접힘, '수정'으로 고치고(수정 중 AI 요약), ⠿를 끌어 순서 = 사이트 순서.
 // 선생님이 낸 승인 대기 줄은 '커리큘럼 관리 > 신청 과목'에서 승인한다.
 export async function render(container, { supabase }) {
   container.append(el("h2", { textContent: "방학 특강" }));
@@ -27,7 +27,6 @@ export async function render(container, { supabase }) {
     description: "사이트 방학 특강에 나오는 강의입니다. 왼쪽 ⠿를 끌어 놓은 순서가 사이트 순서입니다.",
     imageKey: "media_url",
     imageLabel: "이미지·영상",
-    imageSide: "right",
     uploadKind: "curriculum",
     activeKey: null,
     query: (q) => q.eq("set_id", set.id).eq("status", "approved"),

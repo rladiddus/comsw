@@ -27,7 +27,7 @@ async function applicantCount(supabase, seminarId) {
   return count;
 }
 
-// 특강 목록은 다른 카드 목록처럼 포스터 오른쪽, 처음엔 접힘, '수정'으로 고치고, ⠿를 끌어 순서 = 사이트 순서.
+// 특강 목록은 다른 카드 목록처럼 포스터 왼쪽, 처음엔 접힘, '수정'으로 고치고, ⠿를 끌어 순서 = 사이트 순서.
 export async function render(container, { supabase }) {
   const roster = el("section");
   container.append(el("h2", { textContent: "특강·세미나" }));
@@ -76,7 +76,6 @@ export async function render(container, { supabase }) {
     description: "일시는 '2026년 8월 18일 14:00-16:00'처럼 적어주세요. 날짜가 지나면 사이트에서 신청이 자동으로 마감됩니다. 왼쪽 ⠿를 끌어 놓은 순서가 사이트 순서입니다.",
     imageKey: "poster_url",
     imageLabel: "포스터",
-    imageSide: "right",
     activeKey: null,
     fields: [
       { key: "title", label: "특강명", type: "text", required: true },

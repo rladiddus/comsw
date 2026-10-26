@@ -204,13 +204,13 @@ test("새 커리큘럼은 학과 탭을 골라 검색해야 추가되고, 고른
   assert.equal("is_active" in added, false);
 });
 
-test("방학 특강: 메인 화면에서 고른 세트의 승인된 강의를 카드(이미지 오른쪽, 접힘, 끌기)로, 교재·수업 시간 칸 포함", async () => {
+test("방학 특강: 메인 화면에서 고른 세트의 승인된 강의를 카드(이미지 왼쪽, 접힘, 끌기)로, 교재·수업 시간 칸 포함", async () => {
   const { c } = await renderPage("../js/pages/vacation.mjs");
   assert.match(c.textContent, /2026년 여름방학특강/);
   const cards = [...c.querySelectorAll(".card-item")];
   assert.equal(cards.length, 1);
-  assert.ok(cards[0].classList.contains("image-right") && cards[0].classList.contains("collapsed"));
-  assert.deepEqual([...cards[0].children].map(x => x.className.split(" ")[0]), ["drag-handle", "card-side", "card-stage"]);
+  assert.ok(cards[0].classList.contains("image-left") && cards[0].classList.contains("collapsed"));
+  assert.deepEqual([...cards[0].children].map(x => x.className.split(" ")[0]), ["drag-handle", "card-stage", "card-side"]);
   const labels = [...cards[0].querySelectorAll(".card-line > span")].map(s => s.textContent);
   assert.ok(["교재·준비물", "교재 설명", "수업 시간"].every(h => labels.includes(h)), labels.join(","));
   assert.equal(cards[0].querySelector('.card-line textarea').value, "", "원문");

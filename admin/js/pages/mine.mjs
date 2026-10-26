@@ -9,6 +9,7 @@ import {
 import { mountImageUpload } from "../image-upload.mjs";
 import { driveThumbnail } from "../drive.mjs";
 import { applyCrop, stripCrop } from "../image-crop.mjs";
+import { nextMonthName } from "../month.mjs";
 
 // 이미지: 직접 업로드(원본 + 썸네일 영역 #crop) 또는 링크. 고른 방식의 값 하나만 제출한다.
 function mediaPicker(container, initial = "") {
@@ -253,12 +254,27 @@ export async function render(container, ctx, { tab, as } = {}) {
       );
     options(dept, myDeptList);
     // 단계의 과목 = 수업 설정에서 고른 내 과목 중 이 학과 과목.
+    // '+ 개월 추가'로 연 다음 달 과목 탭(학과별). DB에 없는 과목은 id가 'new:이름'이고 제출할 때 만든다.
+    const months = [];
     const deptSubjects = () => {
       const ids = links.filter((l) => l.department_id === dept.value).map((l) =>
         l.subject_id
       );
-      return subjects.filter((s) => ids.includes(s.id) && myIds.has(s.id));
+      const base = subjects.filter((s) => ids.includes(s.id) && myIds.has(s.id));
+      const extra = months.filter((m) => m.dept === dept.value && !base.some((b) => b.id === m.id));
+      return [...base, ...extra];
     };
+    // 다음 달 과목 이름: '웹툰1' → '웹툰2'(이미 있는 과목·열린 탭 번호 다음).
+    function addMonth(subject) {
+      const name = nextMonthName(subject.name, [...subjects, ...months].map((x) => x.name));
+      const found = subjects.find((x) => x.name === name);
+      const month = found
+        ? { ...found, dept: dept.value }
+        : { id: `new:${name}`, name, from: subject.from ?? subject.id, dept: dept.value, isNew: true };
+      months.push(month);
+      refill();
+      openSubject(month.id);
+    }
     // 과목마다 탭 하나. 탭 안에서 그 과목의 단계를 쓴다(과목이 많아도 아래로 길어지지 않게).
     // 학과를 바꿔도 이미 쓴 과목 탭 내용은 남겨 두고, 제출은 지금 학과의 과목만 한다.
     const subjectTabs = el("div", { className: "subject-tabs", role: "tablist" });
@@ -337,7 +353,14 @@ export async function render(container, ctx, { tab, as } = {}) {
         textContent: "+ 단계 추가",
       });
       add.addEventListener("click", () => addStep(nextStep(steps.at(-1)?.stepInput.value)));
-      panel.append(list, add);
+      // 과정이 여러 달이면 다음 달 과목(예: 웹툰1 → 웹툰2) 탭을 연다. 없는 과목은 제출할 때 만들어 승인 대기로.
+      const addMonthBtn = el("button", {
+        type: "button",
+        className: "ghost-btn add-step",
+        textContent: "+ 개월 추가",
+      });
+      addMonthBtn.addEventListener("click", () => addMonth(subject));
+      panel.append(list, el("div", { className: "step-add-row" }, [add, addMonthBtn]));
       addStep("1단계");
       panels.set(subject.id, entry);
       panelsBox.append(panel);
@@ -416,17 +439,21 @@ export async function render(container, ctx, { tab, as } = {}) {
           openSubject(missing.subject.id);
           throw new Error(`${missing.subject.name}: 단계와 커리큘럼 내용을 모두 입력해주세요`);
         }
+        // 새 달 과목은 먼저 만든다(이미 있으면 그 과목).
+        for (const subject of new Set([...filled.map((f) => f.subject), ...changed.map((c) => c.subject)].filter((x) => x.isNew))) {
+          subject.realId = await rpc(supabase, "comsw_create_month_subject", { p_from: subject.from, p_name: subject.name });
+        }
         for (const { subject, entry } of changed) {
           if (proxy) {
             // 대신 쓸 때는 그 강사의 프로그램·준비물로 저장(학과장·관리자 권한)
             const { error } = await supabase.from("instructor_subject_materials").upsert({
-              instructor_id: target.id, subject_id: subject.id,
+              instructor_id: target.id, subject_id: subject.realId ?? subject.id,
               tools: entry.tools.value.trim() || null, supplies: entry.supplies.value.trim() || null,
             });
             if (error) throw new Error(error.message);
           } else {
             await rpc(supabase, "comsw_save_my_materials", {
-              p_subject_id: subject.id,
+              p_subject_id: subject.realId ?? subject.id,
               p_tools: entry.tools.value,
               p_supplies: entry.supplies.value,
             });
@@ -436,7 +463,7 @@ export async function render(container, ctx, { tab, as } = {}) {
         for (const { subject, st } of filled) {
           await submit({
             set_id: set.value,
-            subject_id: subject.id,
+            subject_id: subject.realId ?? subject.id,
             step_label: st.stepInput.value.trim(),
             written: st.written.value,
             media_url: st.media.value(),
@@ -585,7 +612,7 @@ export async function render(container, ctx, { tab, as } = {}) {
         const cancel = el("button", {
           type: "button",
           className: "ghost-btn",
-          textContent: "취소",
+          textContent: "되돌리기",
         });
         cancel.addEventListener("click", view);
         save.addEventListener("click", async () => {

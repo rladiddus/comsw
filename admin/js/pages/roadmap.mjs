@@ -7,7 +7,7 @@ import { dropTarget } from "../card-list.mjs";
 // 로드맵: 공개 사이트 로드맵처럼 한 줄 = 로드맵 묶음(보통 학과), 오른쪽으로 단계 상자가 이어진다.
 // 왼쪽에서 학과를 고르면 단계 상자의 과목 목록은 '학과 커리큘럼'의 학과 과목(subject_departments)으로 좁혀진다.
 // 단계 상자: 과목 여러 개 선택, '원문 보기'(고른 과목의 커리큘럼 모아 보기), 아래 요약(사이트 문구).
-// 줄은 보기 상태로 열리고 '수정'을 눌러야 고칠 수 있다. 학과·이름·과목·요약은 '저장' 때 한꺼번에 저장('취소'는 버림),
+// 줄은 보기 상태로 열리고 '수정'을 눌러야 고칠 수 있다. 학과·이름·과목·요약은 '저장' 때 한꺼번에 저장('되돌리기'는 버림),
 // 단계 추가·삭제는 수정 중에, 끌어 옮기기(줄은 위아래, 단계는 좌우, 놓을 자리 점선)는 언제나 바로 저장된다.
 export async function render(container, { supabase }) {
   container.append(
@@ -309,7 +309,7 @@ export async function render(container, { supabase }) {
     const tools = editing
       ? [
         button("저장", "publish-btn", () => save(track)),
-        button("취소", "ghost-btn", () => { drafts.delete(track.id); draw(); }),
+        button("되돌리기", "ghost-btn", () => { drafts.delete(track.id); draw(); }),
         button("삭제", "ghost-btn danger", async () => {
           if (!confirm(cascadeMessage("로드맵", track.name, [["단계", stepsOf(track).length]]))) return;
           const { error } = await supabase.from("roadmap_tracks").delete().eq("id", track.id);

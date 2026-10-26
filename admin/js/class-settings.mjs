@@ -54,7 +54,7 @@ export async function mountClassSettings(
   const cancel = el("button", {
     type: "button",
     className: "ghost-btn",
-    textContent: "취소",
+    textContent: "되돌리기",
   });
   // 저장된 설정을 먼저 보여 주고, '수정'을 눌러야 고친다. 고른 학과가 없으면 바로 고치는 화면.
   const summary = el("div", { className: "class-summary" });

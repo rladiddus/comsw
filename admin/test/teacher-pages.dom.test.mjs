@@ -235,7 +235,7 @@ test("내 프로필: 적용된 소개가 있으면 보기 화면부터, 수정�
   assert.match(view.textContent, /사이트에 적용된 소개/);
   findButton(view, "수정").click();
   assert.equal(form.hidden, false);
-  findButton(form, "취소").click();
+  findButton(form, "되돌리기").click();
   assert.equal(view.hidden, false);
   findButton(view, "수정").click();
   form.querySelector("[name=message]").value = "새 한마디";
@@ -451,4 +451,27 @@ test("타강사 커리큘럼: 선생님에겐 없고, 학과장은 체크하면 
   await flush();
   const added = data.instructor_curricula.at(-1);
   assert.deepEqual([added.instructor_id, added.subject_id, added.status, added.written], ["other", "web2", "pending", "대신 쓴 원문"]);
+});
+
+test("+ 개월 추가: '웹툰1' 탭에서 누르면 '웹툰2' 탭이 열리고, 제출할 때 웹툰2 과목을 만들어 그 과목으로 승인 요청", async () => {
+  const data = tables();
+  data.subjects = [{ id: "w1", name: "웹툰1" }, { id: "w3old", name: "웹툰" }];
+  data.subject_departments = [{ subject_id: "w1", department_id: "dept" }];
+  data.instructor_subjects = [{ instructor_id: "me", subject_id: "w1", sort_order: 0 }];
+  const { c, calls, sb } = await setup("mine", data);
+  const fallback = sb.rpc;
+  sb.rpc = async (name, args) => name === "comsw_create_month_subject"
+    ? (calls.push([name, args]), { data: "made", error: null })
+    : fallback(name, args);
+  tabButton(c, "write").click();
+  findButton(c.querySelector(".subject-panel:not([hidden])"), "+ 개월 추가").click();
+  assert.deepEqual([...c.querySelectorAll(".subject-tabs button")].map((b) => b.textContent), ["웹툰1", "웹툰2"]);
+  assert.equal(c.querySelector(".subject-tabs button.active").textContent, "웹툰2", "새 달 탭이 열림");
+  c.querySelector(".subject-panel:not([hidden]) [name=written]").value = "웹툰2 1단계";
+  submitForm(c);
+  await flush();
+  const create = calls.find(([n]) => n === "comsw_create_month_subject");
+  assert.deepEqual(create[1], { p_from: "w1", p_name: "웹툰2" });
+  const sent = calls.filter(([n]) => n === "comsw_submit_my_curriculum").map(([, a]) => [a.p_subject_id, a.p_step_label]);
+  assert.deepEqual(sent, [["made", "1단계"]], "만든 과목 id로 제출");
 });

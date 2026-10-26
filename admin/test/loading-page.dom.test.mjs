@@ -33,7 +33,7 @@ test("카드: 맨 왼쪽 손잡이, 미리보기에 문구를 그 폰트로, [�
   const lines = [...card.querySelectorAll(".card-fields > .card-line")].map((l) => l.firstElementChild.textContent);
   assert.deepEqual(lines, ["문구", "폰트", "폰트 크기", "두께"]);
   assert.ok(card.querySelector(".card-line input").readOnly);
-  assert.deepEqual([...card.querySelectorAll(".media-actions > *")].map((b) => b.textContent), ["사용", "삭제", "수정", "펼치기"]);
+  assert.deepEqual([...card.querySelectorAll(".media-actions > *")].filter((b) => !b.hidden).map((b) => b.textContent), ["사용", "삭제", "수정", "펼치기"]);
   assert.ok(card.classList.contains("collapsed"), "처음에는 접힌 채로");
 });
 
@@ -129,4 +129,21 @@ test("+ 추가로 만든 카드는 펼친 채로 나온다", async () => {
   assert.equal(cards.length, 4);
   assert.ok(!cards[3].classList.contains("collapsed"), "새 카드는 펼침");
   assert.ok(cards[0].classList.contains("collapsed"), "기존 카드는 접힌 채로");
+});
+
+test("카드: '수정' 중에만 '되돌리기'가 보이고, 누르면 고친 값을 버리고 마지막 저장 값으로", async () => {
+  const c = document.createElement("div");
+  await render(c, { supabase: fakeSupabase(data()) });
+  const card = c.querySelector(".card-item");
+  const revert = [...card.querySelectorAll("button")].find((b) => b.textContent === "되돌리기");
+  assert.ok(revert.hidden);
+  [...card.querySelectorAll("button")].find((b) => b.textContent === "수정").click();
+  assert.equal(revert.hidden, false);
+  const text = card.querySelector(".card-line input[type=text], .card-line textarea");
+  const before = text.value;
+  text.value = "바뀐 문구";
+  revert.click();
+  assert.equal(text.value, before);
+  assert.ok(text.readOnly, "보기 상태로 돌아감");
+  assert.ok(revert.hidden);
 });

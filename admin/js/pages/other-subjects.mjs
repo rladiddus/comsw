@@ -31,9 +31,24 @@ export async function render(container, { supabase }) {
     const duration = el("input", { type: "text", value: subject.duration ?? "", readOnly: true, placeholder: "기간" });
     duration.setAttribute("aria-label", "기간");
     const edit = el("button", { type: "button", className: "ghost-btn", textContent: "수정" });
+    // 되돌리기: 저장 안 한 고침을 버리고 마지막 저장 값으로
+    const revert = el("button", { type: "button", className: "ghost-btn", textContent: "되돌리기", hidden: true });
+    const close = () => {
+      name.readOnly = duration.readOnly = true;
+      revert.hidden = true;
+      edit.textContent = "수정";
+      edit.className = "ghost-btn";
+    };
+    revert.addEventListener("click", () => {
+      name.value = subject.name;
+      duration.value = subject.duration ?? "";
+      close();
+      setState("마지막 저장 상태로 되돌렸습니다");
+    });
     edit.addEventListener("click", async () => {
       if (name.readOnly) {
         name.readOnly = duration.readOnly = false;
+        revert.hidden = false;
         edit.textContent = "저장";
         edit.className = "publish-btn";
         return;
@@ -43,9 +58,7 @@ export async function render(container, { supabase }) {
       const { error } = await supabase.from("subjects").update(patch).eq("id", subject.id);
       if (error) return setState(dbErrorMessage(error, { duplicate: "같은 이름의 과목이 이미 있습니다" }), true);
       Object.assign(subject, patch);
-      name.readOnly = duration.readOnly = true;
-      edit.textContent = "수정";
-      edit.className = "ghost-btn";
+      close();
       setState(`'${subject.name}'을(를) 저장했습니다. 공개 사이트에는 '적용' 후 반영됩니다.`);
     });
     const stepsBtn = el("button", { type: "button", className: "ghost-btn", textContent: "단계" });
@@ -84,7 +97,7 @@ export async function render(container, { supabase }) {
       setState(`'${subject.name}' 과목을 삭제했습니다`);
       draw();
     });
-    return el("div", { className: "other-subject-row" }, [name, duration, stepsBtn, deptPick, move, remove, edit]);
+    return el("div", { className: "other-subject-row" }, [name, duration, stepsBtn, deptPick, move, remove, revert, edit]);
   }
 
   function draw() {

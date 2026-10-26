@@ -197,7 +197,7 @@ export async function render(container, ctx) {
     const cancel = el("button", {
       type: "button",
       className: "ghost-btn",
-      textContent: "취소",
+      textContent: "되돌리기",
     });
     const showView = (on) => {
       view.hidden = !on;

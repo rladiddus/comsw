@@ -308,7 +308,7 @@ test("로드맵: '취소'는 고친 것을 버리고, 학과를 바꾸면 과목
   await flush();
   const step = tracksOf(c)[0].querySelectorAll(".roadmap-step")[1];
   assert.deepEqual([...step.querySelectorAll(".multi-option span")].map((x) => x.textContent), ["포토샵"]);
-  buttons(tracksOf(c)[0], "취소")[0].click();
+  buttons(tracksOf(c)[0], "되돌리기")[0].click();
   await flush();
   assert.equal(tables.roadmap_tracks[0].department_id, "d2");
   assert.equal(tracksOf(c)[0].querySelector('select[aria-label="학과"]').value, "d2");

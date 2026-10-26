@@ -215,13 +215,20 @@ test("학과 커리큘럼: 요약은 보기만, '수정'은 과목명·기간·�
   assert.equal(level.value, "★★★☆☆");
   button(items[0], "수정").click();
   assert.equal(items[0].querySelector(".cell-name input").readOnly, false, "과목명도 고친다");
-  items[0].querySelector(".cell-name input").value = "포토샵 기초";
-  items[0].querySelector(".cell-duration input").value = "3개월";
+  const type = (sel, value) => {
+    const input = items[0].querySelector(sel);
+    input.value = value;
+    input.dispatchEvent(new dom.window.Event(input.tagName === "SELECT" ? "change" : "input"));
+  };
+  type(".cell-name input", "포토샵 기초");
+  type(".cell-duration input", "3개월");
   assert.ok(items[0].querySelector(".cell-dept_curriculum textarea").readOnly, "요약은 고정");
-  items[0].querySelector(".cell-tools textarea").value = "포토샵 2024";
-  items[0].querySelector(".cell-supplies textarea").value = "멘토시리즈 포토샵";
-  level.value = "★★★★★";
-  button(items[0], "저장").click();
+  type(".cell-tools textarea", "포토샵 2024");
+  type(".cell-supplies textarea", "멘토시리즈 포토샵");
+  type(".cell-level select", "★★★★★");
+  assert.equal(tables.subjects[0].name, "포토샵", "저장 전에는 DB 그대로");
+  assert.match(c.textContent, /저장 안 된 변경 1개/);
+  button(c.querySelector(".editor-bar"), "저장").click();
   await flush();
   assert.equal(tables.subjects[0].tools, "포토샵 2024");
   assert.equal(tables.subjects[0].supplies, "멘토시리즈 포토샵");
@@ -255,6 +262,9 @@ test("학과 커리큘럼: ⠿로 끌어 놓으면 순서를 저장하고, 승�
   items()[0].dispatchEvent(new dom.window.Event("drop", { cancelable: true }));
   await flush();
   assert.deepEqual(items().map((i) => i.querySelector(".cell-name input").value), ["일러스트", "포토샵"]);
+  assert.equal(tables.subjects.find((s) => s.id === "s2").sort_order, 1, "저장 전에는 그대로");
+  button(c.querySelector(".editor-bar"), "저장").click();
+  await flush();
   assert.equal(tables.subjects.find((s) => s.id === "s2").sort_order, 0);
 });
 
@@ -313,6 +323,9 @@ test("학과 커리큘럼: '+ 과목 추가'는 다른 과목을 이 학과에 �
   pick.value = "s9";
   button(c, "+ 과목 추가").click();
   await flush();
+  assert.ok(!tables.subject_departments.some((l) => l.subject_id === "s9"), "저장 전에는 DB 그대로");
+  button(c.querySelector(".editor-bar"), "저장").click();
+  await flush();
   assert.ok(tables.subject_departments.some((l) => l.subject_id === "s9" && l.department_id === "d1"));
   assert.ok(tables.subjects.find((s) => s.id === "s9").sort_order > 1);
   assert.deepEqual(names(), ["포토샵", "일러스트", "인디자인"]);
@@ -320,9 +333,14 @@ test("학과 커리큘럼: '+ 과목 추가'는 다른 과목을 이 학과에 �
   button(row, "제외").click();
   await flush();
   assert.deepEqual(names(), ["일러스트", "인디자인"]);
+  assert.match(c.textContent, /'기타 과목'으로 옮겨집니다/, "마지막 학과에서 빼면 기타 과목으로");
+  button(c.querySelector(".editor-bar"), "되돌리기").click();
+  assert.deepEqual(names(), ["포토샵", "일러스트", "인디자인"], "되돌리기 = 마지막 저장 상태");
+  button([...c.querySelectorAll(".dept-curriculum-row")].find((r) => r.querySelector(".cell-name input")?.value === "포토샵"), "제외").click();
+  button(c.querySelector(".editor-bar"), "저장").click();
+  await flush();
   assert.ok(tables.subjects.some((s) => s.id === "s1"), "과목은 그대로");
   assert.ok(!tables.subject_departments.some((l) => l.subject_id === "s1" && l.department_id === "d1"));
-  assert.match(c.textContent, /'기타 과목'으로 옮겼습니다/, "마지막 학과에서 빼면 기타 과목으로");
 });
 
 test("학과 커리큘럼: '단계'는 그 과목 단계를 카드(대표 이미지 왼쪽)로 열고, 수정 중에만 AI 요약", async () => {
@@ -370,4 +388,36 @@ test("신청 과목: 선생님이 적은 프로그램·준비물을 신청 내�
   const c = document.createElement("div");
   await render(c, { supabase: fakeSupabase(tables) });
   assert.match(c.querySelector(".request-materials").textContent, /프로그램: Lightroom · 준비물: 이어폰/);
+});
+
+test("신청 과목: '+ 개월 추가'는 다음 달 과목에 빈 1단계 신청을 만들고, '이 개월 빼기'는 이 묶음 신청을 지운다", async () => {
+  const { render } = await import("../js/pages/curriculum-requests.mjs");
+  const tables = data();
+  tables.subjects.push({ id: "w1", name: "웹툰1", sort_order: 5 });
+  tables.instructor_curricula = [
+    { id: "p1", instructor_id: "i1", subject_id: "w1", set_id: "set1", step_label: "1단계", written: "웹툰1 원문", status: "pending", sort_order: 0 },
+  ];
+  const sb = fakeSupabase(tables);
+  const rpcs = [];
+  sb.rpc = async (name, args) => {
+    rpcs.push([name, args]);
+    if (name === "comsw_create_month_subject") {
+      tables.subjects.push({ id: "w2", name: args.p_name });
+      return { data: "w2", error: null };
+    }
+    return { data: null, error: null };
+  };
+  globalThis.confirm = () => true;
+  const c = document.createElement("div");
+  await render(c, { supabase: sb });
+  button(c, "+ 개월 추가").click();
+  await flush();
+  assert.deepEqual(rpcs[0], ["comsw_create_month_subject", { p_from: "w1", p_name: "웹툰2" }]);
+  const made = tables.instructor_curricula.find((r) => r.subject_id === "w2");
+  assert.deepEqual([made.instructor_id, made.set_id, made.step_label, made.status], ["i1", "set1", "1단계", "pending"]);
+  assert.match(c.querySelector(".subject-tabs button.active").textContent, /웹툰2/, "새 달 묶음이 열림");
+  button(c, "이 개월 빼기").click();
+  await flush();
+  assert.equal(tables.instructor_curricula.some((r) => r.subject_id === "w2"), false);
+  assert.match(c.querySelector(".subject-tabs button.active").textContent, /웹툰1/);
 });

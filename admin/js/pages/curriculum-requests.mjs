@@ -3,11 +3,17 @@ import { dbErrorMessage } from "../fields.mjs";
 import { driveThumbnail } from "../drive.mjs";
 import { getServices } from "../services.mjs";
 import { chooseThumbnail, stripCrop, applyCrop } from "../image-crop.mjs";
+import { nextMonthName } from "../month.mjs";
 
 // 커리큘럼 관리 > 신청 과목: 선생님이 승인 요청한 커리큘럼을 학과장·관리자가 다듬어 저장(=승인)하고,
 // 그 과목의 학과 커리큘럼 요약과 로드맵 문구를 AI로 새로 만들어 '적용'한다.
 // 강사·과목·학과 탭이 같은 신청을 한 묶음으로 보여 준다.
-export async function render(container, { supabase, crop = chooseThumbnail }) {
+// 여러 달 과정(웹툰1, 웹툰2 …)은 학과장이 '+ 개월 추가'(다음 달 과목 + 빈 1단계 신청)와 '이 개월 빼기'(이 묶음 신청 삭제)로 늘리고 줄인다.
+export async function render(container, { supabase, crop = chooseThumbnail, focus = null }) {
+  const reload = (key) => {
+    container.replaceChildren();
+    return render(container, { supabase, crop, focus: key });
+  };
   container.append(
     el("h2", { textContent: "신청 과목" }),
     el("p", {
@@ -137,17 +143,27 @@ export async function render(container, { supabase, crop = chooseThumbnail }) {
           aiBtn.hidden = !on;
           recrop.hidden = !on || !media;
         },
+        // 되돌리기: 마지막 저장 값으로
+        reset() {
+          step.value = r.step_label;
+          written.value = r.written ?? "";
+          summary.value = r.summary ?? "";
+          media = r.media_url ?? "";
+          paintThumb();
+        },
         values: () => ({ step_label: step.value.trim(), written: written.value, summary: summary.value.trim() || null, media_url: media || null }),
         row: r,
       };
     });
     const edit = el("button", { type: "button", className: "ghost-btn", textContent: "수정" });
+    const revert = el("button", { type: "button", className: "ghost-btn", textContent: "되돌리기", hidden: true });
     const status = el("span", { className: "status-pill pending", textContent: g.saved ? "승인됨" : "승인 대기" });
     if (g.saved) status.className = "status-pill approved";
     edit.addEventListener("click", async () => {
       if (!editing) {
         editing = true;
         rowViews.forEach((v) => v.setEditing(true));
+        revert.hidden = false;
         edit.textContent = "저장";
         edit.className = "publish-btn";
         return;
@@ -165,6 +181,7 @@ export async function render(container, { supabase, crop = chooseThumbnail }) {
         g.saved = true;
         editing = false;
         rowViews.forEach((v) => v.setEditing(false));
+        revert.hidden = true;
         edit.textContent = "수정";
         edit.className = "ghost-btn";
         status.className = "status-pill approved";
@@ -175,6 +192,17 @@ export async function render(container, { supabase, crop = chooseThumbnail }) {
       } finally {
         edit.disabled = false;
       }
+    });
+    revert.addEventListener("click", () => {
+      editing = false;
+      rowViews.forEach((v) => {
+        v.reset();
+        v.setEditing(false);
+      });
+      revert.hidden = true;
+      edit.textContent = "수정";
+      edit.className = "ghost-btn";
+      setState("마지막 저장 상태로 되돌렸습니다");
     });
     const teacherText = () => rowViews.map((v) => {
       const x = v.values();
@@ -303,12 +331,50 @@ export async function render(container, { supabase, crop = chooseThumbnail }) {
       }
     });
 
+    // ── 개월 늘리기·줄이기 ──
+    const addMonth = el("button", { type: "button", className: "ghost-btn", textContent: "+ 개월 추가" });
+    addMonth.title = "다음 달 과목(예: 웹툰1 → 웹툰2)에 빈 1단계 신청을 만듭니다. '수정'으로 내용을 넣고 '저장'하면 승인됩니다.";
+    addMonth.addEventListener("click", async () => {
+      const name = nextMonthName(subject?.name ?? "", subjects.map((s) => s.name));
+      if (!confirm(`'${name}' 과목에 ${nameOf(instructors, g.instructor_id)} 선생님의 빈 1단계 신청을 만들까요?`)) return;
+      addMonth.disabled = true;
+      try {
+        const id = await rpc(supabase, "comsw_create_month_subject", { p_from: g.subject_id, p_name: name });
+        const sort_order = pending.reduce((m, r) => Math.max(m, r.sort_order ?? -1), -1) + 1;
+        const { error } = await supabase.from("instructor_curricula").insert({
+          set_id: g.set_id, instructor_id: g.instructor_id, subject_id: id,
+          step_label: "1단계", written: "", status: "pending", sort_order,
+        });
+        if (error) throw new Error(dbErrorMessage(error));
+        await reload(`${g.instructor_id}:${id}:${g.set_id}`);
+      } catch (e) {
+        setState(e.message, true);
+        addMonth.disabled = false;
+      }
+    });
+    const dropMonth = el("button", { type: "button", className: "ghost-btn danger", textContent: "이 개월 빼기" });
+    dropMonth.addEventListener("click", async () => {
+      if (!confirm(`${label(g)} 신청을 모두 지울까요? 선생님이 낸 이 과목 신청이 삭제됩니다(이미 승인된 커리큘럼은 그대로).`)) return;
+      dropMonth.disabled = true;
+      for (const r of g.rows) {
+        const { error } = await supabase.from("instructor_curricula").delete().eq("id", r.id);
+        if (error) {
+          setState(dbErrorMessage(error), true);
+          dropMonth.disabled = false;
+          return;
+        }
+      }
+      await reload(null);
+    });
+
     return [
       el("section", { className: "workspace-card request-section" }, [
         el("div", { className: "request-title" }, [
           el("h3", { textContent: `신청 내용 · ${nameOf(sets, g.set_id)}` }),
           status,
+          revert,
           edit,
+          el("span", { className: "request-month-actions" }, [addMonth, dropMonth]),
         ]),
         el("div", { className: "request-row request-head" },
           ["강사명", "과목명", "단계", "커리큘럼", "이미지"].map((t) => el("span", { textContent: t }))),
@@ -334,5 +400,5 @@ export async function render(container, { supabase, crop = chooseThumbnail }) {
       ]),
     ];
   }
-  show(groups[0]);
+  show(groups.find((g) => key(g) === focus) ?? groups[0]);
 }

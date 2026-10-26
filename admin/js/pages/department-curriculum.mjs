@@ -15,13 +15,15 @@ export const deptReorderUpdates = subsetReorderUpdates;
 // 과목명은 id로 연결돼 있어 선생님 커리큘럼·로드맵 등 모든 곳에 바뀐 이름이 나온다. '단계'는 과목 안의 단계(사이트 '전체 수업').
 // 왼쪽 ⠿를 끌면 전체수업 순서가 바뀐다. '+ 과목 추가'는 다른 과목을 이 학과에 넣고, '제외'는 이 학과에서만 뺀다
 // (마지막 학과에서까지 빼면 DB가 '기타 과목'으로 보낸다). 승인 전 신규 과목(순서 없음)은 '신규 과목 추가' 탭에만 보인다.
+// 수정·순서·추가·제외는 화면에서만 바뀌고 위 '저장'을 눌러야 DB에 들어간다(공개 사이트는 우상단 '적용' 후).
+// '되돌리기'는 마지막 저장 상태로. 여러 학과를 오가며 고친 뒤 한 번에 저장할 수 있다. ('단계'는 따로 저장)
 export async function render(container, { supabase }) {
   container.append(
     el("h2", { textContent: "학과 커리큘럼" }),
     el("p", {
       className: "desc",
       textContent:
-        "학과를 고르면 그 학과 과목이 나옵니다. 학과별 커리큘럼 요약은 '신청 과목'에서 적용한 문구가 들어옵니다. '수정'으로 과목명·기간·프로그램·준비물·학습 수준을 고치고(사이트에는 프로그램·준비물이 한 칸에 나옵니다), '단계'로 사이트 '전체 수업'의 과목 단계를 고칩니다. 왼쪽 ⠿를 끌어 순서(사이트 '전체 수업' 순서)를 바꿀 수 있습니다. 선생님이 적은 프로그램·준비물은 승인할 때 합쳐집니다.",
+        "학과를 고르면 그 학과 과목이 나옵니다. 학과별 커리큘럼 요약은 '신청 과목'에서 적용한 문구가 들어옵니다. '수정'으로 과목명·기간·프로그램·준비물·학습 수준을 고치고(사이트에는 프로그램·준비물이 한 칸에 나옵니다), 왼쪽 ⠿를 끌어 순서(사이트 '전체 수업' 순서)를 바꿉니다. 고친 내용은 위 '저장'을 눌러야 저장되고, '되돌리기'는 마지막 저장 상태로 돌립니다. '단계'는 사이트 '전체 수업'의 과목 단계(따로 저장)입니다. 선생님이 적은 프로그램·준비물은 승인할 때 합쳐집니다.",
     }),
   );
   const setState = stateLine(container);
@@ -30,6 +32,19 @@ export async function render(container, { supabase }) {
     rows(supabase, "subjects", (q) => q.order("sort_order")),
     rows(supabase, "subject_departments"),
   ]);
+  // 마지막 저장 상태(되돌리기·바뀐 것 계산용)
+  const FIELDS = ["name", "duration", "tools", "supplies", "level", "sort_order"];
+  const linkKey = (l) => `${l.subject_id}|${l.department_id}`;
+  const snapshot = () => ({
+    links: new Set(links.map(linkKey)),
+    subjects: new Map(subjects.map((x) => [x.id, Object.fromEntries(FIELDS.map((f) => [f, x[f] ?? null]))])),
+  });
+  let saved = snapshot();
+  const editing = new Set(); // '수정'을 연 과목
+  const saveBtn = el("button", { type: "button", className: "publish-btn", textContent: "저장" });
+  const undoBtn = el("button", { type: "button", className: "ghost-btn", textContent: "되돌리기" });
+  const changeInfo = el("span", { className: "muted" });
+  container.append(el("div", { className: "editor-bar" }, [saveBtn, undoBtn, changeInfo]));
   const dept = el("select", {}, depts.map((d) => el("option", { value: d.id, textContent: d.name })));
   dept.setAttribute("aria-label", "학과");
   const table = el("div", { className: "dept-curriculum-table" });
@@ -57,35 +72,79 @@ export async function render(container, { supabase }) {
         .map((s) => el("option", { value: s.id, textContent: s.name })),
     );
   };
-  addBtn.addEventListener("click", async () => {
+  addBtn.addEventListener("click", () => {
     const subject = subjects.find((s) => s.id === addPick.value);
     if (!subject) return setState("추가할 과목을 골라주세요", true);
-    addBtn.disabled = true;
-    const link = { subject_id: subject.id, department_id: dept.value };
-    let { error } = await supabase.from("subject_departments").insert(link);
-    if (!error && subject.sort_order == null) {
-      const sort_order = subjects.reduce((m, s) => Math.max(m, s.sort_order ?? -1), -1) + 1;
-      ({ error } = await supabase.from("subjects").update({ sort_order }).eq("id", subject.id));
-      if (!error) subject.sort_order = sort_order;
+    links.push({ subject_id: subject.id, department_id: dept.value });
+    if (subject.sort_order == null) subject.sort_order = subjects.reduce((m, s) => Math.max(m, s.sort_order ?? -1), -1) + 1;
+    setState(`'${subject.name}'을(를) 넣었습니다. '저장'을 눌러야 저장됩니다.`);
+    draw();
+  });
+  // 바뀐 것: 새 연결 / 빠진 연결 / 칸이 바뀐 과목(마지막 학과에서 빠져 순서가 비는 과목은 DB가 처리)
+  const changes = () => {
+    const now = new Set(links.map(linkKey));
+    const added = links.filter((l) => !saved.links.has(linkKey(l)));
+    const removed = [...saved.links].filter((k) => !now.has(k)).map((k) => {
+      const [subject_id, department_id] = k.split("|");
+      return { subject_id, department_id };
+    });
+    const edited = subjects.map((x) => {
+      const before = saved.subjects.get(x.id) ?? {};
+      const patch = {};
+      for (const f of FIELDS) {
+        const v = x[f] ?? null;
+        if (v !== before[f] && !(f === "sort_order" && v == null)) patch[f] = v;
+      }
+      return { id: x.id, patch };
+    }).filter((e) => Object.keys(e.patch).length);
+    return { added, removed, edited, count: added.length + removed.length + edited.length };
+  };
+  saveBtn.addEventListener("click", async () => {
+    const { added, removed, edited, count } = changes();
+    if (!count) return setState("바뀐 것이 없습니다");
+    if (edited.some((e) => "name" in e.patch && !String(e.patch.name ?? "").trim())) return setState("과목명을 입력해주세요", true);
+    saveBtn.disabled = true;
+    try {
+      if (added.length) {
+        const { error } = await supabase.from("subject_departments").insert(added);
+        if (error) throw error;
+      }
+      for (const e of edited) {
+        const { error } = await supabase.from("subjects").update(e.patch).eq("id", e.id);
+        if (error) throw error;
+      }
+      for (const l of removed) {
+        const { error } = await supabase.from("subject_departments").delete().eq("subject_id", l.subject_id).eq("department_id", l.department_id);
+        if (error) throw error;
+      }
+      saved = snapshot();
+      editing.clear();
+      setState("저장했습니다. 공개 사이트에는 우상단 '적용'을 눌러야 나옵니다.");
+      draw();
+    } catch (error) {
+      setState(`${dbErrorMessage(error, { duplicate: "같은 이름의 과목이 이미 있습니다" })} — 일부만 저장됐을 수 있으니 이 화면을 다시 열어 확인해주세요.`, true);
+    } finally {
+      saveBtn.disabled = false;
     }
-    addBtn.disabled = false;
-    if (error) return setState(dbErrorMessage(error), true);
-    links.push(link);
-    setState(`'${subject.name}'을(를) 추가했습니다. 공개 사이트에는 '적용' 후 반영됩니다.`);
+  });
+  undoBtn.addEventListener("click", () => {
+    links.splice(0, links.length, ...[...saved.links].map((k) => {
+      const [subject_id, department_id] = k.split("|");
+      return { subject_id, department_id };
+    }));
+    for (const x of subjects) Object.assign(x, saved.subjects.get(x.id));
+    editing.clear();
+    setState("마지막 저장 상태로 되돌렸습니다");
     draw();
   });
   const inDept = () => subjects.filter((s) => links.some((l) => l.department_id === dept.value && l.subject_id === s.id));
   const ordered = () => inDept().filter((s) => s.sort_order != null).sort((a, b) => a.sort_order - b.sort_order);
   let dragFrom = -1;
 
-  async function reorder(from, to) {
-    const updates = deptReorderUpdates(subjects, ordered().map((s) => s.id), from, to);
-    for (const u of updates) {
-      const { error } = await supabase.from("subjects").update({ sort_order: u.sort_order }).eq("id", u.id);
-      if (error) return setState(dbErrorMessage(error), true);
+  function reorder(from, to) {
+    for (const u of deptReorderUpdates(subjects, ordered().map((s) => s.id), from, to)) {
       subjects.find((s) => s.id === u.id).sort_order = u.sort_order;
     }
-    setState("순서를 바꿨습니다. 공개 사이트에는 '적용' 후 반영됩니다.");
     draw();
   }
 
@@ -106,40 +165,35 @@ export async function render(container, { supabase }) {
       level.append(el("option", { value: subject.level, textContent: `(현재) ${subject.level}` }));
     }
     level.value = subject.level ?? "";
+    // '수정'은 이 줄 칸을 열고 닫기만 한다. 고친 값은 바로 화면 상태에 들어가고 위 '저장'으로 저장.
     const edit = el("button", { type: "button", className: "ghost-btn", textContent: "수정" });
-    edit.addEventListener("click", async () => {
-      const inputs = [name, duration, tools, supplies];
-      if (tools.readOnly) {
-        for (const x of inputs) x.readOnly = false;
-        level.disabled = false;
-        edit.textContent = "저장";
-        edit.className = "publish-btn";
-        return;
-      }
-      if (!name.value.trim()) return setState("과목명을 입력해주세요", true);
-      edit.disabled = true;
-      const patch = { name: name.value.trim(), duration: duration.value.trim() || null, tools: tools.value.trim() || null, supplies: supplies.value.trim() || null, level: level.value || null };
-      const { error } = await supabase.from("subjects").update(patch).eq("id", subject.id);
-      edit.disabled = false;
-      if (error) return setState(dbErrorMessage(error), true);
-      Object.assign(subject, patch);
-      for (const x of inputs) x.readOnly = true;
-      level.disabled = true;
-      edit.textContent = "수정";
-      edit.className = "ghost-btn";
-      setState(`'${subject.name}'을(를) 저장했습니다. 공개 사이트에는 '적용' 후 반영됩니다.`);
+    const open = (on) => {
+      for (const x of [name, duration, tools, supplies]) x.readOnly = !on;
+      level.disabled = !on;
+      edit.textContent = on ? "닫기" : "수정";
+    };
+    edit.addEventListener("click", () => {
+      const on = !editing.has(subject.id);
+      if (on) editing.add(subject.id);
+      else editing.delete(subject.id);
+      open(on);
     });
+    const bind = (input, key, keepText = false) =>
+      input.addEventListener(input.tagName === "SELECT" ? "change" : "input", () => {
+        subject[key] = keepText ? input.value : (input.value.trim() || null);
+        showChanges();
+      });
+    bind(name, "name", true);
+    bind(duration, "duration");
+    bind(tools, "tools");
+    bind(supplies, "supplies");
+    bind(level, "level");
     const exclude = el("button", { type: "button", className: "ghost-btn", textContent: "제외" });
-    exclude.addEventListener("click", async () => {
-      const name = depts.find((d) => d.id === dept.value)?.name ?? "이 학과";
-      if (!confirm(`'${subject.name}'을(를) ${name} 커리큘럼에서 뺄까요? 과목 내용은 지워지지 않습니다.`)) return;
-      const { error } = await supabase.from("subject_departments").delete()
-        .eq("department_id", dept.value).eq("subject_id", subject.id);
-      if (error) return setState(dbErrorMessage(error), true);
+    exclude.addEventListener("click", () => {
       links.splice(links.findIndex((l) => l.department_id === dept.value && l.subject_id === subject.id), 1);
       const last = !links.some((l) => l.subject_id === subject.id);
-      if (last) subject.sort_order = null; // DB가 기타 과목으로 보낸 것과 같게
-      setState(`'${subject.name}'을(를) 뺐습니다.${last ? " 어느 학과에도 없어 '기타 과목'으로 옮겼습니다." : ""} 공개 사이트에는 '적용' 후 반영됩니다.`);
+      if (last) subject.sort_order = null; // 저장하면 DB가 기타 과목으로 보낸다
+      setState(`'${subject.name}'을(를) 뺐습니다.${last ? " 저장하면 어느 학과에도 없어 '기타 과목'으로 옮겨집니다." : ""} '저장'을 눌러야 저장됩니다.`);
       draw();
     });
     const stepsBtn = el("button", { type: "button", className: "ghost-btn", textContent: "단계" });
@@ -167,10 +221,16 @@ export async function render(container, { supabase }) {
       box.classList.remove("dragging");
     });
     dropTarget(box, index, () => dragFrom, reorder);
+    open(editing.has(subject.id));
     return box;
+  }
+  function showChanges() {
+    const { count } = changes();
+    changeInfo.textContent = count ? `저장 안 된 변경 ${count}개` : "";
   }
 
   function draw() {
+    showChanges();
     fillAdd();
     const main = ordered();
     table.replaceChildren(

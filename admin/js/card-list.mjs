@@ -347,9 +347,22 @@ export async function mountCardList(container, {
         else input.readOnly = !on;
       }
       for (const b of aiButtons) b.hidden = !on;
+      revert.hidden = !on;
       edit.textContent = on ? "저장" : "수정";
       edit.className = on ? "publish-btn" : "ghost-btn";
     };
+    // 되돌리기: 저장 안 한 고침을 버리고 마지막 저장 값으로(칸·이미지·연결 칩)
+    const revert = el("button", { type: "button", className: "ghost-btn", textContent: "되돌리기", hidden: true });
+    revert.addEventListener("click", () => {
+      for (const f of plain) {
+        if (f.type === "select") fillSelect(f, row[f.key]);
+        else inputs[f.key].value = row[f.key] ?? "";
+      }
+      inputs[imageKey].value = row[imageKey] ?? "";
+      paint();
+      editing(false);
+      setState("마지막 저장 상태로 되돌렸습니다");
+    });
     edit.addEventListener("click", async () => {
       if (upload.hidden) return editing(true);
       const v = values();
@@ -402,6 +415,7 @@ export async function mountCardList(container, {
           return b;
         }),
         remove,
+        revert,
         edit,
         fold,
       ]),

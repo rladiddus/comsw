@@ -486,7 +486,7 @@ dialog.roadmap-source::backdrop { background:rgba(0,0,0,.45); }
 .card-item.no-sort.collapsed { grid-template-columns:128px minmax(0,1fr); padding-left:12px; }
 @media (max-width:900px) { .card-item.no-sort { grid-template-columns:minmax(0,1fr); } .card-item.no-sort .card-side { grid-column:1; } }
 /* 커리큘럼 관리 > 기타 과목 */
-.other-subject-row { display:grid; grid-template-columns:minmax(140px,1.4fr) minmax(90px,1fr) auto minmax(110px,.9fr) auto auto auto; gap:8px; align-items:center; padding:8px 0; border-bottom:1px solid var(--line); }
+.other-subject-row { display:grid; grid-template-columns:minmax(140px,1.4fr) minmax(90px,1fr) auto minmax(110px,.9fr) auto auto auto auto; gap:8px; align-items:center; padding:8px 0; border-bottom:1px solid var(--line); }
 .other-subject-row input, .other-subject-row select { width:100%; padding:7px 10px; border:1px solid #d9dde4; border-radius:8px; background:#fff; }
 .other-subject-row input[readonly] { background:#f6f7f9; border-color:transparent; }
 @media (max-width:900px) { .other-subject-row { grid-template-columns:1fr 1fr; } }
@@ -542,3 +542,5 @@ dialog.roadmap-source::backdrop { background:rgba(0,0,0,.45); }
 /* 내 커리큘럼 > 등록하기: 학과장·관리자 '타강사 커리큘럼' */
 .proxy-title input[type=search], .proxy-title select { padding:8px 10px; border:1px solid #d9dde4; border-radius:8px; background:#fff; }
 .proxy-title .proxy-toggle { margin-left:auto; display:inline-flex; align-items:center; gap:6px; font-weight:600; }
+.step-add-row { display:flex; gap:8px; flex-wrap:wrap; }
+.request-month-actions { margin-left:auto; display:inline-flex; gap:6px; }

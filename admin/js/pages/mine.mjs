@@ -269,7 +269,7 @@ export async function render(container, ctx, { tab, as } = {}) {
       const name = nextMonthName(subject.name, [...subjects, ...months].map((x) => x.name));
       const found = subjects.find((x) => x.name === name);
       const month = found
-        ? { ...found, dept: dept.value }
+        ? { ...found, dept: dept.value, from: subject.from ?? subject.id } // 기준은 담당 과목(원래 과목)으로 이어 간다
         : { id: `new:${name}`, name, from: subject.from ?? subject.id, dept: dept.value, isNew: true };
       months.push(month);
       refill();

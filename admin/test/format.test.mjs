@@ -2,9 +2,9 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { formatPublished, formatSeoul, deleteSeminarMessage, cascadeMessage } from "../js/format.mjs";
 
-test("마지막 적용 표시는 서울 시간", () => {
-  assert.equal(formatPublished(null), "아직 적용한 적 없음");
-  assert.equal(formatPublished({ created_at: "2026-10-21T15:05:00Z" }), "2026-10-22 00:05 적용");
+test("마지막 사이트 반영 표시는 서울 시간", () => {
+  assert.equal(formatPublished(null), "아직 사이트에 반영한 적 없음");
+  assert.equal(formatPublished({ created_at: "2026-10-21T15:05:00Z" }), "2026-10-22 00:05 사이트에 반영");
   assert.equal(formatSeoul("2026-01-02T03:04:00Z"), "2026-01-02 12:04");
 });
 

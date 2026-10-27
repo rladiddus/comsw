@@ -33,7 +33,7 @@ export async function mountInstructorReview(
         try {
           await fn();
           await onChanged();
-          await draw("확인했습니다. '적용'을 눌러야 공개 사이트에 반영됩니다.");
+          await draw("확인했습니다. '사이트에 반영'을 눌러야 공개 사이트에 반영됩니다.");
         } catch (e) {
           setState(e.message, true);
         } finally {

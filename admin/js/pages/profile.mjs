@@ -145,7 +145,7 @@ export async function render(container, ctx) {
         container.prepend(
           el("p", {
             className: "notice",
-            textContent: "프로필을 저장했습니다. 학과장 승인 후 적용됩니다.",
+            textContent: "프로필을 저장했습니다. 학과장 승인 후 사이트에 반영됩니다.",
           }),
         );
       } catch (e) {
@@ -162,7 +162,7 @@ export async function render(container, ctx) {
           : "프로필 승인 대기 중입니다. 공개 정보는 승인 전까지 유지됩니다.",
       }));
     }
-    // 이미 적용됐거나 제출한 소개가 있으면 보기 화면부터 보여 주고, '수정'을 눌러야 고친다.
+    // 이미 사이트에 반영됐거나 제출한 소개가 있으면 보기 화면부터 보여 주고, '수정'을 눌러야 고친다.
     const shown = pending || asked ? draft : own;
     const hasProfile = Boolean(
       draft || own.career?.trim() || own.message?.trim(),
@@ -185,7 +185,7 @@ export async function render(container, ctx) {
           ? `학과장 수정 요청: ${draft.review_note || ""} — '수정'을 눌러 고친 뒤 다시 승인 요청해주세요.`
           : pending
           ? "승인 대기 중인 수정본입니다. 사이트에는 승인 후 반영됩니다."
-          : "사이트에 적용된 소개입니다.",
+          : "사이트에 반영된 소개입니다.",
       }),
       item("이름", own.name),
       el("div", { className: "form-row" }, [

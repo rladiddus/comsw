@@ -9,7 +9,7 @@ export function formatSeoul(iso) {
 }
 
 export function formatPublished(row) {
-  return row ? `${formatSeoul(row.created_at)} 적용` : "아직 적용한 적 없음";
+  return row ? `${formatSeoul(row.created_at)} 사이트에 반영` : "아직 사이트에 반영한 적 없음";
 }
 
 export function deleteSeminarMessage(title, applicantCount) {

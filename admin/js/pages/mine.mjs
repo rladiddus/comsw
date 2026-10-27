@@ -94,7 +94,7 @@ export async function render(container, ctx, { tab, as } = {}) {
     el("p", {
       className: "desc",
       textContent:
-        "나의 수업을 단계별로 소개해주세요. 제출 후 학과장 승인과 적용을 거쳐 사이트에 반영됩니다.",
+        "나의 수업을 단계별로 소개해주세요. 제출 후 학과장 승인을 거쳐 사이트에 반영됩니다.",
     }),
   );
   const setState = stateLine(container);

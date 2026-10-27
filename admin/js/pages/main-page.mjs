@@ -85,7 +85,7 @@ export async function render(container, { supabase, preview }) {
     supabase,
     table: "menus",
     title: "메뉴",
-    description: `메뉴 이름은 사이트 페이지와 연결되어 있어 바꾸면 해당 페이지로 이동하지 않을 수 있습니다: ${MENU_NAMES}. 사용을 꺼 둔 메뉴도 미리보기로 '적용' 전 내용을 볼 수 있습니다.`,
+    description: `메뉴 이름은 사이트 페이지와 연결되어 있어 바꾸면 해당 페이지로 이동하지 않을 수 있습니다: ${MENU_NAMES}. 사용을 꺼 둔 메뉴도 미리보기로 '사이트에 반영' 전 내용을 볼 수 있습니다.`,
     columns: [
       { key: "name", label: "메뉴 이름", type: "text", required: true },
       { key: "is_active", label: "사용", type: "checkbox" },

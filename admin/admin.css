@@ -396,14 +396,10 @@ dialog.idle-dialog strong { color:var(--accent); }
 .box-title { margin-bottom:10px; }
 .box-title h3, .box-title h4 { margin:0; }
 .request-title h3 { margin:0; }
-.request-row { display:grid; grid-template-columns:90px 110px 90px minmax(0,1fr) 180px; gap:12px; align-items:start; padding:12px 0; border-bottom:1px solid var(--line); }
+.request-row { display:grid; grid-template-columns:100px minmax(0,1.2fr) minmax(0,1fr) 140px; gap:12px; align-items:start; padding:12px 0; border-bottom:1px solid var(--line); }
 .request-head { font-weight:700; font-size:12px; color:var(--muted); padding:8px 0; }
 .request-cell input, .request-cell textarea { width:100%; padding:8px 10px; border:1px solid #d9dde4; border-radius:8px; }
 .request-cell input[readonly], .request-cell textarea[readonly] { background:#f6f7f9; border-color:transparent; resize:none; }
-.request-text { display:flex; flex-direction:column; gap:8px; }
-.request-summary { display:flex; gap:8px; align-items:flex-start; flex-wrap:wrap; }
-.request-summary .ai-btn { margin-top:0; white-space:nowrap; }
-.request-summary textarea { flex:1; }
 .request-image { display:flex; flex-direction:column; gap:8px; align-items:flex-start; }
 .compare-row { display:grid; grid-template-columns:1fr 1fr; gap:16px; }
 .compare-row .form-field { margin:6px 0; }
@@ -411,7 +407,17 @@ dialog.idle-dialog strong { color:var(--accent); }
 .compare-block { border-top:1px solid var(--line); padding-top:10px; margin-top:10px; }
 .compare-block:first-of-type { border-top:0; margin-top:0; padding-top:0; }
 .compare-block h4 { margin:0 0 4px; }
-.request-apply { padding:4px 0 12px; }
+.request-apply { padding:4px 0 12px; justify-content:flex-end; align-items:center; gap:12px; }
+.request-title h3 { font-size:18px; }
+.request-step-title { margin:0 0 4px; font-size:14px; color:var(--muted); }
+.request-fill { margin:12px 0 0; }
+.request-texts > summary { cursor:pointer; font-weight:700; font-size:15px; }
+.request-texts[open] > summary { margin-bottom:10px; }
+.request-texts .compare-block:first-of-type { border-top:1px solid var(--line); padding-top:10px; margin-top:10px; }
+.request-menu { margin-left:auto; position:relative; }
+.request-menu > summary { cursor:pointer; list-style:none; padding:6px 12px; border:1px solid #d9dde4; border-radius:9px; background:#fff; font-size:13px; font-weight:600; }
+.request-menu > summary::-webkit-details-marker { display:none; }
+.request-menu-items { position:absolute; right:0; top:calc(100% + 6px); z-index:5; display:flex; flex-direction:column; gap:6px; padding:10px; background:#fff; border:1px solid var(--line); border-radius:12px; box-shadow:0 8px 30px #0002; white-space:nowrap; }
 /* 커리큘럼 관리 > 학과 커리큘럼: 과목명 / 기간 / 학과별 커리큘럼 요약 / 프로그램·준비물 / 학습 수준 */
 .dept-curriculum-table { background:#fff; border:1px solid var(--line); border-radius:14px; padding:4px 16px; margin-top:8px; }
 .dept-curriculum-row { display:grid; grid-template-columns:24px 130px 100px minmax(0,1.4fr) minmax(0,.8fr) minmax(0,.8fr) 120px 150px; gap:12px; align-items:start; padding:12px 0; border-bottom:1px solid var(--line); }
@@ -552,7 +558,6 @@ dialog.roadmap-source::backdrop { background:rgba(0,0,0,.45); }
 .proxy-title input[type=search], .proxy-title select { padding:8px 10px; border:1px solid #d9dde4; border-radius:8px; background:#fff; }
 .proxy-title .proxy-toggle { margin-left:auto; display:inline-flex; align-items:center; gap:6px; font-weight:600; }
 .step-add-row { display:flex; gap:8px; flex-wrap:wrap; }
-.request-month-actions { margin-left:auto; display:inline-flex; gap:6px; }
 
 /* 학과 관리 › 과목 관리 */
 .subject-manage { display:flex; flex-direction:column; gap:14px; margin-top:14px; }

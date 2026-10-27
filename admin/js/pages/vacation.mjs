@@ -108,7 +108,7 @@ export async function render(container, { supabase }) {
         const { error: approveError } = await supabase.rpc("comsw_approve_curriculum", { p_id: s.id });
         if (approveError) throw new Error(dbErrorMessage(approveError));
       }
-      setState(`'${group.name}'에 담았습니다. 공개 사이트에는 '적용' 후 반영됩니다.`);
+      setState(`'${group.name}'에 담았습니다. 공개 사이트에는 '사이트에 반영' 후 반영됩니다.`);
       await Promise.all([drawPool(), showGroup()]);
     } catch (e) {
       setState(e.message, true);

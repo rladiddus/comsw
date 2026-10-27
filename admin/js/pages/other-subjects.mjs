@@ -98,7 +98,7 @@ export async function render(container, { supabase }) {
       if (error) return setState(dbErrorMessage(error, { duplicate: "같은 이름의 과목이 이미 있습니다" }), true);
       Object.assign(subject, patch);
       close();
-      setState(`'${subject.name}'을(를) 저장했습니다. 공개 사이트에는 '적용' 후 반영됩니다.`);
+      setState(`'${subject.name}'을(를) 저장했습니다. 공개 사이트에는 '사이트에 반영' 후 반영됩니다.`);
     });
     const stepsBtn = el("button", { type: "button", className: "ghost-btn", textContent: "단계" });
     stepsBtn.addEventListener("click", () => showWeeks(weeks, supabase, subject));
@@ -133,7 +133,7 @@ export async function render(container, { supabase }) {
       if (error) return setState(dbErrorMessage(error), true);
       links.push(link);
       subject.sort_order = sort_order;
-      setState(`'${subject.name}'을(를) ${deptPick.selectedOptions[0].textContent} 커리큘럼에 넣었습니다. 공개 사이트에는 '적용' 후 반영됩니다.`);
+      setState(`'${subject.name}'을(를) ${deptPick.selectedOptions[0].textContent} 커리큘럼에 넣었습니다. 공개 사이트에는 '사이트에 반영' 후 반영됩니다.`);
       draw();
     });
     const remove = el("button", { type: "button", className: "ghost-btn danger", textContent: "삭제" });
@@ -154,7 +154,7 @@ export async function render(container, { supabase }) {
         return setState(e.message, true);
       }
       subjects.splice(subjects.indexOf(subject), 1);
-      setState(`'${subject.name}' 과목을 삭제했습니다. 공개 사이트에서는 '적용' 후 빠집니다.`);
+      setState(`'${subject.name}' 과목을 삭제했습니다. 공개 사이트에서는 '사이트에 반영' 후 빠집니다.`);
       draw();
     });
     return el("div", { className: "other-subject-row" }, [name, duration, vacLabel, stepsBtn, curriculaBtn, deptPick, move, remove, revert, edit]);

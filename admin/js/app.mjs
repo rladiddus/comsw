@@ -32,7 +32,7 @@ export function toast(message) {
   setTimeout(() => el.remove(), 2600);
 }
 
-// 관리자·학과장이 '적용' 전 내용을 공개 사이트 화면으로 본다(꺼진 페이지 포함).
+// 관리자·학과장이 '사이트에 반영' 전 내용을 공개 사이트 화면으로 본다(꺼진 페이지 포함).
 async function preview(menuName, tablet = false) {
   const url = previewUrl(menuName, tablet);
   if (!url) { alert(`'${menuName}'은(는) 연결된 사이트 페이지가 없어 미리 볼 수 없습니다.`); return; }
@@ -49,7 +49,7 @@ function addPagePreview(content, site) {
   if (!title || title.parentElement.classList.contains("page-title-row")) return;
   const button = (text, tablet) => {
     const b = document.createElement("button");
-    Object.assign(b, { type: "button", className: "ghost-btn", textContent: text, title: `'${site}' 페이지를 '적용' 전 내용으로 봅니다` });
+    Object.assign(b, { type: "button", className: "ghost-btn", textContent: text, title: `'${site}' 페이지를 '사이트에 반영' 전 내용으로 봅니다` });
     b.addEventListener("click", () => preview(site, tablet));
     return b;
   };
@@ -62,19 +62,19 @@ function addPagePreview(content, site) {
 async function refreshPublished() {
   const { data, error } = await supabase.from("site_snapshots")
     .select("created_at").order("id", { ascending: false }).limit(1).maybeSingle();
-  $("#publishInfo").textContent = error ? `마지막 적용 확인 실패: ${dbErrorMessage(error)}` : formatPublished(data);
+  $("#publishInfo").textContent = error ? `마지막 반영 확인 실패: ${dbErrorMessage(error)}` : formatPublished(data);
 }
 
 async function publish() {
   if (!confirm("공개 사이트에 지금 내용을 반영할까요?")) return;
   const btn = $("#publishBtn");
   btn.disabled = true;
-  btn.textContent = "적용 중…";
+  btn.textContent = "반영 중…";
   const { error } = await supabase.rpc("comsw_publish");
   btn.disabled = false;
-  btn.textContent = "적용";
+  btn.textContent = "사이트에 반영";
   if (error) { toast(dbErrorMessage(error)); return; }
-  toast("적용했습니다");
+  toast("사이트에 반영했습니다");
   await refreshPublished();
 }
 

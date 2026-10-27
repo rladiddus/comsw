@@ -152,7 +152,7 @@ export function mountTableEditor(container, {
           const result = await fn(column.ai, String(source));
           if (input.value !== before) throw new Error('요약 중 내용이 변경되었습니다. 입력한 내용을 확인해주세요');
           const saved = await save(row, column, result.text, errBox);
-          if (saved.ok) { input.value = result.text; setState(result.cached ? '변경 없는 원문 — 이전 요약 사용' : '요약 저장됨 — 확인 후 적용해주세요'); }
+          if (saved.ok) { input.value = result.text; setState(result.cached ? '변경 없는 원문 — 이전 요약 사용' : "요약 저장됨 — 확인 후 '사이트에 반영'을 눌러주세요"); }
         } catch (err) { errBox.textContent = err.message; setState(err.message, true); }
         finally { button.disabled = false; }
       });

@@ -127,163 +127,168 @@ test("학과별 과목: ⠿로 끈 순서를 저장하면 학과 커리큘럼과
   assert.equal(tables.subjects.find((s) => s.id === "s3").sort_order, 2, "다른 학과 과목은 그대로");
 });
 
-test("신청 과목: '수정'·'학과 커리큘럼 생성'·'로드맵 문구 생성'은 박스 맨 아래가 아니라 제목 옆", async () => {
+const reqRows = (c) => [...c.querySelectorAll(".request-row:not(.request-head)")];
+const pillNames = (c) => [...c.querySelectorAll(".subject-tabs button")].map((b) => b.textContent);
+function requestDb(tables) {
+  const sb = fakeSupabase(tables);
+  const rpcs = [];
+  sb.rpc = async (name, args) => { rpcs.push([name, args]); return { data: null, error: null }; };
+  return { sb, rpcs };
+}
+
+test("신청 과목: 처음부터 고칠 수 있고 '수정'·'저장'·아래 '적용' 버튼이 없다, 문구 작업은 접힌 ②, 맨 아래 '승인하기' 하나", async () => {
   const { render } = await import("../js/pages/curriculum-requests.mjs");
   const c = document.createElement("div");
-  await render(c, { supabase: fakeSupabase(data()), services: async () => ({}) });
-  await flush();
-  const titleOf = (text) => [...c.querySelectorAll("button")].find((b) => b.textContent === text)?.parentElement;
-  assert.equal(titleOf("수정").className, "request-title");
-  assert.equal(titleOf("학과 커리큘럼 생성").className, "box-title");
-  for (const b of [...c.querySelectorAll("button")].filter((b) => b.textContent === "로드맵 문구 생성")) {
-    assert.equal(b.parentElement.className, "box-title");
+  await render(c, { supabase: fakeSupabase(data()) });
+  assert.deepEqual(pillNames(c), ["김민주 · 포토샵 (2단계)", "조해리 · 일러스트 (1단계)"]);
+  assert.deepEqual([...c.querySelectorAll(".request-head span")].map((s) => s.textContent), ["단계", "선생님 원문", "사이트에 보이는 문구", "이미지"]);
+  assert.ok(reqRows(c).every((r) => [...r.querySelectorAll("input, textarea")].every((x) => !x.readOnly)), "바로 고칠 수 있음");
+  for (const gone of ["수정", "저장", "적용", "AI 요약", "다시 자르기", "학과 커리큘럼 생성", "로드맵 문구 생성", "되돌리기"]) {
+    assert.equal(button(c, gone), undefined, `${gone} 버튼 없음`);
   }
-  assert.equal(c.querySelector(".request-section > .form-actions"), null);
+  assert.equal(c.querySelector("details.request-texts").open, false, "학과·로드맵 문구는 접혀 있음");
+  assert.ok(button(c, "승인하기"));
+  assert.ok(button(c, "고친 것 취소").hidden, "고친 게 없으면 취소 숨김");
+  reqRows(c)[0].querySelector("textarea").dispatchEvent(new dom.window.Event("input", { bubbles: true }));
+  assert.equal(button(c, "고친 것 취소").hidden, false);
 });
 
-test("신청 과목: 강사·과목별 묶음, 강사명/과목명/단계/커리큘럼/이미지 순, 수정 → AI 요약 → 저장(승인)", async () => {
+test("신청 과목: [빈 문구 AI로 채우기]는 빈 칸만, '승인하기'는 단계 저장 + 승인 후 목록에서 빼고 다음 묶음을 연다", async () => {
   const { render } = await import("../js/pages/curriculum-requests.mjs");
   const tables = data();
-  const sb = fakeSupabase(tables);
-  const rpcs = [];
-  sb.rpc = async (name, args) => { rpcs.push([name, args]); return { data: null, error: null }; };
+  const { sb, rpcs } = requestDb(tables);
   const asked = [];
-  configureServices({ summarize: async (kind, text) => { asked.push([kind, text]); return { text: `${kind} 결과` }; } });
-  const c = document.createElement("div");
-  await render(c, { supabase: sb });
-  assert.deepEqual([...c.querySelectorAll(".subject-tabs button")].map((b) => b.textContent), ["김민주 · 포토샵 (2단계)", "조해리 · 일러스트 (1단계)"]);
-  assert.deepEqual([...c.querySelectorAll(".request-head span")].map((s) => s.textContent), ["강사명", "과목명", "단계", "커리큘럼", "이미지"]);
-  const rowsEl = [...c.querySelectorAll(".request-row:not(.request-head)")];
-  assert.equal(rowsEl.length, 2);
-  assert.equal(rowsEl[0].children[0].textContent, "김민주");
-  assert.ok(rowsEl[0].querySelector("textarea").readOnly);
-  button(c, "수정").click();
-  button(rowsEl[0], "AI 요약").click();
-  await flush();
-  assert.equal(rowsEl[0].querySelectorAll("textarea")[1].value, "week 결과");
-  rowsEl[1].querySelector("textarea").value = "합성 원문 다듬음";
-  rowsEl[1].querySelectorAll("textarea")[1].value = "합성 요약";
-  button(c, "저장").click();
-  await flush();
-  assert.equal(tables.instructor_curricula.find((r) => r.id === "c1").summary, "week 결과");
-  assert.equal(tables.instructor_curricula.find((r) => r.id === "c2").written, "합성 원문 다듬음");
-  assert.deepEqual(rpcs.map(([n, a]) => [n, a.p_id]), [["comsw_approve_curriculum", "c1"], ["comsw_approve_curriculum", "c2"]]);
-  assert.match(c.textContent, /승인됨/);
-});
-
-test("신청 과목: 사이트 문구(요약)가 비어 있으면 '저장' 대신 팝업 — [AI생성]은 빈 칸을 AI로 채우고, [직접 작성]은 그 칸에 커서", async () => {
-  const { render } = await import("../js/pages/curriculum-requests.mjs");
-  const tables = data();
-  const sb = fakeSupabase(tables);
-  const rpcs = [];
-  sb.rpc = async (name, args) => { rpcs.push([name, args]); return { data: null, error: null }; };
-  const asked = [];
-  configureServices({ summarize: async (kind, text) => { asked.push(text); return { text: `${text} 요약` }; } });
+  configureServices({ summarize: async (kind, text) => { asked.push([kind, text]); return { text: `${text} 요약` }; } });
   const c = document.createElement("div");
   document.body.replaceChildren(c);
   await render(c, { supabase: sb });
-  const rowsEl = [...c.querySelectorAll(".request-row:not(.request-head)")];
-  const summaryOf = (i) => rowsEl[i].querySelectorAll("textarea")[1];
-  button(c, "수정").click();
+  const [r1, r2] = reqRows(c);
+  r1.querySelectorAll("textarea")[1].value = "직접 쓴 요약";
+  r2.querySelector("textarea").value = "합성 원문 다듬음";
+  button(c, "빈 문구 AI로 채우기").click();
+  await flush();
+  assert.deepEqual(asked, [["week", "합성 원문 다듬음"]], "빈 칸만");
+  assert.equal(r1.querySelectorAll("textarea")[1].value, "직접 쓴 요약");
+  assert.deepEqual(rpcs, [], "AI로 채워도 승인은 아직");
+  button(c, "승인하기").click();
+  await flush();
+  assert.equal(tables.instructor_curricula.find((r) => r.id === "c1").summary, "직접 쓴 요약");
+  assert.equal(tables.instructor_curricula.find((r) => r.id === "c2").written, "합성 원문 다듬음");
+  assert.deepEqual(rpcs.map(([n, a]) => [n, a.p_id]), [["comsw_approve_curriculum", "c1"], ["comsw_approve_curriculum", "c2"]]);
+  assert.deepEqual(pillNames(c), ["조해리 · 일러스트 (1단계)"], "승인하면 바로 목록에서 빠짐");
+  assert.match(c.textContent, /김민주 · 포토샵 \(2단계\) 승인했습니다\. 공개 사이트에는 위쪽 '사이트에 반영' 후/);
+  assert.match(reqRows(c)[0].querySelector("textarea").value, /일러 원문/, "다음 묶음이 열림");
+});
+
+test("신청 과목: 사이트 문구가 비어 있으면 '승인하기' 대신 팝업 — [AI생성]은 빈 칸을 채우고, [직접 작성]은 그 칸에 커서", async () => {
+  const { render } = await import("../js/pages/curriculum-requests.mjs");
+  const tables = data();
+  const { sb, rpcs } = requestDb(tables);
+  configureServices({ summarize: async (kind, text) => ({ text: `${text} 요약` }) });
+  const c = document.createElement("div");
+  document.body.replaceChildren(c);
+  await render(c, { supabase: sb });
+  const summaryOf = (i) => reqRows(c)[i].querySelectorAll("textarea")[1];
   summaryOf(0).value = "직접 쓴 요약";
-  button(c, "저장").click();
+  button(c, "승인하기").click();
   await flush();
   const dialog = () => document.querySelector("dialog.summary-dialog");
-  assert.ok(dialog(), "빈 문구가 있으면 팝업");
   assert.match(dialog().textContent, /2단계 문구가 비어 있습니다\. AI생성 또는 직접 작성을 진행해주세요/);
-  assert.deepEqual(rpcs, [], "저장(승인)하지 않음");
-  assert.equal(tables.instructor_curricula.find((r) => r.id === "c2").summary, undefined);
-
+  assert.deepEqual(rpcs, [], "승인하지 않음");
   button(dialog(), "직접 작성").click();
-  assert.equal(dialog(), null, "팝업 닫힘");
+  assert.equal(dialog(), null);
   assert.equal(document.activeElement, summaryOf(1), "빈 칸에 커서");
-
-  button(c, "저장").click();
+  button(c, "승인하기").click();
   await flush();
   button(dialog(), "AI생성").click();
   await flush();
-  assert.equal(dialog(), null);
-  assert.deepEqual(asked, ["합성 원문"], "빈 칸만 AI로");
   assert.equal(summaryOf(1).value, "합성 원문 요약");
-  assert.equal(summaryOf(0).value, "직접 쓴 요약", "이미 쓴 칸은 그대로");
-  assert.deepEqual(rpcs, [], "AI생성 뒤에도 확인하고 '저장'을 눌러야 승인");
-  button(c, "저장").click();
-  await flush();
-  assert.deepEqual(rpcs.map(([n, a]) => [n, a.p_id]), [["comsw_approve_curriculum", "c1"], ["comsw_approve_curriculum", "c2"]]);
+  assert.equal(summaryOf(0).value, "직접 쓴 요약");
+  assert.deepEqual(rpcs, [], "AI생성 뒤에도 확인하고 '승인하기'를 눌러야 승인");
 });
 
-test("신청 과목: 학과 커리큘럼·로드맵 문구를 AI로 신규 칸에 만들고, 적용하면 실제로 반영", async () => {
+test("신청 과목: ② [새 문구 AI로 만들기]는 학과 문구 → 로드맵 문구 순으로 빈 칸만, '승인하기'가 승인과 함께 반영한다", async () => {
   const { render } = await import("../js/pages/curriculum-requests.mjs");
   const tables = data();
+  tables.instructor_curricula.forEach((r) => (r.summary = "요약"));
+  const { sb, rpcs } = requestDb(tables);
   const asked = [];
   configureServices({ summarize: async (kind, text) => { asked.push([kind, text]); return { text: `${kind} 신규` }; } });
   const c = document.createElement("div");
-  await render(c, { supabase: fakeSupabase(tables) });
-  button(c, "학과 커리큘럼 생성").click();
+  await render(c, { supabase: sb });
+  const texts = c.querySelector("details.request-texts");
+  const [deptNow, deptNew, , roadNew] = texts.querySelectorAll("textarea");
+  assert.equal(deptNow.value, "01 포토샵 기초\n02 합성");
+  assert.match(texts.textContent, /로드맵 · 디자인 로드맵 · 1단계/);
+  button(texts, "새 문구 AI로 만들기").click();
   await flush();
-  const [dept, roadmap] = [...c.querySelectorAll(".request-section")].slice(1);
-  assert.equal(dept.querySelectorAll("textarea")[0].value, "01 포토샵 기초\n02 합성", "현재");
-  assert.equal(dept.querySelectorAll("textarea")[1].value, "department 신규");
-  assert.match(asked[0][1], /지금 학과 커리큘럼[\s\S]*김민주 선생님 신청 커리큘럼[\s\S]*포토샵 기초 원문/);
-  assert.equal(roadmap.querySelector("h4").textContent, "디자인 로드맵 · 1단계 · 포토샵");
-  button(roadmap, "로드맵 문구 생성").click();
+  assert.deepEqual(asked.map(([k]) => k), ["department", "roadmap"]);
+  assert.match(asked[0][1], /지금 학과 커리큘럼[\s\S]*김민주 선생님 신청 커리큘럼[\s\S]*1단계: 요약/);
+  assert.match(asked[1][1], /department 신규/, "로드맵은 새 학과 문구로");
+  assert.deepEqual([deptNew.value, roadNew.value], ["department 신규", "roadmap 신규"]);
+  roadNew.value = "";
+  asked.length = 0;
+  button(texts, "새 문구 AI로 만들기").click();
   await flush();
-  assert.equal(roadmap.querySelectorAll("textarea")[1].value, "roadmap 신규");
-  button(c, "적용").click();
+  assert.deepEqual(asked.map(([k]) => k), ["roadmap"], "비운 칸만 다시");
+  assert.equal(tables.subjects.find((s) => s.id === "s1").dept_curriculum, "01 포토샵 기초\n02 합성", "승인 전엔 반영 안 됨");
+  button(c, "승인하기").click();
   await flush();
+  assert.equal(rpcs.length, 2);
   assert.equal(tables.subjects.find((s) => s.id === "s1").dept_curriculum, "department 신규");
   assert.equal(tables.roadmap_steps[0].summary, "roadmap 신규");
-  assert.equal(dept.querySelectorAll("textarea")[0].value, "department 신규", "현재 칸도 새 문구로");
+  assert.match(c.textContent, /승인했습니다\(학과 커리큘럼·로드맵 문구 함께 반영\)/);
 });
 
-test("신청 과목: 승인만 하면 목록에 남고(아래 문구 작업), 승인 + '적용'까지 마치면 목록에서 빠지고 다음 묶음이 열린다", async () => {
+test("신청 과목: 승인 뒤 문구 반영이 실패하면 '승인은 됐습니다'를 알리고, '문구 다시 반영'은 승인 없이 문구만 반영한다", async () => {
   const { render } = await import("../js/pages/curriculum-requests.mjs");
   const tables = data();
-  const sb = fakeSupabase(tables);
-  sb.rpc = async () => ({ data: null, error: null });
-  configureServices({ summarize: async (kind) => ({ text: `${kind} 신규` }) });
+  tables.instructor_curricula.forEach((r) => (r.summary = "요약"));
+  const { sb, rpcs } = requestDb(tables);
+  const realFrom = sb.from.bind(sb);
+  let fail = true;
+  sb.from = (t) => {
+    const q = realFrom(t);
+    if (t !== "subjects" || !fail) return q;
+    return { ...q, select: q.select?.bind(q), update: () => ({ eq: async () => ({ error: { message: "잠시 끊김" } }) }) };
+  };
   const c = document.createElement("div");
-  document.body.replaceChildren(c);
   await render(c, { supabase: sb });
-  const pills = () => [...c.querySelectorAll(".subject-tabs button")].map((b) => b.textContent);
-  button(c, "수정").click();
-  c.querySelectorAll(".request-row:not(.request-head)").forEach((r) => { r.querySelectorAll("textarea")[1].value = "요약"; });
-  button(c, "저장").click();
+  const texts = c.querySelector("details.request-texts");
+  texts.querySelectorAll("textarea")[1].value = "새 학과 문구";
+  button(c, "승인하기").click();
   await flush();
-  assert.match(c.textContent, /승인됨/);
-  assert.deepEqual(pills(), ["김민주 · 포토샵 (2단계)", "조해리 · 일러스트 (1단계)"], "승인만 하면 남음");
-  button(c, "학과 커리큘럼 생성").click();
+  assert.match(c.textContent, /승인은 됐습니다\. 학과·로드맵 문구는 반영하지 못했습니다/);
+  assert.equal(rpcs.length, 2);
+  assert.ok(texts.open, "문구 칸을 펼쳐 보여 줌");
+  assert.equal(pillNames(c).length, 2, "아직 목록에 남음");
+  fail = false;
+  button(c, "문구 다시 반영").click();
   await flush();
-  button(c, "적용").click();
-  await flush();
-  assert.deepEqual(pills(), ["조해리 · 일러스트 (1단계)"], "승인 + 적용이면 빠짐");
-  assert.match(c.textContent, /승인과 적용을 마쳐 목록에서 뺐습니다/);
-  assert.match(c.querySelector(".request-row:not(.request-head)").textContent, /조해리/, "다음 묶음이 열림");
+  assert.equal(rpcs.length, 2, "다시 승인하지 않음");
+  assert.equal(tables.subjects.find((s) => s.id === "s1").dept_curriculum, "새 학과 문구");
+  assert.deepEqual(pillNames(c), ["조해리 · 일러스트 (1단계)"]);
 });
 
-test("신청 과목: '다시 자르기'는 원본은 두고 썸네일 영역만 다시 고르며, 드라이브 이미지는 안내만(새로 올리기·다듬기 버튼 없음)", async () => {
+test("신청 과목: '썸네일 조정'은 원본은 두고 영역만 다시 고르며, 드라이브 이미지·이미지 없음이면 링크가 없다", async () => {
   const { render } = await import("../js/pages/curriculum-requests.mjs");
   const tables = data();
   let asked = null;
   const c = document.createElement("div");
   await render(c, { supabase: fakeSupabase(tables), crop: async (url) => { asked = url; return "#crop=0.2,0,0.6,1"; } });
-  button(c, "수정").click();
-  const row = c.querySelectorAll(".request-row:not(.request-head)")[0];
-  button(row, "다시 자르기").click();
+  const [row, noImage] = reqRows(c);
+  assert.ok(button(noImage, "썸네일 조정").hidden, "이미지 없으면 숨김");
+  button(row, "썸네일 조정").click();
   await flush();
   assert.equal(asked, "https://img.example/a.webp");
   const img = row.querySelector(".submission-thumb img");
   assert.equal(img.getAttribute("src"), "https://img.example/a.webp#crop=0.2,0,0.6,1");
   assert.ok(img.classList.contains("thumb-cropped"), "썸네일은 고른 영역만");
+  assert.equal(button(c, "고친 것 취소").hidden, false);
   tables.instructor_curricula[0].media_url = "https://drive.google.com/file/d/x/view";
   const c2 = document.createElement("div");
   await render(c2, { supabase: fakeSupabase(tables) });
-  button(c2, "수정").click();
-  button(c2.querySelectorAll(".request-row:not(.request-head)")[0], "다시 자르기").click();
-  await flush();
-  assert.match(c2.textContent, /다시 자를 수 없습니다/);
-  assert.equal(button(c2, "새로 올리기"), undefined);
-  assert.equal(button(c2, "커리큘럼 다듬기"), undefined);
+  assert.ok(button(reqRows(c2)[0], "썸네일 조정").hidden, "드라이브 이미지는 다시 자를 수 없어 숨김");
 });
 
 test("학과 커리큘럼: 요약은 보기만, '수정'은 과목명·기간·프로그램·준비물(따로)·학습 수준(별 다섯 단계), AI 생성 버튼 없음", async () => {
@@ -355,7 +360,7 @@ test("학과 커리큘럼: ⠿로 끌어 놓으면 순서를 저장하고, 승�
   assert.equal(tables.subjects.find((s) => s.id === "s2").sort_order, 0);
 });
 
-test("학과 커리큘럼 탭은 열 때마다 새로 그린다(신청 과목에서 적용한 문구가 바로 보이게)", async () => {
+test("학과 커리큘럼 탭은 열 때마다 새로 그린다(신청 과목에서 승인할 때 반영한 문구가 바로 보이게)", async () => {
   const { subpages } = await import("../js/subpages.mjs");
   let n = 0;
   const render = subpages("커리큘럼 관리", [
@@ -373,29 +378,31 @@ test("학과 커리큘럼 탭은 열 때마다 새로 그린다(신청 과목에
   assert.equal(c.querySelectorAll(".subpage")[1].textContent, "그림2");
 });
 
-test("로드맵: 두 과목이 묶인 단계는 신청 과목의 줄만 보여 주고, 생성·적용도 그 줄만 바꾼다", async () => {
+test("로드맵: 두 과목이 묶인 단계는 신청 과목의 줄만 보여 주고, 만들기·승인 때 반영도 그 줄만 바꾼다", async () => {
   const { render } = await import("../js/pages/curriculum-requests.mjs");
   const tables = data();
+  tables.instructor_curricula.forEach((r) => (r.summary = "요약"));
   tables.roadmap_steps[0].summary = "포토샵 역량 강화\n일러스트 역량 강화";
   tables.roadmap_step_subjects = [
     { step_id: "rs1", subject_id: "s2", sort_order: 1 },
     { step_id: "rs1", subject_id: "s1", sort_order: 0 },
   ];
-  configureServices({ summarize: async () => ({ text: "포토샵 실무 완성\n두 번째 줄" }) });
+  configureServices({ summarize: async (kind) => ({ text: kind === "roadmap" ? "포토샵 실무 완성\n두 번째 줄" : "학과 신규" }) });
+  const sb = fakeSupabase(tables);
+  sb.rpc = async () => ({ data: null, error: null });
   const c = document.createElement("div");
-  await render(c, { supabase: fakeSupabase(tables) });
-  const roadmap = [...c.querySelectorAll(".request-section")][2];
-  assert.equal(roadmap.querySelector("h4").textContent, "디자인 로드맵 · 1단계 · 포토샵");
+  await render(c, { supabase: sb });
+  const roadmap = [...c.querySelectorAll(".request-texts .compare-block")][1];
+  assert.equal(roadmap.querySelector("h4").textContent, "로드맵 · 디자인 로드맵 · 1단계");
   const [now, next] = roadmap.querySelectorAll("textarea");
   assert.equal(now.value, "포토샵 역량 강화", "현재는 이 과목 줄만");
   assert.match(roadmap.textContent, /그대로 유지[\s\S]*일러스트: 일러스트 역량 강화/);
-  button(roadmap, "로드맵 문구 생성").click();
+  button(c, "새 문구 AI로 만들기").click();
   await flush();
   assert.equal(next.value, "포토샵 실무 완성", "이 과목 몫인 한 줄만");
-  button(c, "적용").click();
+  button(c, "승인하기").click();
   await flush();
   assert.equal(tables.roadmap_steps[0].summary, "포토샵 실무 완성\n일러스트 역량 강화", "다른 과목 줄은 그대로");
-  assert.equal(now.value, "포토샵 실무 완성");
 });
 
 test("학과 커리큘럼: '+ 과목 추가'는 다른 과목을 이 학과에 넣고(전체 수업 맨 뒤), '제외'는 연결만 뺀다", async () => {
@@ -477,7 +484,7 @@ test("신청 과목: 선생님이 적은 프로그램·준비물을 신청 내�
   assert.match(c.querySelector(".request-materials").textContent, /프로그램: Lightroom · 준비물: 이어폰/);
 });
 
-test("신청 과목: '+ 개월 추가'는 다음 달 과목에 빈 1단계 신청을 만들고, '이 개월 빼기'는 이 묶음 신청을 지운다", async () => {
+test("신청 과목: [⋯ 과정 구성] '다음 달 과목 추가'는 다음 달 과목에 빈 1단계 신청을 만들고, '이 달 신청 삭제'는 이 묶음 신청을 지운다", async () => {
   const { render } = await import("../js/pages/curriculum-requests.mjs");
   const tables = data();
   tables.subjects.push({ id: "w1", name: "웹툰1", sort_order: 5 });
@@ -502,13 +509,13 @@ test("신청 과목: '+ 개월 추가'는 다음 달 과목에 빈 1단계 신�
   globalThis.confirm = () => true;
   const c = document.createElement("div");
   await render(c, { supabase: sb });
-  button(c, "+ 개월 추가").click();
+  button(c, "다음 달 과목 추가").click();
   await flush();
   assert.deepEqual(rpcs[0], ["comsw_add_month_request", { p_from: "w1", p_name: "웹툰2", p_set_id: "set1", p_instructor_id: "i1" }]);
   const made = tables.instructor_curricula.find((r) => r.subject_id === "w2");
   assert.deepEqual([made.instructor_id, made.set_id, made.step_label, made.status], ["i1", "set1", "1단계", "pending"]);
   assert.match(c.querySelector(".subject-tabs button.active").textContent, /웹툰2/, "새 달 묶음이 열림");
-  button(c, "이 개월 빼기").click();
+  button(c, "이 달 신청 삭제").click();
   await flush();
   assert.equal(tables.instructor_curricula.some((r) => r.subject_id === "w2"), false);
   assert.match(c.querySelector(".subject-tabs button.active").textContent, /웹툰1/);

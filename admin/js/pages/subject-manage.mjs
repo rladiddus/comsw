@@ -68,7 +68,7 @@ export async function render(container, { supabase }) {
     try {
       await rpc(supabase, "comsw_activate_subject", { p_id: s.id });
       s.sort_order = subjects.reduce((m, x) => Math.max(m, x.sort_order ?? -1), -1) + 1;
-      setState(`'${s.name}'을(를) 학과 커리큘럼 맨 뒤에 넣었습니다(공개 사이트는 '적용' 후).`);
+      setState(`'${s.name}'을(를) 학과 커리큘럼 맨 뒤에 넣었습니다(공개 사이트는 '사이트에 반영' 후).`);
       draw();
     } catch (e) {
       setState(e.message, true);
@@ -84,7 +84,7 @@ export async function render(container, { supabase }) {
       // 확인창에 보여 준 사용처 개수를 DB가 다시 세어, 그 사이 바뀌었으면 지우지 않는다.
       await rpc(supabase, "comsw_delete_subjects", { p_ids: [s.id], p_seen: seen(u) });
       subjects.splice(subjects.indexOf(s), 1);
-      setState(`'${s.name}' 과목을 삭제했습니다. 공개 사이트에서는 '적용' 후 빠집니다.`);
+      setState(`'${s.name}' 과목을 삭제했습니다. 공개 사이트에서는 '사이트에 반영' 후 빠집니다.`);
       draw();
     } catch (e) {
       setState(e.message, true);

@@ -40,7 +40,7 @@ export function editableUpload(onUploaded, { input, hint, onSave = async () => t
 }
 
 // 메인 화면 > 배경 미디어. 왼쪽 미리보기(번호·좌우 버튼), 오른쪽 주소·문구와 사용·수정·추가·삭제.
-// 고친 칸은 바로 저장한다(공개 사이트에는 '적용' 후).
+// 고친 칸은 바로 저장한다(공개 사이트에는 '사이트에 반영' 후).
 export async function mountMediaCarousel(container, { supabase }) {
   const state = el("span", { className: "save-state" });
   const box = el("section", { className: "media-editor" });

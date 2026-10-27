@@ -16,7 +16,7 @@ export function previewUrl(name, tablet) {
   return page ? `../${page.file}${tablet ? "_tablet" : ""}.html?preview=1` : null;
 }
 
-// 토큰(관리자 로그인, 1시간 유효)을 같은 사이트 저장소에 남기면 공개 페이지가 '적용' 전 내용을 읽는다.
+// 토큰(관리자 로그인, 1시간 유효)을 같은 사이트 저장소에 남기면 공개 페이지가 '사이트에 반영' 전 내용을 읽는다.
 // 기다리는 동안 팝업 차단에 걸리지 않게 탭부터 연다.
 export async function openPreview(url, getToken, win = window) {
   const tab = win.open("", "_blank");

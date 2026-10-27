@@ -253,7 +253,7 @@ test("내 프로필: 경력과 한마디는 한 줄에 나란히 있다", async 
   assert.ok(row && row.contains(c.querySelector("[name=message]")));
 });
 
-test("내 프로필: 적용된 소개가 있으면 보기 화면부터, 수정을 눌러 고치고 저장 및 승인 요청", async () => {
+test("내 프로필: 사이트에 반영된 소개가 있으면 보기 화면부터, 수정을 눌러 고치고 저장 및 승인 요청", async () => {
   const data = tables();
   Object.assign(data.instructors[0], { career: "現 웹 강사", message: "함께 성장해요" });
   const { c, calls } = await setup("profile", data);
@@ -262,7 +262,7 @@ test("내 프로필: 적용된 소개가 있으면 보기 화면부터, 수정�
   assert.equal(view.hidden, false);
   assert.equal(form.hidden, true);
   assert.match(view.textContent, /現 웹 강사/);
-  assert.match(view.textContent, /사이트에 적용된 소개/);
+  assert.match(view.textContent, /사이트에 반영된 소개/);
   findButton(view, "수정").click();
   assert.equal(form.hidden, false);
   findButton(form, "되돌리기").click();

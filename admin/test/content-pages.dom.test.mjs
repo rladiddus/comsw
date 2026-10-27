@@ -205,7 +205,7 @@ test("과목 관리: 학과별 보기와 정리 필요(승인 전·커리큘럼 
   globalThis.confirm = msg => { lastConfirm = msg; return false; };
   assert.equal(lastConfirm, "'웹1' 과목을(를) 삭제하면 담당 강사 연결 1개도 함께 삭제됩니다. 삭제할까요?");
   assert.deepEqual(calls.at(-1), ["comsw_delete_subjects", { p_ids: ["s2"], p_seen: 1 }]);
-  assert.match(c.textContent, /'적용' 후 빠집니다/);
+  assert.match(c.textContent, /'사이트에 반영' 후 빠집니다/);
   buttons(c.querySelectorAll(".manage-row")[0], "삭제")[0].click();
   await flush();
   assert.equal(calls.filter(([n]) => n === "comsw_delete_subjects").length, 1, "확인창 취소면 지우지 않음");

@@ -148,7 +148,7 @@ export async function render(container, { supabase }) {
       }
     }
     drafts.delete(track.id);
-    setState(`'${track.name}'을(를) 저장했습니다. 공개 사이트에는 '적용' 후 반영됩니다.`);
+    setState(`'${track.name}'을(를) 저장했습니다. 공개 사이트에는 '사이트에 반영' 후 반영됩니다.`);
     draw();
   }
 
@@ -168,7 +168,7 @@ export async function render(container, { supabase }) {
     } catch (error) {
       return fail(error);
     }
-    setState("단계 순서를 바꿨습니다. 공개 사이트에는 '적용' 후 반영됩니다.");
+    setState("단계 순서를 바꿨습니다. 공개 사이트에는 '사이트에 반영' 후 반영됩니다.");
     draw();
   }
 
@@ -181,7 +181,7 @@ export async function render(container, { supabase }) {
       if (error) return fail(error);
       t.sort_order = i;
     }
-    setState("로드맵 순서를 바꿨습니다. 공개 사이트에는 '적용' 후 반영됩니다.");
+    setState("로드맵 순서를 바꿨습니다. 공개 사이트에는 '사이트에 반영' 후 반영됩니다.");
     draw();
   }
 

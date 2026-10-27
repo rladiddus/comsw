@@ -8,14 +8,14 @@ import { dropTarget } from "../card-list.mjs";
 // 그 학과 과목끼리만 자리를 바꾸고 다른 학과 과목 자리는 그대로 둔다(학과 커리큘럼과 같은 계산).
 // 기타 과목을 더하면 전체수업 맨 뒤에 넣고, 마지막 학과에서 빼면 DB가 기타 과목으로 보낸다.
 // 승인 전 신규 과목(학과 연결 있음, 순서 없음)은 '신규 과목 추가'에서 다루므로 오른쪽 목록에 넣지 않는다.
-// 추가·빼기·순서는 화면에서만 바뀌고 '저장'을 눌러야 DB에 들어간다(→ 학과 커리큘럼에 보임, 사이트는 우상단 '적용' 후).
+// 추가·빼기·순서는 화면에서만 바뀌고 '저장'을 눌러야 DB에 들어간다(→ 학과 커리큘럼에 보임, 사이트는 우상단 '사이트에 반영' 후).
 // '되돌리기'는 마지막 저장 상태로. 여러 학과를 오가며 고친 뒤 한 번에 저장할 수 있다.
 export async function render(container, { supabase }) {
   container.append(
     el("h2", { textContent: "학과별 과목" }),
     el("p", {
       className: "desc",
-      textContent: "왼쪽에서 학과를 고르면 그 학과 과목이 순서대로 나옵니다. ⠿를 끌어 순서를 바꾸고, 오른쪽에서 과목을 찾아 '추가'하세요. '저장'을 누르면 '커리큘럼 관리 > 학과 커리큘럼'에 먼저 반영되고, 공개 사이트에는 우상단 '적용'을 눌러야 나옵니다.",
+      textContent: "왼쪽에서 학과를 고르면 그 학과 과목이 순서대로 나옵니다. ⠿를 끌어 순서를 바꾸고, 오른쪽에서 과목을 찾아 '추가'하세요. '저장'을 누르면 '커리큘럼 관리 > 학과 커리큘럼'에 먼저 반영되고, 공개 사이트에는 우상단 '사이트에 반영'을 눌러야 나옵니다.",
     }),
   );
   const setState = stateLine(container);
@@ -97,7 +97,7 @@ export async function render(container, { supabase }) {
       if (error) throw error;
       savedLinks = new Set(links.map(linkKey));
       savedOrder = new Map(subjects.map((x) => [x.id, x.sort_order ?? null]));
-      setState("저장했습니다. '학과 커리큘럼'에 반영됐고, 공개 사이트에는 우상단 '적용'을 눌러야 나옵니다.");
+      setState("저장했습니다. '학과 커리큘럼'에 반영됐고, 공개 사이트에는 우상단 '사이트에 반영'을 눌러야 나옵니다.");
       draw();
     } catch (error) {
       setState(`${dbErrorMessage(error)} — 아무것도 저장되지 않았습니다. 고친 뒤 다시 저장해주세요.`, true);

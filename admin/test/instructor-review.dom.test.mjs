@@ -7,7 +7,7 @@ import { configureServices } from "../js/services.mjs";
 const dom = new JSDOM("<body></body>");
 globalThis.document = dom.window.document;
 globalThis.confirm = () => true;
-test("프로필 승인 뒤 대기 카드가 사라지고 적용 안내를 남긴다", async () => {
+test("프로필 승인 뒤 대기 카드가 사라지고 사이트 반영 안내를 남긴다", async () => {
   const tables = {
     instructors: [{ id: "i", name: "선생님" }],
     instructor_link_requests: [],
@@ -34,7 +34,7 @@ test("프로필 승인 뒤 대기 카드가 사라지고 적용 안내를 남긴
   for (let i = 0; i < 12; i++) await new Promise((r) => setTimeout(r, 0));
   assert.equal(received[1].p_updated_at, "2026-10-21T00:00:00Z");
   assert.doesNotMatch(c.textContent, /프로필 승인 대기 ·/);
-  assert.match(c.textContent, /적용.*공개 사이트/);
+  assert.match(c.textContent, /'사이트에 반영'.*공개 사이트/);
 });
 
 test("학과장은 전달받은 동의된 사진으로 프로필 생성 후 확인·승인", async () => {

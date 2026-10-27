@@ -14,7 +14,7 @@ export async function mountClassSettings(
     el("p", {
       className: "desc",
       textContent:
-        "내 학과를 고르고, 학과마다 내가 수업하는 과목을 체크해주세요. 저장하면 쌤톡 학과와 강사소개의 담당 과목에 함께 반영됩니다(공개 사이트에는 '적용' 후).",
+        "내 학과를 고르고, 학과마다 내가 수업하는 과목을 체크해주세요. 저장하면 쌤톡 학과와 강사소개의 담당 과목에 함께 반영됩니다(공개 사이트에는 '사이트에 반영' 후).",
     }),
   ]);
   // 학과장: 쌤톡 학과엔 본인 학과와 관리 학과가 섞여 있어, 고른 학과 중 메인 학과를 정한다(강사소개는 메인 학과에만).
@@ -23,7 +23,7 @@ export async function mountClassSettings(
     el("p", {
       className: "desc",
       textContent:
-        "수업 설정에서 고른 학과 중 본인 학과(메인 학과)를 골라주세요. 공개 사이트 강사소개에는 메인 학과에만 프로필이 나오고, 나머지는 관리 학과로 프로필이 나오지 않습니다('적용' 후 반영). 메인 학과를 고르면 아래 수업 설정에는 메인 학과만 보입니다(관리 학과는 쌤톡 학과에 그대로 남음).",
+        "수업 설정에서 고른 학과 중 본인 학과(메인 학과)를 골라주세요. 공개 사이트 강사소개에는 메인 학과에만 프로필이 나오고, 나머지는 관리 학과로 프로필이 나오지 않습니다('사이트에 반영' 후 반영). 메인 학과를 고르면 아래 수업 설정에는 메인 학과만 보입니다(관리 학과는 쌤톡 학과에 그대로 남음).",
     }),
   ]);
   const mainPick = el("select", {});
@@ -96,7 +96,7 @@ export async function mountClassSettings(
     try {
       await rpc(supabase, "comsw_set_my_main_department", { p_department_id: mainPick.value || null });
       mainId = mainPick.value || null;
-      mainState(mainId ? "저장했습니다. '적용' 후 사이트 강사소개에 메인 학과만 나옵니다." : "메인 학과를 지웠습니다. 고른 모든 학과에 나옵니다.");
+      mainState(mainId ? "저장했습니다. '사이트에 반영' 후 사이트 강사소개에 메인 학과만 나옵니다." : "메인 학과를 지웠습니다. 고른 모든 학과에 나옵니다.");
       if (editor.hidden) showSummary();
       else draw();
     } catch (e) {

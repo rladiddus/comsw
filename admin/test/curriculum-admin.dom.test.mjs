@@ -142,12 +142,54 @@ test("신청 과목: 강사·과목별 묶음, 강사명/과목명/단계/커리
   await flush();
   assert.equal(rowsEl[0].querySelectorAll("textarea")[1].value, "week 결과");
   rowsEl[1].querySelector("textarea").value = "합성 원문 다듬음";
+  rowsEl[1].querySelectorAll("textarea")[1].value = "합성 요약";
   button(c, "저장").click();
   await flush();
   assert.equal(tables.instructor_curricula.find((r) => r.id === "c1").summary, "week 결과");
   assert.equal(tables.instructor_curricula.find((r) => r.id === "c2").written, "합성 원문 다듬음");
   assert.deepEqual(rpcs.map(([n, a]) => [n, a.p_id]), [["comsw_approve_curriculum", "c1"], ["comsw_approve_curriculum", "c2"]]);
   assert.match(c.textContent, /승인됨/);
+});
+
+test("신청 과목: 사이트 문구(요약)가 비어 있으면 '저장' 대신 팝업 — [AI생성]은 빈 칸을 AI로 채우고, [직접 작성]은 그 칸에 커서", async () => {
+  const { render } = await import("../js/pages/curriculum-requests.mjs");
+  const tables = data();
+  const sb = fakeSupabase(tables);
+  const rpcs = [];
+  sb.rpc = async (name, args) => { rpcs.push([name, args]); return { data: null, error: null }; };
+  const asked = [];
+  configureServices({ summarize: async (kind, text) => { asked.push(text); return { text: `${text} 요약` }; } });
+  const c = document.createElement("div");
+  document.body.replaceChildren(c);
+  await render(c, { supabase: sb });
+  const rowsEl = [...c.querySelectorAll(".request-row:not(.request-head)")];
+  const summaryOf = (i) => rowsEl[i].querySelectorAll("textarea")[1];
+  button(c, "수정").click();
+  summaryOf(0).value = "직접 쓴 요약";
+  button(c, "저장").click();
+  await flush();
+  const dialog = () => document.querySelector("dialog.summary-dialog");
+  assert.ok(dialog(), "빈 문구가 있으면 팝업");
+  assert.match(dialog().textContent, /2단계 문구가 비어 있습니다\. AI생성 또는 직접 작성을 진행해주세요/);
+  assert.deepEqual(rpcs, [], "저장(승인)하지 않음");
+  assert.equal(tables.instructor_curricula.find((r) => r.id === "c2").summary, undefined);
+
+  button(dialog(), "직접 작성").click();
+  assert.equal(dialog(), null, "팝업 닫힘");
+  assert.equal(document.activeElement, summaryOf(1), "빈 칸에 커서");
+
+  button(c, "저장").click();
+  await flush();
+  button(dialog(), "AI생성").click();
+  await flush();
+  assert.equal(dialog(), null);
+  assert.deepEqual(asked, ["합성 원문"], "빈 칸만 AI로");
+  assert.equal(summaryOf(1).value, "합성 원문 요약");
+  assert.equal(summaryOf(0).value, "직접 쓴 요약", "이미 쓴 칸은 그대로");
+  assert.deepEqual(rpcs, [], "AI생성 뒤에도 확인하고 '저장'을 눌러야 승인");
+  button(c, "저장").click();
+  await flush();
+  assert.deepEqual(rpcs.map(([n, a]) => [n, a.p_id]), [["comsw_approve_curriculum", "c1"], ["comsw_approve_curriculum", "c2"]]);
 });
 
 test("신청 과목: 학과 커리큘럼·로드맵 문구를 AI로 신규 칸에 만들고, 적용하면 실제로 반영", async () => {

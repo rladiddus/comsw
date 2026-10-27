@@ -90,12 +90,15 @@ export async function render(container, { supabase, crop = chooseThumbnail, focu
       const written = el("textarea", { value: r.written ?? "", rows: 4, readOnly: true });
       const summary = el("textarea", { value: r.summary ?? "", rows: 2, readOnly: true, placeholder: "AI 요약 또는 직접 작성" });
       const aiBtn = el("button", { type: "button", className: "ghost-btn ai-btn", textContent: "AI 요약", hidden: true });
+      const fillAi = async () => {
+        if (!written.value.trim()) throw new Error(`${step.value || r.step_label}: 커리큘럼 원문을 먼저 입력해주세요`);
+        summary.value = await ai("week", written.value);
+      };
       aiBtn.addEventListener("click", async () => {
         aiBtn.disabled = true;
         try {
-          if (!written.value.trim()) throw new Error("커리큘럼 원문을 먼저 입력해주세요");
           setState("AI 요약 중…");
-          summary.value = await ai("week", written.value);
+          await fillAi();
           setState("AI 요약을 넣었습니다. 확인 후 '저장'을 눌러주세요.");
         } catch (e) {
           setState(e.message, true);
@@ -152,6 +155,8 @@ export async function render(container, { supabase, crop = chooseThumbnail, focu
           paintThumb();
         },
         values: () => ({ step_label: step.value.trim(), written: written.value, summary: summary.value.trim() || null, media_url: media || null }),
+        fillAi,
+        summary,
         row: r,
       };
     });
@@ -168,6 +173,9 @@ export async function render(container, { supabase, crop = chooseThumbnail, focu
         edit.className = "publish-btn";
         return;
       }
+      // 아래 칸(요약)이 사이트에 보이는 문구다. 비어 있으면 저장(승인)하지 않고 AI생성·직접 작성을 고르게 한다.
+      const empty = rowViews.filter((v) => !v.values().summary);
+      if (empty.length) return askSummary(empty);
       edit.disabled = true;
       try {
         for (const v of rowViews) {
@@ -193,6 +201,42 @@ export async function render(container, { supabase, crop = chooseThumbnail, focu
         edit.disabled = false;
       }
     });
+    function askSummary(empty) {
+      const names = empty.map((v) => v.values().step_label || v.row.step_label).join(", ");
+      const aiPick = el("button", { type: "button", className: "publish-btn", textContent: "AI생성" });
+      const typePick = el("button", { type: "button", className: "ghost-btn", textContent: "직접 작성" });
+      const dialog = el("dialog", { className: "idle-dialog summary-dialog" }, [
+        el("h3", { textContent: "문구가 비어 있습니다" }),
+        el("p", { textContent: `${names} 문구가 비어 있습니다. AI생성 또는 직접 작성을 진행해주세요. (이 문구가 공개 사이트에 보입니다)` }),
+        el("div", { className: "form-actions" }, [aiPick, typePick]),
+      ]);
+      const close = () => {
+        dialog.close?.();
+        dialog.remove();
+      };
+      dialog.addEventListener("close", () => dialog.remove());
+      aiPick.addEventListener("click", async () => {
+        close();
+        edit.disabled = true;
+        try {
+          setState("AI 요약 중…");
+          for (const v of empty) await v.fillAi();
+          setState("AI 요약을 넣었습니다. 확인 후 '저장'을 눌러주세요.");
+        } catch (e) {
+          setState(e.message, true);
+        } finally {
+          edit.disabled = false;
+        }
+      });
+      typePick.addEventListener("click", () => {
+        close();
+        empty[0].summary.scrollIntoView?.({ block: "center" });
+        empty[0].summary.focus();
+      });
+      document.body.append(dialog);
+      if (dialog.showModal) dialog.showModal();
+      else dialog.setAttribute("open", "");
+    }
     revert.addEventListener("click", () => {
       editing = false;
       rowViews.forEach((v) => {

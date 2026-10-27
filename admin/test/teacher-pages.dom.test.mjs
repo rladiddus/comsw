@@ -193,16 +193,25 @@ test("수업 설정: 학과장은 위에 메인 학과 박스가 있고, 고른 
   data.instructor_departments.push({ instructor_id: "me", department_id: "ai" });
   data.instructors[0].main_department_id = "ai";
   const { c, calls } = await setup("profile", data, { role: "head", loadMyMajors: async () => ["웹학과", "AI학과"] });
+  findButton(c, "수업 설정").click();
   const main = c.querySelector(".main-dept");
   assert.ok(main.nextElementSibling.classList.contains("class-settings"), "수업 설정 박스 위");
   const pick = main.querySelector("select");
   assert.deepEqual([...pick.options].map((o) => o.textContent), ["메인 학과 고르기", "웹학과", "AI학과"]);
   assert.equal(pick.value, "ai", "저장된 메인 학과");
+  const shownDepts = () => [...c.querySelectorAll(".class-summary .field-label, .class-dept h4")].filter((x) => !x.closest("[hidden]")).map((x) => x.textContent);
+  assert.deepEqual(shownDepts(), ["AI학과"], "메인 학과를 고르면 수업 설정엔 메인 학과만");
   pick.value = "dept";
   findButton(main, "저장").click();
   await flush();
   assert.deepEqual(calls.at(-1), ["comsw_set_my_main_department", { p_department_id: "dept" }]);
   assert.match(main.textContent, /저장했습니다/);
+  assert.deepEqual(shownDepts(), ["웹학과"]);
+  findButton(c.querySelector(".class-settings"), "수정").click();
+  assert.deepEqual(shownDepts(), ["웹학과"], "고치는 화면도 메인 학과만");
+  findButton(c.querySelector(".class-settings"), "저장").click();
+  await flush();
+  assert.deepEqual(calls.at(-1)[1].p_department_ids, ["dept", "ai"], "숨긴 관리 학과도 그대로 저장(쌤톡 학과 유지)");
 });
 
 test("수업 설정: 학과를 추가·삭제하고 과목을 체크해 저장하면 강사 정보와 쌤톡 학과에 함께 반영한다", async () => {

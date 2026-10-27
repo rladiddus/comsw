@@ -23,7 +23,7 @@ export async function mountClassSettings(
     el("p", {
       className: "desc",
       textContent:
-        "수업 설정에서 고른 학과 중 본인 학과(메인 학과)를 골라주세요. 공개 사이트 강사소개에는 메인 학과에만 프로필이 나오고, 나머지는 관리 학과로 프로필이 나오지 않습니다('적용' 후 반영). 쌤톡 학과는 그대로입니다.",
+        "수업 설정에서 고른 학과 중 본인 학과(메인 학과)를 골라주세요. 공개 사이트 강사소개에는 메인 학과에만 프로필이 나오고, 나머지는 관리 학과로 프로필이 나오지 않습니다('적용' 후 반영). 메인 학과를 고르면 아래 수업 설정에는 메인 학과만 보입니다(관리 학과는 쌤톡 학과에 그대로 남음).",
     }),
   ]);
   const mainPick = el("select", {});
@@ -79,6 +79,8 @@ export async function mountClassSettings(
   const editor = el("div", {}, [list, actions]);
   box.append(summary, editor);
   let saved = { depts: new Set(selected), subjects: new Set(checked) };
+  // 메인 학과를 고른 학과장은 저장된 관리 학과를 수업 설정에서 숨긴다(저장할 때는 그대로 함께 보내 쌤톡 학과에 남김).
+  const shown = (d) => !isHead || !mainId || d.id === mainId || !saved.depts.has(d.id);
   // 메인 학과 고르기: 저장된 내 학과만. 메인 학과를 수업 설정에서 빼면 '고르기 전'으로(사이트도 모든 학과에 표시).
   function drawMain() {
     const mine = depts.filter((d) => saved.depts.has(d.id));
@@ -95,6 +97,8 @@ export async function mountClassSettings(
       await rpc(supabase, "comsw_set_my_main_department", { p_department_id: mainPick.value || null });
       mainId = mainPick.value || null;
       mainState(mainId ? "저장했습니다. '적용' 후 사이트 강사소개에 메인 학과만 나옵니다." : "메인 학과를 지웠습니다. 고른 모든 학과에 나옵니다.");
+      if (editor.hidden) showSummary();
+      else draw();
     } catch (e) {
       mainState(e.message, true);
     } finally {
@@ -103,7 +107,7 @@ export async function mountClassSettings(
   });
   drawMain();
   function showSummary() {
-    const mine = depts.filter((d) => saved.depts.has(d.id));
+    const mine = depts.filter((d) => saved.depts.has(d.id) && shown(d));
     const edit = el("button", {
       type: "button",
       className: "publish-btn",
@@ -139,7 +143,7 @@ export async function mountClassSettings(
   });
 
   function draw() {
-    const mine = depts.filter((d) => selected.has(d.id));
+    const mine = depts.filter((d) => selected.has(d.id) && shown(d));
     list.replaceChildren(...mine.map((d) => {
       const remove = el("button", {
         type: "button",

@@ -339,13 +339,10 @@ export async function render(container, { supabase, crop = chooseThumbnail, focu
       if (!confirm(`'${name}' 과목에 ${nameOf(instructors, g.instructor_id)} 선생님의 빈 1단계 신청을 만들까요?`)) return;
       addMonth.disabled = true;
       try {
-        const id = await rpc(supabase, "comsw_create_month_subject", { p_from: g.subject_id, p_name: name });
-        const sort_order = pending.reduce((m, r) => Math.max(m, r.sort_order ?? -1), -1) + 1;
-        const { error } = await supabase.from("instructor_curricula").insert({
-          set_id: g.set_id, instructor_id: g.instructor_id, subject_id: id,
-          step_label: "1단계", written: "", status: "pending", sort_order,
+        // 과목 만들기와 빈 1단계 신청을 DB 함수 한 번으로(한쪽만 남지 않게)
+        const id = await rpc(supabase, "comsw_add_month_request", {
+          p_from: g.subject_id, p_name: name, p_set_id: g.set_id, p_instructor_id: g.instructor_id,
         });
-        if (error) throw new Error(dbErrorMessage(error));
         await reload(`${g.instructor_id}:${id}:${g.set_id}`);
       } catch (e) {
         setState(e.message, true);
@@ -356,15 +353,14 @@ export async function render(container, { supabase, crop = chooseThumbnail, focu
     dropMonth.addEventListener("click", async () => {
       if (!confirm(`${label(g)} 신청을 모두 지울까요? 선생님이 낸 이 과목 신청이 삭제됩니다(이미 승인된 커리큘럼은 그대로).`)) return;
       dropMonth.disabled = true;
-      for (const r of g.rows) {
-        const { error } = await supabase.from("instructor_curricula").delete().eq("id", r.id);
-        if (error) {
-          setState(dbErrorMessage(error), true);
-          dropMonth.disabled = false;
-          return;
-        }
+      try {
+        // 이 묶음의 승인 대기 줄을 한 번에 지운다(일부만 지워지지 않게, DB가 같은 묶음인지 확인)
+        await rpc(supabase, "comsw_drop_requests", { p_ids: g.rows.map((r) => r.id) });
+        await reload(null);
+      } catch (e) {
+        setState(e.message, true);
+        dropMonth.disabled = false;
       }
-      await reload(null);
     });
 
     return [

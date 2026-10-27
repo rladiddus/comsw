@@ -39,7 +39,7 @@ async function setup(page, data = tables()) {
   sb.rpc = async (name, args) => {
     calls.push([name, args]);
     return {
-      data: name === "comsw_submit_my_curriculum" ? "new" : [],
+      data: name === "comsw_submit_curriculum" ? args.p_subjects.flatMap((x) => x.steps).length : [],
       error: null,
     };
   };
@@ -64,6 +64,9 @@ const submitForm = (c) =>
   c.querySelector("form.curriculum-form").dispatchEvent(
     new dom.window.Event("submit", { bubbles: true, cancelable: true }),
   );
+// 제출 함수 한 번에 실린 단계: [과목(또는 새 달 이름), 단계, 내용, 이미지]
+const sentSteps = (calls) => calls.filter(([n]) => n === "comsw_submit_curriculum")
+  .flatMap(([, a]) => a.p_subjects.flatMap((x) => x.steps.map((st) => [x.subject_id ?? x.new_name, st.step_label, st.written, st.media_url])));
 const tabButton = (c, name) => c.querySelector(`.tab-bar [data-tab=${name}]`);
 
 test("등록한 커리큘럼이 있으면 조회하기가 먼저 열리고, 조회하기에서 바로 수정해 승인 요청한다", async () => {
@@ -76,12 +79,10 @@ test("등록한 커리큘럼이 있으면 조회하기가 먼저 열리고, 조�
   card.querySelector("textarea").value = "새 커리큘럼";
   findButton(card, "저장 및 승인 요청").click();
   await flush();
-  const call = calls.find(([n]) => n === "comsw_submit_my_curriculum");
-  assert.deepEqual(
-    [call[1].p_set_id, call[1].p_subject_id, call[1].p_step_label, call[1].p_written],
-    ["set", "subject", "1주차", "새 커리큘럼"],
-  );
-  assert.ok(!("instructor_id" in call[1]));
+  const call = calls.find(([n]) => n === "comsw_submit_curriculum");
+  assert.equal(call[1].p_set_id, "set");
+  assert.equal(call[1].p_instructor_id, null, "본인 제출");
+  assert.deepEqual(sentSteps(calls).map((x) => x.slice(0, 3)), [["subject", "1주차", "새 커리큘럼"]]);
 });
 
 test("등록하기: 이미지는 직접 업로드가 기본이고 링크로 바꿀 수 있다", async () => {
@@ -306,7 +307,7 @@ test("등록하기: 선택 학과에 방학 특강 그룹은 없고, '방특'에
   c.querySelector("[name=vacation]").checked = true;
   submitForm(c);
   await flush();
-  const sent = calls.filter(([n]) => n === "comsw_submit_my_curriculum").map(([, a]) => [a.p_set_id, a.p_vacation]);
+  const sent = calls.filter(([n]) => n === "comsw_submit_curriculum").map(([, a]) => [a.p_set_id, a.p_vacation]);
   assert.deepEqual(sent, [["set", true]]);
 });
 
@@ -330,9 +331,8 @@ test("등록하기: 과목 탭마다 단계를 쓰고(+ 단계 추가), 내용 �
   assert.equal(visible().querySelectorAll(".step-row").length, 2, "탭을 오가도 쓴 내용 유지");
   submitForm(c);
   await flush();
-  const sent = calls.filter(([n]) => n === "comsw_submit_my_curriculum")
-    .map(([, a]) => [a.p_subject_id, a.p_step_label, a.p_written, a.p_media_url]);
-  assert.deepEqual(sent, [
+  assert.equal(calls.filter(([n]) => n === "comsw_submit_curriculum").length, 1, "한 번에");
+  assert.deepEqual(sentSteps(calls), [
     ["subject", "1단계", "웹1 첫 단계", ""],
     ["subject", "2단계", "웹1 둘째 단계", "https://example.com/a.png"],
     ["web2", "1단계", "웹2 첫 단계", ""],
@@ -356,7 +356,7 @@ test("등록하기: 아무것도 안 쓰면 제출하지 않고, 이미지만 �
   await flush();
   assert.match(c.textContent, /웹2: 단계와 커리큘럼 내용을 모두 입력해주세요/);
   assert.equal(c.querySelector(".subject-tabs .active").textContent, "웹2");
-  assert.equal(calls.filter(([n]) => n === "comsw_submit_my_curriculum").length, 0);
+  assert.equal(calls.filter(([n]) => n === "comsw_submit_curriculum").length, 0);
 });
 
 test("제목부터 탭까지 한 덩어리로 고정된다", async () => {
@@ -394,8 +394,9 @@ test("내 커리큘럼: 과목 탭마다 사용 프로그램·준비물을 쓰�
   form.querySelector("[name=written]").value = "HTML 기초";
   form.dispatchEvent(new dom.window.Event("submit", { cancelable: true }));
   await flush();
-  assert.deepEqual(calls[0], ["comsw_save_my_materials", { p_subject_id: "subject", p_tools: "VS Code", p_supplies: "멘토시리즈 웹" }]);
-  assert.equal(calls[1][0], "comsw_submit_my_curriculum");
+  assert.equal(calls.length, 1, "준비물과 커리큘럼을 함께 한 번에");
+  const [{ tools, supplies, steps }] = calls[0][1].p_subjects;
+  assert.deepEqual([tools, supplies, steps.length], ["VS Code", "멘토시리즈 웹", 1]);
 });
 
 test("내 커리큘럼: 프로그램·준비물만 바꿔도 저장되고, 안 바꾸면 저장하지 않는다", async () => {
@@ -408,7 +409,8 @@ test("내 커리큘럼: 프로그램·준비물만 바꿔도 저장되고, 안 �
   form.querySelector("[name=tools]").value = "Figma";
   form.dispatchEvent(new dom.window.Event("submit", { cancelable: true }));
   await flush();
-  assert.deepEqual(calls.map((x) => x[0]), ["comsw_save_my_materials"]);
+  assert.deepEqual(calls.map((x) => x[0]), ["comsw_submit_curriculum"]);
+  assert.deepEqual(calls[0][1].p_subjects, [{ subject_id: "subject", tools: "Figma", supplies: "", steps: [] }]);
   assert.match(c.textContent, /승인될 때 함께 반영/);
 });
 
@@ -424,7 +426,8 @@ test("타강사 커리큘럼: 선생님에겐 없고, 학과장은 체크하면 
   const c = document.createElement("div");
   document.body.replaceChildren(c);
   const sb = fakeSupabase(data);
-  sb.rpc = async () => ({ data: [], error: null });
+  const proxyCalls = [];
+  sb.rpc = async (name, args) => (proxyCalls.push([name, args]), { data: 1, error: null });
   const { render } = await import("../js/pages/mine.mjs");
   const ctx = { supabase: sb, uid: "uid", role: "head", displayName: "선생님", loadMyMajors: async () => ["웹학과"], saveMyMajors: async () => {} };
   await render(c, ctx);
@@ -449,8 +452,9 @@ test("타강사 커리큘럼: 선생님에겐 없고, 학과장은 체크하면 
   c.querySelector(".subject-panel:not([hidden]) [name=written]").value = "대신 쓴 원문";
   submitForm(c);
   await flush();
-  const added = data.instructor_curricula.at(-1);
-  assert.deepEqual([added.instructor_id, added.subject_id, added.status, added.written], ["other", "web2", "pending", "대신 쓴 원문"]);
+  const call = proxyCalls.find(([n]) => n === "comsw_submit_curriculum");
+  assert.equal(call[1].p_instructor_id, "other", "같은 제출 함수로 대신 등록");
+  assert.deepEqual(sentSteps(proxyCalls).map((x) => x.slice(0, 3)), [["web2", "1단계", "대신 쓴 원문"]]);
 });
 
 test("+ 개월 추가: '웹툰1' 탭에서 누르면 '웹툰2' 탭이 열리고, 제출할 때 웹툰2 과목을 만들어 그 과목으로 승인 요청", async () => {
@@ -458,11 +462,7 @@ test("+ 개월 추가: '웹툰1' 탭에서 누르면 '웹툰2' 탭이 열리고,
   data.subjects = [{ id: "w1", name: "웹툰1" }, { id: "w3old", name: "웹툰" }];
   data.subject_departments = [{ subject_id: "w1", department_id: "dept" }];
   data.instructor_subjects = [{ instructor_id: "me", subject_id: "w1", sort_order: 0 }];
-  const { c, calls, sb } = await setup("mine", data);
-  const fallback = sb.rpc;
-  sb.rpc = async (name, args) => name === "comsw_create_month_subject"
-    ? (calls.push([name, args]), { data: "made", error: null })
-    : fallback(name, args);
+  const { c, calls } = await setup("mine", data);
   tabButton(c, "write").click();
   findButton(c.querySelector(".subject-panel:not([hidden])"), "+ 개월 추가").click();
   assert.deepEqual([...c.querySelectorAll(".subject-tabs button")].map((b) => b.textContent), ["웹툰1", "웹툰2"]);
@@ -470,10 +470,9 @@ test("+ 개월 추가: '웹툰1' 탭에서 누르면 '웹툰2' 탭이 열리고,
   c.querySelector(".subject-panel:not([hidden]) [name=written]").value = "웹툰2 1단계";
   submitForm(c);
   await flush();
-  const create = calls.find(([n]) => n === "comsw_create_month_subject");
-  assert.deepEqual(create[1], { p_from: "w1", p_name: "웹툰2" });
-  const sent = calls.filter(([n]) => n === "comsw_submit_my_curriculum").map(([, a]) => [a.p_subject_id, a.p_step_label]);
-  assert.deepEqual(sent, [["made", "1단계"]], "만든 과목 id로 제출");
+  const [, args] = calls.find(([n]) => n === "comsw_submit_curriculum");
+  assert.deepEqual(args.p_subjects, [{ new_name: "웹툰2", from: "w1", steps: [{ step_label: "1단계", written: "웹툰2 1단계", media_url: "" }] }],
+    "새 달 과목 만들기도 같은 제출 한 번에");
 });
 
 test("수업 설정: 학과 과목은 연결한 순서가 아니라 학과 관리와 같은 전체수업 순서", async () => {

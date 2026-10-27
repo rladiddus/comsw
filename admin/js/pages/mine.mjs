@@ -138,37 +138,21 @@ export async function render(container, ctx, { tab, as } = {}) {
     };
     const subjectName = (id) =>
       subjects.find((s) => s.id === id)?.name || "과목";
-    // 대신 낼 때: 제출 함수(본인 전용)와 같은 규칙으로 직접 넣는다 — 같은 학과 탭·과목·단계·방특 여부의 대기 줄이 있으면 고친다.
-    const submitAs = async (row) => {
-      const stepLabel = String(row.step_label || "").trim();
-      const { data: same, error } = await supabase.from("instructor_curricula").select("id, sort_order")
-        .eq("instructor_id", target.id).eq("set_id", row.set_id).eq("subject_id", row.subject_id)
-        .eq("step_label", stepLabel).eq("status", "pending").eq("vacation", Boolean(row.vacation));
-      if (error) throw new Error(error.message);
-      const values = { written: String(row.written || "").trim(), media_url: row.media_url || null };
-      if (same?.length) {
-        const { error: e } = await supabase.from("instructor_curricula").update(values).eq("id", same[0].id);
-        if (e) throw new Error(e.message);
-        return same[0].id;
-      }
-      const { data: inSet } = await supabase.from("instructor_curricula").select("sort_order").eq("set_id", row.set_id);
-      const { error: e } = await supabase.from("instructor_curricula").insert({
-        ...values, instructor_id: target.id, set_id: row.set_id, subject_id: row.subject_id, step_label: stepLabel,
-        status: "pending", vacation: Boolean(row.vacation),
-        sort_order: (inSet || []).reduce((m, r) => Math.max(m, r.sort_order ?? -1), -1) + 1,
+    // 제출은 DB 함수 한 번(전부 저장 또는 전부 취소). 대신 낼 때는 그 강사 id를 넘기고, 같은 검사·잠금을 거친다.
+    // subjects: [{ subject_id | (new_name + from), tools?, supplies?, steps: [{ step_label, written, media_url }] }]
+    const submitAll = (setId, isVacation, list) =>
+      rpc(supabase, "comsw_submit_curriculum", {
+        p_set_id: setId,
+        p_vacation: Boolean(isVacation),
+        p_subjects: list,
+        p_instructor_id: proxy ? target.id : null,
       });
-      if (e) throw new Error(e.message);
-    };
-    const submit = (row) => proxy ? submitAs(row) :
-      rpc(supabase, "comsw_submit_my_curriculum", {
-        p_set_id: row.set_id,
-        p_subject_id: row.subject_id,
-        p_step_label: row.step_label,
-        p_written: row.written,
-        p_summary: "",
-        p_media_url: row.media_url,
-        p_vacation: Boolean(row.vacation),
-      });
+    // 조회하기에서 한 단계 고치기
+    const submit = (row) =>
+      submitAll(row.set_id, row.vacation, [{
+        subject_id: row.subject_id,
+        steps: [{ step_label: row.step_label, written: row.written, media_url: row.media_url || "" }],
+      }]);
     const done = async (message) => {
       await render(container, ctx, { tab: "list", as: proxy ? target.id : undefined });
       container.querySelector(".save-state").before(
@@ -439,48 +423,36 @@ export async function render(container, ctx, { tab, as } = {}) {
           openSubject(missing.subject.id);
           throw new Error(`${missing.subject.name}: 단계와 커리큘럼 내용을 모두 입력해주세요`);
         }
-        // 새 달 과목은 먼저 만든다(이미 있으면 그 과목).
-        for (const subject of new Set([...filled.map((f) => f.subject), ...changed.map((c) => c.subject)].filter((x) => x.isNew))) {
-          subject.realId = await rpc(supabase, "comsw_create_month_subject", { p_from: subject.from, p_name: subject.name });
-        }
-        for (const { subject, entry } of changed) {
-          if (proxy) {
-            // 대신 쓸 때는 그 강사의 프로그램·준비물로 저장(학과장·관리자 권한)
-            const { error } = await supabase.from("instructor_subject_materials").upsert({
-              instructor_id: target.id, subject_id: subject.realId ?? subject.id,
-              tools: entry.tools.value.trim() || null, supplies: entry.supplies.value.trim() || null,
-            });
-            if (error) throw new Error(error.message);
-          } else {
-            await rpc(supabase, "comsw_save_my_materials", {
-              p_subject_id: subject.realId ?? subject.id,
-              p_tools: entry.tools.value,
-              p_supplies: entry.supplies.value,
-            });
+        // 과목별로 묶어 한 번에 보낸다(새 달 과목은 DB가 만들고, 프로그램·준비물은 바뀐 과목만).
+        const bySubject = new Map();
+        const entryFor = (subject) => {
+          if (!bySubject.has(subject.id)) {
+            bySubject.set(subject.id, subject.isNew
+              ? { new_name: subject.name, from: subject.from, steps: [] }
+              : { subject_id: subject.id, steps: [] });
           }
-          entry.saved = { tools: entry.tools.value.trim(), supplies: entry.supplies.value.trim() };
+          return bySubject.get(subject.id);
+        };
+        for (const { subject, entry } of changed) {
+          Object.assign(entryFor(subject), { tools: entry.tools.value.trim(), supplies: entry.supplies.value.trim() });
         }
         for (const { subject, st } of filled) {
-          await submit({
-            set_id: set.value,
-            subject_id: subject.realId ?? subject.id,
+          entryFor(subject).steps.push({
             step_label: st.stepInput.value.trim(),
             written: st.written.value,
-            media_url: st.media.value(),
-            vacation: vacation.checked,
+            media_url: st.media.value() || "",
           });
-          sent++;
         }
+        sent = await submitAll(set.value, vacation.checked, [...bySubject.values()]);
+        for (const { entry } of changed) entry.saved = { tools: entry.tools.value.trim(), supplies: entry.supplies.value.trim() };
         await done(
           sent
             ? `${sent}개 단계를 제출했습니다. ${vacation.checked ? "방학 특강 담당자가 확인합니다." : "학과장 승인 대기 중입니다."}`
             : "프로그램·준비물을 저장했습니다. 이 과목 커리큘럼이 승인될 때 함께 반영됩니다.",
         );
       } catch (err) {
-        setState(
-          sent ? `${sent}개 단계는 제출했습니다. 나머지: ${err.message}` : err.message,
-          true,
-        );
+        // 한 번에 보내므로 실패하면 아무것도 저장되지 않는다(쓴 내용은 화면에 남음).
+        setState(sent ? err.message : `${err.message} — 아무것도 제출되지 않았습니다. 고친 뒤 다시 제출해주세요.`, true);
       } finally {
         send.disabled = false;
       }

@@ -401,9 +401,14 @@ test("신청 과목: '+ 개월 추가'는 다음 달 과목에 빈 1단계 신�
   const rpcs = [];
   sb.rpc = async (name, args) => {
     rpcs.push([name, args]);
-    if (name === "comsw_create_month_subject") {
+    if (name === "comsw_add_month_request") {
       tables.subjects.push({ id: "w2", name: args.p_name });
+      tables.instructor_curricula.push({ id: "p2", instructor_id: args.p_instructor_id, subject_id: "w2", set_id: args.p_set_id, step_label: "1단계", written: "", status: "pending", sort_order: 1 });
       return { data: "w2", error: null };
+    }
+    if (name === "comsw_drop_requests") {
+      tables.instructor_curricula = tables.instructor_curricula.filter((r) => !args.p_ids.includes(r.id));
+      return { data: args.p_ids.length, error: null };
     }
     return { data: null, error: null };
   };
@@ -412,7 +417,7 @@ test("신청 과목: '+ 개월 추가'는 다음 달 과목에 빈 1단계 신�
   await render(c, { supabase: sb });
   button(c, "+ 개월 추가").click();
   await flush();
-  assert.deepEqual(rpcs[0], ["comsw_create_month_subject", { p_from: "w1", p_name: "웹툰2" }]);
+  assert.deepEqual(rpcs[0], ["comsw_add_month_request", { p_from: "w1", p_name: "웹툰2", p_set_id: "set1", p_instructor_id: "i1" }]);
   const made = tables.instructor_curricula.find((r) => r.subject_id === "w2");
   assert.deepEqual([made.instructor_id, made.set_id, made.step_label, made.status], ["i1", "set1", "1단계", "pending"]);
   assert.match(c.querySelector(".subject-tabs button.active").textContent, /웹툰2/, "새 달 묶음이 열림");

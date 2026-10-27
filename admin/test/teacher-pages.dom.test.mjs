@@ -340,6 +340,29 @@ test("등록하기: 선택 학과에 방학 특강 그룹은 없고, '방특'에
   assert.deepEqual(sent, [["set", true]]);
 });
 
+test("등록하기: '방특'에 체크하면 방특 과목(기타 과목 › 방특)도 과목 탭에 나오고 그 과목으로 방특 제출", async () => {
+  const data = twoSubjects();
+  data.subjects.push({ id: "vsub", name: "여름 코딩캠프", is_vacation: true });
+  const { c, calls } = await setup("mine", data);
+  tabButton(c, "write").click();
+  const tabs = () => [...c.querySelectorAll(".subject-tabs button")].map((b) => b.textContent);
+  assert.ok(!tabs().includes("여름 코딩캠프"), "방특 체크 전에는 안 나옴");
+  const vac = c.querySelector("[name=vacation]");
+  vac.checked = true;
+  vac.dispatchEvent(new dom.window.Event("change"));
+  assert.ok(tabs().includes("여름 코딩캠프"));
+  [...c.querySelectorAll(".subject-tabs button")].find((b) => b.textContent === "여름 코딩캠프").click();
+  c.querySelector(".subject-panel:not([hidden]) [name=written]").value = "캠프 1단계";
+  submitForm(c);
+  await flush();
+  const [, args] = calls.find(([n]) => n === "comsw_submit_curriculum");
+  assert.equal(args.p_vacation, true);
+  assert.deepEqual(args.p_subjects.map((s) => s.subject_id), ["vsub"]);
+  vac.checked = false;
+  vac.dispatchEvent(new dom.window.Event("change"));
+  assert.ok(!tabs().includes("여름 코딩캠프"), "방특 체크를 풀면 다시 빠짐");
+});
+
 test("등록하기: 과목 탭마다 단계를 쓰고(+ 단계 추가), 내용 있는 단계만 한 번에 승인 요청", async () => {
   const { c, calls } = await setup("mine", twoSubjects());
   tabButton(c, "write").click();

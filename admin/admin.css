@@ -488,11 +488,18 @@ dialog.roadmap-source::backdrop { background:rgba(0,0,0,.45); }
 .card-item.no-sort.collapsed { grid-template-columns:128px minmax(0,1fr); padding-left:12px; }
 @media (max-width:900px) { .card-item.no-sort { grid-template-columns:minmax(0,1fr); } .card-item.no-sort .card-side { grid-column:1; } }
 /* 커리큘럼 관리 > 기타 과목 */
-.other-subject-row { display:grid; grid-template-columns:minmax(140px,1.4fr) minmax(90px,1fr) auto minmax(110px,.9fr) auto auto auto auto; gap:8px; align-items:center; padding:8px 0; border-bottom:1px solid var(--line); }
+.other-subject-row { display:grid; grid-template-columns:minmax(140px,1.4fr) minmax(90px,1fr) auto auto auto minmax(110px,.9fr) auto auto auto auto; gap:8px; align-items:center; padding:8px 0; border-bottom:1px solid var(--line); }
 .other-subject-row input, .other-subject-row select { width:100%; padding:7px 10px; border:1px solid #d9dde4; border-radius:8px; background:#fff; }
 .other-subject-row input[readonly] { background:#f6f7f9; border-color:transparent; }
 @media (max-width:900px) { .other-subject-row { grid-template-columns:1fr 1fr; } }
 .subject-weeks { margin-top:20px; }
+.other-subject-row .vacation-pick { display:inline-flex; align-items:center; gap:6px; margin:0; font-size:13px; font-weight:600; white-space:nowrap; }
+.other-subject-row .vacation-pick input { width:18px; height:18px; margin:0; }
+.other-curricula { margin-top:12px; }
+.other-curriculum { display:grid; grid-template-columns:96px 1fr; gap:14px; padding:10px 0; border-top:1px solid var(--line); }
+.other-curriculum strong { margin-right:8px; }
+.other-curriculum p { margin:6px 0 0; }
+.pre-line { white-space:pre-line; }
 .card-ai { display:flex; flex-direction:column; align-items:flex-start; gap:4px; min-width:0; }
 .card-ai textarea { width:100%; }
 .card-ai .ai-btn { margin-top:0; }

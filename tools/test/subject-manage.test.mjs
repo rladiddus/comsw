@@ -97,6 +97,20 @@ test("사용처를 세고, 확인창에 보여 준 사용처 개수(p_seen)가 �
   await assert.rejects(db.query(`select comsw_delete_subjects($1, 0)`, [[empty]]), /권한/);
 });
 
+test("방특 과목(is_vacation)은 선생님이 '방특'으로 낼 때만 수업 설정과 관계없이 낼 수 있다", async () => {
+  const { db, setId } = await setup();
+  await as(db, null);
+  const { rows: [x] } = await db.query(`insert into subjects(name, is_vacation) values ('여름 코딩캠프', true) returning id`);
+  const submit = (vacation) => db.query(`select comsw_submit_curriculum($1, $2, $3::jsonb)`,
+    [setId, vacation, JSON.stringify([{ subject_id: x.id, steps: [{ step_label: "1단계", written: "캠프" }] }])]);
+  await as(db, "authenticated", TEACHER);
+  await assert.rejects(submit(false), /수업 설정에서 고른 과목/, "방특이 아니면 막힘");
+  await as(db, "authenticated", TEACHER);
+  await submit(true);
+  await as(db, null);
+  assert.equal((await db.query(`select vacation from instructor_curricula where subject_id = $1`, [x.id])).rows[0].vacation, true);
+});
+
 test("선생님 제출은 수업 설정에서 고른 과목만(이미 낸 과목은 계속 고칠 수 있음)", async () => {
   const { db, webtoon, setId } = await setup();
   await as(db, null);

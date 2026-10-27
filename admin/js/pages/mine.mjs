@@ -245,6 +245,8 @@ export async function render(container, ctx, { tab, as } = {}) {
         l.subject_id
       );
       const base = subjects.filter((s) => ids.includes(s.id) && myIds.has(s.id));
+      // '방특'에 체크하면 관리자가 방특 과목으로 정한 과목(기타 과목 › 방특)도 고를 수 있다.
+      if (vacation.checked) base.push(...subjects.filter((s) => s.is_vacation && !base.includes(s)));
       const extra = months.filter((m) => m.dept === dept.value && !base.some((b) => b.id === m.id));
       return [...base, ...extra];
     };
@@ -383,6 +385,7 @@ export async function render(container, ctx, { tab, as } = {}) {
     };
     refill();
     dept.addEventListener("change", refill);
+    vacation.addEventListener("change", refill);
     const send = el("button", {
       type: "submit",
       className: "publish-btn",

@@ -100,6 +100,34 @@ test("기타 과목: '단계'로 그 과목 단계만 열고, '학과에 넣기'
   assert.deepEqual(otherNames(c), ["웹1"]);
 });
 
+test("기타 과목: '방특' 체크는 바로 저장, '커리큘럼'은 그 과목으로 쓴 커리큘럼을 강사별로 보여 준다", async () => {
+  const tables = data();
+  tables.instructors = [{ id: "i1", name: "김민주" }, { id: "i2", name: "조해리" }];
+  tables.curriculum_sets = [{ id: "v1", name: "2026년 여름방학특강", is_vacation: true }];
+  tables.instructor_curricula = [
+    { id: "a", subject_id: "s3", instructor_id: "i1", step_label: "1단계", written: "캐드 원문", summary: "캐드 요약", status: "approved", vacation: true, set_id: "v1", sort_order: 0 },
+    { id: "b", subject_id: "s3", instructor_id: "i2", step_label: "1단계", written: "조 원문", status: "pending", vacation: false, sort_order: 1 },
+    { id: "c", subject_id: "s1", instructor_id: "i1", step_label: "1단계", written: "다른 과목", status: "approved", sort_order: 2 },
+  ];
+  const { c, tables: t } = await renderPage("../js/pages/other-subjects.mjs", tables);
+  const cad = otherRows(c)[1];
+  const vac = cad.querySelector('[aria-label="방특 과목"]');
+  vac.checked = true;
+  vac.dispatchEvent(new dom.window.Event("change"));
+  await flush();
+  assert.equal(t.subjects.find((x) => x.id === "s3").is_vacation, true);
+  assert.match(c.textContent, /방특 과목으로 정했습니다/);
+  buttons(cad, "커리큘럼")[0].click();
+  await flush();
+  const box = c.querySelector(".subject-weeks");
+  assert.match(box.querySelector("h3").textContent, /캐드 \(2단계\)/);
+  assert.deepEqual([...box.querySelectorAll("h4")].map((h) => h.textContent), ["김민주 선생님 · 1단계", "조해리 선생님 · 1단계"]);
+  assert.match(box.textContent, /승인 · 방특 · 2026년 여름방학특강/);
+  assert.match(box.textContent, /사이트 문구: 캐드 요약/);
+  assert.match(box.textContent, /승인 대기/);
+  assert.doesNotMatch(box.textContent, /다른 과목/);
+});
+
 test("기타 과목 삭제 경고에 단계·강사 담당 과목 연결이 나온다", async () => {
   const tables = data();
   tables.instructor_subjects = [{ instructor_id: "i1", subject_id: "s2" }];

@@ -44,8 +44,10 @@ codex exec --sandbox read-only --ephemeral \
   "다음 변경을 코드 리뷰해 줘. 파일을 수정하지 말고 문제점만 보고해 줘.
    범위: git diff <기준커밋>..HEAD (또는 작업 트리의 변경)
    중점: <예: Supabase RLS 권한 누락, 승인 함수의 경계 조건>
-   형식: 심각도(높음/중간/낮음) · 파일:줄 · 문제 · 근거 · 제안"
+   형식: 심각도(높음/중간/낮음) · 파일:줄 · 문제 · 근거 · 제안" < /dev/null
 ```
+
+- 명령 끝에 반드시 `< /dev/null`을 붙인다. 안 붙이면 Codex가 입력(stdin)이 끝나기를 기다리며 "Reading additional input from stdin..."에서 멈춘다. 오래 걸리면 백그라운드로 실행하고 `-o` 결과 파일이 생겼는지 확인한다.
 
 - `--sandbox read-only`를 빼거나 `workspace-write`, `danger-full-access`, `--dangerously-bypass-approvals-and-sandbox`, `--full-auto`를 쓰지 않는다.
 - 결과 파일(`-o`)은 저장소 안에 만들지 않는다.

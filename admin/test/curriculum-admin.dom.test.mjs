@@ -421,3 +421,28 @@ test("신청 과목: '+ 개월 추가'는 다음 달 과목에 빈 1단계 신�
   assert.equal(tables.instructor_curricula.some((r) => r.subject_id === "w2"), false);
   assert.match(c.querySelector(".subject-tabs button.active").textContent, /웹툰1/);
 });
+
+test("학과 커리큘럼 저장이 실패하면 아무것도 안 바뀌고 고침은 남아, 다시 저장하면 한 번에 들어간다", async () => {
+  const { render } = await import("../js/pages/department-curriculum.mjs");
+  const tables = data();
+  tables.subjects.push({ id: "s9", name: "인디자인", sort_order: null });
+  const sb = fakeSupabase(tables);
+  const real = sb.rpc;
+  let fail = true;
+  sb.rpc = async (name, args) => (fail ? { data: null, error: { code: "23505", message: "duplicate" } } : real(name, args));
+  const c = document.createElement("div");
+  await render(c, { supabase: sb });
+  const pick = c.querySelector('select[aria-label="추가할 과목"]');
+  pick.value = "s9";
+  button(c, "+ 과목 추가").click();
+  button(c.querySelector(".editor-bar"), "저장").click();
+  await flush();
+  assert.match(c.textContent, /아무것도 저장되지 않았습니다/);
+  assert.ok(!tables.subject_departments.some((l) => l.subject_id === "s9"));
+  assert.match(c.textContent, /저장 안 된 변경 2개/, "고침(연결·순서)은 남아 있다");
+  fail = false;
+  button(c.querySelector(".editor-bar"), "저장").click();
+  await flush();
+  assert.ok(tables.subject_departments.some((l) => l.subject_id === "s9" && l.department_id === "d1"));
+  assert.match(c.textContent, /저장했습니다/);
+});

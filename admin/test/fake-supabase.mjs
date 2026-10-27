@@ -3,6 +3,22 @@ export function fakeSupabase(tables, { unique = {} } = {}) {
   const calls = [];
   return {
     calls,
+    // 실제 DB 함수 중 화면이 저장에 쓰는 것만 흉내 낸다(테스트에서 rpc를 바꿔 끼울 수 있음).
+    async rpc(name, args) {
+      calls.push(["rpc", name, args]);
+      if (name === "comsw_save_subject_layout") {
+        const links = (tables.subject_departments ??= []);
+        const same = (a, b) => a.subject_id === b.subject_id && a.department_id === b.department_id;
+        for (const l of args.p_add) if (!links.some((x) => same(x, l))) links.push({ ...l });
+        for (const e of args.p_subjects) Object.assign(tables.subjects.find((s) => s.id === e.id), e);
+        for (const l of args.p_remove) {
+          links.splice(links.findIndex((x) => same(x, l)), 1);
+          // 트리거: 마지막 학과에서 빠지면 기타 과목(순서 없음)
+          if (!links.some((x) => x.subject_id === l.subject_id)) tables.subjects.find((s) => s.id === l.subject_id).sort_order = null;
+        }
+      }
+      return { data: null, error: null };
+    },
     from(table) {
       const rows = (tables[table] ??= []);
       const query = (kind, payload, opts = {}) => {

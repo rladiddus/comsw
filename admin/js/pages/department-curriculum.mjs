@@ -105,24 +105,19 @@ export async function render(container, { supabase }) {
     if (edited.some((e) => "name" in e.patch && !String(e.patch.name ?? "").trim())) return setState("과목명을 입력해주세요", true);
     saveBtn.disabled = true;
     try {
-      if (added.length) {
-        const { error } = await supabase.from("subject_departments").insert(added);
-        if (error) throw error;
-      }
-      for (const e of edited) {
-        const { error } = await supabase.from("subjects").update(e.patch).eq("id", e.id);
-        if (error) throw error;
-      }
-      for (const l of removed) {
-        const { error } = await supabase.from("subject_departments").delete().eq("subject_id", l.subject_id).eq("department_id", l.department_id);
-        if (error) throw error;
-      }
+      // 한 번의 DB 함수 = 전부 저장되거나 전부 안 됨(실패하면 화면의 고침은 그대로 남아 다시 저장할 수 있다)
+      const { error } = await supabase.rpc("comsw_save_subject_layout", {
+        p_add: added,
+        p_subjects: edited.map((e) => ({ id: e.id, ...e.patch })),
+        p_remove: removed,
+      });
+      if (error) throw error;
       saved = snapshot();
       editing.clear();
       setState("저장했습니다. 공개 사이트에는 우상단 '적용'을 눌러야 나옵니다.");
       draw();
     } catch (error) {
-      setState(`${dbErrorMessage(error, { duplicate: "같은 이름의 과목이 이미 있습니다" })} — 일부만 저장됐을 수 있으니 이 화면을 다시 열어 확인해주세요.`, true);
+      setState(`${dbErrorMessage(error, { duplicate: "같은 이름의 과목이 이미 있습니다" })} — 아무것도 저장되지 않았습니다. 고친 뒤 다시 저장해주세요.`, true);
     } finally {
       saveBtn.disabled = false;
     }

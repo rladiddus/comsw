@@ -88,24 +88,19 @@ export async function render(container, { supabase }) {
     if (!count) return setState("바뀐 것이 없습니다");
     saveBtn.disabled = true;
     try {
-      if (added.length) {
-        const { error } = await supabase.from("subject_departments").insert(added);
-        if (error) throw error;
-      }
-      for (const x of moved) {
-        const { error } = await supabase.from("subjects").update({ sort_order: x.sort_order }).eq("id", x.id);
-        if (error) throw error;
-      }
-      for (const l of removed) {
-        const { error } = await supabase.from("subject_departments").delete().eq("subject_id", l.subject_id).eq("department_id", l.department_id);
-        if (error) throw error;
-      }
+      // 학과 커리큘럼과 같은 DB 함수 한 번 = 전부 저장되거나 전부 안 됨
+      const { error } = await supabase.rpc("comsw_save_subject_layout", {
+        p_add: added,
+        p_subjects: moved.map((x) => ({ id: x.id, sort_order: x.sort_order })),
+        p_remove: removed,
+      });
+      if (error) throw error;
       savedLinks = new Set(links.map(linkKey));
       savedOrder = new Map(subjects.map((x) => [x.id, x.sort_order ?? null]));
       setState("저장했습니다. '학과 커리큘럼'에 반영됐고, 공개 사이트에는 우상단 '적용'을 눌러야 나옵니다.");
       draw();
     } catch (error) {
-      setState(`${dbErrorMessage(error)} — 일부만 저장됐을 수 있으니 이 화면을 다시 열어 확인해주세요.`, true);
+      setState(`${dbErrorMessage(error)} — 아무것도 저장되지 않았습니다. 고친 뒤 다시 저장해주세요.`, true);
     } finally {
       saveBtn.disabled = false;
     }

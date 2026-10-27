@@ -546,3 +546,9 @@ dialog.roadmap-source::backdrop { background:rgba(0,0,0,.45); }
 .proxy-title .proxy-toggle { margin-left:auto; display:inline-flex; align-items:center; gap:6px; font-weight:600; }
 .step-add-row { display:flex; gap:8px; flex-wrap:wrap; }
 .request-month-actions { margin-left:auto; display:inline-flex; gap:6px; }
+
+/* 학과 관리 › 과목 관리 */
+.subject-manage { display:flex; flex-direction:column; gap:14px; margin-top:14px; }
+.manage-row { display:flex; flex-wrap:wrap; align-items:center; gap:8px 12px; padding:10px 0; border-top:1px solid var(--line); }
+.manage-row .muted { flex:1 1 220px; font-size:13px; }
+.manage-actions { display:flex; gap:6px; margin-left:auto; }

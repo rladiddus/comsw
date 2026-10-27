@@ -109,8 +109,10 @@ test("기타 과목 삭제 경고에 단계·강사 담당 과목 연결이 나�
   assert.equal(lastConfirm, "'웹1' 과목을(를) 삭제하면 단계 1개, 강사 담당 과목 1개도 함께 삭제됩니다. 삭제할까요?");
 });
 
-test("신규 과목 추가: 과목명·학과를 정해 만들면 순서 없이 학과에 연결되고 '승인 기다리는 과목'에 나온다", async () => {
-  const { c, tables } = await renderPage("../js/pages/new-subjects.mjs");
+test("신규 과목 추가: 과목명·학과를 정해 만들면 DB 함수 한 번으로 바로 학과 커리큘럼에 들어간다", async () => {
+  const { c, supabase } = await renderPage("../js/pages/new-subjects.mjs");
+  const calls = [];
+  supabase.rpc = async (name, args) => (calls.push([name, args]), { data: "new", error: null });
   const make = buttons(c, "과목 만들기")[0];
   c.querySelector('[aria-label="과목명"]').value = "블렌더";
   make.click();
@@ -122,10 +124,49 @@ test("신규 과목 추가: 과목명·학과를 정해 만들면 순서 없이 
   assert.equal(c.querySelectorAll(".dept-choices > .dept-choice").length, 2, "학과마다 상자 하나");
   make.click();
   await flush();
-  const made = tables.subjects.find(x => x.name === "블렌더");
-  assert.equal(made.sort_order ?? null, null);
-  assert.deepEqual(tables.subject_departments.filter(l => l.subject_id === made.id).map(l => l.department_id), ["d2"]);
-  assert.match(c.querySelector(".new-subjects").textContent, /승인 기다리는 과목 1개.*블렌더 · 웹학과/);
+  assert.deepEqual(calls, [["comsw_create_subject", { p_name: "블렌더", p_department_ids: ["d2"] }]]);
+  assert.match(c.textContent, /학과 커리큘럼 맨 뒤에 들어갔습니다/);
+  assert.equal(c.textContent.includes("승인 기다리는 과목"), false, "승인 대기 목록은 과목 관리로");
+});
+
+test("과목 관리: 학과별 보기와 정리 필요(승인 전·커리큘럼 없음), 넣기·삭제는 DB 함수로", async () => {
+  const { render } = await import("../js/pages/subject-manage.mjs");
+  const tables = data();
+  tables.subjects.push({ id: "s4", name: "웹툰2", sort_order: null });
+  tables.subject_departments.push({ subject_id: "s2", department_id: "d2" }, { subject_id: "s4", department_id: "d2" });
+  const sb = fakeSupabase(tables);
+  const calls = [];
+  const usage = [{ subject_id: "s1", departments: 1, weeks: 2, approved: 1, pending: 0, vacation: 0, instructors: 0, materials: 0, prep: 0, roadmap: 0 },
+    { subject_id: "s2", departments: 1, weeks: 0, approved: 0, pending: 0, vacation: 0, instructors: 1, materials: 0, prep: 0, roadmap: 0 }];
+  sb.rpc = async (name, args) => (calls.push([name, args]), { data: name === "comsw_subject_usage" ? usage : 1, error: null });
+  const c = document.createElement("div");
+  document.body.replaceChildren(c);
+  await render(c, { supabase: sb });
+  await flush();
+  const sections = [...c.querySelectorAll(".manage-dept h3")].map(h => h.textContent);
+  assert.deepEqual(sections, ["시각편집학과 · 1개", "웹학과 · 2개"]);
+  assert.match(c.querySelector(".manage-dept").textContent, /포토샵학과 커리큘럼 단계 2 · 승인된 강사 커리큘럼 1/);
+  assert.match(c.textContent, /웹툰2승인 전/);
+  buttons(c, "정리 필요")[0].click();
+  const rowsOf = () => [...c.querySelectorAll(".manage-row strong")].map(x => x.textContent);
+  assert.deepEqual(rowsOf(), ["웹1", "웹툰2"], "커리큘럼 있는 포토샵·학과 없는 캐드는 빠짐");
+  const [web1, webtoon] = c.querySelectorAll(".manage-row");
+  assert.match(webtoon.textContent, /승인 전.*커리큘럼 없음/);
+  assert.equal(buttons(web1, "학과 커리큘럼에 넣기").length, 0, "이미 들어간 과목은 넣기 없음");
+  buttons(webtoon, "학과 커리큘럼에 넣기")[0].click();
+  await flush();
+  assert.deepEqual(calls.at(-1), ["comsw_activate_subject", { p_id: "s4" }]);
+  globalThis.confirm = msg => { lastConfirm = msg; return true; };
+  buttons(c.querySelectorAll(".manage-row")[0], "삭제")[0].click();
+  await flush();
+  globalThis.confirm = msg => { lastConfirm = msg; return false; };
+  assert.equal(lastConfirm, "'웹1' 과목을(를) 삭제하면 담당 강사 연결 1개도 함께 삭제됩니다. 삭제할까요?");
+  assert.deepEqual(calls.at(-1), ["comsw_delete_subjects", { p_ids: ["s2"], p_used: true }]);
+  assert.match(c.textContent, /'적용' 후 빠집니다/);
+  buttons(c.querySelectorAll(".manage-row")[0], "삭제")[0].click();
+  await flush();
+  assert.equal(calls.filter(([n]) => n === "comsw_delete_subjects").length, 1, "확인창 취소면 지우지 않음");
+  assert.deepEqual(rowsOf(), ["웹툰2"]);
 });
 
 const more = () => Object.assign(data(), {

@@ -89,12 +89,13 @@ export async function render(container, { supabase }) {
         ["강사 담당 과목", await countRows(supabase, "instructor_subjects", "subject_id", subject.id)],
         ["준비물", await countRows(supabase, "course_prep_items", "subject_id", subject.id)],
         ["로드맵 연결", await countRows(supabase, "roadmap_step_subjects", "subject_id", subject.id)],
+        ["강사별 프로그램·준비물", await countRows(supabase, "instructor_subject_materials", "subject_id", subject.id)],
       ]);
       if (!confirm(message)) return;
       const { error } = await supabase.from("subjects").delete().eq("id", subject.id);
       if (error) return setState(dbErrorMessage(error), true);
       subjects.splice(subjects.indexOf(subject), 1);
-      setState(`'${subject.name}' 과목을 삭제했습니다`);
+      setState(`'${subject.name}' 과목을 삭제했습니다. 공개 사이트에서는 '적용' 후 빠집니다.`);
       draw();
     });
     return el("div", { className: "other-subject-row" }, [name, duration, stepsBtn, deptPick, move, remove, revert, edit]);

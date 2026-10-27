@@ -63,7 +63,20 @@ const data = {
     { id: "media-1", url: "", caption: "A creative design study for\ninspiring change", is_active: true, sort_order: 0 },
     { id: "media-2", url: "", caption: "두 번째 배경 문구", is_active: false, sort_order: 1 },
   ],
-  menus: [],
+  menus: [
+    { id: "m1", name: "전체 수업", is_active: true, side: "left", sort_order: 0 },
+    { id: "m2", name: "학과별 자료", is_active: true, side: "left", sort_order: 1 },
+    { id: "m3", name: "학과 커리큘럼", is_active: true, side: "left", sort_order: 2 },
+    { id: "m4", name: "특강/세미나", is_active: true, side: "right", sort_order: 3 },
+    { id: "m5", name: "수업별 준비물", is_active: true, side: "right", sort_order: 4 },
+    { id: "m6", name: "방학 특강", is_active: false, side: "right", sort_order: 5 },
+  ],
+  site_categories: [
+    { id: "c1", name: "커리큘럼", is_active: true, sort_order: 0 },
+    { id: "c2", name: "학과 강사소개", is_active: true, sort_order: 1 },
+    { id: "c3", name: "채용정보", is_active: true, sort_order: 2 },
+    { id: "c4", name: "취업 프로세스", is_active: true, sort_order: 3 },
+  ],
   loading_items: [
     { id: "load-1", image_url: "", text: "For Masterpieces", font_family: "Great Vibes", font_size: "1.25rem, 3.5vw, 3rem", font_weight: "400", is_active: true, sort_order: 0 },
     { id: "load-2", image_url: "", text: "꿈을 디자인하다", font_family: "Paperlogy", font_size: "1.25rem, 3.5vw, 3rem", font_weight: "800", is_active: false, sort_order: 1 },
@@ -142,7 +155,7 @@ data.instructor_curricula.push(
   { id: "vac-1", instructor_id: "demo-teacher", set_id: "vac-set", subject_id: "photoshop", step_label: "1단계", summary: "포토샵 기초 집중 과정", class_time: "2시간 X 10일", supplies: "멘토시리즈 포토샵", status: "approved", sort_order: 0, media_url: sample("방특", "#fa491d") },
   { id: "vac-pool", instructor_id: "unlinked", set_id: "web-set", subject_id: "web1", step_label: "1단계", written: "방학 동안 웹페이지 한 개를 완성합니다.", status: "pending", vacation: true, sort_order: 20 },
 );
-data.recruitment_posts = [{ id: "r1", department_id: "design", company: "예시디자인", job_title: "편집 디자이너", location: "수원", sort_order: 0 }];
+data.recruitment_posts = [{ id: "r1", department_id: "design", company: "예시디자인", job_title: "편집 디자이너", location: "수원", employment_type: "정규직", requirements: "포토샵·일러스트 가능자", duties: "홍보물 편집 디자인", salary: "회사 내규", deadline: "채용 시 마감", sort_order: 0 }];
 data.instructor_profile_drafts.push({ instructor_id: "unlinked", name: "최웹", career: "웹 퍼블리싱 강의 7년\nUI 디자인 실무 5년", message: "직접 만들어 보며 배우는 웹 수업", status: "pending", updated_at: new Date().toISOString() });
 
 // 확인할 사람. 선생님과 학과장이 같은 예시 데이터를 써서 '제출 → 학과장 승인' 흐름을 이어 볼 수 있다.

@@ -12,7 +12,9 @@ const data = {
     career: "디지털 디자인 교육 5년",
     message: "기초부터 차근차근, 함께 완성하는 수업",
     is_listed: false,
-  }, { id: "unlinked", name: "최웹", account_uid: null, is_listed: true }],
+  }, { id: "unlinked", name: "최웹", account_uid: null, is_listed: true },
+  // 학과장 본인 강사 정보: 쌤톡 학과에 본인 학과와 관리 학과가 함께 있다.
+  { id: "head-instructor", name: "박학과장", account_uid: "head", is_listed: true, main_department_id: null }],
   departments: [{
     id: "design",
     name: "시각편집학과",
@@ -37,6 +39,8 @@ const data = {
   instructor_departments: [
     { instructor_id: "demo-teacher", department_id: "design" },
     { instructor_id: "unlinked", department_id: "web" },
+    { instructor_id: "head-instructor", department_id: "design" },
+    { instructor_id: "head-instructor", department_id: "web" },
   ],
   instructor_subjects: [
     { instructor_id: "demo-teacher", subject_id: "photoshop", sort_order: 1 },
@@ -170,7 +174,7 @@ const MEMBERS = [
   { uid: "web-member", name: "최웹", username: "choiweb", majors: ["웹학과"] },
 ];
 // 가상 쌤톡 학과(쌤톡 회원 문서 majors). 수업 설정에서 저장하면 바뀐다.
-const MAJORS = { newbie: ["시각편집학과"], demo: ["시각편집학과"], head: [] };
+const MAJORS = { newbie: ["시각편집학과"], demo: ["시각편집학과"], head: ["시각편집학과", "웹학과"] };
 let me = PEOPLE.newbie;
 const ownId = () => data.instructors.find((i) => i.account_uid === me.uid)?.id;
 
@@ -180,6 +184,9 @@ supabase.rpc = async (name, args) => {
     const id = `instructor-${me.uid}`;
     data.instructors.push({ id, name: args.p_name, account_uid: me.uid, is_listed: false });
     return { data: id, error: null };
+  }
+  if (name === "comsw_set_my_main_department") {
+    data.instructors.find((i) => i.id === ownId()).main_department_id = args.p_department_id;
   }
   if (name === "comsw_set_my_classes") {
     const id = ownId();

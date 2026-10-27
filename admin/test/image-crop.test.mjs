@@ -10,8 +10,7 @@ test("썸네일 영역은 사이트 카드와 같은 세로 직사각형(269:391
   const tall = initialCrop(1200, 3000);
   assert.equal(tall.w, 1200);
   assert.equal(tall.y, (3000 - tall.h) / 2);
-  assert.throws(() => initialCrop(999, 1800), /1000/);
-  assert.doesNotThrow(() => initialCrop(600, 600, { checkSize: false }), "이미 올린 이미지는 크기 검사 없이");
+  assert.doesNotThrow(() => initialCrop(120, 80), "픽셀 크기 제한 없음");
 });
 
 test("영역은 원본을 벗어나지 않고, 끌면 반대로 움직인다", () => {

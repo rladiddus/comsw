@@ -3,7 +3,6 @@ import decodeWebp from "npm:@jsquash/webp@1.5.0/decode.js";
 import {
   preparePortrait,
   toWebp,
-  validateCurriculumImage,
 } from "../../supabase/functions/comsw-tools/portrait.ts";
 
 Deno.test("프로필 PNG는 941×1672이며 투명도를 유지한다", async () => {
@@ -23,19 +22,6 @@ Deno.test("AI 입력 사진은 긴 변 1024 이하로 줄인다", async () => {
   );
   if (Math.max(result.width, result.height) > 1024) {
     throw new Error("원본 크기 제한 실패");
-  }
-});
-
-Deno.test("커리큘럼 서버 업로드는 1000px 이상 정사각형만 허용", async () => {
-  await validateCurriculumImage(await new Image(1000, 1000).encode());
-  for (const [w, h] of [[999, 999], [1200, 1000]]) {
-    let rejected = false;
-    try {
-      await validateCurriculumImage(await new Image(w, h).encode());
-    } catch {
-      rejected = true;
-    }
-    if (!rejected) throw new Error(`${w}x${h} 이미지를 거절하지 않음`);
   }
 });
 

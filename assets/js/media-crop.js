@@ -1,13 +1,13 @@
 /*
  * 커리큘럼 이미지: 관리 화면에서 원본을 올리고 썸네일 영역을 '#crop=x,y,w,h'(원본 대비 0~1)로 주소 뒤에 남긴다.
- * - 썸네일 칸(.img-box, .img-box-mini) 안의 이미지는 그 영역만 보이게 배치한다.
+ * - 썸네일 칸(.img-box, .img-box-mini, 학과 커리큘럼의 .onepage-img-box) 안의 이미지는 그 영역만 보이게 배치한다.
  * - 크게 보기(#lightbox-media-wrapper)는 원본을 가로 폭에 맞춰 보여 주고, 위아래(확대하면 좌우도) 끌어서 보며,
  *   확대·축소·원래 크기 버튼을 둔다(태블릿은 손가락으로 밀어서 이동).
  * '#crop'이 없는 예전 이미지는 썸네일은 그대로, 크게 보기는 원본 보기로 바뀐다.
  */
 (function () {
   var RE = /#crop=([\d.]+),([\d.]+),([\d.]+),([\d.]+)$/;
-  var THUMBS = '.img-box, .img-box-mini';
+  var THUMBS = '.img-box, .img-box-mini, .onepage-img-box';
   var WRAPPER = 'lightbox-media-wrapper';
 
   function cropThumb(img) {

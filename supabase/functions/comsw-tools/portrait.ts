@@ -24,15 +24,6 @@ export async function toWebp(bytes: Uint8Array, kind: string) {
   );
 }
 
-export async function validateCurriculumImage(bytes: Uint8Array) {
-  const image = await Image.decode(bytes, { maxPixels: 20_000_000 });
-  if (image.width !== image.height || image.width < 1000) {
-    throw new Error(
-      "커리큘럼 이미지는 1000px 이상의 정사각형으로 잘라서 올려주세요",
-    );
-  }
-}
-
 export async function preparePortrait(bytes: Uint8Array, final: boolean) {
   const image = await Image.decode(bytes, { maxPixels: 20_000_000 });
   if (image.width * image.height > 20_000_000) {

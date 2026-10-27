@@ -32,7 +32,6 @@ export function createHandler(
     toWebp,
     fetcher = fetch,
     preparePortrait,
-    validateCurriculumImage,
   },
 ) {
   return async (req) => {
@@ -98,11 +97,16 @@ export function createHandler(
         owner = member.uid,
       ) {
         // 공개 이미지는 WebP로 줄여 저장한다. 원본 사진은 AI 입력용이라 그대로 둔다.
+        // 커리큘럼 원본은 크기 제한 없이: 너무 커서 WebP로 못 바꾸면 올린 파일 그대로 저장.
         if (kind !== "profile-source") {
-          bytes = await toWebp(bytes, kind);
-          mime = "image/webp";
-          filename = String(filename || "image").replace(/\.[^.]*$/, "") +
-            ".webp";
+          try {
+            bytes = await toWebp(bytes, kind);
+            mime = "image/webp";
+            filename = String(filename || "image").replace(/\.[^.]*$/, "") +
+              ".webp";
+          } catch (e) {
+            if (kind !== "curriculum") throw e;
+          }
         }
         const stored = await storage.upload(bytes, {
           mimeType: mime,
@@ -142,7 +146,6 @@ export function createHandler(
         }
         const bytes = new Uint8Array(await file.arrayBuffer());
         checkImage(bytes, file.type);
-        if (kind === "curriculum") await validateCurriculumImage(bytes);
         return send(await saveAsset(bytes, kind, file.name, file.type));
       }
       const raw = await req.text();

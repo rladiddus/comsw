@@ -4,7 +4,7 @@ import { el, rows, rpc, stateLine } from "./teacher-workspace.mjs";
 // 저장하면 컴수원 강사 정보의 학과·담당 과목과 쌤톡 학과에 함께 반영한다.
 export async function mountClassSettings(
   container,
-  { supabase, uid, own, loadMyMajors, saveMyMajors },
+  { supabase, uid, own, isHead = false, loadMyMajors, saveMyMajors },
 ) {
   // '수정' 버튼은 보기 화면일 때만 제목 옆에 붙는다.
   const heading = el("h3", { textContent: "수업 설정" });
@@ -17,6 +17,22 @@ export async function mountClassSettings(
         "내 학과를 고르고, 학과마다 내가 수업하는 과목을 체크해주세요. 저장하면 쌤톡 학과와 강사소개의 담당 과목에 함께 반영됩니다(공개 사이트에는 '적용' 후).",
     }),
   ]);
+  // 학과장: 쌤톡 학과엔 본인 학과와 관리 학과가 섞여 있어, 고른 학과 중 메인 학과를 정한다(강사소개는 메인 학과에만).
+  const mainBox = el("section", { className: "workspace-card main-dept" }, [
+    el("div", { className: "box-title" }, [el("h3", { textContent: "메인 학과" })]),
+    el("p", {
+      className: "desc",
+      textContent:
+        "수업 설정에서 고른 학과 중 본인 학과(메인 학과)를 골라주세요. 공개 사이트 강사소개에는 메인 학과에만 프로필이 나오고, 나머지는 관리 학과로 프로필이 나오지 않습니다('적용' 후 반영). 쌤톡 학과는 그대로입니다.",
+    }),
+  ]);
+  const mainPick = el("select", {});
+  mainPick.setAttribute("aria-label", "메인 학과");
+  const mainSave = el("button", { type: "button", className: "publish-btn", textContent: "저장" });
+  mainBox.append(el("div", { className: "form-actions" }, [mainPick, mainSave]));
+  const mainState = stateLine(mainBox);
+  let mainId = own.main_department_id ?? null;
+  if (isHead) container.append(mainBox);
   container.append(box);
   const setState = stateLine(box);
   const [depts, subjects, links, myDepts, mySubjects, majors] = await Promise
@@ -63,6 +79,29 @@ export async function mountClassSettings(
   const editor = el("div", {}, [list, actions]);
   box.append(summary, editor);
   let saved = { depts: new Set(selected), subjects: new Set(checked) };
+  // 메인 학과 고르기: 저장된 내 학과만. 메인 학과를 수업 설정에서 빼면 '고르기 전'으로(사이트도 모든 학과에 표시).
+  function drawMain() {
+    const mine = depts.filter((d) => saved.depts.has(d.id));
+    if (!mine.some((d) => d.id === mainId)) mainId = null;
+    mainPick.replaceChildren(
+      el("option", { value: "", textContent: mine.length ? "메인 학과 고르기" : "수업 설정에서 학과를 먼저 골라주세요" }),
+      ...mine.map((d) => el("option", { value: d.id, textContent: d.name, selected: d.id === mainId })),
+    );
+    mainPick.disabled = mainSave.disabled = !mine.length;
+  }
+  mainSave.addEventListener("click", async () => {
+    mainSave.disabled = true;
+    try {
+      await rpc(supabase, "comsw_set_my_main_department", { p_department_id: mainPick.value || null });
+      mainId = mainPick.value || null;
+      mainState(mainId ? "저장했습니다. '적용' 후 사이트 강사소개에 메인 학과만 나옵니다." : "메인 학과를 지웠습니다. 고른 모든 학과에 나옵니다.");
+    } catch (e) {
+      mainState(e.message, true);
+    } finally {
+      mainSave.disabled = false;
+    }
+  });
+  drawMain();
   function showSummary() {
     const mine = depts.filter((d) => saved.depts.has(d.id));
     const edit = el("button", {
@@ -178,6 +217,7 @@ export async function mountClassSettings(
         ]);
         setState("저장했습니다. 쌤톡 학과에도 반영했습니다.");
         saved = { depts: new Set(selected), subjects: new Set(checked) };
+        drawMain();
         showSummary();
       } catch {
         setState(

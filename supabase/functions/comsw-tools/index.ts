@@ -1,7 +1,7 @@
 import "jsr:@supabase/functions-js@2.118.0/edge-runtime.d.ts";
 import { createClient } from "npm:@supabase/supabase-js@2.49.4";
 import { createRemoteJWKSet, importPKCS8, jwtVerify, SignJWT } from "npm:jose@6.1.0";
-import { preparePortrait, toWebp, validateCurriculumImage } from "./portrait.ts";
+import { preparePortrait, toWebp } from "./portrait.ts";
 import { createHandler } from "./handler.mjs";
 import { createStorage } from "./storage.mjs";
 
@@ -69,6 +69,5 @@ const handler = createHandler({
   storage: createStorage({ env, supabase: serviceClient, firebaseToken }),
   toWebp,
   preparePortrait,
-  validateCurriculumImage,
 });
 Deno.serve(handler);

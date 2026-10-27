@@ -141,3 +141,32 @@ test("본인 사진 원본은 Supabase 비공개 버킷에만 저장하고 링�
   assert.equal(saved.path, `supabase:${uploads[0][1]}`);
   await assert.rejects(storage.download("firebase:public/a.webp"), /본인 사진/);
 });
+
+test("커리큘럼 이미지는 픽셀 제한 없이: WebP로 못 바꿀 만큼 커도 올린 파일 그대로 저장", async () => {
+  const saved = [];
+  const handler = createHandler({
+    env: () => undefined,
+    verifyToken: async () => ({ sub: "t", comsw_role: "teacher" }),
+    userClient: () => ({}),
+    serviceClient: () => ({
+      from: () => ({
+        insert: (row) => (saved.push(row), {
+          select: () => ({ single: async () => ({ data: { id: "a", filename: row.filename }, error: null }) }),
+        }),
+      }),
+    }),
+    storage: { ready: () => true, upload: async (_b, o) => ({ path: "firebase:x", url: "https://x", ...o }) },
+    toWebp: async () => {
+      throw Error("Image too large");
+    },
+  });
+  const png = new Uint8Array([137, 80, 78, 71, 13, 10, 26, 10, 0]);
+  const form = new FormData();
+  form.append("kind", "curriculum");
+  form.append("file", new File([png], "big.png", { type: "image/png" }));
+  const response = await handler(new Request("https://example.com", {
+    method: "POST", headers: { Authorization: "Bearer t" }, body: form,
+  }));
+  assert.equal(response.status, 200, await response.clone().text());
+  assert.deepEqual([saved[0].mime_type, saved[0].filename], ["image/png", "big.png"]);
+});

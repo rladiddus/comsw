@@ -213,6 +213,7 @@ export async function render(container, ctx) {
       supabase,
       uid: ctx.uid,
       own,
+      isHead: ctx.role === "head",
       loadMyMajors: ctx.loadMyMajors ?? (await members()).loadMyMajors,
       saveMyMajors: ctx.saveMyMajors ?? (await members()).saveMyMajors,
     });

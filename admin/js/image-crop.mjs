@@ -2,14 +2,11 @@
 // 고른 영역은 주소 뒤 '#crop=x,y,w,h'(원본 대비 0~1 비율)로 남긴다 → 썸네일은 그 영역, 크게 보기는 원본.
 // '#' 뒤는 서버로 가지 않으므로 이미지 주소로는 그대로 쓰인다(예전 정사각형 이미지는 영역 없이 그대로).
 export const THUMB_RATIO = 269 / 391; // 가로 / 세로
-const MIN_SIDE = 1000; // 새로 올리는 원본의 가로·세로 최소
 const MIN_WIDTH = 300; // 고를 수 있는 가장 작은 영역 가로(px)
 const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
 
-export function initialCrop(width, height, { checkSize = true } = {}) {
-  if (!Number.isFinite(width) || !Number.isFinite(height) || (checkSize && Math.min(width, height) < MIN_SIDE)) {
-    throw new Error("이미지의 가로와 세로가 모두 1000px 이상이어야 합니다. 더 큰 원본을 올려주세요.");
-  }
+export function initialCrop(width, height) {
+  if (!(width > 0 && height > 0)) throw new Error("이미지를 불러오지 못했습니다. 다른 파일로 올려주세요.");
   const w = Math.min(width, height * THUMB_RATIO);
   const h = w / THUMB_RATIO;
   return { width, height, x: (width - w) / 2, y: (height - h) / 2, w, h };
@@ -73,7 +70,7 @@ export async function chooseThumbnail(source) {
     } catch {
       throw new Error("이미지를 불러오지 못했습니다. 예전 드라이브 링크라면 '새로 올리기'로 다시 올려주세요.");
     }
-    let crop = initialCrop(image.naturalWidth, image.naturalHeight, { checkSize: isFile });
+    let crop = initialCrop(image.naturalWidth, image.naturalHeight);
     const old = parseCrop(source);
     if (!isFile && old) {
       crop = adjustCrop(crop, { w: old.w * crop.width, x: old.x * crop.width, y: old.y * crop.height });

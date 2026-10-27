@@ -31,7 +31,7 @@ const tables = () => ({
     status: "approved",
   }],
 });
-async function setup(page, data = tables()) {
+async function setup(page, data = tables(), extra = {}) {
   const c = document.createElement("div");
   document.body.replaceChildren(c);
   const sb = fakeSupabase(data);
@@ -53,6 +53,7 @@ async function setup(page, data = tables()) {
     saveMyMajors: async (_uid, list) => {
       majors.saved = list;
     },
+    ...extra,
   });
   await flush();
   return { c, sb, calls, majors };
@@ -183,6 +184,25 @@ test("내 프로필: 내 소개·수업 설정 탭, 수업 설정은 쌤톡 학�
   assert.deepEqual([...box.querySelectorAll(".class-dept h4")].map((h) => h.textContent), ["웹학과"]);
   const checks = Object.fromEntries([...box.querySelectorAll(".subject-check")].map((l) => [l.textContent, l.querySelector("input").checked]));
   assert.deepEqual(checks, { "웹1": true, "웹2": false });
+});
+
+test("수업 설정: 학과장은 위에 메인 학과 박스가 있고, 고른 학과 중 하나를 메인으로 저장한다(선생님에겐 없음)", async () => {
+  const teacher = await setup("profile", withAi());
+  assert.equal(teacher.c.querySelector(".main-dept"), null, "선생님에겐 없음");
+  const data = withAi();
+  data.instructor_departments.push({ instructor_id: "me", department_id: "ai" });
+  data.instructors[0].main_department_id = "ai";
+  const { c, calls } = await setup("profile", data, { role: "head", loadMyMajors: async () => ["웹학과", "AI학과"] });
+  const main = c.querySelector(".main-dept");
+  assert.ok(main.nextElementSibling.classList.contains("class-settings"), "수업 설정 박스 위");
+  const pick = main.querySelector("select");
+  assert.deepEqual([...pick.options].map((o) => o.textContent), ["메인 학과 고르기", "웹학과", "AI학과"]);
+  assert.equal(pick.value, "ai", "저장된 메인 학과");
+  pick.value = "dept";
+  findButton(main, "저장").click();
+  await flush();
+  assert.deepEqual(calls.at(-1), ["comsw_set_my_main_department", { p_department_id: "dept" }]);
+  assert.match(main.textContent, /저장했습니다/);
 });
 
 test("수업 설정: 학과를 추가·삭제하고 과목을 체크해 저장하면 강사 정보와 쌤톡 학과에 함께 반영한다", async () => {

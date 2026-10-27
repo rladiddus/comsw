@@ -1,4 +1,4 @@
-import { el, rows, stateLine } from "../teacher-workspace.mjs";
+import { el, rows, rpc, stateLine } from "../teacher-workspace.mjs";
 import { dbErrorMessage } from "../fields.mjs";
 import { cascadeMessage } from "../format.mjs";
 import { countRows } from "../count.mjs";
@@ -83,17 +83,21 @@ export async function render(container, { supabase }) {
     });
     const remove = el("button", { type: "button", className: "ghost-btn danger", textContent: "삭제" });
     remove.addEventListener("click", async () => {
-      const message = cascadeMessage("과목", subject.name, [
+      const counts = [
         ["단계", await countRows(supabase, "subject_weeks", "subject_id", subject.id)],
         ["강사 커리큘럼", await countRows(supabase, "instructor_curricula", "subject_id", subject.id)],
         ["강사 담당 과목", await countRows(supabase, "instructor_subjects", "subject_id", subject.id)],
         ["준비물", await countRows(supabase, "course_prep_items", "subject_id", subject.id)],
         ["로드맵 연결", await countRows(supabase, "roadmap_step_subjects", "subject_id", subject.id)],
         ["강사별 프로그램·준비물", await countRows(supabase, "instructor_subject_materials", "subject_id", subject.id)],
-      ]);
-      if (!confirm(message)) return;
-      const { error } = await supabase.from("subjects").delete().eq("id", subject.id);
-      if (error) return setState(dbErrorMessage(error), true);
+      ];
+      if (!confirm(cascadeMessage("과목", subject.name, counts))) return;
+      // 확인창에 보여 준 개수를 DB가 다시 세어, 그 사이 바뀌었으면 지우지 않는다(과목 관리와 같은 함수).
+      try {
+        await rpc(supabase, "comsw_delete_subjects", { p_ids: [subject.id], p_seen: counts.reduce((n, [, c]) => n + c, 0) });
+      } catch (e) {
+        return setState(e.message, true);
+      }
       subjects.splice(subjects.indexOf(subject), 1);
       setState(`'${subject.name}' 과목을 삭제했습니다. 공개 사이트에서는 '적용' 후 빠집니다.`);
       draw();

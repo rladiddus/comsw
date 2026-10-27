@@ -3,14 +3,14 @@ import { cascadeMessage } from "../format.mjs";
 
 // 학과 관리 > 과목 관리: '학과별 보기'(학과마다 과목과 쓰임새)와 '정리 필요'(학과에는 있지만 승인 전이거나 커리큘럼이 없는 과목).
 // 학과가 하나도 없는 과목은 커리큘럼 관리 › 기타 과목에서 다룬다(같은 역할을 두 번 만들지 않음, 사용자 결정).
-// 사용처 개수는 DB 함수 하나(comsw_subject_usage)로, 지우기는 DB가 사용처를 다시 확인한다(comsw_delete_subjects).
+// 사용처 개수는 DB 함수 하나(comsw_subject_usage)로, 지우기는 DB가 사용처 개수를 다시 센다(comsw_delete_subjects).
 const USES = [
   ["weeks", "학과 커리큘럼 단계"], ["approved", "승인된 강사 커리큘럼"], ["pending", "승인 대기 강사 커리큘럼"],
   ["vacation", "방학 특강 커리큘럼"], ["instructors", "담당 강사 연결"], ["materials", "강사별 프로그램·준비물"],
   ["prep", "수업별 준비물"], ["roadmap", "로드맵 연결"],
 ];
 const written = (u) => u.weeks + u.approved + u.pending + u.vacation;
-const used = (u) => USES.some(([k]) => u[k] > 0);
+const seen = (u) => USES.reduce((n, [k]) => n + u[k], 0);
 
 export async function render(container, { supabase }) {
   container.append(
@@ -81,8 +81,8 @@ export async function render(container, { supabase }) {
     if (!confirm(cascadeMessage("과목", s.name, USES.map(([k, label]) => [label, u[k]])))) return;
     button.disabled = true;
     try {
-      // 확인창에서 '쓰는 곳 없음'이었으면 DB가 다시 확인해, 그 사이 누가 커리큘럼을 냈으면 지우지 않는다.
-      await rpc(supabase, "comsw_delete_subjects", { p_ids: [s.id], p_used: used(u) });
+      // 확인창에 보여 준 사용처 개수를 DB가 다시 세어, 그 사이 바뀌었으면 지우지 않는다.
+      await rpc(supabase, "comsw_delete_subjects", { p_ids: [s.id], p_seen: seen(u) });
       subjects.splice(subjects.indexOf(s), 1);
       setState(`'${s.name}' 과목을 삭제했습니다. 공개 사이트에서는 '적용' 후 빠집니다.`);
       draw();

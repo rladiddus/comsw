@@ -367,7 +367,16 @@ export async function render(container, { supabase, crop = chooseThumbnail, focu
           v.refresh();
           v.next.value = "";
         }
-        setState("반영했습니다. 공개 사이트에는 위쪽 '적용' 후 보입니다.");
+        // 승인과 적용을 다 마친 묶음은 목록에서 뺀다(승인만 했으면 아래 문구 작업을 위해 남겨 둠).
+        if (g.saved) {
+          groups.splice(groups.indexOf(g), 1);
+          [...pills.children].find((b) => b.dataset.key === key(g))?.remove();
+          if (groups.length) show(groups[0]);
+          else body.replaceChildren(el("p", { className: "muted", textContent: "새로 들어온 신청이 없습니다." }));
+          setState(`${label(g)} — 승인과 적용을 마쳐 목록에서 뺐습니다. 공개 사이트에는 위쪽 '적용' 후 보입니다.`);
+        } else {
+          setState("반영했습니다. 공개 사이트에는 위쪽 '적용' 후 보입니다.");
+        }
       } catch (e) {
         setState(e.message, true);
       } finally {

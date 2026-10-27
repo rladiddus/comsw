@@ -216,6 +216,31 @@ test("신청 과목: 학과 커리큘럼·로드맵 문구를 AI로 신규 칸�
   assert.equal(dept.querySelectorAll("textarea")[0].value, "department 신규", "현재 칸도 새 문구로");
 });
 
+test("신청 과목: 승인만 하면 목록에 남고(아래 문구 작업), 승인 + '적용'까지 마치면 목록에서 빠지고 다음 묶음이 열린다", async () => {
+  const { render } = await import("../js/pages/curriculum-requests.mjs");
+  const tables = data();
+  const sb = fakeSupabase(tables);
+  sb.rpc = async () => ({ data: null, error: null });
+  configureServices({ summarize: async (kind) => ({ text: `${kind} 신규` }) });
+  const c = document.createElement("div");
+  document.body.replaceChildren(c);
+  await render(c, { supabase: sb });
+  const pills = () => [...c.querySelectorAll(".subject-tabs button")].map((b) => b.textContent);
+  button(c, "수정").click();
+  c.querySelectorAll(".request-row:not(.request-head)").forEach((r) => { r.querySelectorAll("textarea")[1].value = "요약"; });
+  button(c, "저장").click();
+  await flush();
+  assert.match(c.textContent, /승인됨/);
+  assert.deepEqual(pills(), ["김민주 · 포토샵 (2단계)", "조해리 · 일러스트 (1단계)"], "승인만 하면 남음");
+  button(c, "학과 커리큘럼 생성").click();
+  await flush();
+  button(c, "적용").click();
+  await flush();
+  assert.deepEqual(pills(), ["조해리 · 일러스트 (1단계)"], "승인 + 적용이면 빠짐");
+  assert.match(c.textContent, /승인과 적용을 마쳐 목록에서 뺐습니다/);
+  assert.match(c.querySelector(".request-row:not(.request-head)").textContent, /조해리/, "다음 묶음이 열림");
+});
+
 test("신청 과목: '다시 자르기'는 원본은 두고 썸네일 영역만 다시 고르며, 드라이브 이미지는 안내만(새로 올리기·다듬기 버튼 없음)", async () => {
   const { render } = await import("../js/pages/curriculum-requests.mjs");
   const tables = data();

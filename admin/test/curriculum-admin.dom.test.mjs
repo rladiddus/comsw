@@ -33,6 +33,26 @@ const data = () => ({
   roadmap_step_subjects: [{ step_id: "rs1", subject_id: "s1" }],
 });
 
+test("메뉴 묶음: 열 때마다 새로 그리는 첫 탭도 한 번만 그리고, 빨리 두 번 열어도 내용이 겹치지 않는다", async () => {
+  const { subpages } = await import("../js/subpages.mjs");
+  let n = 0;
+  const slow = async (c) => { n++; await new Promise((r) => setTimeout(r, 5)); c.append("강사 목록"); };
+  const render = subpages("강사 관리", [
+    ["a", "강사", async () => ({ render: slow }), { fresh: true }],
+    ["b", "승인 대기", async () => ({ render: (c) => c.append("대기") })],
+  ]);
+  const c = document.createElement("div");
+  await render(c, {});
+  const panel = () => c.querySelectorAll(".subpage")[0];
+  assert.equal(panel().textContent, "강사 목록");
+  assert.equal(n, 1, "첫 탭은 한 번만 그림");
+  button(c, "승인 대기").click();
+  button(c, "강사").click();
+  button(c, "강사").click();
+  await new Promise((r) => setTimeout(r, 40));
+  assert.equal(panel().textContent, "강사 목록", "다시 열어도 한 번만 보임");
+});
+
 test("메뉴 묶음: 제목·하위 탭, 첫 탭만 그리고 다른 탭은 처음 열 때 그린다", async () => {
   const { subpages } = await import("../js/subpages.mjs");
   const drawn = [];

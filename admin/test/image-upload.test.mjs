@@ -81,3 +81,33 @@ test("커리큘럼은 썸네일 영역을 고르면 원본을 올리고 주소 �
   await flush();
   assert.equal(sent, null);
 });
+
+test("올리기 전에 브라우저에서 줄이고 WebP로: 커리큘럼은 긴 변 2560px, 일반 이미지는 1920px, 원본 이름은 .webp로", async () => {
+  const { shrinkImage } = await import("../js/image-upload.mjs");
+  const drawn = [];
+  globalThis.createImageBitmap = async (f) => ({ width: f.w, height: f.h, close() {} });
+  const real = document.createElement.bind(document);
+  document.createElement = (tag) => {
+    if (tag !== "canvas") return real(tag);
+    const c = { getContext: () => ({ drawImage: (_b, _x, _y, w, h) => drawn.push([w, h]) }),
+      toBlob: (done, type) => done(new Blob(["x"], { type })) };
+    return c;
+  };
+  try {
+    const photo = Object.assign(new File(["y".repeat(100)], "사진.JPG", { type: "image/jpeg" }), { w: 3024, h: 4032 });
+    const out = await shrinkImage(photo, "curriculum");
+    assert.deepEqual(drawn.at(-1), [1920, 2560]);
+    assert.equal(out.type, "image/webp");
+    assert.equal(out.name, "사진.webp");
+    await shrinkImage(photo, "image");
+    assert.deepEqual(drawn.at(-1), [1440, 1920]);
+    assert.equal(await shrinkImage(photo, "profile-source"), photo, "본인 사진(AI 원본)은 그대로");
+    const smallWebp = Object.assign(new File(["z"], "a.webp", { type: "image/webp" }), { w: 800, h: 600 });
+    assert.equal(await shrinkImage(smallWebp, "curriculum"), smallWebp, "작은 WebP는 그대로");
+    delete globalThis.createImageBitmap;
+    assert.equal(await shrinkImage(photo, "curriculum"), photo, "브라우저가 못 하면 원본");
+  } finally {
+    document.createElement = real;
+    delete globalThis.createImageBitmap;
+  }
+});

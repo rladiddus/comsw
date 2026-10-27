@@ -10,6 +10,35 @@ export function validateImage(file) {
   }
 }
 
+// 올리기 전에 브라우저에서 긴 변을 줄이고 WebP로 바꾼다. 서버 함수는 CPU 약 2초 제한이라
+// 휴대폰 사진(1200만 화소)을 서버에서 바꾸면 중간에 끊겨 '요청에 실패했습니다'가 났다(서버는 WebP면 그대로 저장).
+// 썸네일 영역('#crop=')은 비율이라 줄여도 그대로 맞는다. 브라우저가 못 하면 원본을 보낸다.
+const MAX_SIDE = { image: 1920, curriculum: 2560 };
+export async function shrinkImage(file, kind) {
+  const max = MAX_SIDE[kind];
+  if (!max || typeof createImageBitmap !== "function") return file;
+  let bitmap;
+  try {
+    bitmap = await createImageBitmap(file);
+  } catch {
+    return file;
+  }
+  const scale = Math.min(1, max / Math.max(bitmap.width, bitmap.height));
+  if (scale === 1 && file.type === "image/webp") return file;
+  const canvas = document.createElement("canvas");
+  canvas.width = Math.round(bitmap.width * scale);
+  canvas.height = Math.round(bitmap.height * scale);
+  canvas.getContext("2d")?.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+  bitmap.close?.();
+  const blob = await new Promise((done) => canvas.toBlob?.(done, "image/webp", 0.85) ?? done(null));
+  // WebP로 못 바꾸는 브라우저면(예전 Safari) 줄인 것만이라도 JPG로.
+  const out = blob?.type === "image/webp" ? blob
+    : await new Promise((done) => canvas.toBlob?.(done, "image/jpeg", 0.9) ?? done(null));
+  if (!out || (scale === 1 && out.size >= file.size)) return file;
+  const ext = out.type === "image/webp" ? "webp" : "jpg";
+  return new File([out], String(file.name || "image").replace(/\.[^.]*$/, "") + "." + ext, { type: out.type });
+}
+
 export function mountImageUpload(
   container,
   {
@@ -65,7 +94,7 @@ export function mountImageUpload(
           "이미지 업로드 연결을 준비 중입니다. 관리자에게 문의해주세요.",
         );
       }
-      const asset = await fn(file, kind);
+      const asset = await fn(await shrinkImage(file, kind), kind);
       await onUploaded?.(fragment ? { ...asset, url: `${asset.url}${fragment}` } : asset);
       state.textContent = kind === "profile-source"
         ? "본인 사진을 비공개로 보관했습니다. 프로필을 저장해주세요."

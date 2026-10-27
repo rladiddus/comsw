@@ -64,7 +64,7 @@ test("+ 개월 추가: 학과장이 만들면 바로 맨 뒤, 선생님이 만�
   await assert.rejects(db.query(`select comsw_activate_subject($1)`, [t2]), /권한/);
 });
 
-test("사용처를 세고, 안 쓰는 과목만 바로 지우며 사용 중이면 확인(p_used) 뒤에만 지운다", async () => {
+test("사용처를 세고, 확인창에 보여 준 사용처 개수(p_seen)가 지금과 같을 때만 지운다", async () => {
   const { db, webtoon, me, setId } = await setup();
   await as(db, "authenticated", HEAD);
   const { rows: [{ id: empty }] } = await db.query(`select comsw_create_subject('빈과목', (select array[id] from departments order by sort_order limit 1)) id`);
@@ -77,15 +77,24 @@ test("사용처를 세고, 안 쓰는 과목만 바로 지우며 사용 중이�
   const u = Object.fromEntries(rows.map((r) => [r.subject_id, r]));
   assert.deepEqual([u[webtoon].pending, u[webtoon].vacation, u[webtoon].approved, u[webtoon].instructors, u[webtoon].materials], [1, 1, 0, 1, 1]);
   assert.deepEqual([u[empty].departments, u[empty].weeks, u[empty].pending], [1, 0, 0]);
-  await assert.rejects(db.query(`select comsw_delete_subjects($1)`, [[webtoon, empty]]), /쓰는 곳이 생겼습니다/);
-  const { rows: [{ n }] } = await db.query(`select comsw_delete_subjects($1) n`, [[empty]]);
+  await assert.rejects(db.query(`select comsw_delete_subjects($1, 0)`, [[webtoon, empty]]), /쓰는 곳이 바뀌었습니다/);
+  const { rows: [{ n }] } = await db.query(`select comsw_delete_subjects($1, 0) n`, [[empty]]);
   assert.equal(n, 1);
-  await db.query(`select comsw_delete_subjects($1, true)`, [[webtoon]]);
+  // 확인창 뒤에 새 커리큘럼이 들어오면(4 → 5) 거절, 아무것도 안 지움.
+  await as(db, null);
+  await db.query(`insert into instructor_curricula(set_id, instructor_id, subject_id, step_label, written, status, vacation)
+    values ($1, $2, $3, '3단계', '새로 낸 것', 'pending', false)`, [setId, me, webtoon]);
+  await as(db, "authenticated", HEAD);
+  await assert.rejects(db.query(`select comsw_delete_subjects($1, 4)`, [[webtoon]]), /쓰는 곳이 바뀌었습니다/);
+  await as(db, null);
+  assert.equal((await db.query(`select count(*)::int n from instructor_curricula where subject_id = $1`, [webtoon])).rows[0].n, 3);
+  await as(db, "authenticated", HEAD);
+  await db.query(`select comsw_delete_subjects($1, 5)`, [[webtoon]]);
   await as(db, null);
   assert.equal((await db.query(`select 1 from instructor_curricula where subject_id = $1`, [webtoon])).rows.length, 0, "함께 지워짐");
   await as(db, "authenticated", TEACHER);
   await assert.rejects(db.query(`select * from comsw_subject_usage()`), /권한/);
-  await assert.rejects(db.query(`select comsw_delete_subjects($1)`, [[empty]]), /권한/);
+  await assert.rejects(db.query(`select comsw_delete_subjects($1, 0)`, [[empty]]), /권한/);
 });
 
 test("선생님 제출은 수업 설정에서 고른 과목만(이미 낸 과목은 계속 고칠 수 있음)", async () => {

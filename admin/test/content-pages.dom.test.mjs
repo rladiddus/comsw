@@ -109,6 +109,21 @@ test("기타 과목 삭제 경고에 단계·강사 담당 과목 연결이 나�
   assert.equal(lastConfirm, "'웹1' 과목을(를) 삭제하면 단계 1개, 강사 담당 과목 1개도 함께 삭제됩니다. 삭제할까요?");
 });
 
+test("기타 과목 삭제는 확인창에 보여 준 개수로 DB 함수가 다시 센다(그 사이 바뀌면 안내만)", async () => {
+  globalThis.confirm = (msg) => { lastConfirm = msg; return true; };
+  const tables = data();
+  tables.instructor_subjects = [{ instructor_id: "i1", subject_id: "s2" }];
+  const { c, supabase, tables: t } = await renderPage("../js/pages/other-subjects.mjs", tables);
+  const calls = [];
+  supabase.rpc = async (name, args) => (calls.push([name, args]), { data: null, error: { message: "그 사이 이 과목을 쓰는 곳이 바뀌었습니다" } });
+  buttons(otherRows(c)[0], "삭제")[0].click();
+  await flush();
+  assert.deepEqual(calls, [["comsw_delete_subjects", { p_ids: ["s2"], p_seen: 2 }]]);
+  assert.match(c.textContent, /쓰는 곳이 바뀌었습니다/);
+  assert.ok(t.subjects.some((x) => x.id === "s2"), "지우지 않음");
+  assert.deepEqual(otherNames(c), ["웹1", "캐드"]);
+});
+
 test("신규 과목 추가: 과목명·학과를 정해 만들면 DB 함수 한 번으로 바로 학과 커리큘럼에 들어간다", async () => {
   const { c, supabase } = await renderPage("../js/pages/new-subjects.mjs");
   const calls = [];
@@ -161,7 +176,7 @@ test("과목 관리: 학과별 보기와 정리 필요(승인 전·커리큘럼 
   await flush();
   globalThis.confirm = msg => { lastConfirm = msg; return false; };
   assert.equal(lastConfirm, "'웹1' 과목을(를) 삭제하면 담당 강사 연결 1개도 함께 삭제됩니다. 삭제할까요?");
-  assert.deepEqual(calls.at(-1), ["comsw_delete_subjects", { p_ids: ["s2"], p_used: true }]);
+  assert.deepEqual(calls.at(-1), ["comsw_delete_subjects", { p_ids: ["s2"], p_seen: 1 }]);
   assert.match(c.textContent, /'적용' 후 빠집니다/);
   buttons(c.querySelectorAll(".manage-row")[0], "삭제")[0].click();
   await flush();

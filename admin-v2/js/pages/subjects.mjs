@@ -1,25 +1,21 @@
-import { el, rows } from "../../../admin/js/teacher-workspace.mjs";
-import { dbErrorMessage } from "../../../admin/js/fields.mjs";
-import { panel } from "./dashboard.mjs";
+import { el, rows, pick, chip, hint, btn, locked, stats, panel, dl, check, tabBox, listDetail, search, select, editor, headActions, nameOf } from "../ui.mjs";
+import { subpages } from "../../../admin/js/subpages.mjs";
 
-// 과목 관리 › 전체 과목: 흩어져 있던 과목(학과 과목·신규·기타·방특)을 한 목록에서 찾는다. 보기 전용 —
-// 고치는 곳은 옆 탭(과목 정보·학과별 과목·신규·기타)으로 안내한다.
-const pick = async (supabase, table, cols) => {
-  const { data, error } = await supabase.from(table).select(cols);
-  if (error) throw new Error(dbErrorMessage(error));
-  return data || [];
-};
+// 과목 관리(시안 '과목 카탈로그'): 학과 과목·신규·기타·방특을 한 목록에서 찾고 상세를 본다.
+// 고치기는 아래 '과목 편집'(기존 과목 정보·학과별 과목·신규 과목·기타 과목 화면)에서.
+const old = (file) => () => import(`../../../admin/js/pages/${file}.mjs`);
 
 export function subjectState(s, deptIds, weekCount) {
   if (s.is_vacation && !deptIds.length) return ["방학 특강", "vacation"];
-  if (!deptIds.length) return ["기타(학과 없음)", "other"];
+  if (!deptIds.length) return ["학과 미연결", "red"];
   if (!weekCount) return ["단계 없음", "warn"];
-  return ["학과 수업", "good"];
+  return ["운영 중", "good"];
 }
 
-export async function render(container, { supabase }) {
+export async function render(container, ctx) {
+  const { supabase } = ctx;
   const [subjects, depts, links, weeks, curricula, steps, prep] = await Promise.all([
-    rows(supabase, "subjects", (q) => q.order("sort_order", { nullsFirst: false }).order("name")),
+    rows(supabase, "subjects", (q) => q.order("sort_order", { nullsFirst: false })),
     rows(supabase, "departments", (q) => q.order("sort_order")),
     pick(supabase, "subject_departments", "subject_id, department_id"),
     pick(supabase, "subject_weeks", "subject_id"),
@@ -27,92 +23,64 @@ export async function render(container, { supabase }) {
     pick(supabase, "roadmap_step_subjects", "subject_id"),
     pick(supabase, "course_prep_items", "subject_id"),
   ]);
+  const edit = editor("과목 편집 (기존 과목 정보·학과별 과목·신규 과목·기타 과목 화면)", async () => ({
+    render: subpages("과목 편집", [
+      ["manage", "과목 정보", old("subject-manage"), { fresh: true }],
+      ["by-dept", "학과별 과목", old("department-subjects"), { fresh: true }],
+      ["new", "신규 과목", old("new-subjects"), { fresh: true }],
+      ["other", "기타 과목", old("other-subjects"), { fresh: true }],
+    ]),
+  }), ctx);
+  headActions(ctx, locked("변경 이력", "수정 이력은 DB 추가가 필요합니다"), btn("새 과목 추가", edit.open, true));
+
   const count = (list, id) => list.filter((x) => x.subject_id === id).length;
-  const info = subjects.map((s) => {
+  const items = subjects.map((s) => {
     const deptIds = links.filter((l) => l.subject_id === s.id).map((l) => l.department_id);
     const weekCount = count(weeks, s.id);
-    const teachers = new Set(curricula.filter((c) => c.subject_id === s.id && c.status === "approved").map((c) => c.instructor_id));
-    return { s, deptIds, weekCount, teachers: teachers.size, state: subjectState(s, deptIds, weekCount) };
+    const teachers = new Set(curricula.filter((c) => c.subject_id === s.id && c.status === "approved").map((c) => c.instructor_id)).size;
+    return { s, deptIds, weekCount, teachers, state: subjectState(s, deptIds, weekCount) };
   });
-  const deptName = (id) => depts.find((d) => d.id === id)?.name ?? "";
+  const deptNames = (it) => it.deptIds.map((id) => nameOf(depts, id)).join(" / ");
 
-  const search = el("input", { type: "search", className: "v2-field", placeholder: "과목 이름 검색" });
-  const deptPick = el("select", { className: "v2-field" }, [
-    el("option", { value: "", textContent: "모든 학과" }),
-    ...depts.map((d) => el("option", { value: d.id, textContent: d.name })),
-    el("option", { value: "none", textContent: "학과 없음" }),
-  ]);
-  const statePick = el("select", { className: "v2-field" }, [
-    el("option", { value: "", textContent: "모든 상태" }),
-    ...[["good", "학과 수업"], ["warn", "단계 없음"], ["other", "기타(학과 없음)"], ["vacation", "방학 특강"]]
-      .map(([v, t]) => el("option", { value: v, textContent: t })),
-  ]);
-  [search, deptPick, statePick].forEach((x) => x.setAttribute("aria-label", x.placeholder || "필터"));
-  const total = el("span", { className: "muted" });
-  const tbody = el("tbody");
-  const detail = el("div");
-  const goTab = (tab) => container.closest(".v2-body")?.querySelector(`.tab-bar [data-tab="${tab}"]`)?.click();
-  let selected = null;
+  const q = search("과목 검색");
+  const deptPick = select("학과", [["", "모든 학과"], ...depts.map((d) => [d.id, d.name]), ["none", "학과 미연결"]]);
+  const statePick = select("상태", [["", "모든 상태"], ["good", "운영 중"], ["warn", "단계 없음"], ["red", "학과 미연결"], ["vacation", "방학 특강"]]);
+  deptPick.value = location.hash.split("/")[2] ?? ""; // 학과 관리에서 '이 학과의 과목 보기'로 왔을 때
 
-  function showDetail(it) {
-    selected = it.s.id;
-    const used = [
-      ["단계(학과 커리큘럼)", it.weekCount], ["강사 커리큘럼", count(curricula, it.s.id)],
-      ["로드맵", count(steps, it.s.id)], ["수업별 준비물", count(prep, it.s.id)],
-    ];
-    const btn = (text, tab) => Object.assign(el("button", { type: "button", className: "ghost-btn", textContent: text }), { onclick: () => goTab(tab) });
-    detail.replaceChildren(panel(it.s.name, [
-      el("dl", { className: "v2-dl" }, [
-        el("dt", { textContent: "상태" }), el("dd", {}, [el("span", { className: `v2-chip ${it.state[1]}`, textContent: it.state[0] })]),
-        el("dt", { textContent: "기간" }), el("dd", { textContent: it.s.duration || "—" }),
-        el("dt", { textContent: "수준" }), el("dd", { textContent: it.s.level || "—" }),
-        el("dt", { textContent: "학과" }), el("dd", { textContent: it.deptIds.map(deptName).join(", ") || "연결된 학과 없음" }),
-      ]),
-      el("h4", { textContent: "쓰이는 곳" }),
-      el("ul", { className: "v2-uses" }, used.map(([k, n]) => el("li", {}, [el("span", { textContent: k }), el("b", { textContent: `${n}` })]))),
-      el("p", { className: "v2-hint", textContent: "지금은 모든 학과가 과목 순서 하나를 같이 씁니다. 학과마다 다른 순서는 다음 단계(DB 변경)에서 이곳에 추가합니다." }),
-      el("div", { className: "v2-actions" }, [btn("과목 정보 고치기", "manage"), btn("학과 연결 바꾸기", "by-dept"),
-        ...(it.deptIds.length ? [] : [btn("기타 과목에서 보기", "other")])]),
-    ], "고치는 곳은 아래 버튼으로 이동합니다."));
-    for (const tr of tbody.children) tr.classList.toggle("selected", tr.dataset.id === selected);
-  }
-
-  function draw() {
-    const q = search.value.trim().toLowerCase();
-    const list = info.filter((it) =>
-      (!q || it.s.name.toLowerCase().includes(q))
-      && (!deptPick.value || (deptPick.value === "none" ? !it.deptIds.length : it.deptIds.includes(deptPick.value)))
-      && (!statePick.value || it.state[1] === statePick.value));
-    total.textContent = `${list.length}개 / 전체 ${info.length}개`;
-    tbody.replaceChildren(...list.map((it) => {
-      const tr = el("tr", {}, [
-        el("td", { className: "v2-strong", textContent: it.s.name }),
-        el("td", { textContent: it.deptIds.map(deptName).join(", ") || "—" }),
-        el("td", { textContent: it.s.duration || "—" }),
-        el("td", { textContent: `${it.weekCount}단계` }),
-        el("td", { textContent: `${it.teachers}명` }),
-        el("td", {}, [el("span", { className: `v2-chip ${it.state[1]}`, textContent: it.state[0] })]),
-      ]);
-      tr.dataset.id = it.s.id;
-      tr.classList.toggle("selected", it.s.id === selected);
-      tr.addEventListener("click", () => showDetail(it));
-      return tr;
-    }));
-  }
-  search.addEventListener("input", draw);
-  deptPick.addEventListener("change", draw);
-  statePick.addEventListener("change", draw);
-
-  container.append(el("div", { className: "v2-grid2" }, [
-    el("section", { className: "v2-panel" }, [
-      el("div", { className: "v2-filter" }, [search, deptPick, statePick, total]),
-      el("div", { className: "v2-table-wrap" }, [el("table", { className: "v2-table" }, [
-        el("thead", {}, [el("tr", {}, ["과목", "학과", "기간", "단계", "강사", "상태"].map((t) => el("th", { textContent: t })))]),
-        tbody,
-      ])]),
+  container.append(
+    stats([
+      ["전체 과목", `${items.length}`, "기타·방학 특강 과목 포함"],
+      ["운영 과목", `${items.filter((i) => i.state[1] === "good").length}`, "학과에 연결되고 단계가 있는 과목"],
+      ["정리 필요", `${items.filter((i) => i.state[1] === "warn").length}`, "학과에 있지만 단계 없음", items.some((i) => i.state[1] === "warn")],
+      ["미연결 과목", `${items.filter((i) => i.state[1] === "red").length}`, "어느 학과에도 없음(기타 과목)"],
     ]),
-    detail,
-  ]));
-  draw();
-  if (info.length) showDetail(info[0]);
+    listDetail({
+      cols: ["과목명", "학과", "기간", "단계", "강사", "상태"],
+      items,
+      cells: (it) => [it.s.name, deptNames(it) || "학과 미연결", it.s.duration || "—", `${it.weekCount}단계`, `${it.teachers}명`, chip(...it.state)],
+      filters: [q, deptPick, statePick],
+      match: (it) => it.s.name.toLowerCase().includes(q.value.trim().toLowerCase())
+        && (!deptPick.value || (deptPick.value === "none" ? !it.deptIds.length : it.deptIds.includes(deptPick.value)))
+        && (!statePick.value || it.state[1] === statePick.value),
+      detail: (it) => panel(it.s.name, tabBox(["기본 정보", "학과 배치", "사용처"], (i) => [
+        ...(i === 0 ? [
+          dl([["과목명", it.s.name], ["기간", it.s.duration], ["수준", it.s.level], ["상태", chip(...it.state)]]),
+          hint("과목의 단계(학과 커리큘럼)는 커리큘럼 관리에서, 학과 연결은 '학과 배치'에서 확인합니다."),
+        ] : i === 1 ? [
+          el("p", { className: "v2-label", textContent: "이 과목이 속한 학과" }),
+          ...(it.deptIds.length ? it.deptIds.map((id) => el("div", { className: "v2-mini-card v2-row" }, [el("b", { textContent: `☰  ${nameOf(depts, id)}` }), btn("연결 관리", edit.open)]))
+            : [el("p", { className: "muted", textContent: "연결된 학과가 없습니다(기타 과목)." })]),
+          hint("지금은 모든 학과가 과목 순서 하나를 같이 씁니다. 학과마다 다른 순서는 DB 변경 후 이곳에서 정합니다."),
+        ] : [
+          check("로드맵 연결", `${count(steps, it.s.id)}개 로드맵 단계에서 씁니다.`),
+          check("강사 커리큘럼", `${count(curricula, it.s.id)}단계(승인 대기 포함), 승인된 강사 ${it.teachers}명`),
+          check("수업별 준비물", `${count(prep, it.s.id)}개 항목이 연결되어 있습니다.`),
+          check("단계(학과 커리큘럼)", `${it.weekCount}단계`, !it.weekCount && it.deptIds.length > 0),
+          hint("쓰이는 곳이 있는 과목을 지우면 연결된 자료가 함께 지워집니다. '보관'은 DB 추가 후 엽니다.", "warn"),
+        ]),
+        el("div", { className: "v2-actions v2-end" }, [locked("보관", "보관은 DB 추가가 필요합니다"), btn("변경 저장", edit.open, true)]),
+      ]), "과목 단위 원본 · 선택한 과목", [chip(...it.state)]),
+    }),
+    edit.node,
+  );
 }

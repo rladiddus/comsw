@@ -2,6 +2,7 @@ import { canManage } from "./roles.mjs";
 
 // site: 이 메뉴 내용이 나오는 공개 사이트 페이지(preview.mjs SITE_PAGES 이름) → 화면 제목 옆 '미리보기'.
 export const NAV = [
+  { id: "dashboard", label: "대시보드", manage: true, ready: true },
   { id: "settings", label: "기본 설정", manage: true, ready: true, site: "메인" },
   { id: "instructors", label: "강사 관리", manage: true, ready: true, site: "학과별 자료" },
   { id: "departments", label: "학과 관리", manage: true, ready: true, site: "학과별 자료" },

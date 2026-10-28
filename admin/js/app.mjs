@@ -10,6 +10,7 @@ import { configureServices, createServices } from './services.mjs';
 
 const $ = sel => document.querySelector(sel);
 const PAGES = {
+  dashboard: () => import("./pages/dashboard.mjs"),
   settings: () => import("./pages/settings.mjs"),
   seminars: () => import("./pages/seminars.mjs"),
   departments: () => import("./pages/department-tabs.mjs"),

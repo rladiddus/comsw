@@ -454,3 +454,26 @@ test("로드맵 줄 추가를 두 번 눌러도 이름이 겹치지 않고, 새 
   assert.notEqual(names[0], names[1]);
   assert.equal(buttons(tracksOf(c).at(-1), "저장").length, 1);
 });
+
+test("대시보드: 사이트 강사·신규 신청·학과·과목·검토할 커리큘럼(방특은 따로) 수, 누르면 그 메뉴로", async () => {
+  const { render } = await import("../js/pages/dashboard.mjs");
+  const sb = fakeSupabase({
+    instructors: [{ id: "i1", is_listed: true }, { id: "i2", is_listed: true }, { id: "i3", is_listed: false }],
+    instructor_profile_drafts: [{ instructor_id: "i3", status: "pending" }, { instructor_id: "i1", status: "approved" }],
+    departments: [{ id: "d1" }, { id: "d2" }],
+    subjects: [{ id: "s1" }, { id: "s2" }, { id: "s3" }],
+    instructor_curricula: [
+      { id: "c1", status: "pending", vacation: false }, { id: "c2", status: "approved", vacation: false },
+      { id: "c3", status: "pending", vacation: true },
+    ],
+  });
+  const c = document.createElement("div");
+  await render(c, { supabase: sb });
+  const cards = [...c.querySelectorAll(".dash-card")].map((a) => [a.querySelector(".dash-label").textContent, a.querySelector(".dash-num").textContent, a.getAttribute("href")]);
+  assert.deepEqual(cards, [
+    ["현재 강사", "2명", "#/instructors"], ["신규 신청 강사", "1명", "#/instructors"],
+    ["현재 학과", "2개", "#/departments"], ["전체 과목", "3개", "#/curriculum-admin"], ["검토할 커리큘럼", "1건", "#/curriculum-admin"],
+  ]);
+  assert.match(c.textContent, /방특 1건은 방학 특강/);
+  assert.equal(c.querySelectorAll(".dash-card.alert").length, 2, "처리할 일이 있는 칸만 강조");
+});

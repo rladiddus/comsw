@@ -1,0 +1,93 @@
+/* V2 시험판: admin.css(지금 색·틀) 위에 묶음 메뉴·화면 머리·카드·패널만 더한다. 색은 --accent(주황) 그대로. */
+.v2-tag { font-size:11px; font-weight:700; color:var(--accent); background:#fff0eb; border-radius:6px; padding:2px 7px; vertical-align:middle; }
+
+/* 묶음 메뉴 */
+.v2-nav-group { font-size:11px; font-weight:700; letter-spacing:.5px; color:#9aa1ad; padding:16px 14px 6px; }
+.v2-nav-group:first-child { padding-top:4px; }
+.side-nav a[href='#/mine'] { margin-top:0; border-top:0; border-radius:8px; padding-top:10px; }
+
+/* 화면 머리 · 빌려 온 화면의 첫 제목은 머리와 겹치므로 숨김 */
+.v2-head { display:flex; justify-content:space-between; align-items:flex-start; gap:16px; margin-bottom:20px; }
+.v2-crumb { color:#9aa1ad; font-size:12px; margin-bottom:6px; }
+.v2-head h1 { font-size:26px; font-weight:750; letter-spacing:-.8px; margin:0 0 6px; }
+.v2-desc { color:var(--muted); font-size:13px; margin:0; }
+.v2-actions { display:flex; gap:8px; flex-wrap:wrap; align-items:center; }
+.v2-body > h2:first-child, .v2-body > .page-head > h2:first-child { display:none; }
+.v2-body > .page-head { position:static; margin-top:0; padding-top:0; }
+.v2-body > .page-head .tab-bar { margin-top:0; }
+
+/* 숫자 카드 */
+.v2-stats { display:grid; grid-template-columns:repeat(auto-fit,minmax(200px,1fr)); gap:14px; margin-bottom:18px; }
+.v2-stat { display:flex; flex-direction:column; gap:4px; background:#fff; border:1px solid var(--line); border-radius:14px; padding:18px 20px; color:inherit; text-decoration:none; box-shadow:0 3px 12px #18223003; }
+.v2-stat:hover { border-color:#c9ced6; }
+.v2-stat.alert { border-color:var(--accent); }
+.v2-stat-label { color:var(--muted); font-size:12px; font-weight:700; }
+.v2-stat-num { font-size:28px; line-height:1.25; letter-spacing:-.8px; }
+.v2-stat.alert .v2-stat-num { color:var(--accent); }
+.v2-stat-hint { color:#9aa1ad; font-size:12px; }
+
+/* 패널 · 배치 */
+.v2-grid2 { display:grid; grid-template-columns:minmax(0,1.3fr) minmax(300px,.8fr); gap:16px; align-items:start; }
+.v2-stack { display:flex; flex-direction:column; gap:16px; min-width:0; }
+.v2-panel { background:#fff; border:1px solid var(--line); border-radius:14px; box-shadow:0 3px 12px #18223003; min-width:0; }
+.v2-panel-head { padding:16px 20px; border-bottom:1px solid var(--line); }
+.v2-panel-head h3 { margin:0; font-size:15px; }
+.v2-panel-head .v2-desc { font-size:12px; margin-top:3px; }
+.v2-panel-body { padding:16px 20px; }
+.v2-panel-body > .v2-actions + * { margin-top:14px; }
+.v2-empty { color:var(--muted); margin:0; }
+.v2-hint { background:#fff7f3; border:1px solid #ffe0d4; border-radius:9px; padding:11px 13px; color:#8a4a32; font-size:12px; margin:12px 0; }
+.v2-big { font-size:22px; font-weight:750; margin:0; }
+.v2-link-btn { display:inline-block; text-decoration:none; }
+.v2-row { display:flex; justify-content:space-between; gap:10px; }
+
+/* 할 일 */
+.v2-task { display:flex; align-items:center; gap:12px; padding:11px 0; border-bottom:1px solid #f0f1f3; }
+.v2-task:last-child { border-bottom:0; }
+.v2-task-mark { width:30px; height:30px; flex:none; border-radius:9px; background:#fff0eb; color:var(--accent); display:grid; place-items:center; }
+.v2-task-text { flex:1; min-width:0; }
+.v2-task-text b { display:block; font-size:13px; }
+.v2-task-text small { color:var(--muted); }
+.v2-mini-btn { border:0; background:#fff0eb; color:var(--accent); padding:6px 10px; border-radius:7px; font-weight:700; font-size:12px; text-decoration:none; cursor:pointer; white-space:nowrap; }
+
+/* 막대 · 기록 */
+.v2-bar-row { margin-bottom:12px; }
+.v2-progress { height:7px; background:#f0f1f3; border-radius:9px; overflow:hidden; margin-top:6px; }
+.v2-progress span { display:block; height:100%; background:var(--accent); border-radius:9px; }
+.v2-timeline { border-left:1px solid var(--line); margin-left:4px; }
+.v2-event { position:relative; padding:0 0 14px 16px; }
+.v2-event::before { content:''; position:absolute; left:-4px; top:6px; width:7px; height:7px; border-radius:50%; background:var(--accent); }
+.v2-event b { display:block; font-size:13px; }
+.v2-event small { color:var(--muted); }
+
+/* 표 · 필터 · 표시 */
+.v2-filter { display:flex; gap:8px; flex-wrap:wrap; align-items:center; padding:12px 16px; border-bottom:1px solid var(--line); }
+.v2-field { border:1px solid #d9dde4; border-radius:8px; padding:8px 10px; background:#fff; min-width:120px; }
+.v2-table-wrap { overflow:auto; }
+.v2-table { width:100%; border-collapse:collapse; font-size:13px; }
+.v2-table th { text-align:left; color:#8b93a1; font-size:12px; font-weight:700; background:#fafafa; padding:10px 14px; border-bottom:1px solid var(--line); white-space:nowrap; }
+.v2-table td { padding:11px 14px; border-bottom:1px solid #f0f1f3; }
+.v2-table tbody tr { cursor:pointer; }
+.v2-table tbody tr:hover { background:#fffaf7; }
+.v2-table tbody tr.selected { background:#fff0eb; }
+.v2-strong { font-weight:700; }
+.v2-chip { display:inline-block; padding:3px 8px; border-radius:6px; font-size:11px; font-weight:700; background:#f0f1f3; color:#5f6775; white-space:nowrap; }
+.v2-chip.good { background:#e8f6ee; color:#247054; }
+.v2-chip.warn, .v2-chip.curricula { background:#fff2dd; color:#9d520d; }
+.v2-chip.vacation { background:#e9f1ff; color:#3559a8; }
+.v2-chip.profiles { background:#f3ecff; color:#6a43b5; }
+.v2-dl { display:grid; grid-template-columns:70px 1fr; gap:8px 12px; margin:0; }
+.v2-dl dt { color:var(--muted); }
+.v2-dl dd { margin:0; }
+.v2-uses { list-style:none; padding:0; margin:0; }
+.v2-uses li { display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid #f0f1f3; }
+.v2-panel h4 { margin:18px 0 6px; font-size:13px; }
+
+/* 단계 표시 */
+.v2-steps { display:flex; gap:10px; margin-bottom:16px; }
+.v2-step { flex:1; background:#fff; border:1px solid var(--line); border-radius:10px; padding:12px; text-align:center; font-size:12px; color:var(--muted); }
+.v2-step strong { display:block; color:#1a1a1a; font-size:13px; }
+
+@media (max-width:1100px) { .v2-grid2 { grid-template-columns:1fr; } }
+@media (max-width:700px) { .v2-head { flex-direction:column; } .v2-steps { flex-direction:column; } }
+@media (max-width:900px) { .v2-nav-group { display:none; } }

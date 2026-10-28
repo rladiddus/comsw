@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex">
+  <title>컴수원 관리 V2</title>
+  <link rel="icon" href="data:,">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable.min.css">
+  <link rel="stylesheet" href="../admin/admin.css">
+  <link rel="stylesheet" href="./v2.css">
+</head>
+<body>
+  <div id="loginWrap" class="login-wrap">
+    <main class="card">
+      <h1>컴수원 관리 <small class="v2-tag">V2</small></h1>
+      <p class="sub">쌤톡 아이디로 로그인하세요</p>
+
+      <div id="loadingView">불러오는 중...</div>
+
+      <section id="loginView" hidden>
+        <form id="loginForm" autocomplete="on">
+          <label for="loginId">아이디 또는 이메일</label>
+          <input id="loginId" name="id" autocomplete="username" required>
+          <label for="loginPw">비밀번호</label>
+          <input id="loginPw" name="password" type="password" autocomplete="current-password" required>
+          <button type="submit">로그인</button>
+        </form>
+      </section>
+      <p id="loginError" class="error" role="alert"></p>
+    </main>
+  </div>
+
+  <div id="appView" class="app" hidden>
+    <header id="appHeader" class="app-header">
+      <h1>컴수원 관리 <small class="v2-tag">V2 시험판</small></h1>
+      <span id="userEmail" class="muted"></span>
+      <span id="userRole" class="role-badge"></span>
+      <span id="publishInfo" class="muted"></span>
+      <span id="previewBox" class="preview-box" hidden>
+        <select id="previewPage" aria-label="미리볼 페이지"></select>
+        <select id="previewDevice" aria-label="기기"><option value="pc">PC</option><option value="tablet">태블릿</option></select>
+        <button id="previewBtn" class="ghost-btn" type="button">미리보기</button>
+      </span>
+      <button id="publishBtn" class="publish-btn" type="button" hidden>사이트에 반영</button>
+      <button id="logoutBtn" class="ghost-btn" type="button">로그아웃</button>
+    </header>
+    <nav id="sideNav" class="side-nav"></nav>
+    <main id="content" class="content"></main>
+  </div>
+
+  <script src="../assets/js/supabase-config.js"></script>
+  <script type="module" src="./js/main.mjs"></script>
+</body>
+</html>

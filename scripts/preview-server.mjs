@@ -43,6 +43,7 @@ http.createServer(async (req, res) => {
   "127.0.0.1",
   () => console.log([
     "관리 화면(운영 DB 연결 — 고치면 실제 데이터가 바뀜): http://localhost:8787/admin/",
+    "관리 화면 V2 시험판(같은 운영 DB): http://localhost:8787/admin-v2/",
     "공개 사이트: http://localhost:8787/",
     "예시 데이터 미리보기: http://localhost:8787/test/admin-preview.html",
     "끄려면 이 창을 닫으세요.",

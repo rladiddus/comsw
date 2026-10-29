@@ -1,4 +1,4 @@
-// V3 시험판(admin-v3/): 설계 정책(1A·3·5·6B·7B·8A·9D)을 지금 데이터 위에서 맞게 보여 주는지 가짜 DB로 확인한다.
+// V3 시험판(admin-v3/): 설계 정책(1A·3·5·6B·7B·9D)을 지금 데이터 위에서 맞게 보여 주는지 가짜 DB로 확인한다.
 import test from "node:test";
 import assert from "node:assert/strict";
 import { JSDOM } from "jsdom";
@@ -22,7 +22,7 @@ const data = () => ({
   subject_weeks: [{ subject_id: "s1", week_label: "1단계", sort_order: 0 }],
   curriculum_sets: [{ id: "set1", name: "시각편집학과", department_id: "d1" }, { id: "v1", name: "2026 겨울", is_vacation: true }, { id: "v2", name: "2026 여름", is_vacation: true }],
   instructor_curricula: [
-    { id: "c1", instructor_id: "i1", set_id: "set1", subject_id: "s1", step_label: "1단계", written: "새 원문", status: "pending", vacation: false, updated_at: "2026-10-27T01:00:00Z" },
+    { id: "c1", instructor_id: "i1", set_id: "set1", subject_id: "s1", step_label: "1단계", written: "새 원문", media_url: "https://example.com/a.png", status: "pending", vacation: false, updated_at: "2026-10-27T01:00:00Z" },
     { id: "c5", instructor_id: "i1", set_id: "set1", subject_id: "s1", step_label: "1단계", written: "옛 원문", status: "approved", vacation: false, updated_at: "2026-10-01T00:00:00Z" },
     { id: "c6", instructor_id: "i2", set_id: "set1", subject_id: "s1", step_label: "1단계", written: "이 원문", status: "approved", vacation: false, updated_at: "2026-10-02T00:00:00Z" },
     { id: "c4", instructor_id: "i2", set_id: "v1", subject_id: "s4", step_label: "1단계", status: "approved", vacation: true, updated_at: "2026-10-20T00:00:00Z" },
@@ -77,10 +77,10 @@ test("V3 재료 검사: 칸 나누기·분류 제안·같은 과목 안 중복�
     ["포토샵:software>software:", "ChatGPT:software>ai:분류 확인", "노트북:supply>supply:중복 후보", "포토샵 교재:supply>textbook:분류 확인"]);
 });
 
-test("V3 전환 점검: 여러 학과 과목(7B)·두 과목 로드맵 단계(8A)·여러 기수 방특(6B)", async () => {
+test("V3 전환 점검: 여러 학과 과목(7B)·여러 기수 방특(6B), 여러 과목 로드맵 단계는 허용", async () => {
   const list = await v3.audit(sb());
   assert.deepEqual(list.map(([t, , l]) => `${t}=${l.join(",")}`), [
-    "여러 학과가 같이 쓰는 과목=포토샵", "과목이 2개 이상인 로드맵 단계=포토샵+웹1", "여러 방특 기수에 쓰인 과목=방특AI", "정규·방특에 함께 쓰인 과목=",
+    "여러 학과가 같이 쓰는 과목=포토샵", "여러 방특 기수에 쓰인 과목=방특AI", "정규·방특에 함께 쓰인 과목=",
   ]);
 });
 
@@ -92,6 +92,10 @@ test("V3 승인 대기 → 재료 검토: 다 확인하기 전엔 승인으로 �
   assert.deepEqual(items, ["김 · 포토샵", "이 · 프로필"]);
   assert.match(c.textContent, /옛 원문[\s\S]*새 원문/);
   assert.match(c.textContent, /검토 0\/4/);
+  assert.equal(c.querySelectorAll(".v2-diff button.submission-thumb img").length, 1, "새 제출본 이미지 미리보기");
+  assert.equal(c.querySelectorAll(".v2-diff .submission-thumb.empty").length, 1, "이전 승인본은 이미지 없음");
+  c.querySelector(".v2-diff button.submission-thumb").click();
+  assert.ok(c.querySelector("dialog.image-zoom img"), "누르면 크게 보기");
   button(c, "과목 전체 승인").click();
   assert.match(decodeURIComponent(location.hash), /^#\/validation\/i1\|set1\|s1$/, "검토 전이면 재료 검토로 보냄");
 
@@ -110,14 +114,20 @@ test("V3 승인 대기 → 재료 검토: 다 확인하기 전엔 승인으로 �
 });
 
 test("V3 학과별 순서 → 로드맵·학과 커리큘럼이 같은 순서, 퇴사 시험은 출처에서 빠짐", async () => {
-  v3.state.dept = "d1"; v3.state.mode = "regular"; v3.state.orders.clear(); v3.state.employed.clear();
+  v3.state.dept = "d1"; v3.state.mode = "regular"; v3.state.orders.clear(); v3.state.employed.clear(); v3.state.steps.clear();
   let c = await page("order");
   assert.deepEqual([...c.querySelectorAll(".v3-orderrow b")].map((b) => b.textContent), ["포토샵", "웹1"]);
   c.querySelector(".v3-orderrow").querySelectorAll("button")[1].click(); // 포토샵 ↓
   assert.deepEqual(v3.state.orders.get("d1:regular"), ["s2", "s1"]);
   c = await page("roadmap");
-  assert.deepEqual([...c.querySelectorAll(".v2-panel-head h3")].map((h) => h.textContent), ["STEP 1  웹1", "STEP 2  포토샵"]);
-  assert.match(c.textContent, /한 단계에 과목 2개 · 나눠야 함/);
+  const heads = () => [...c.querySelectorAll(".v2-panel-head h3")].map((h) => h.textContent);
+  assert.deepEqual(heads(), ["STEP 1  웹1 + 포토샵"], "지금 로드맵에서 한 단계인 두 과목은 그대로 한 단계");
+  assert.match(c.textContent, /로드맵 문구 있음/);
+  button(c, "여기서 나누기").click();
+  assert.deepEqual(heads(), ["STEP 1  웹1", "STEP 2  포토샵"]);
+  assert.match(c.textContent, /묶음 바뀜 · 다시 요약 필요/);
+  button(c, "다음 과목(포토샵)도 이 단계에").click();
+  assert.deepEqual(heads(), ["STEP 1  웹1 + 포토샵"]);
 
   const { affected } = await import("../../admin-v3/js/pages/instructors.mjs");
   assert.equal(affected("i2", data().instructor_curricula.filter((x) => x.status === "approved"), data().curriculum_sets).length, 3);
@@ -129,7 +139,7 @@ test("V3 학과별 순서 → 로드맵·학과 커리큘럼이 같은 순서, �
   assert.match(c.textContent, /재직 강사 승인본 1명/);
   assert.match(c.textContent, /다시 만들기 필요/);
   assert.match(c.textContent, /통합 제외\(퇴사\)/);
-  v3.state.employed.clear(); v3.state.orders.clear();
+  v3.state.employed.clear(); v3.state.orders.clear(); v3.state.steps.clear();
 });
 
 test("V3 준비물: 과목 ID별로만 묶고 4분류 탭", async () => {
@@ -150,7 +160,7 @@ test("V3 모든 화면이 오류 없이 그려진다", async () => {
     assert.ok(c.textContent.length > 20, f);
   }
   const c = await page("dashboard");
-  assert.match(c.textContent, /데이터 검증 경고3/);
+  assert.match(c.textContent, /데이터 검증 경고2/);
   const s = await page("subjects");
   assert.match(s.textContent, /학과별 분리 필요/);
 });

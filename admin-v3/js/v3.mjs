@@ -6,6 +6,7 @@ export const state = {
   dept: "",
   mode: "regular", // regular | vacation
   orders: new Map(), // "학과id:mode" → [과목id] (학과별 순서 시험)
+  steps: new Map(), // "학과id:mode" → Set(새 로드맵 단계를 시작하는 과목id) (묶음 시험)
   employed: new Map(), // 강사id → false(퇴사 처리 시험)
   reviews: new Map(), // 제출 묶음 key → Map(재료id → 최종 분류)
 };
@@ -91,17 +92,15 @@ export function modal(title, body, actions) {
 
 // V3 전환 점검: 설계 정책과 지금 데이터가 어긋나는 곳(실데이터 기준). [제목, 설명, 이름 목록, 갈 곳]
 export async function audit(supabase) {
-  const [subjects, links, stepSubjects, curricula, sets] = await Promise.all([
+  const [subjects, links, curricula, sets] = await Promise.all([
     pick(supabase, "subjects", "id, name, is_vacation"),
     pick(supabase, "subject_departments", "subject_id, department_id"),
-    pick(supabase, "roadmap_step_subjects", "step_id, subject_id"),
     pick(supabase, "instructor_curricula", "subject_id, set_id, status"),
     pick(supabase, "curriculum_sets", "id, is_vacation"),
   ]);
   const name = (id) => subjects.find((s) => s.id === id)?.name ?? "?";
   const countBy = (list, key) => list.reduce((m, x) => m.set(x[key], (m.get(x[key]) ?? new Set()).add(x)), new Map());
   const shared = [...countBy(links, "subject_id")].filter(([, v]) => v.size > 1).map(([id]) => name(id));
-  const multi = [...countBy(stepSubjects, "step_id")].filter(([, v]) => v.size > 1).map(([, v]) => [...v].map((x) => name(x.subject_id)).join("+"));
   const vacSet = new Set(sets.filter((s) => s.is_vacation).map((s) => s.id));
   const approved = curricula.filter((c) => c.status === "approved");
   const cohorts = new Map();
@@ -111,7 +110,6 @@ export async function audit(supabase) {
     .filter((id) => approved.some((c) => c.subject_id === id && !vacSet.has(c.set_id))).map(name);
   return [
     ["여러 학과가 같이 쓰는 과목", "정책 7B: 학과마다 과목 ID를 따로 둬야 합니다.", shared, "#/subjects"],
-    ["과목이 2개 이상인 로드맵 단계", "정책 8A: 로드맵 한 단계에는 과목 하나.", multi, "#/roadmap"],
     ["여러 방특 기수에 쓰인 과목", "정책 6B: 방특 기수마다 과목 ID를 따로 둬야 합니다.", vacMulti, "#/vacation"],
     ["정규·방특에 함께 쓰인 과목", "정책 6B: 정규와 방특은 이름이 같아도 다른 과목입니다.", mixed, "#/subjects"],
   ];

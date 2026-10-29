@@ -1,6 +1,8 @@
 import { el, pick, chip, hint, btn, locked, panel, empty, editor, headActions, groupRequests, nameOf } from "../../../admin-v2/js/ui.mjs";
 import { rpc } from "../../../admin/js/teacher-workspace.mjs";
 import { formatSeoul } from "../../../admin/js/format.mjs";
+import { driveThumbnail } from "../../../admin/js/drive.mjs";
+import { applyCrop, stripCrop } from "../../../admin/js/image-crop.mjs";
 import { state, CAT, materialsOf, typeChip } from "../v3.mjs";
 
 // 승인 대기(V3 시안 '통합 승인함'): 승인 단위 = 한 강사 × 한 과목 × 전체 단계(정책 1A). 프로필은 따로.
@@ -50,6 +52,18 @@ export async function render(container, ctx) {
   const mid = el("div", { className: "v2-stack" });
   const side = el("div", { className: "v2-stack" });
   const status = el("p", { className: "save-state" });
+  // 커리큘럼 이미지: 작게 보여 주고 누르면 크게(선생님 '내 커리큘럼'과 같은 방식)
+  const zoom = el("dialog", { className: "image-zoom" });
+  zoom.addEventListener("click", () => zoom.close?.());
+  const thumb = (url, alt) => {
+    if (!url) return el("div", { className: "submission-thumb empty", textContent: "이미지 없음" });
+    const b = el("button", { type: "button", className: "submission-thumb", title: "크게 보기" }, [applyCrop(el("img", { src: driveThumbnail(url), alt }), url)]);
+    b.addEventListener("click", () => {
+      zoom.replaceChildren(el("img", { src: driveThumbnail(stripCrop(url)), alt }));
+      if (zoom.showModal) zoom.showModal(); else zoom.setAttribute("open", "");
+    });
+    return b;
+  };
 
   function approve(it) {
     if (!reviewDone(it.key, it.mats)) { location.hash = `#/validation/${encodeURIComponent(it.key)}`; return; }
@@ -78,7 +92,7 @@ export async function render(container, ctx) {
         ...steps.map((r) => {
           const a = it.before.find((b) => b.step_label === r.step_label);
           const side2 = (x) => x ? [el("b", { textContent: x.step_label }), el("div", { textContent: short(x.written) || "(원문 없음)" }),
-            el("div", { className: "muted", textContent: x.media_url ? "이미지 있음" : "이미지 없음" })] : [el("span", { className: "muted", textContent: `${r.step_label} — 없음(새 단계)` })];
+            thumb(x.media_url, `${x.step_label} 이미지`)] : [el("span", { className: "muted", textContent: `${r.step_label} — 없음(새 단계)` })];
           return el("div", { className: "v2-diff-cols" }, [el("div", {}, side2(a)), el("div", {}, side2(r))]);
         }),
       ]),
@@ -140,7 +154,7 @@ export async function render(container, ctx) {
       el("section", { className: "v2-panel" }, [el("div", { className: "v2-panel-head" }, [el("h3", { textContent: "제출 목록" }), chip(`${items.length}건`, "warn")]), listBox]),
       mid, side,
     ]),
-    editors.curricula.node, editors.vacation.node,
+    editors.curricula.node, editors.vacation.node, zoom,
   );
   draw();
 }

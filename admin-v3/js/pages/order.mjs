@@ -1,7 +1,7 @@
 import { el, rows, pick, chip, hint, btn, locked, panel, empty, headActions } from "../../../admin-v2/js/ui.mjs";
 import { state, deptSubjects, contextBar, typeChip } from "../v3.mjs";
 
-// 학과별 과목 순서(V3 시안, 정책 8A): 학과 × 정규/방특마다 순서 하나. 전체 수업·학과 커리큘럼·로드맵이 이 순서를 같이 쓴다.
+// 학과별 과목 순서(V3 시안): 학과 × 정규/방특마다 순서 하나. 전체 수업·학과 커리큘럼·로드맵이 이 순서를 같이 쓴다.
 // 지금 DB에는 학과별 순서 칸이 없어(전체 공통 sort_order 하나) 저장은 잠그고, 바꾼 순서는 이 화면·로드맵·학과 커리큘럼에서만 보인다.
 export async function render(container, ctx) {
   const { supabase } = ctx;

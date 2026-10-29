@@ -19,12 +19,12 @@ const data = () => ({
   ],
   departments: [{ id: "d1", name: "시각편집학과", sort_order: 0, is_active: true }, { id: "d2", name: "건축학과", sort_order: 1, is_active: true }],
   subject_departments: [{ subject_id: "s1", department_id: "d1" }, { subject_id: "s2", department_id: "d1" }, { subject_id: "s1", department_id: "d2" }, { subject_id: "s3", department_id: "d2" }],
-  subject_weeks: [{ subject_id: "s1", week_label: "1단계", sort_order: 0 }],
+  subject_weeks: [{ id: "w1", subject_id: "s1", week_label: "1단계", summary: "기초 단계", sort_order: 0 }],
   curriculum_sets: [{ id: "set1", name: "시각편집학과", department_id: "d1" }, { id: "v1", name: "2026 겨울", is_vacation: true }, { id: "v2", name: "2026 여름", is_vacation: true }, { id: "set2", name: "건축학과", department_id: "d2" }],
   instructor_curricula: [
     { id: "c1", instructor_id: "i1", set_id: "set1", subject_id: "s1", step_label: "1단계", written: "새 원문", media_url: "https://example.com/a.png", status: "pending", vacation: false, updated_at: "2026-10-27T01:00:00Z" },
     { id: "c5", instructor_id: "i1", set_id: "set1", subject_id: "s1", step_label: "1단계", written: "옛 원문", status: "approved", vacation: false, updated_at: "2026-10-01T00:00:00Z" },
-    { id: "c6", instructor_id: "i2", set_id: "set1", subject_id: "s1", step_label: "1단계", written: "이 원문", status: "approved", vacation: false, updated_at: "2026-10-02T00:00:00Z" },
+    { id: "c6", instructor_id: "i2", set_id: "set1", subject_id: "s1", step_label: "1단계", written: "이 원문", media_url: "https://example.com/b.png", status: "approved", vacation: false, updated_at: "2026-10-02T00:00:00Z" },
     { id: "c8", instructor_id: "i1", set_id: "set2", subject_id: "s1", step_label: "1단계", status: "approved", vacation: false, updated_at: "2026-09-01T00:00:00Z" },
     { id: "c4", instructor_id: "i2", set_id: "v1", subject_id: "s4", step_label: "1단계", status: "approved", vacation: true, updated_at: "2026-10-20T00:00:00Z" },
     { id: "c7", instructor_id: "i2", set_id: "v2", subject_id: "s4", step_label: "1단계", status: "approved", vacation: true, updated_at: "2026-07-20T00:00:00Z" },
@@ -183,20 +183,28 @@ test("V3 학과별 순서 → 로드맵·학과 커리큘럼이 같은 순서, �
   assert.equal(affected("i2", data().instructor_curricula.filter((x) => x.status === "approved"), data().curriculum_sets).length, 3);
   location.hash = "#/aggregate/s1";
   c = await page("aggregate");
-  assert.match(c.textContent, /재직 강사 승인본 2명/);
-  assert.ok(!/기여 강사와 출처|출처/.test(c.querySelector(".v2-mini-card").textContent), "오른쪽 칸 없음, 강사 이름에 '출처' 없음");
   assert.ok(!c.textContent.includes("기여 강사와 출처"));
-  // 단계 '수정' → 강사 이름 옆 × 로 빼고, '+ 강사 추가'로 다시 넣기
-  const names = () => [...c.querySelectorAll(".v2-mini-card .v2-chip")].map((x) => x.firstChild.textContent);
+  assert.match(c.textContent, /통합 강사: 김, 이/);
+  assert.equal(c.querySelector(".v3-aggtabs").hidden, false, "정규면 주차별·과목별 탭");
+  // 왼쪽 과목의 '강사' 팝업: 수정 → × 빼기, 추가, 끌어서 순서, 완료
+  c.querySelector(".v2-listitem.active button").click(); // 고른 과목(포토샵)의 강사
+  const dlg = document.querySelector("dialog.v3-modal");
+  const names = () => [...dlg.querySelectorAll(".v3-orderrow b")].map((b) => b.textContent);
   assert.deepEqual(names(), ["김", "이"]);
-  assert.equal(c.querySelectorAll(".v3-x").length, 0);
-  button(c, "수정").click();
-  c.querySelector('.v3-x[title="이 빼기"]').click();
+  assert.equal(dlg.querySelectorAll(".v3-x").length, 0);
+  button(dlg, "수정").click();
+  dlg.querySelector('.v3-x[title="이 빼기"]').click();
   assert.deepEqual(names(), ["김"]);
-  assert.match(c.textContent, /다시 만들기 필요/);
-  const add = c.querySelector('select[aria-label="1단계 강사 추가"]');
+  const add = dlg.querySelector('select[aria-label="강사 추가"]');
   add.value = "i2"; add.dispatchEvent(new dom.window.Event("change"));
   assert.deepEqual(names(), ["김", "이"]);
+  const [t1, t2] = dlg.querySelectorAll(".v3-orderrow");
+  drag(t2, "dragstart"); drag(t1, "dragover"); drag(t1, "drop");
+  assert.deepEqual(names(), ["이", "김"]);
+  button(dlg, "완료").click();
+  assert.deepEqual(v3.state.picks.get("s1|regular"), ["i2", "i1"]);
+  assert.match(c.textContent, /통합 강사: 이, 김/);
+  assert.match(c.textContent, /다시 만들기 필요/);
   // AI생성: 3줄 고르면 01, 02, 03 지시 + 명단 강사 원문, '저장'은 과목 문구
   const { configureServices } = await import("../../admin/js/services.mjs");
   let asked = null;
@@ -210,16 +218,40 @@ test("V3 학과별 순서 → 로드맵·학과 커리큘럼이 같은 순서, �
   await flush();
   assert.equal(asked[0], "department");
   assert.match(asked[1], /3줄로 정리: 각 줄은 01, 02, 03로 시작/);
-  assert.match(asked[1], /- 옛 원문\n- 이 원문/);
+  assert.match(asked[1], /- 이 원문\n- 옛 원문/);
   assert.equal(c.querySelector("textarea").value, out);
   button(c, "저장").click();
   await flush();
   assert.ok(db.calls.some(([k, t, , patch]) => k === "update" && t === "subjects" && patch.dept_curriculum === out));
   configureServices();
+  // 대표 이미지: 팝업에서 강사 이미지를 고르면 사이트 단계 이미지로 저장
+  button(c, "대표 이미지 수정").click();
+  document.querySelector("dialog.v3-modal .v3-imgpick").click();
+  await flush();
+  assert.ok(db.calls.some(([k, t, id, patch]) => k === "update" && t === "subject_weeks" && patch.image_url === "https://example.com/b.png"));
+  // 과목별 커리큘럼: 학과 순서대로 표, 수정 → 저장(실제), 제외(V3 순서에서만)
+  v3.state.orders.clear();
+  [...c.querySelectorAll(".v3-aggtabs button")][1].click();
+  const rowsOf = () => [...c.querySelectorAll(".dept-curriculum-row:not(.v3-headrow)")];
+  assert.deepEqual(rowsOf().map((r) => r.querySelector("input").value), ["포토샵", "웹1"]);
+  assert.match(c.textContent, /학과별 커리큘럼 요약/);
+  const first = rowsOf()[0];
+  button(first, "수정").click();
+  first.querySelector(".cell-duration input").value = "2개월";
+  button(first, "저장").click();
+  await flush();
+  assert.ok(db.calls.some(([k, t, , patch]) => k === "update" && t === "subjects" && patch.duration === "2개월" && patch.name === "포토샵"));
+  button(rowsOf()[1], "제외").click();
+  assert.deepEqual(v3.state.orders.get("d1:regular"), ["s1"]);
+  v3.state.orders.clear(); v3.state.aggTab = "weeks";
+  v3.state.mode = "vacation";
+  c = await page("aggregate");
+  assert.equal(c.querySelector(".v3-aggtabs").hidden, true, "방특이면 탭 없음");
+  v3.state.mode = "regular";
   v3.state.picks.clear(); v3.state.aiLines = 2;
   v3.state.employed.set("i2", false);
   c = await page("aggregate");
-  assert.match(c.textContent, /재직 강사 승인본 1명/);
+  assert.match(c.textContent, /통합 강사: 김(?!,)/);
   assert.match(c.textContent, /다시 만들기 필요/);
   v3.state.employed.clear(); v3.state.orders.clear(); v3.state.steps.clear();
 });

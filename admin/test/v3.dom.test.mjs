@@ -184,11 +184,43 @@ test("V3 학과별 순서 → 로드맵·학과 커리큘럼이 같은 순서, �
   location.hash = "#/aggregate/s1";
   c = await page("aggregate");
   assert.match(c.textContent, /재직 강사 승인본 2명/);
+  assert.ok(!/기여 강사와 출처|출처/.test(c.querySelector(".v2-mini-card").textContent), "오른쪽 칸 없음, 강사 이름에 '출처' 없음");
+  assert.ok(!c.textContent.includes("기여 강사와 출처"));
+  // 단계 '수정' → 강사 이름 옆 × 로 빼고, '+ 강사 추가'로 다시 넣기
+  const names = () => [...c.querySelectorAll(".v2-mini-card .v2-chip")].map((x) => x.firstChild.textContent);
+  assert.deepEqual(names(), ["김", "이"]);
+  assert.equal(c.querySelectorAll(".v3-x").length, 0);
+  button(c, "수정").click();
+  c.querySelector('.v3-x[title="이 빼기"]').click();
+  assert.deepEqual(names(), ["김"]);
+  assert.match(c.textContent, /다시 만들기 필요/);
+  const add = c.querySelector('select[aria-label="1단계 강사 추가"]');
+  add.value = "i2"; add.dispatchEvent(new dom.window.Event("change"));
+  assert.deepEqual(names(), ["김", "이"]);
+  // AI생성: 3줄 고르면 01, 02, 03 지시 + 명단 강사 원문, '저장'은 과목 문구
+  const { configureServices } = await import("../../admin/js/services.mjs");
+  let asked = null;
+  const out = "01 가\n02 나\n03 다";
+  configureServices({ summarize: async (kind, text) => { asked = [kind, text]; return { text: out }; } });
+  const db = sb();
+  location.hash = "#/aggregate/s1";
+  c = await page("aggregate", { supabase: db });
+  [...c.querySelectorAll(".v3-lines button")].find((b) => b.textContent === "3").click();
+  button(c, "AI생성").click();
+  await flush();
+  assert.equal(asked[0], "department");
+  assert.match(asked[1], /3줄로 정리: 각 줄은 01, 02, 03로 시작/);
+  assert.match(asked[1], /- 옛 원문\n- 이 원문/);
+  assert.equal(c.querySelector("textarea").value, out);
+  button(c, "저장").click();
+  await flush();
+  assert.ok(db.calls.some(([k, t, , patch]) => k === "update" && t === "subjects" && patch.dept_curriculum === out));
+  configureServices();
+  v3.state.picks.clear(); v3.state.aiLines = 2;
   v3.state.employed.set("i2", false);
   c = await page("aggregate");
   assert.match(c.textContent, /재직 강사 승인본 1명/);
   assert.match(c.textContent, /다시 만들기 필요/);
-  assert.match(c.textContent, /통합 제외\(퇴사\)/);
   v3.state.employed.clear(); v3.state.orders.clear(); v3.state.steps.clear();
 });
 

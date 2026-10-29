@@ -7,6 +7,8 @@ export const state = {
   mode: "regular", // regular | vacation
   orders: new Map(), // "학과id:mode" → [과목id] (학과별 순서 시험)
   steps: new Map(), // "학과id:mode" → Set(새 로드맵 단계를 시작하는 과목id) (묶음 시험)
+  picks: new Map(), // "과목id|mode|단계" → Set(강사id) (과목 통합에 넣을 강사 시험)
+  aiLines: 2, // 과목 통합 AI 요약 줄 수(2~4)
   employed: new Map(), // 강사id → false(퇴사 처리 시험)
   reviews: new Map(), // 제출 묶음 key → Map(준비물id → 최종 분류)
 };

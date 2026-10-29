@@ -22,3 +22,8 @@
 .v3-orderrow.drop-before::before, .v3-orderrow.drop-after::after { content:""; position:absolute; left:0; right:0; border-top:2px dashed var(--accent); pointer-events:none; }
 .v3-orderrow.drop-before::before { top:-5px; }
 .v3-orderrow.drop-after::after { bottom:-5px; }
+.v3-grid39 { display:grid; grid-template-columns:minmax(220px,3fr) minmax(0,9fr); gap:16px; align-items:start; }
+.v3-lines { gap:2px; margin:0; }
+.v3-lines .v2-tab { min-width:30px; padding:4px 8px; }
+.v3-x { border:0; background:none; margin-left:4px; padding:0 2px; cursor:pointer; color:inherit; font-weight:700; }
+@media (max-width:1100px) { .v3-grid39 { grid-template-columns:1fr; } }

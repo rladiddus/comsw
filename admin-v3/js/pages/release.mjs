@@ -6,7 +6,7 @@ import { audit } from "../v3.mjs";
 
 // 사이트 반영(V3 시안 '연계 작업·게시 센터'): 연계 작업 | 반영 전 검사 | 바뀐 곳. 반영은 승인과 따로(정책 2A).
 // 연계 작업 대기열(통합→로드맵)은 아직 없어 기존 AI 작업 기록을 보여 준다. 반영·미리보기는 실제로 동작한다.
-const KIND = { week: "단계 요약", department: "학과 커리큘럼", roadmap: "로드맵 문구", profile: "프로필 사진" };
+const KIND = { week: "단계 요약", department: "과목 통합 커리큘럼", roadmap: "로드맵 문구", profile: "프로필 사진" };
 const STATUS = { completed: ["완료", "good"], reserved: ["진행 중", "warn"], failed: ["실패", "red"] };
 
 export async function render(container, ctx) {
@@ -23,7 +23,7 @@ export async function render(container, ctx) {
   container.append(el("div", { className: "v2-grid2" }, [
     el("div", { className: "v2-stack" }, [
       panel("연계 작업", [jobs.length ? table(["작업", "상태", "시각"], jobs, (j) => [KIND[j.kind] ?? j.kind, chip(...(STATUS[j.status] ?? [j.status])), formatSeoul(j.created_at)]).node : empty("작업 기록이 없습니다."),
-        hint("V3는 승인 후 '학과 통합 → 로드맵' 작업이 대기열로 돌고 실패하면 다시 시도합니다(DB·서버 추가 필요). 지금은 기존 AI 작업 기록입니다.")], "", [locked("다시 시도", "작업 대기열은 DB 추가 후")]),
+        hint("V3는 승인 후 '과목 통합 → 로드맵' 작업이 대기열로 돌고 실패하면 다시 시도합니다(DB·서버 추가 필요). 지금은 기존 AI 작업 기록입니다.")], "", [locked("다시 시도", "작업 대기열은 DB 추가 후")]),
       panel("반영 전 바뀐 곳", [changeBox], "마지막 반영 이후 바뀐 사이트 데이터"),
       panel("반영 기록", [table(["번호", "반영 시각", ""], snaps, (s, i) => [`${s.id}번`, formatSeoul(s.created_at),
         s === snaps[0] ? chip("공개 중", "good") : locked("되돌리기", "되돌리기는 DB 함수 추가가 필요합니다")]).node]),

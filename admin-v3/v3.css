@@ -17,3 +17,8 @@
 .v3-modal::backdrop { background:#1822304d; }
 .v3-modal h3 { margin:0 0 10px; }
 @media (max-width:1100px) { .v3-grid363, .v3-grid48, .v3-three { grid-template-columns:1fr; } }
+/* 끌어 놓을 자리: 줄 사이 경계(줄 간격 6px 한가운데)에 주황 점선 */
+.v3-orderrow { position:relative; }
+.v3-orderrow.drop-before::before, .v3-orderrow.drop-after::after { content:""; position:absolute; left:0; right:0; border-top:2px dashed var(--accent); pointer-events:none; }
+.v3-orderrow.drop-before::before { top:-5px; }
+.v3-orderrow.drop-after::after { bottom:-5px; }

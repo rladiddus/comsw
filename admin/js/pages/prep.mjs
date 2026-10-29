@@ -11,8 +11,9 @@ const empty = (label) => el("p", { className: "muted", textContent: `${label} �
 // '+ 추가'·'모두 펼치기'는 탭에 하나씩: '+ 추가'는 학과 > 과목을 고르고 내용을 써서 넣는다(이미지는 카드 '수정'에서).
 // 카드는 '수정'으로 이미지·내용·링크·정가·설명만 고치고, ⠿를 끌어 그 과목 안에서 순서를 바꾼다.
 // 과목의 항목을 다 지우면 그 과목은 탭에서 빠진다. 탭을 열 때마다 새로 그린다.
-export async function render(container, { supabase }) {
-  container.append(el("h2", { textContent: "수업별 준비물" }));
+// prepCategory를 주면(V3 '수업별 준비물'의 탭 안) 제목·탭 없이 그 분류 하나만, prepSubjects(Set)를 주면 그 과목 항목만, prepLabel은 분류 이름 바꾸기.
+export async function render(container, { supabase, prepCategory, prepSubjects, prepLabel }) {
+  if (!prepCategory) container.append(el("h2", { textContent: "수업별 준비물" }));
   const [{ data: subjects }, { data: depts }, { data: links }] = await Promise.all([
     supabase.from("subjects").select("id, name, sort_order"),
     supabase.from("departments").select("id, name").order("sort_order"),
@@ -29,7 +30,8 @@ export async function render(container, { supabase }) {
     const [x, y] = [subjects.find((s) => s.id === a), subjects.find((s) => s.id === b)];
     return (x.sort_order ?? Infinity) - (y.sort_order ?? Infinity) || x.name.localeCompare(y.name, "ko");
   };
-  const panels = CATEGORIES.map(([cat, label]) => [cat, label, el("div", { className: "subpage" })]);
+  const panels = CATEGORIES.filter(([cat]) => !prepCategory || cat === prepCategory)
+    .map(([cat, label]) => [cat, prepLabel ?? label, el("div", { className: "subpage" })]);
 
   // 학과 > 과목 고르기: 과목 목록 위쪽은 그 학과 과목, 아래 '다른 과목'은 나머지(학과에 없는 묶음 과목 등).
   const deptSubjectPicker = () => {
@@ -121,7 +123,7 @@ export async function render(container, { supabase }) {
     const { data: items } = await supabase.from("course_prep_items").select("id, subject_id, department_id").eq("category", cat);
     // 학과 → 과목 → 항목 id
     const buckets = new Map();
-    for (const it of (items || []).filter((i) => nameOf.has(i.subject_id))) {
+    for (const it of (items || []).filter((i) => nameOf.has(i.subject_id) && (!prepSubjects || prepSubjects.has(i.subject_id)))) {
       const g = it.department_id ?? deptOf.get(it.subject_id) ?? null;
       if (!buckets.has(g)) buckets.set(g, new Map());
       const bySubject = buckets.get(g);
@@ -170,6 +172,10 @@ export async function render(container, { supabase }) {
     await Promise.all(mounts);
   }
 
+  if (prepCategory) {
+    container.append(panels[0][2]);
+    return drawTab(prepCategory);
+  }
   mountTabs(container, panels, undefined, drawTab);
   container.append(...panels.map(([, , panel]) => panel));
 }

@@ -3,7 +3,7 @@ import { subpages } from "../../../admin/js/subpages.mjs";
 import { state, isEmployed, modal } from "../v3.mjs";
 
 // 강사 관리(V3 시안 '강사·재직 관리', 정책 5): 재직 상태는 사이트 공개(is_listed)와 다르다.
-// 지금 DB에 재직 칸이 없어 처음엔 '재직(확인 전)'으로 보고, 퇴사 처리는 이 화면에서만 시험한다(학과 커리큘럼 출처에서 빠지는 것까지).
+// 지금 DB에 재직 칸이 없어 처음엔 '재직(확인 전)'으로 보고, 퇴사 처리는 이 화면에서만 시험한다(과목 통합 커리큘럼 출처에서 빠지는 것까지).
 const old = (file) => () => import(`../../../admin/js/pages/${file}.mjs`);
 
 // 퇴사하면 다시 만들어야 하는 곳: 이 강사의 승인 커리큘럼이 있는 (학과 · 과목)
@@ -39,9 +39,9 @@ export async function render(container, ctx) {
     const on = isEmployed(i.id);
     const hit = affected(i.id, approved, sets);
     modal(`${i.name} · ${on ? "퇴사 처리" : "재직 복구"} 영향`, [
-      el("p", { className: "muted", textContent: "강사 원문·승인 이력은 지우지 않습니다. 아래 학과 커리큘럼과 로드맵이 '다시 만들기 필요'가 되고, 학과장이 확인한 뒤 바뀝니다." }),
+      el("p", { className: "muted", textContent: "강사 원문·승인 이력은 지우지 않습니다. 아래 과목 통합 커리큘럼과 로드맵이 '다시 만들기 필요'가 되고, 학과장이 확인한 뒤 바뀝니다." }),
       ...(hit.length ? hit.map((h) => el("div", { className: "v3-impact" }, [el("div", { textContent: `${h.vacation ? h.setName : nameOf(depts, h.dept)} / ${h.vacation ? "방특" : "정규"} ${nameOf(subjects, h.subject_id)}` }),
-        el("small", { className: "muted", textContent: "학과 통합 문구 · 로드맵 문구" })])) : [el("p", { textContent: "승인된 커리큘럼이 없어 영향받는 곳이 없습니다." })]),
+        el("small", { className: "muted", textContent: "과목 통합 문구 · 로드맵 문구" })])) : [el("p", { textContent: "승인된 커리큘럼이 없어 영향받는 곳이 없습니다." })]),
       hint("시험 기능: 저장하지 않습니다(재직 칸은 DB 추가 후). 새로고침하면 되돌아갑니다.", "warn"),
     ], [[on ? "퇴사로 바꿔 보기" : "재직으로 되돌리기", () => { state.employed.set(i.id, !on); draw(); }]]);
   }
@@ -50,7 +50,7 @@ export async function render(container, ctx) {
     const out = instructors.filter((i) => !isEmployed(i.id)).length;
     statBox.replaceChildren(stats([
       ["재직(확인 전)", `${instructors.length - out}`, "재직 상태는 아직 DB에 없음"],
-      ["퇴사 처리(시험)", `${out}`, "학과 커리큘럼 출처에서 빠짐", out > 0],
+      ["퇴사 처리(시험)", `${out}`, "과목 통합 커리큘럼 출처에서 빠짐", out > 0],
       ["사이트 공개", `${instructors.filter((i) => i.is_listed).length}`, "재직과 별개인 '사이트에 보이기'"],
       ["계정 연결", `${instructors.filter((i) => i.account_uid).length}`, "쌤톡 계정과 연결됨"],
     ]));
@@ -63,7 +63,7 @@ export async function render(container, ctx) {
     }).node], "통합 출처 = 이 강사의 승인 커리큘럼이 들어가는 학과·과목 수"));
   }
   container.append(
-    el("div", { className: "v3-callout" }, [chip("5", "vacation"), document.createTextNode(" 퇴사는 강사 원문을 지우지 않습니다. 영향받는 학과 커리큘럼·로드맵을 다시 만들 대상으로 표시하고, 학과장이 확인·확정합니다.")]),
+    el("div", { className: "v3-callout" }, [chip("5", "vacation"), document.createTextNode(" 퇴사는 강사 원문을 지우지 않습니다. 영향받는 과목 통합 커리큘럼·로드맵을 다시 만들 대상으로 표시하고, 학과장이 확인·확정합니다.")]),
     statBox, listBox, edit.node,
   );
   draw();

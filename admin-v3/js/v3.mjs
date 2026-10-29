@@ -14,7 +14,6 @@ export const state = {
 export const CAT = { textbook: "교재", supply: "물품", software: "사용 프로그램", ai: "AI 도구" };
 export const norm = (s) => String(s || "").replace(/[\s\-_.·()[\]]+/g, "").toLowerCase();
 export const typeChip = (s) => chip(s?.is_vacation ? "방특" : "정규", s?.is_vacation ? "profiles" : "vacation");
-export const shortId = (id) => String(id || "").slice(0, 8);
 export const isEmployed = (id) => state.employed.get(id) !== false;
 
 // 선생님이 칸에 적은 글을 항목으로 나눈다(줄바꿈·쉼표·가운뎃점).
@@ -91,25 +90,25 @@ export function modal(title, body, actions) {
 }
 
 // V3 전환 점검: 설계 정책과 지금 데이터가 어긋나는 곳(실데이터 기준). [제목, 설명, 이름 목록, 갈 곳]
+// 정책 7(2026-10-29): 과목 하나를 여러 학과가 같이 쓰는 것은 정상. 대신 강사 × 과목 커리큘럼은 하나여야 한다.
 export async function audit(supabase) {
-  const [subjects, links, curricula, sets] = await Promise.all([
+  const [subjects, instructors, curricula, sets] = await Promise.all([
     pick(supabase, "subjects", "id, name, is_vacation"),
-    pick(supabase, "subject_departments", "subject_id, department_id"),
-    pick(supabase, "instructor_curricula", "subject_id, set_id, status"),
+    pick(supabase, "instructors", "id, name"),
+    pick(supabase, "instructor_curricula", "instructor_id, subject_id, set_id, status"),
     pick(supabase, "curriculum_sets", "id, is_vacation"),
   ]);
-  const name = (id) => subjects.find((s) => s.id === id)?.name ?? "?";
-  const countBy = (list, key) => list.reduce((m, x) => m.set(x[key], (m.get(x[key]) ?? new Set()).add(x)), new Map());
-  const shared = [...countBy(links, "subject_id")].filter(([, v]) => v.size > 1).map(([id]) => name(id));
+  const name = (list, id) => list.find((s) => s.id === id)?.name ?? "?";
   const vacSet = new Set(sets.filter((s) => s.is_vacation).map((s) => s.id));
   const approved = curricula.filter((c) => c.status === "approved");
-  const cohorts = new Map();
-  approved.filter((c) => vacSet.has(c.set_id)).forEach((c) => cohorts.set(c.subject_id, (cohorts.get(c.subject_id) ?? new Set()).add(c.set_id)));
-  const vacMulti = [...cohorts].filter(([, v]) => v.size > 1).map(([id]) => name(id));
+  const setsOf = (list, key) => list.reduce((m, c) => m.set(key(c), (m.get(key(c)) ?? new Set()).add(c.set_id)), new Map());
+  const twice = [...setsOf(approved.filter((c) => !vacSet.has(c.set_id)), (c) => `${c.instructor_id}|${c.subject_id}`)]
+    .filter(([, v]) => v.size > 1).map(([k]) => { const [i, s] = k.split("|"); return `${name(instructors, i)} · ${name(subjects, s)}`; });
+  const vacMulti = [...setsOf(approved.filter((c) => vacSet.has(c.set_id)), (c) => c.subject_id)].filter(([, v]) => v.size > 1).map(([id]) => name(subjects, id));
   const mixed = [...new Set(approved.filter((c) => vacSet.has(c.set_id)).map((c) => c.subject_id))]
-    .filter((id) => approved.some((c) => c.subject_id === id && !vacSet.has(c.set_id))).map(name);
+    .filter((id) => approved.some((c) => c.subject_id === id && !vacSet.has(c.set_id))).map((id) => name(subjects, id));
   return [
-    ["여러 학과가 같이 쓰는 과목", "정책 7B: 학과마다 과목 ID를 따로 둬야 합니다.", shared, "#/subjects"],
+    ["같은 과목을 여러 학과에 따로 낸 강사", "정책 7: 강사 × 과목 커리큘럼은 하나입니다. 합칠 때 가장 최근 승인본을 남깁니다.", twice, "#/teachers"],
     ["여러 방특 기수에 쓰인 과목", "정책 6B: 방특 기수마다 과목 ID를 따로 둬야 합니다.", vacMulti, "#/vacation"],
     ["정규·방특에 함께 쓰인 과목", "정책 6B: 정규와 방특은 이름이 같아도 다른 과목입니다.", mixed, "#/subjects"],
   ];

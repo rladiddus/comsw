@@ -32,7 +32,7 @@ export async function render(container, ctx) {
     pick(supabase, "instructor_subject_materials", "instructor_id, subject_id, tools, supplies"),
   ]);
   const edit = editor("품목 등록·수정 (기존 '수업별 준비물' 화면)", () => import("../../../admin/js/pages/prep.mjs"), ctx);
-  headActions(ctx, btn("재료 검토 화면", () => { location.hash = "#/validation"; }), btn("품목 등록", edit.open, true));
+  headActions(ctx, btn("준비물 검토 화면", () => { location.hash = "#/validation"; }), btn("품목 등록", edit.open, true));
   const body = el("div");
 
   function draw() {

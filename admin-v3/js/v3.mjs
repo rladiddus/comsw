@@ -8,10 +8,10 @@ export const state = {
   orders: new Map(), // "학과id:mode" → [과목id] (학과별 순서 시험)
   steps: new Map(), // "학과id:mode" → Set(새 로드맵 단계를 시작하는 과목id) (묶음 시험)
   employed: new Map(), // 강사id → false(퇴사 처리 시험)
-  reviews: new Map(), // 제출 묶음 key → Map(재료id → 최종 분류)
+  reviews: new Map(), // 제출 묶음 key → Map(준비물id → 최종 분류)
 };
 
-export const CAT = { textbook: "교재", supply: "준비물", software: "사용 프로그램", ai: "AI 도구" };
+export const CAT = { textbook: "교재", supply: "물품", software: "사용 프로그램", ai: "AI 도구" };
 export const norm = (s) => String(s || "").replace(/[\s\-_.·()[\]]+/g, "").toLowerCase();
 export const typeChip = (s) => chip(s?.is_vacation ? "방특" : "정규", s?.is_vacation ? "profiles" : "vacation");
 export const shortId = (id) => String(id || "").slice(0, 8);

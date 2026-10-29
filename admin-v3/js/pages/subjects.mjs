@@ -32,7 +32,7 @@ export async function render(container, ctx) {
   const deptPick = select("학과", [["", "모든 학과"], ...depts.map((d) => [d.id, d.name])]);
   container.append(
     el("div", { className: "v3-callout" }, [el("b", { textContent: "같은 이름 허용  " }),
-      document.createTextNode("포토샵 [정규] ≠ 포토샵 [방특] ≠ 다른 학과의 포토샵. 단계·이미지·재료·강사 제출본을 과목 ID로 나눕니다.")]),
+      document.createTextNode("포토샵 [정규] ≠ 포토샵 [방특] ≠ 다른 학과의 포토샵. 단계·이미지·준비물·강사 제출본을 과목 ID로 나눕니다.")]),
     stats([
       ["정규 과목", `${items.filter((i) => !i.s.is_vacation).length}`, "학과 정규 과정"],
       ["방특 과목", `${items.filter((i) => i.s.is_vacation).length}`, "방학 특강 전용"],

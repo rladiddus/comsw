@@ -63,7 +63,7 @@ const button = (c, text) => [...c.querySelectorAll("button")].find((b) => b.text
 test("V3 메뉴: 시안의 16메뉴(이름은 기존에 가까운 말)", async () => {
   const src = (await import("node:fs")).readFileSync(new URL("../../admin-v3/js/app.mjs", import.meta.url), "utf8");
   const labels = [...src.matchAll(/\["([a-z-]+)", "[^"]+", "([^"]+)",/g)].map((m) => m[2]);
-  assert.deepEqual(labels, ["대시보드", "승인 대기", "재료 검토", "학과 관리", "과목 관리", "학과별 과목 순서", "강사 관리", "강사 커리큘럼",
+  assert.deepEqual(labels, ["대시보드", "승인 대기", "준비물 검토", "학과 관리", "과목 관리", "학과별 과목 순서", "강사 관리", "강사 커리큘럼",
     "학과 커리큘럼", "로드맵", "수업별 준비물", "방학 특강", "사이트 반영", "내 커리큘럼", "내 프로필", "기본 설정 등"]);
 });
 
@@ -106,11 +106,49 @@ test("V3 승인 대기 → 재료 검토: 다 확인하기 전엔 승인으로 �
   assert.match(c.textContent, /검토 4\/4/);
   assert.equal(v3.state.reviews.get("i1|set1|s1").get("t1"), "ai", "ChatGPT는 제안대로 AI 도구");
 
+  // 승인 대기에서 바로 승인: 빈 사이트 문구는 막고, 채우면 단계마다 문구 저장 + 기존 단계 승인 함수
+  globalThis.confirm = () => true;
   location.hash = "#/inbox";
-  c = await page("inbox");
-  assert.match(c.textContent, /재료 검토 완료/);
+  const db = sb();
+  const approvals = [];
+  db.rpc = async (name, args) => { approvals.push([name, args]); return { data: null, error: null }; };
+  c = await page("inbox", { supabase: db });
+  assert.match(c.textContent, /준비물 검토 완료/);
+  assert.ok(!/기존 승인 화면|방학 특강 승인 화면/.test(c.textContent), "기존 승인 화면은 없음");
   button(c, "과목 전체 승인").click();
-  assert.match(c.textContent, /실제 승인은 아래 기존 승인 화면에서/);
+  await flush();
+  assert.match(c.textContent, /1단계 사이트 문구가 비어 있습니다/);
+  assert.equal(approvals.length, 0);
+  c.querySelector(".v2-panel textarea").value = "포토샵 기초";
+  button(c, "과목 전체 승인").click();
+  await flush();
+  assert.deepEqual(approvals, [["comsw_approve_curriculum", { p_id: "c1" }]]);
+  assert.ok(db.calls.some(([k, t, , patch]) => k === "update" && t === "instructor_curricula" && patch.summary === "포토샵 기초"));
+  assert.match(c.textContent, /승인했습니다/);
+});
+
+test("V3 승인 대기 방특: 기수를 골라야 승인, 고른 기수로 옮겨 승인", async () => {
+  const d = data();
+  d.instructor_curricula = [{ id: "c9", instructor_id: "i1", set_id: "set1", subject_id: "s4", step_label: "1단계", written: "방특 원문", summary: "요약", status: "pending", vacation: true, updated_at: "2026-10-28T00:00:00Z" }];
+  d.instructor_subject_materials = [];
+  d.instructor_profile_drafts = [];
+  d.site_settings = [];
+  const db = fakeSupabase(d);
+  const approvals = [];
+  db.rpc = async (name, args) => { approvals.push([name, args]); return { data: null, error: null }; };
+  v3.state.reviews.clear();
+  v3.state.reviews.set("i1|set1|s4", new Map([["none", "none"]]));
+  location.hash = "#/inbox";
+  const c = await page("inbox", { supabase: db });
+  button(c, "과목 전체 승인").click();
+  await flush();
+  assert.match(c.textContent, /담을 방특 기수를 골라주세요/);
+  const pickCohort = [...c.querySelectorAll("select")].at(-1);
+  pickCohort.value = "v2";
+  button(c, "과목 전체 승인").click();
+  await flush();
+  assert.ok(db.calls.some(([k, , , patch]) => k === "update" && patch.set_id === "v2"));
+  assert.deepEqual(approvals, [["comsw_approve_curriculum", { p_id: "c9" }]]);
 });
 
 test("V3 학과별 순서 → 로드맵·학과 커리큘럼이 같은 순서, 퇴사 시험은 출처에서 빠짐", async () => {
@@ -149,7 +187,7 @@ test("V3 준비물: 과목 ID별로만 묶고 4분류 탭", async () => {
   assert.equal(rows.length, 2, "다른 과목의 같은 이름 교재는 합치지 않음");
   assert.equal(rows.find((r) => r.subject_id === "s1").teachers, 1);
   const c = await page("materials");
-  assert.deepEqual([...c.querySelectorAll(".v2-tab")].map((t) => t.textContent), ["교재", "준비물", "사용 프로그램", "AI 도구"]);
+  assert.deepEqual([...c.querySelectorAll(".v2-tab")].map((t) => t.textContent), ["교재", "물품", "사용 프로그램", "AI 도구"]);
 });
 
 test("V3 모든 화면이 오류 없이 그려진다", async () => {

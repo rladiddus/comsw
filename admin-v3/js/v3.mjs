@@ -1,0 +1,118 @@
+// V3 시험판 공통: 설계(컴수원_V3_최종설계)의 정책을 지금 DB 위에서 보여 주는 데 필요한 것들.
+// V3 전용 칸(4분류 확정·학과별 순서·재직 상태·통합본 버전)은 아직 DB에 없다. 그 값은 아래 state에만 두고(새로고침하면 사라짐) 저장하지 않는다.
+import { el, pick, chip, select } from "../../admin-v2/js/ui.mjs";
+
+export const state = {
+  dept: "",
+  mode: "regular", // regular | vacation
+  orders: new Map(), // "학과id:mode" → [과목id] (학과별 순서 시험)
+  employed: new Map(), // 강사id → false(퇴사 처리 시험)
+  reviews: new Map(), // 제출 묶음 key → Map(재료id → 최종 분류)
+};
+
+export const CAT = { textbook: "교재", supply: "준비물", software: "사용 프로그램", ai: "AI 도구" };
+export const norm = (s) => String(s || "").replace(/[\s\-_.·()[\]]+/g, "").toLowerCase();
+export const typeChip = (s) => chip(s?.is_vacation ? "방특" : "정규", s?.is_vacation ? "profiles" : "vacation");
+export const shortId = (id) => String(id || "").slice(0, 8);
+export const isEmployed = (id) => state.employed.get(id) !== false;
+
+// 선생님이 칸에 적은 글을 항목으로 나눈다(줄바꿈·쉼표·가운뎃점).
+export function splitItems(text) {
+  return String(text || "").split(/[\n,·]+/).map((s) => s.replace(/^\s*(?:[-•*]|\d+[.)])\s*/, "").trim()).filter(Boolean);
+}
+
+// 규칙 검사(AI 미연결): 이름으로 분류를 짐작해 '제안'만 한다. 선생님 분류는 바꾸지 않는다.
+const WORDS = [
+  ["ai", /chat\s*gpt|gpt|gemini|제미나이|claude|클로드|midjourney|미드저니|copilot|코파일럿|뤼튼|wrtn|생성형|(^|[^a-z])ai([^a-z]|$)|stable\s*diffusion|dall|달리|suno|runway|런웨이|perplexity|퍼플렉시티|노트북lm|notebooklm/i],
+  ["textbook", /교재|도서|워크북|문제집|책$/],
+  ["software", /포토샵|photoshop|일러스트|illustrator|피그마|figma|프리미어|premiere|애프터\s*이펙트|after\s*effects|캐드|autocad|스케치업|sketchup|블렌더|blender|엑셀|excel|파워포인트|powerpoint|vs\s*code|유니티|unity|캔바|canva|인디자인|indesign|라이트룸|lightroom|3ds\s*max|마야|maya|cinema\s*4d|zbrush|지브러시/i],
+];
+export const guessCategory = (label) => WORDS.find(([, re]) => re.test(label))?.[0] ?? null;
+
+// items: [{ id, label, teacher }], others: 같은 과목의 다른 출처(다른 강사·준비물 카드) 이름(norm)
+export function checkMaterials(items, others = []) {
+  return items.map((m) => {
+    const issues = [];
+    const guess = guessCategory(m.label);
+    if (guess && guess !== m.teacher) issues.push(["분류 확인", `${CAT[guess]}(으)로 보입니다`]);
+    if (/http:\/\//i.test(m.label)) issues.push(["링크 확인", "https가 아닌 링크입니다"]);
+    if (norm(m.label).length < 2) issues.push(["내용 부족", "항목명이 너무 짧습니다"]);
+    if (items.some((x) => x !== m && norm(x.label) === norm(m.label))) issues.push(["중복 후보", "같은 제출 안에 같은 항목이 있습니다"]);
+    else if (others.includes(norm(m.label))) issues.push(["중복 후보", "이 과목의 다른 강사·준비물 카드에 같은 항목이 있습니다"]);
+    return { ...m, suggested: guess && guess !== m.teacher ? guess : m.teacher, issues };
+  });
+}
+
+// 지금 DB는 선생님이 '사용 프로그램'과 '준비물' 두 칸에 적는다 → 칸 이름을 선생님 분류로 본다(4분류 입력은 DB 추가 후).
+export const materialsOf = (row) => row ? [
+  ...splitItems(row.tools).map((label, i) => ({ id: `t${i}`, label, teacher: "software" })),
+  ...splitItems(row.supplies).map((label, i) => ({ id: `s${i}`, label, teacher: "supply" })),
+] : [];
+
+// 학과·유형의 과목 순서. 저장된 학과별 순서 칸이 없어 지금은 전체 공통 순서(subjects.sort_order)를 쓴다.
+// 방특 과목은 학과 연결이 없는 경우가 많아, 그 학과 강사가 방특으로 낸 과목도 넣는다.
+export function deptSubjects(dept, mode, { subjects, links, curricula = [], idepts = [] }) {
+  const vac = mode === "vacation";
+  const linked = new Set(links.filter((l) => l.department_id === dept).map((l) => l.subject_id));
+  if (vac) {
+    const mine = new Set(idepts.filter((x) => x.department_id === dept).map((x) => x.instructor_id));
+    curricula.filter((c) => c.vacation && mine.has(c.instructor_id)).forEach((c) => linked.add(c.subject_id));
+  }
+  const base = subjects.filter((s) => linked.has(s.id) && Boolean(s.is_vacation) === vac)
+    .sort((a, b) => (a.sort_order ?? 1e9) - (b.sort_order ?? 1e9) || a.name.localeCompare(b.name));
+  const saved = state.orders.get(`${dept}:${mode}`);
+  return saved ? saved.map((id) => subjects.find((s) => s.id === id)).filter(Boolean) : base;
+}
+
+// 화면 위 공통 막대: 학과 / 정규·방특.
+export function contextBar(depts, onChange, extra = []) {
+  if (!depts.some((d) => d.id === state.dept)) state.dept = depts[0]?.id ?? "";
+  const deptPick = select("학과", depts.map((d) => [d.id, d.name]));
+  deptPick.value = state.dept;
+  deptPick.addEventListener("change", () => { state.dept = deptPick.value; onChange(); });
+  const modeBtn = (mode, text) => Object.assign(el("button", { type: "button", className: state.mode === mode ? "publish-btn" : "ghost-btn", textContent: text }),
+    { onclick: () => { state.mode = mode; [...sw.children].forEach((b, i) => { b.className = (i === 0) === (mode === "regular") ? "publish-btn" : "ghost-btn"; }); onChange(); } });
+  const sw = el("div", { className: "v3-switch" }, [modeBtn("regular", "정규"), modeBtn("vacation", "방특")]);
+  return el("div", { className: "v2-panel v2-filter v2-bar" }, [el("span", { className: "v2-label", textContent: "학과" }), deptPick, sw, el("div", { className: "v2-grow" }), ...extra]);
+}
+
+// 확인 창(브라우저 기본 dialog).
+export function modal(title, body, actions) {
+  const d = el("dialog", { className: "v3-modal" });
+  const close = () => { d.close?.(); d.remove(); };
+  d.append(el("h3", { textContent: title }), ...body, el("div", { className: "v2-actions v2-end" }, [
+    Object.assign(el("button", { type: "button", className: "ghost-btn", textContent: "취소" }), { onclick: close }),
+    ...actions.map(([text, fn]) => Object.assign(el("button", { type: "button", className: "publish-btn", textContent: text }), { onclick: () => { close(); fn(); } })),
+  ]));
+  document.body.append(d);
+  if (d.showModal) d.showModal(); else d.setAttribute("open", "");
+  return d;
+}
+
+// V3 전환 점검: 설계 정책과 지금 데이터가 어긋나는 곳(실데이터 기준). [제목, 설명, 이름 목록, 갈 곳]
+export async function audit(supabase) {
+  const [subjects, links, stepSubjects, curricula, sets] = await Promise.all([
+    pick(supabase, "subjects", "id, name, is_vacation"),
+    pick(supabase, "subject_departments", "subject_id, department_id"),
+    pick(supabase, "roadmap_step_subjects", "step_id, subject_id"),
+    pick(supabase, "instructor_curricula", "subject_id, set_id, status"),
+    pick(supabase, "curriculum_sets", "id, is_vacation"),
+  ]);
+  const name = (id) => subjects.find((s) => s.id === id)?.name ?? "?";
+  const countBy = (list, key) => list.reduce((m, x) => m.set(x[key], (m.get(x[key]) ?? new Set()).add(x)), new Map());
+  const shared = [...countBy(links, "subject_id")].filter(([, v]) => v.size > 1).map(([id]) => name(id));
+  const multi = [...countBy(stepSubjects, "step_id")].filter(([, v]) => v.size > 1).map(([, v]) => [...v].map((x) => name(x.subject_id)).join("+"));
+  const vacSet = new Set(sets.filter((s) => s.is_vacation).map((s) => s.id));
+  const approved = curricula.filter((c) => c.status === "approved");
+  const cohorts = new Map();
+  approved.filter((c) => vacSet.has(c.set_id)).forEach((c) => cohorts.set(c.subject_id, (cohorts.get(c.subject_id) ?? new Set()).add(c.set_id)));
+  const vacMulti = [...cohorts].filter(([, v]) => v.size > 1).map(([id]) => name(id));
+  const mixed = [...new Set(approved.filter((c) => vacSet.has(c.set_id)).map((c) => c.subject_id))]
+    .filter((id) => approved.some((c) => c.subject_id === id && !vacSet.has(c.set_id))).map(name);
+  return [
+    ["여러 학과가 같이 쓰는 과목", "정책 7B: 학과마다 과목 ID를 따로 둬야 합니다.", shared, "#/subjects"],
+    ["과목이 2개 이상인 로드맵 단계", "정책 8A: 로드맵 한 단계에는 과목 하나.", multi, "#/roadmap"],
+    ["여러 방특 기수에 쓰인 과목", "정책 6B: 방특 기수마다 과목 ID를 따로 둬야 합니다.", vacMulti, "#/vacation"],
+    ["정규·방특에 함께 쓰인 과목", "정책 6B: 정규와 방특은 이름이 같아도 다른 과목입니다.", mixed, "#/subjects"],
+  ];
+}

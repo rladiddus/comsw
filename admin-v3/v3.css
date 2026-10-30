@@ -112,3 +112,8 @@
 .same-subject { display:inline-flex; align-items:center; gap:6px; font-size:14px; font-weight:600; white-space:nowrap; }
 .same-subject input { width:auto; margin:0; }
 .new-subject-name { max-width:420px; margin-bottom:12px; }
+/* 제목 오른쪽 고르기 칸(강사 커리큘럼의 학과·정규/방특) */
+.v3-titlerow { display:flex; align-items:center; gap:16px; flex-wrap:wrap; margin-bottom:6px; }
+.v3-titlerow h1 { margin:0; }
+.v3-headbar:empty { display:none; }
+.v3-headbar .v2-bar { margin:0; padding:8px 12px; }

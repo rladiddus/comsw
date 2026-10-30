@@ -92,20 +92,23 @@ export async function publish() {
   return true;
 }
 
-// 화면 머리(시안): 홈 / 메뉴, 제목, 설명, 오른쪽 버튼 자리(화면이 ctx.headActions에 채운다).
+// 화면 머리(시안): 홈 / 메뉴, 제목(오른쪽에 화면이 ctx.headBar로 고르기 칸을 둘 수 있음), 설명, 오른쪽 버튼 자리(ctx.headActions).
 function pageHead(label, desc) {
   const head = document.createElement("div");
   head.className = "v2-head";
   const titleBox = document.createElement("div");
+  const bar = Object.assign(document.createElement("div"), { className: "v3-headbar" });
+  const titleRow = Object.assign(document.createElement("div"), { className: "v3-titlerow" });
+  titleRow.append(Object.assign(document.createElement("h1"), { textContent: label }), bar);
   titleBox.append(
     Object.assign(document.createElement("div"), { className: "v2-crumb", textContent: `홈 / ${label}` }),
-    Object.assign(document.createElement("h1"), { textContent: label }),
+    titleRow,
     ...(desc ? [Object.assign(document.createElement("p"), { className: "v2-desc", textContent: desc })] : []),
   );
   const actions = document.createElement("div");
   actions.className = "v2-actions";
   head.append(titleBox, actions);
-  return { head, actions };
+  return { head, actions, bar };
 }
 
 let session = null;
@@ -130,11 +133,11 @@ async function route() {
     await mountPage($("#content"), async () => ({
       render: async (box, ctx) => {
         box.className = "v2-page";
-        const { head, actions } = pageHead(label, desc);
+        const { head, actions, bar } = pageHead(label, desc);
         const body = document.createElement("div");
         body.className = "v2-body";
         box.append(head, body);
-        await (await load()).render(body, { ...ctx, headActions: actions });
+        await (await load()).render(body, { ...ctx, headActions: actions, headBar: bar });
       },
     }), { supabase, ...session, label, id, preview, publish, getToken: () => auth.currentUser.getIdToken() });
   } catch (err) { toast(dbErrorMessage(err)); }

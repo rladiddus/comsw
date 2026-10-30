@@ -179,7 +179,7 @@ export async function render(container, ctx) {
         el("small", { className: "muted", textContent: links.filter((l) => l.subject_id === it.g.subject_id).map((l) => nameOf(depts, l.department_id)).join(", ") + "에 같이 반영" }))]),
       row("로드맵 문구", chip("과목 통합본으로 다시 요약 · 학과장 확정", "vacation")),
       row("공개 사이트", chip("별도 반영", "")),
-      btn("이 과목의 과목 통합 커리큘럼 보기", () => { state.mode = it.g.vacation ? "vacation" : "regular"; location.hash = `#/aggregate/${it.g.subject_id}`; }),
+      (it.g.vacation ? btn("방학 특강 보기", () => { location.hash = "#/vacation"; }) : btn("이 과목의 과목 통합 커리큘럼 보기", () => { location.hash = `#/aggregate/${it.g.subject_id}`; })),
     ])];
   }
 

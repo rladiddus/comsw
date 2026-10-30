@@ -324,18 +324,6 @@ test("V3 학과별 순서 → 로드맵·학과 커리큘럼이 같은 순서, �
   saveBtn().click();
   assert.deepEqual(v3.state.orders.get("d1:regular"), ["s3", "s1"]);
   assert.deepEqual(JSON.parse(localStorage.getItem("v3.orders")), [["d1:regular", ["s3", "s1"]]]);
-  // 방특: 정규 과목도 추가 후보(방특 제출은 정규 과목을 그대로 쓴다)
-  v3.state.mode = "vacation";
-  c = await page("aggregate", { supabase: db });
-  button(c, "+ 과목 추가").click();
-  addDlg = document.querySelector("dialog.v3-modal");
-  assert.deepEqual(addNames(), ["웹1", "캐드", "포토샵"]);
-  button(addDlg, "추가").click();
-  button(addDlg, "완료").click();
-  assert.deepEqual(listNames(), ["1. 방특AI", "2. 웹1"]);
-  saveBtn().click();
-  assert.deepEqual(v3.state.orders.get("v1:vacation"), ["s4", "s2"], "방특 순서는 기수(v1)마다");
-  v3.state.mode = "regular";
   v3.state.orders.clear();
   c = await page("aggregate", { supabase: db });
   // 과목별 커리큘럼: 학과 순서대로 표, 수정 → AI생성(3줄)·저장(실제), 제외(V3 순서에서만)
@@ -362,10 +350,6 @@ test("V3 학과별 순서 → 로드맵·학과 커리큘럼이 같은 순서, �
   button(rowsOf()[1], "제외").click();
   assert.deepEqual(v3.state.orders.get("d1:regular"), ["s1"]);
   v3.state.orders.clear(); v3.state.aggTab = "weeks";
-  v3.state.mode = "vacation";
-  c = await page("aggregate");
-  assert.equal(c.querySelector(".v3-aggtabs").hidden, true, "방특이면 탭 없음");
-  v3.state.mode = "regular";
   v3.state.picks.clear(); v3.state.aiLines = 2;
   v3.state.employed.set("i2", false);
   c = await page("aggregate");
@@ -475,47 +459,26 @@ test("V3 강사 커리큘럼: 강사별 과목 / 과목별 강사 탭, 고르면
   v3.state.orders.clear();
 });
 
-test("V3 방특은 학과 대신 기수: 그 기수에 담긴 커리큘럼(방특 체크 없이 담긴 것도)의 과목·단계", async () => {
-  v3.state.dept = "d1"; v3.state.mode = "vacation"; v3.state.cohort = ""; v3.state.orders.clear(); v3.state.picks.clear(); v3.state.employed.clear();
-  const tables = data();
-  // 방특 체크 칸이 생기기 전에 기수에 담긴 정규 과목 커리큘럼(vacation=false)
-  tables.instructor_curricula.push({ id: "c11", instructor_id: "i1", set_id: "v2", subject_id: "s1", step_label: "1단계", written: "여름 포토샵", media_url: "https://example.com/v.png", status: "approved", vacation: false, sort_order: 0 });
-  const s = fakeSupabase(tables); s.rpc = async () => ({ data: [], error: null });
-  let c = await page("aggregate", { supabase: s });
-  const scope = () => c.querySelector(".v2-bar select");
-  assert.match(c.querySelector(".v2-bar").textContent, /시기/);
-  assert.equal(v3.state.cohort, "v1", "처음 기수 = 사이트에 걸린 기수");
-  const leftNames = () => [...c.querySelectorAll(".v2-listitem b")].map((b) => b.textContent);
-  assert.deepEqual(leftNames(), ["1. 방특AI"]);
-  scope().value = "v2"; scope().dispatchEvent(new dom.window.Event("change"));
-  assert.deepEqual(leftNames(), ["1. 포토샵", "2. 방특AI"]);
-  assert.match(c.textContent, /2026 여름 시기에 담긴 강사 커리큘럼의 단계/);
-  c.querySelectorAll(".v2-listitem")[0].click(); // 포토샵
-  assert.match(c.textContent, /김 · 여름 포토샵/);
-  assert.ok(!c.textContent.includes("기초 단계"), "정규 '전체 수업' 단계는 안 나옴");
-  assert.ok(!c.textContent.includes("과목 통합 커리큘럼 문구"), "정규와 같이 쓰는 과목은 문구 고치기 없음");
-  // 정규로 돌아가면 다시 학과
-  button(c, "정규").click();
-  assert.match(c.querySelector(".v2-bar").textContent, /학과/);
-  // 강사 커리큘럼도 같은 기수
-  v3.state.mode = "vacation"; v3.state.teacherTab = "subject";
-  c = await page("teachers", { supabase: s });
-  assert.match(c.querySelector(".v2-bar").textContent, /시기/);
-  assert.deepEqual(leftNames(), ["포토샵", "방특AI"]);
-  assert.match(c.textContent, /여름 포토샵/);
-  v3.state.mode = "regular"; v3.state.teacherTab = "teacher"; v3.state.cohort = "";
+test("V3 강사 커리큘럼·과목 통합 커리큘럼은 정규만(정규·방특 버튼 없음)", async () => {
+  v3.state.dept = "d1"; v3.state.mode = "vacation"; v3.state.orders.clear(); v3.state.picks.clear(); v3.state.employed.clear();
+  for (const f of ["aggregate", "teachers"]) {
+    const c = await page(f);
+    assert.ok(!button(c, "정규") && !button(c, "방특"), `${f}: 정규·방특 버튼 없음`);
+    assert.equal(v3.state.mode, "regular");
+    assert.ok(!c.textContent.includes("방특AI"), `${f}: 방특 과목 안 나옴`);
+  }
 });
 
-test("V3 화면마다 학과·정규/방특·기수를 따로 기억", () => {
-  v3.usePage("aggregate"); v3.state.mode = "vacation"; v3.state.cohort = "v2";
+test("V3 화면마다 학과·정규/방특을 따로 기억", () => {
+  v3.usePage("aggregate"); v3.state.mode = "vacation";
   v3.usePage("teachers");
   assert.equal(v3.state.mode, "regular", "다른 화면은 처음 그대로");
   v3.state.dept = "d2";
   v3.usePage("aggregate");
-  assert.deepEqual([v3.state.mode, v3.state.cohort], ["vacation", "v2"], "돌아오면 떠날 때 고른 그대로");
+  assert.equal(v3.state.mode, "vacation", "돌아오면 떠날 때 고른 그대로");
   v3.usePage("teachers");
   assert.equal(v3.state.dept, "d2");
-  v3.state.dept = "d1"; v3.state.mode = "regular"; v3.state.cohort = "";
+  v3.state.dept = "d1"; v3.state.mode = "regular";
 });
 
 test("V3 기본 설정: 페이지 속성 없이 [페이지 편집], 메뉴는 알약으로 고쳐 저장, 방학 특강·기타 설정은 팝업", async () => {

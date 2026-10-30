@@ -45,7 +45,6 @@ export async function render(container, ctx) {
       `${g.rows.length}단계 · ${formatSeoul(g.at)} 제출 · 준비물 검토 후 과목 전체 승인`, chip("승인 대기", "warn"), "검토하러 가기", `#/inbox/${encodeURIComponent(g.key)}`)),
     ...drafts.slice(0, 3).map((d) => card(`${nameOf(instructors, d.instructor_id)} · 프로필`, "프로필은 과목과 따로 승인합니다.", chip("별도 승인 대기", "warn"), "검토하러 가기", "#/inbox")),
     ...warns.map(([t, d, list, hash]) => card(`${t} ${list.length}건`, `${d} 예: ${list.slice(0, 3).join(", ")}`, chip("V3 전환 전 정리", "red"), "확인", hash)),
-    card("학과별 과목 순서", "학과마다 순서를 정하면 전체 수업·과목 통합 커리큘럼·로드맵이 같은 순서를 씁니다.", chip("단일 관리", "vacation"), "순서 화면 열기", "#/order"),
   ];
   container.append(
     statBox,

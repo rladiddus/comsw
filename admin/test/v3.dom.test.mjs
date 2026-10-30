@@ -61,11 +61,11 @@ const page = async (file, ctx = {}) => {
 };
 const button = (c, text) => [...c.querySelectorAll("button")].find((b) => b.textContent === text);
 
-test("V3 메뉴: 시안의 16메뉴(이름은 기존에 가까운 말)", async () => {
+test("V3 메뉴: 14메뉴(학과 관리·학과별 과목 순서 삭제)", async () => {
   const src = (await import("node:fs")).readFileSync(new URL("../../admin-v3/js/app.mjs", import.meta.url), "utf8");
   const labels = [...src.matchAll(/\["([a-z-]+)", "[^"]+", "([^"]+)",/g)].map((m) => m[2]);
   assert.deepEqual(labels, ["기본 설정 등", "강사 관리", "강사 커리큘럼", "과목 통합 커리큘럼", "방학 특강", "로드맵", "수업별 준비물",
-    "내 커리큘럼", "내 프로필", "대시보드", "승인 대기", "준비물 검토", "학과 관리", "과목 관리", "학과별 과목 순서", "사이트 반영"]);
+    "내 커리큘럼", "내 프로필", "대시보드", "승인 대기", "준비물 검토", "과목 관리", "사이트 반영"]);
 });
 
 test("V3 재료 검사: 칸 나누기·분류 제안·같은 과목 안 중복만", () => {
@@ -152,23 +152,11 @@ test("V3 승인 대기 방특: 기수를 골라야 승인, 고른 기수로 옮�
   assert.deepEqual(approvals, [["comsw_approve_curriculum", { p_id: "c9" }]]);
 });
 
-test("V3 학과별 순서 → 로드맵·학과 커리큘럼이 같은 순서, 퇴사 시험은 출처에서 빠짐", async () => {
+test("V3 과목 통합 순서 → 로드맵·학과 커리큘럼이 같은 순서, 퇴사 시험은 출처에서 빠짐", async () => {
   v3.state.dept = "d1"; v3.state.mode = "regular"; v3.state.orders.clear(); v3.state.employed.clear(); v3.state.roadmap.clear();
-  let c = await page("order");
-  assert.deepEqual([...c.querySelectorAll(".v3-orderrow b")].map((b) => b.textContent), ["포토샵", "웹1"]);
-  assert.ok(![...c.querySelectorAll("button")].some((b) => /^[↑↓]$/.test(b.textContent)), "위·아래 화살표 없음");
-  const q = c.querySelector('input[type="search"]');
-  q.value = "캐"; q.dispatchEvent(new dom.window.Event("input"));
-  assert.match(c.textContent, /캐드/);
-  q.value = "없는과목"; q.dispatchEvent(new dom.window.Event("input"));
-  assert.match(c.textContent, /검색한 과목이 없습니다/);
-  // 웹1을 끌어 포토샵 위쪽 절반에 놓으면 포토샵 앞(점선은 포토샵 위 경계)
-  const [r1, r2] = c.querySelectorAll(".v3-orderrow");
+  v3.state.orders.set("d1:regular", ["s2", "s1"]); // 과목 통합 커리큘럼 왼쪽 목록에서 바꾼 순서
+  let c;
   const drag = (node, type) => node.dispatchEvent(new dom.window.MouseEvent(type, { bubbles: true, cancelable: true, clientY: 0 }));
-  drag(r2, "dragstart"); drag(r1, "dragover");
-  assert.ok(r1.classList.contains("drop-before"));
-  drag(r1, "drop");
-  assert.deepEqual(v3.state.orders.get("d1:regular"), ["s2", "s1"]);
   v3.state.mode = "vacation"; // 로드맵은 정규만 → 들어가면 정규
   c = await page("roadmap");
   assert.equal(v3.state.mode, "regular");
@@ -395,7 +383,7 @@ test("V3 준비물: 학과·정규/방특 없이 4분류 탭, 탭마다 학과�
 });
 
 test("V3 모든 화면이 오류 없이 그려진다", async () => {
-  for (const f of ["dashboard", "inbox", "validation", "depts", "subjects", "order", "instructors", "teachers", "aggregate", "roadmap", "materials", "vacation", "release", "legacy"]) { // mine·profile은 기존 화면이 Firebase(CDN)를 불러 테스트에서 못 염(V2 테스트와 같음)
+  for (const f of ["dashboard", "inbox", "validation", "subjects", "instructors", "teachers", "aggregate", "roadmap", "materials", "vacation", "release", "legacy"]) { // mine·profile은 기존 화면이 Firebase(CDN)를 불러 테스트에서 못 염(V2 테스트와 같음)
     location.hash = `#/${f}`;
     const c = await page(f);
     assert.ok(!c.querySelector(".save-state.err"), `${f}: ${c.querySelector(".save-state.err")?.textContent}`);

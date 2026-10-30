@@ -32,7 +32,7 @@ export const GROUPS = [
     ["materials", "▧", "수업별 준비물", "", page("materials")], // 준비물·교재·AI 도구
   ]],
   ["프로그램", [
-    ["vacation", "▣", "방학 특강", "방학 특강을 추가하고, 선생님 방특 신청을 담아 강의 목록을 관리합니다.", page("vacation")],
+    ["vacation", "▣", "방학 특강", "", page("vacation")],
   ]],
   ["사이트 운영", [
     ["release", "↥", "사이트 반영", "연계 작업과 반영 전 검사를 확인하고 마지막에 공개 사이트에 반영합니다.", page("release")], // 연계 작업·게시

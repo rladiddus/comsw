@@ -6,8 +6,7 @@ import { dbErrorMessage } from "../fields.mjs";
 // 선생님이 '방특'에 체크해 낸 커리큘럼(instructor_curricula.vacation, 승인 대기)은 아래 '방특 신청'에 과목·강사별로 모이고,
 // '이 그룹에 담기'를 누르면 고른 그룹 세트로 옮겨 승인한다(같은 강사·과목·단계의 예전 줄은 대신함).
 // 사이트 방학 특강 페이지에 나오는 그룹과 배경 이미지는 메인 화면 > 기타 설정에서 고른다.
-// V3(ctx.v3): 선생님이 '방특'에서 그룹을 골라 내므로, 방특 신청은 고른 그룹으로 낸 것과 그룹 없이 낸 예전 신청만 보여 준다.
-export async function render(container, { supabase, v3 = false }) {
+export async function render(container, { supabase }) {
   container.append(el("h2", { textContent: "방학 특강" }));
   const setState = stateLine(container);
   const [{ data: settings }, { data: groupRows }, { data: instructors }, { data: subjects }] = await Promise.all([
@@ -75,10 +74,7 @@ export async function render(container, { supabase, v3 = false }) {
       if (!bundles.has(key)) bundles.set(key, []);
       bundles.get(key).push(r);
     }
-    const group = groupPick.value;
-    const inGroup = (steps) => steps[0].set_id === group;
-    const noGroup = (steps) => !groups.some((g) => g.id === steps[0].set_id);
-    const item = (steps) => {
+    const items = [...bundles.values()].map((steps) => {
       const { instructor_id, subject_id } = steps[0];
       const take = el("button", { type: "button", className: "publish-btn", textContent: "이 그룹에 담기" });
       take.addEventListener("click", (e) => {
@@ -93,23 +89,7 @@ export async function render(container, { supabase, v3 = false }) {
         ]),
         ...steps.map((s) => el("p", { className: "submission-text", textContent: `${s.step_label} — ${s.written || ""}` })),
       ]);
-    };
-    if (v3) {
-      const mine = [...bundles.values()].filter(inGroup);
-      const loose = [...bundles.values()].filter(noGroup);
-      pool.replaceChildren(
-        el("div", { className: "box-title" }, [el("h3", { textContent: `방특 신청 ${mine.length}건 — ${nameOf(groups, group)}` })]),
-        el("p", { className: "desc", textContent: "선생님이 '방특'에 체크하고 이 방학 특강을 골라 낸 커리큘럼입니다(과목 · 강사). 펼치면 단계별 내용이 보이고, '이 그룹에 담기'를 누르면 아래 강의 목록에 들어갑니다." }),
-        ...(mine.length ? mine.map(item) : [el("p", { className: "muted", textContent: "이 방학 특강으로 들어온 신청이 없습니다." })]),
-        ...(loose.length ? [
-          el("h4", { textContent: `방학 특강을 고르지 않은 신청 ${loose.length}건` }),
-          el("p", { className: "desc", textContent: "예전 방식으로 낸 신청입니다. '이 그룹에 담기'를 누르면 위에서 고른 방학 특강에 담깁니다." }),
-          ...loose.map(item),
-        ] : []),
-      );
-      return;
-    }
-    const items = [...bundles.values()].map(item);
+    });
     pool.replaceChildren(
       el("div", { className: "box-title" }, [el("h3", { textContent: `방특 신청 ${bundles.size}건` })]),
       el("p", { className: "desc", textContent: "선생님이 '방특'에 체크해 낸 커리큘럼입니다(과목 · 강사). 펼치면 단계별 내용이 보이고, '이 그룹에 담기'를 누르면 위에서 고른 방학 특강의 강의 목록(아래)으로 들어갑니다." }),
@@ -181,7 +161,6 @@ export async function render(container, { supabase, v3 = false }) {
   groupPick.addEventListener("change", () => {
     setState("");
     showGroup();
-    if (v3) drawPool();
   });
   fillGroups();
   container.append(pool, list);

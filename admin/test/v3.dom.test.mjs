@@ -585,3 +585,27 @@ test("V3 기본 설정: 페이지 속성 없이 [페이지 편집], 메뉴는 �
   assert.ok([...d2.querySelectorAll("button")].some((b) => b.textContent === "삭제"), "로고 삭제");
   d2.remove();
 });
+
+test("V3 방학 특강: 방특 신청 칸·설명 없이, 시기를 고르면 왼쪽 강사 · 오른쪽 과목 → 단계별 이미지·커리큘럼", async () => {
+  const db = fakeSupabase({
+    curriculum_sets: [{ id: "v1", name: "2026 여름", is_vacation: true }, { id: "v2", name: "2026 겨울", is_vacation: true }],
+    site_settings: [{ key: "vacation_set_id", value: "v1" }],
+    instructors: [{ id: "i1", name: "김", sort_order: 0 }, { id: "i2", name: "이", sort_order: 1 }],
+    subjects: [{ id: "s1", name: "포토샵", sort_order: 0 }, { id: "s2", name: "일러", sort_order: 1 }],
+    instructor_curricula: [
+      { instructor_id: "i1", set_id: "v1", subject_id: "s1", step_label: "1단계", written: "원문", summary: "사이트 문구", status: "approved", sort_order: 0 },
+      { instructor_id: "i1", set_id: "v1", subject_id: "s2", step_label: "1단계", written: "일러 원문", status: "approved", sort_order: 1 },
+      { instructor_id: "i2", set_id: "v2", subject_id: "s1", step_label: "1단계", written: "겨울", status: "approved", sort_order: 0 },
+      { instructor_id: "i2", set_id: "v1", subject_id: "s1", step_label: "1단계", written: "대기", status: "pending", sort_order: 0 },
+    ],
+  });
+  const c = await page("vacation", { supabase: db });
+  assert.ok(!/방특 신청|그룹을 고르면/.test(c.textContent));
+  assert.equal(c.querySelector('select[aria-label="방학 특강"]').value, "v1", "사이트에 나오는 시기부터");
+  assert.deepEqual([...c.querySelectorAll(".v2-listitem b")].map((b) => b.textContent), ["김"], "승인된 강사만");
+  assert.deepEqual([...c.querySelectorAll(".v3-picks button")].map((b) => b.textContent), ["포토샵", "일러"]);
+  assert.match(c.querySelector(".v3-week").textContent, /1단계사이트 문구/);
+  const sel = c.querySelector('select[aria-label="방학 특강"]');
+  sel.value = "v2"; sel.dispatchEvent(new dom.window.Event("change"));
+  assert.deepEqual([...c.querySelectorAll(".v2-listitem b")].map((b) => b.textContent), ["이"]);
+});

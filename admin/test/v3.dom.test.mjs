@@ -175,20 +175,43 @@ test("V3 학과별 순서 → 로드맵·학과 커리큘럼이 같은 순서, �
   assert.ok(!button(c, "정규") && !button(c, "방특"), "정규·방특 버튼 없음");
   const left = () => [...c.querySelectorAll(".v3-dragsrc b")].map((b) => b.textContent);
   assert.deepEqual(left(), ["1. 웹1", "2. 포토샵"], "왼쪽 과목은 과목 통합 커리큘럼 순서");
-  const stepSubs = () => [...c.querySelectorAll(".v3-step")].map((b) => [...b.querySelectorAll(".v3-stepsubs .v3-tchip")].map((x) => x.textContent));
+  const boxesOf = () => [...c.querySelectorAll(".v3-step:not(.v3-stepadd)")];
+  const stepSubs = () => boxesOf().map((b) => [...b.querySelectorAll(".v3-stepsubs .v3-tchip")].map((x) => x.textContent));
   assert.deepEqual(stepSubs(), [["포토샵", "웹1"]], "처음 = 지금 로드맵 단계");
-  assert.match(c.querySelector(".v3-step").textContent, /기초/);
+  assert.match(boxesOf()[0].textContent, /기초/);
+  assert.ok(!c.textContent.includes("요약 있음"));
+  assert.ok(!c.textContent.includes("로드맵 문구 고치기"), "아래 기존 화면 없음");
+  assert.equal(button(boxesOf()[0], "AI 요약").disabled, true, "문구가 있고 바뀐 것이 없으면 AI 요약 꺼짐");
+  assert.ok(c.querySelector("button.v3-step.v3-stepadd"), "스텝 추가는 스텝 박스 모양(점선)");
   button(c, "+ 스텝 추가").click();
   assert.deepEqual(stepSubs(), [["포토샵", "웹1"], []]);
+  assert.equal(button(boxesOf()[1], "AI 요약").disabled, true, "과목이 없으면 꺼짐");
   // 왼쪽 웹1을 끌어 STEP 2에 놓으면 STEP 1에서 옮겨 감
   const src = c.querySelectorAll(".v3-dragsrc")[0];
-  const box2 = c.querySelectorAll(".v3-step")[1];
+  const box2 = boxesOf()[1];
   drag(src, "dragstart"); drag(box2, "dragover");
   assert.ok(box2.classList.contains("drop-on"));
   drag(box2, "drop");
   assert.deepEqual(stepSubs(), [["포토샵"], ["웹1"]]);
-  assert.match(c.querySelectorAll(".v3-step")[0].textContent, /과목 문구 없음/, "과목 하나만 든 단계가 없으면 과목 문구 없음");
   assert.match(c.textContent, /STEP 2/);
+  assert.equal(button(boxesOf()[0], "AI 요약").disabled, false, "과목이 바뀌면 AI 요약 켜짐");
+  // AI 요약: 스텝 과목의 문구로 roadmap 요약
+  const { configureServices: cfg } = await import("../../admin/js/services.mjs");
+  let askedR = null;
+  cfg({ summarize: async (kind, text) => { askedR = [kind, text]; return { text: "로드맵 요약" }; } });
+  button(boxesOf()[1], "AI 요약").click();
+  await flush();
+  assert.deepEqual(askedR, ["roadmap", "웹1:"]);
+  assert.match(boxesOf()[1].textContent, /로드맵 요약/);
+  assert.equal(button(boxesOf()[1], "AI 요약").disabled, true);
+  cfg();
+  // 과목 삭제 → − 로 빼기, 스텝 삭제
+  assert.equal(boxesOf()[0].querySelectorAll(".v3-x").length, 0);
+  button(boxesOf()[0], "과목 삭제").click();
+  boxesOf()[0].querySelector('.v3-x[title="포토샵 빼기"]').click();
+  assert.deepEqual(stepSubs(), [[], ["웹1"]]);
+  button(boxesOf()[0], "스텝 삭제").click();
+  assert.deepEqual(stepSubs(), [["웹1"]]);
 
   const { affected } = await import("../../admin-v3/js/pages/instructors.mjs");
   assert.equal(affected("i2", data().instructor_curricula.filter((x) => x.status === "approved"), data().curriculum_sets).length, 3);

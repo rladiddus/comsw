@@ -62,7 +62,10 @@
 .v3-teachtabs { margin:0 0 14px; }
 .v3-picks { display:flex; flex-wrap:wrap; gap:6px; margin-bottom:12px; }
 /* 로드맵: 한 박스 = 한 스텝(왼쪽 과목, 오른쪽 문구), 과목을 끌어 놓을 때 주황 점선 */
-.v3-step { display:grid; grid-template-columns:minmax(160px,1fr) minmax(0,2fr); gap:14px; border:1px solid var(--line); border-radius:12px; padding:12px 14px; margin-bottom:10px; background:#fff; }
+.v3-step { display:grid; grid-template-columns:minmax(160px,1fr) minmax(0,2fr) auto; gap:14px; width:100%; min-height:120px; box-sizing:border-box; border:1px solid var(--line); border-radius:12px; padding:12px 14px; margin-bottom:10px; background:#fff; }
+.v3-stepbtns { display:flex; flex-direction:column; gap:6px; }
+.v3-stepadd { display:flex; align-items:center; justify-content:center; border:2px dashed var(--line); color:var(--muted); font:inherit; font-weight:700; cursor:pointer; }
+.v3-stepadd:hover { border-color:var(--accent); color:var(--accent); }
 .v3-step.drop-on { border:2px dashed var(--accent); }
 .v3-stepsubs { display:flex; flex-direction:column; gap:6px; align-items:flex-start; }
 .v3-steptext p { margin:0 0 6px; font-size:13px; white-space:pre-line; }

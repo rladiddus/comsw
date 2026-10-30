@@ -606,6 +606,11 @@ test("V3 방학 특강: 방특 신청 칸·설명 없이, 시기를 고르면 �
   assert.deepEqual([...c.querySelectorAll(".v3-picks button")].map((b) => b.textContent), ["포토샵", "일러"]);
   assert.match(c.querySelector(".v3-week").textContent, /1단계사이트 문구/);
   const sel = c.querySelector('select[aria-label="방학 특강"]');
+  // 과목별 강사 탭: 왼쪽 과목, 오른쪽 강사
+  [...c.querySelectorAll(".v3-teachtabs button")][1].click();
+  assert.deepEqual([...c.querySelectorAll(".v2-listitem b")].map((b) => b.textContent), ["포토샵", "일러"]);
+  assert.deepEqual([...c.querySelectorAll(".v3-picks button")].map((b) => b.textContent), ["김"]);
+  [...c.querySelectorAll(".v3-teachtabs button")][0].click();
   sel.value = "v2"; sel.dispatchEvent(new dom.window.Event("change"));
   assert.deepEqual([...c.querySelectorAll(".v2-listitem b")].map((b) => b.textContent), ["이"]);
 });

@@ -12,7 +12,7 @@ const PAGES = [
   { ...page("전체 수업"), go: "#/roadmap" },
   { ...page("학과별 자료"), edit: "depts" },
   { ...page("학과 커리큘럼"), go: "#/aggregate" },
-  { ...page("특강/세미나"), off: "아래 '특강·세미나' 탭에서 고칩니다" },
+  { ...page("특강/세미나"), go: "#/seminars" },
   { ...page("수업별 준비물"), go: "#/materials" },
   { ...page("방학 특강"), edit: "vacation" },
   { name: "로고 이미지", file: "roadmap", edit: "logo" },

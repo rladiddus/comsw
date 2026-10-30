@@ -1,8 +1,8 @@
 import { el, tabBox, headActions } from "../../../admin-v2/js/ui.mjs";
 
-// 기본 설정 등: 사이트 화면(V3 site.mjs)과 특강·채용·시스템 설정(V2 화면)을 탭으로 연다.
+// 기본 설정 등: 사이트 화면(V3 site.mjs)과 채용·시스템 설정(V2 화면)을 탭으로 연다. 특강·세미나는 따로 메뉴.
 const V2 = "../../../admin-v2/js/pages/";
-const TABS = [["기본 설정", "./site.mjs"], ["특강·세미나", `${V2}seminars.mjs`], ["채용 공고", `${V2}recruitment.mjs`], ["시스템 설정", `${V2}system.mjs`]];
+const TABS = [["기본 설정", "./site.mjs"], ["채용 공고", `${V2}recruitment.mjs`], ["시스템 설정", `${V2}system.mjs`]];
 
 export async function render(container, ctx) {
   headActions(ctx);

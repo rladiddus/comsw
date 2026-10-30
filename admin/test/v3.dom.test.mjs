@@ -61,10 +61,10 @@ const page = async (file, ctx = {}) => {
 };
 const button = (c, text) => [...c.querySelectorAll("button")].find((b) => b.textContent === text);
 
-test("V3 메뉴: 14메뉴(학과 관리·학과별 과목 순서 삭제)", async () => {
+test("V3 메뉴: 15메뉴(학과 관리·학과별 과목 순서 삭제, 특강·세미나 메뉴로)", async () => {
   const src = (await import("node:fs")).readFileSync(new URL("../../admin-v3/js/app.mjs", import.meta.url), "utf8");
   const labels = [...src.matchAll(/\["([a-z-]+)", "[^"]+", "([^"]+)",/g)].map((m) => m[2]);
-  assert.deepEqual(labels, ["기본 설정 등", "강사 관리", "강사 커리큘럼", "과목 통합 커리큘럼", "방학 특강", "로드맵", "수업별 준비물",
+  assert.deepEqual(labels, ["기본 설정 등", "강사 관리", "강사 커리큘럼", "과목 통합 커리큘럼", "특강·세미나", "방학 특강", "로드맵", "수업별 준비물",
     "내 커리큘럼", "내 프로필", "대시보드", "승인 대기", "준비물 검토", "과목 관리", "사이트 반영"]);
 });
 
@@ -383,7 +383,7 @@ test("V3 준비물: 학과·정규/방특 없이 4분류 탭, 탭마다 학과�
 });
 
 test("V3 모든 화면이 오류 없이 그려진다", async () => {
-  for (const f of ["dashboard", "inbox", "validation", "subjects", "instructors", "teachers", "aggregate", "roadmap", "materials", "vacation", "release", "legacy"]) { // mine·profile은 기존 화면이 Firebase(CDN)를 불러 테스트에서 못 염(V2 테스트와 같음)
+  for (const f of ["dashboard", "inbox", "validation", "subjects", "instructors", "teachers", "aggregate", "roadmap", "materials", "vacation", "seminars", "release", "legacy"]) { // mine·profile은 기존 화면이 Firebase(CDN)를 불러 테스트에서 못 염(V2 테스트와 같음)
     location.hash = `#/${f}`;
     const c = await page(f);
     assert.ok(!c.querySelector(".save-state.err"), `${f}: ${c.querySelector(".save-state.err")?.textContent}`);

@@ -19,7 +19,7 @@ export async function render(container, ctx) {
     pick(supabase, "site_settings", "key, value", (q) => q.eq("key", "vacation_set_id")),
   ]);
   const cohorts = cohortsOf(sets, vacSetting[0]?.value);
-  headActions(ctx, btn("승인 대기 보기", () => { location.hash = "#/inbox"; }, true));
+  headActions(ctx);
   const body = el("div");
   const inScope = (setId) => {
     const set = sets.find((s) => s.id === setId);

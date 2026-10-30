@@ -84,9 +84,9 @@ export async function render(container, ctx) {
     ], teacherTab ? "과목을 고르면 그 과목의 커리큘럼이 나옵니다" : "강사를 고르면 그 강사의 커리큘럼이 나옵니다");
     body.replaceChildren(splitGrid(leftPanel, right));
   }
-  // 학과·정규/방특 칸은 제목 '강사 커리큘럼' 오른쪽에(머리 자리가 없으면 화면 맨 위).
-  const filter = contextBar(depts, draw, [], cohorts);
+  // 학과·정규/방특 칸과 강사별/과목별 탭은 제목 '강사 커리큘럼' 오른쪽에(머리 자리가 없으면 화면 맨 위).
+  const filter = contextBar(depts, draw, [tabs], cohorts);
   if (ctx.headBar) ctx.headBar.replaceChildren(filter); else container.append(filter);
-  container.append(tabs, body);
+  container.append(body);
   draw();
 }

@@ -34,7 +34,7 @@
 .v3-splitter::after { content:""; position:absolute; top:0; bottom:0; left:7px; width:2px; border-radius:2px; background:transparent; }
 .v3-splitter:hover::after, .v3-gridagg.resizing .v3-splitter::after { background:var(--accent); }
 .v3-gridagg.resizing { user-select:none; cursor:col-resize; }
-.v3-aggtabs { margin:0 0 14px; }
+.v3-aggtabs { margin:0 0 0 12px; }
 .v3-week { display:flex; gap:14px; align-items:flex-start; }
 .v3-week p { margin:4px 0 0; font-size:13px; white-space:pre-line; }
 .v3-weekimg { width:96px; aspect-ratio:269 / 391; object-fit:cover; border-radius:8px; border:1px solid var(--line); background:#f4f5f7; flex:none; }
@@ -59,7 +59,7 @@
 .v3-tadd { cursor:pointer; color:var(--accent); border-style:dashed; }
 .v3-tchip .v3-x { font-size:18px; line-height:1; }
 /* 강사 커리큘럼: 학과 박스 아래 탭, 오른쪽 위 과목·강사 고르기 */
-.v3-teachtabs { margin:0 0 14px; }
+.v3-teachtabs { margin:0 0 0 12px; }
 .v3-picks { display:flex; flex-wrap:wrap; gap:6px; margin-bottom:12px; }
 /* 로드맵: 한 박스 = 한 스텝(왼쪽 과목, 오른쪽 문구), 과목을 끌어 놓을 때 주황 점선 */
 .v3-step { display:grid; grid-template-columns:minmax(160px,1fr) minmax(0,2fr) auto; gap:14px; width:100%; min-height:120px; box-sizing:border-box; border:1px solid var(--line); border-radius:12px; padding:12px 14px; margin-bottom:10px; background:#fff; }

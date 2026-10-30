@@ -334,9 +334,9 @@ export async function render(container, ctx) {
     const list = listOf();
     body.replaceChildren(regular && state.aggTab === "subjects" ? subjectsView(list) : weeksView(list));
   }
-  // 학과·정규/방특 칸은 제목 오른쪽에(머리 자리가 없으면 화면 맨 위), 주차별/과목별 탭은 그 아래.
-  const filter = contextBar(depts, draw, [], cohorts);
+  // 학과·정규/방특 칸과 주차별/과목별 탭은 제목 오른쪽에(머리 자리가 없으면 화면 맨 위).
+  const filter = contextBar(depts, draw, [tabs], cohorts);
   if (ctx.headBar) ctx.headBar.replaceChildren(filter); else container.append(filter);
-  container.append(tabs, body);
+  container.append(body);
   draw();
 }

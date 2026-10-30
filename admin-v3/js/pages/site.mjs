@@ -7,7 +7,7 @@ import { menuEditor } from "./site-menu.mjs";
 // '메뉴'는 화면 자리에 알약 메뉴 편집을 바로 보여 준다. 화면이 없는 페이지 편집은 해당 V3 메뉴로 간다.
 const page = (name) => SITE_PAGES.find((p) => p.name === name);
 const PAGES = [
-  { name: "메인·로딩화면", file: "index", edit: "main", note: "배경 미디어 · 첫 방문 로딩 화면" },
+  { name: "메인·로딩화면", file: "index", edit: "main" },
   { name: "메뉴", menu: true },
   { ...page("전체 수업"), go: "#/roadmap" },
   { ...page("학과별 자료"), edit: "depts" },
@@ -15,7 +15,7 @@ const PAGES = [
   { ...page("특강/세미나"), off: "아래 '특강·세미나' 탭에서 고칩니다" },
   { ...page("수업별 준비물"), go: "#/materials" },
   { ...page("방학 특강"), edit: "vacation" },
-  { name: "로고 이미지", file: "roadmap", edit: "logo", note: "로드맵 로고" },
+  { name: "로고 이미지", file: "roadmap", edit: "logo" },
 ];
 
 async function mount(box, load) {
@@ -25,15 +25,17 @@ async function mount(box, load) {
 // 팝업 안 내용. 저장은 각 편집 칸이 바로 한다(기존 화면과 같음).
 function editPopup(kind, ctx, onClose) {
   const { supabase } = ctx;
-  const scroll = (fill) => { const b = el("div", { className: "v3-popscroll" }); mount(b, () => fill(b)); return b; };
+  const scroll = (fill, cls = "") => { const b = el("div", { className: `v3-popscroll ${cls}` }); mount(b, () => fill(b)); return b; };
   const main = (b) => import("../../../admin/js/media-carousel.mjs").then((m) => m.mountMediaCarousel(b, { supabase }));
   const loading = (b) => import("../../../admin/js/pages/loading.mjs").then((m) => m.render(b, { supabase }));
   const depts = (b) => import("../../../admin/js/pages/departments.mjs").then((m) => m.render(b, ctx));
   const setting = (only) => (b) => import("../../../admin/js/pages/main-page.mjs").then((m) => m.settingsForm(b, supabase, only));
   let body;
-  if (kind === "main") body = tabBox(["메인 화면", "로딩 화면"], (i) => scroll(i ? loading : main));
-  else body = [scroll(kind === "depts" ? depts : setting(kind))];
-  const title = { main: "메인·로딩화면 편집", depts: "학과 관리", vacation: "방학 특강 편집", logo: "로고 이미지" }[kind];
+  // 탭을 오갈 때 다시 불러오면 내용이 비었다 차면서 창 크기가 바뀌어 깜빡인다 → 탭 내용은 한 번만 그리고, 두 탭 높이를 같게.
+  const panes = [];
+  if (kind === "main") body = tabBox(["메인 화면", "로딩 화면"], (i) => (panes[i] ??= scroll(i ? loading : main, "v3-popfixed")));
+  else body = [scroll(kind === "depts" ? depts : setting(kind), kind === "depts" ? "v3-deptpop" : "")];
+  const title = { main: "메인·로딩화면 편집", depts: "학과 소개", vacation: "방학 특강 편집", logo: "로고 이미지" }[kind];
   const d = modal(title, body, [], "닫기");
   d.classList.add("v3-wide");
   d.addEventListener("close", onClose);
@@ -42,7 +44,7 @@ function editPopup(kind, ctx, onClose) {
 export async function render(container, ctx) {
   headActions(ctx);
   let sel = PAGES[0], tablet = false, draft = false;
-  const list = el("div", { className: "v2-boxlist" });
+  const list = el("div", { className: "v2-boxlist v3-sitelist" });
   const frame = el("iframe", { className: "v2-frame v3-siteframe", title: "공개 사이트 페이지" });
   const editBtn = btn("페이지 편집", () => {
     if (sel.edit) editPopup(sel.edit, ctx, () => { frame.src = frame.src; });
@@ -68,7 +70,7 @@ export async function render(container, ctx) {
 
   async function draw() {
     list.replaceChildren(...PAGES.map((p) => Object.assign(el("div", { className: `v2-listitem${p === sel ? " active" : ""}` }, [
-      el("b", { textContent: `▤  ${p.name}` }), el("small", { textContent: p.note ?? (p.menu ? "아래 알약 메뉴" : `${p.file}.html`) }),
+      el("b", { textContent: `▤  ${p.name}` }),
     ]), { onclick: () => { sel = p; draw(); } })));
     const toggle = (text, on, fn) => Object.assign(el("button", { type: "button", className: on ? "publish-btn" : "ghost-btn", textContent: text }), { onclick: fn });
     editBtn.hidden = Boolean(sel.menu);

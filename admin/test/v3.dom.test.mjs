@@ -554,7 +554,7 @@ test("V3 기본 설정: 페이지 속성 없이 [페이지 편집], 메뉴는 �
   button(c, "페이지 편집").click();
   await flush();
   const dd = document.querySelector("dialog.v3-modal");
-  assert.match(dd.querySelector("h3").textContent, /학과 관리/);
+  assert.match(dd.querySelector("h3").textContent, /학과 소개/);
   assert.ok(dd.querySelector(".v3-popscroll").children.length, "기존 학과 화면");
   dd.remove();
   // 방학 특강: 메뉴에서 꺼져 있으면 미리보기로 설정된 모습, 팝업에 기수·배경

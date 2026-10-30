@@ -79,7 +79,11 @@
 @media (max-width:900px) { .v3-sitegrid { grid-template-columns:1fr; } }
 .v2-frame.v3-siteframe { height:auto; aspect-ratio:16 / 9; }
 .v2-frame.v3-siteframe.tablet { max-width:none; aspect-ratio:1180 / 820; }
-.v3-modal.v3-wide { width:min(1100px,94vw); }
+.v3-modal.v3-wide { width:min(900px,94vw); }
+.v3-popscroll.v3-popfixed { height:62vh; max-height:none; }
+/* 학과 소개 팝업: 제목과 겹치는 '학과' 제목 둘 숨김 */
+.v3-deptpop > h2, .v3-deptpop > h3:first-of-type { display:none; }
+.v2-boxlist.v3-sitelist { max-height:none; overflow:visible; }
 .v3-popscroll { max-height:62vh; overflow:auto; padding-right:6px; }
 /* 알약 메뉴 편집 */
 .v3-menustage { display:flex; align-items:center; justify-content:center; gap:12px; flex-wrap:wrap; padding:36px 20px; border-radius:12px; background:linear-gradient(135deg,#3b4a22,#1f2a12); }

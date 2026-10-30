@@ -102,7 +102,7 @@ export async function render(container, ctx) {
     const t = table(["특강", "날짜", "장소", "신청/정원", "공개", "상태", ""], shown, (i) => [
       i.s.title, i.s.datetime_text || "—", i.s.place || "—", `${i.applied} / ${i.s.capacity ?? "—"}`,
       i.s.is_listed === false ? chip("비공개") : chip("공개", "vacation"), chip(...i.state),
-      Object.assign(el("button", { type: "button", className: openRoster === i.s.id ? "publish-btn" : "ghost-btn", textContent: "신청자 명단" }), {
+      Object.assign(el("button", { type: "button", className: `${openRoster === i.s.id ? "publish-btn" : "ghost-btn"} v3-rosterbtn`, textContent: "신청자 명단" }), {
         onclick: (e) => { e.stopPropagation(); openRoster = i.s.id; draw(); },
       }),
     ], (i) => open(i.s));

@@ -158,3 +158,6 @@
 .v3-spop .card-fields.span-grid { grid-template-columns:minmax(0,1fr); gap:8px; }
 .v3-spop .card-fields.span-grid .card-line { grid-column:1 / -1 !important; grid-template-columns:64px minmax(0,1fr); align-items:center; }
 @media (max-width:1100px) { .v3-gridagg.v3-gridright { grid-template-columns:1fr; } }
+/* 신청자 명단 버튼: 고른 것(주황)과 안 고른 것의 크기가 같게 */
+.v3-semtable .v3-rosterbtn { padding:9px 14px; border:1px solid var(--line); font-weight:600; line-height:1.2; }
+.v3-semtable .v3-rosterbtn.publish-btn { border-color:var(--accent); }

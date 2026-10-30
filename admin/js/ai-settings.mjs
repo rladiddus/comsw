@@ -2,9 +2,10 @@ import { el, rows, stateLine } from "./teacher-workspace.mjs";
 import { getServices } from "./services.mjs";
 import { PROMPTS } from "../../supabase/functions/comsw-tools/policy.mjs";
 
-export async function mountAiSettings(container, supabase) {
-  const details = el("details", { className: "workspace-card ai-settings" });
-  details.append(el("summary", { textContent: "AI 설정·이번 달 사용량" }));
+// plain: 접는 칸·연결 확인·사용량 안내 없이 지시문만(V3 시스템 설정 '프롬프트' 탭).
+export async function mountAiSettings(container, supabase, { plain = false } = {}) {
+  const details = el(plain ? "div" : "details", { className: "workspace-card ai-settings" });
+  if (!plain) details.append(el("summary", { textContent: "AI 설정·이번 달 사용량" }));
   container.append(details);
   const setState = stateLine(details);
   const refresh = el("button", {
@@ -29,7 +30,7 @@ export async function mountAiSettings(container, supabase) {
       refresh.disabled = false;
     }
   });
-  details.append(refresh);
+  if (!plain) details.append(refresh);
   try {
     const settings = await rows(supabase, "site_settings");
     const labels = {
@@ -64,7 +65,7 @@ export async function mountAiSettings(container, supabase) {
         ]),
       );
     }
-    details.append(
+    if (!plain) details.append(
       el("p", {
         className: "muted",
         textContent:

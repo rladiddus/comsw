@@ -130,7 +130,7 @@ export function contextBar(depts, onChange, extra = [], cohorts = null) {
 }
 
 // 확인 창(브라우저 기본 dialog). actions: [글자, 할 일](누르면 닫고 실행) 또는 직접 만든 버튼. 창 밖을 누르면 닫힌다.
-export function modal(title, body, actions) {
+export function modal(title, body, actions, cancel = "취소") {
   const d = el("dialog", { className: "v3-modal" });
   const close = () => { d.close?.(); d.remove(); };
   d.addEventListener("click", (e) => {
@@ -139,7 +139,7 @@ export function modal(title, body, actions) {
     if (e.clientX < b.left || e.clientX > b.right || e.clientY < b.top || e.clientY > b.bottom) close();
   });
   d.append(el("h3", { textContent: title }), ...body, el("div", { className: "v2-actions v2-end" }, [
-    Object.assign(el("button", { type: "button", className: "ghost-btn", textContent: "취소" }), { onclick: close }),
+    Object.assign(el("button", { type: "button", className: "ghost-btn", textContent: cancel }), { onclick: close }),
     ...actions.map((a) => Array.isArray(a) ? Object.assign(el("button", { type: "button", className: "publish-btn", textContent: a[0] }), { onclick: () => { close(); a[1](); } }) : a),
   ]));
   document.body.append(d);

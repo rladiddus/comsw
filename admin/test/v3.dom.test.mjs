@@ -517,3 +517,53 @@ test("V3 화면마다 학과·정규/방특·기수를 따로 기억", () => {
   assert.equal(v3.state.dept, "d2");
   v3.state.dept = "d1"; v3.state.mode = "regular"; v3.state.cohort = "";
 });
+
+test("V3 기본 설정: 페이지 속성 없이 [페이지 편집], 메뉴는 알약으로 고쳐 저장, 방학 특강·기타 설정은 팝업", async () => {
+  const db = sb();
+  const t = (name) => db.from(name);
+  await t("menus").insert([
+    { id: "m1", name: "전체 수업", is_active: true, side: "left", sort_order: 1 },
+    { id: "m2", name: "방학 특강", is_active: false, side: "left", sort_order: 2 },
+    { id: "m3", name: "특강/세미나", is_active: true, side: "right", sort_order: 3 },
+  ]);
+  const c = await page("site", { supabase: db });
+  assert.ok(!/페이지 속성/.test(c.textContent));
+  assert.ok(button(c, "페이지 편집"), "사이트 화면 옆 버튼");
+  const item = (name) => [...c.querySelectorAll(".v2-listitem")].find((x) => x.querySelector("b").textContent.includes(name));
+  assert.deepEqual([...c.querySelectorAll(".v2-listitem b")].slice(0, 2).map((b) => b.textContent.trim()), ["▤  메인", "▤  메뉴"].map((s) => s.trim()));
+  item("메뉴").click();
+  await flush();
+  const pills = () => [...c.querySelectorAll(".v3-pill:not(.v3-pilladd)")];
+  assert.equal(c.querySelectorAll(".v3-pills.left .v3-pill:not(.v3-pilladd)").length, 2);
+  assert.ok(pills()[1].classList.contains("off"), "꺼 둔 메뉴는 흐리게");
+  const save = button(c, "저장");
+  assert.ok(save.disabled);
+  const input = pills()[0].querySelector("input[type=text]");
+  input.value = "모든 수업"; input.dispatchEvent(new dom.window.Event("input"));
+  pills()[1].querySelector(".v3-pillx").click();
+  c.querySelector(".v3-pills.right .v3-pilladd").click();
+  assert.ok(!save.disabled);
+  save.click();
+  await flush();
+  assert.ok(db.calls.some(([k, tb]) => k === "delete" && tb === "menus"));
+  assert.ok(db.calls.some(([k, tb, id, p]) => k === "update" && tb === "menus" && id === "m1" && p.name === "모든 수업" && p.sort_order === 1));
+  assert.ok(db.calls.some(([k, tb, p]) => k === "insert" && tb === "menus" && p.name === "새 메뉴" && p.side === "right" && p.sort_order === 3));
+  // 방학 특강 → 팝업에 기수·배경
+  item("방학 특강").click();
+  await flush();
+  button(c, "페이지 편집").click();
+  await flush();
+  const d = document.querySelector("dialog.v3-modal");
+  assert.match(d.textContent, /방학 특강 커리큘럼/);
+  assert.match(d.textContent, /방학 특강 배경/);
+  assert.ok(!/로드맵 로고/.test(d.textContent));
+  d.remove();
+  item("기타 설정").click();
+  await flush();
+  button(c, "페이지 편집").click();
+  await flush();
+  const d2 = document.querySelector("dialog.v3-modal");
+  assert.match(d2.textContent, /로드맵 로고/);
+  assert.ok([...d2.querySelectorAll("button")].some((b) => b.textContent === "삭제"), "로고 삭제");
+  d2.remove();
+});

@@ -14,7 +14,8 @@ function el(tag, props = {}, children = []) {
   return node;
 }
 
-async function settingsForm(container, supabase) {
+// only: "logo"(로드맵 로고, 삭제 가능) · "vacation"(방학 특강 기수·배경) · 없음(전부, 기존 화면).
+export async function settingsForm(container, supabase, only) {
   const state = el("span", { className: "save-state" });
   const [{ data: settings, error }, { data: sets }] = await Promise.all([
     supabase.from("site_settings").select("key, value"),
@@ -32,7 +33,7 @@ async function settingsForm(container, supabase) {
   }
 
   // 배경 미디어와 같은 배치: 왼쪽 미리보기, 오른쪽 이름·주소·올리기.
-  function imageCard(key, label) {
+  function imageCard(key, label, removable = false) {
     const input = el("input", { type: "text", value: value(key), placeholder: "https://… 이미지 주소" });
     const stage = el("div", { className: "media-stage" });
     const preview = () => stage.replaceChildren(mediaPreview(input.value));
@@ -57,7 +58,15 @@ async function settingsForm(container, supabase) {
           el("label", { className: "form-field" }, [el("span", { textContent: "이미지 주소" }), input]),
           editor.zone,
         ]),
-        el("div", { className: "media-actions" }, [editor.button]),
+        el("div", { className: "media-actions" }, [editor.button, ...(removable ? [el("button", {
+          type: "button", className: "ghost-btn danger", textContent: "삭제",
+          onclick: async () => {
+            if (!input.value.trim() || !confirm(`${label}를 삭제할까요?`)) return;
+            input.value = "";
+            preview();
+            await save(key, "");
+          },
+        })] : [])]),
       ]),
     ]);
   }
@@ -69,12 +78,15 @@ async function settingsForm(container, supabase) {
   select.value = value("vacation_set_id");
   select.addEventListener("change", () => save("vacation_set_id", select.value));
 
-  container.append(
-    el("h3", { textContent: "기타 설정" }),
-    el("div", { className: "editor-bar" }, [state]),
-    imageCard("roadmap_logo_url", "로드맵 로고"),
+  const logo = () => [imageCard("roadmap_logo_url", "로드맵 로고", only === "logo")];
+  const vacation = () => [
     el("label", { className: "form-field settings-select" }, [el("span", { textContent: "방학 특강 커리큘럼" }), select]),
     imageCard("vacation_background_url", "방학 특강 배경"),
+  ];
+  container.append(
+    ...(only ? [] : [el("h3", { textContent: "기타 설정" })]),
+    el("div", { className: "editor-bar" }, [state]),
+    ...(only === "logo" ? logo() : only === "vacation" ? vacation() : [...logo(), ...vacation()]),
   );
 }
 

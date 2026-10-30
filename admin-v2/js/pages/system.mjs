@@ -27,13 +27,13 @@ export async function render(container, ctx) {
       ["올린 파일", `${media.length >= 500 ? "500+" : media.length}`, "이미지·프로필 사진"],
       ["실패한 작업", `${thisMonth.filter((j) => j.status === "failed").length}`, "이번 달 AI 실패", thisMonth.some((j) => j.status === "failed")],
     ]),
-    el("section", { className: "v2-panel" }, tabBox(["계정·권한", "AI 설정", "올린 파일", "작업 기록"], (i) => {
+    el("section", { className: "v2-panel" }, tabBox(["계정·권한", "프롬프트", "올린 파일", "작업 기록"], (i) => {
       if (i === 0) return [
         dl([["내 계정", email], ["내 역할", roleLabel(role)], ["계정 연결된 강사", `${linked.length}명`]]),
         hint("역할(관리자·학과장·선생님)은 쌤톡 계정에서 정해집니다. 이 화면에서 역할을 바꿀 수 없고, 바꾸려면 쌤톡 관리자에게 요청합니다."),
         hint("누가 언제 무엇을 고쳤는지(감사 기록)는 아직 기록하지 않습니다. DB 추가가 필요합니다.", "warn"),
       ];
-      if (i === 1) { const box = el("div"); mountAiSettings(box, supabase); return [box, hint("AI 결과는 바로 공개되지 않습니다. 사람이 확인하고 저장한 문구만 사이트 반영 대상이 됩니다.")]; }
+      if (i === 1) { const box = el("div"); mountAiSettings(box, supabase, { plain: true }); return [box, hint("AI 결과는 바로 공개되지 않습니다. 사람이 확인하고 저장한 문구만 사이트 반영 대상이 됩니다.")]; }
       if (i === 2) {
         const byKind = Object.entries(MEDIA).map(([k, label]) => [label, `${media.filter((m) => m.kind === k).length}개`]);
         return [dl(byKind), el("h4", { textContent: "최근 올린 파일" }),

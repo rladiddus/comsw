@@ -139,7 +139,8 @@
 .v3-tpopbody .card-fields > .card-line:nth-last-child(2) textarea { height:170px; }
 /* 특강 팝업(강사 팝업과 같은 틀): 포스터 왼쪽 320px, 높이는 특강마다 같게 */
 /* 특강 팝업: 강사 팝업의 70% 너비, 높이는 내용만큼(포스터 안 잘리고 스크롤 없게) */
-.v3-modal.v3-tpop.v3-spop { width:min(826px,94vw); height:auto; min-height:min(600px,90vh); max-height:90vh; }
+/* 대화상자는 위·아래가 0으로 붙어 있어 height:auto면 화면 높이까지 늘어난다 → 높이를 숫자로 정한다 */
+.v3-modal.v3-tpop.v3-spop { width:min(826px,94vw); height:min(600px,90vh); }
 .v3-spop .v3-tpopbody .card-item.no-sort { grid-template-columns:320px minmax(0,1fr); }
 .v3-spop .v3-tpopbody .card-item .card-stage { width:320px; }
 .v3-newstage { display:flex; flex-direction:column; gap:8px; }

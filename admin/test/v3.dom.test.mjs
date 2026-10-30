@@ -399,5 +399,14 @@ test("V3 강사 커리큘럼: 강사별 과목 / 과목별 강사 탭, 고르면
   assert.match(c.textContent, /이 · 포토샵 커리큘럼/);
   assert.match(c.textContent, /이 원문/);
   assert.ok(c.querySelector(".v3-splitter"));
+  assert.ok(!/고치기|승인본이 있는/.test(c.textContent), "기존 화면 영역·설명 없음");
+  // 과목 순서는 과목 통합 커리큘럼(학과별 과목 순서)을 따른다
+  v3.state.orders.set("d1:regular", ["s2", "s1"]);
+  const c2 = await page("teachers", { supabase: s });
+  assert.deepEqual([...c2.querySelectorAll(".v2-listitem b")].map((b) => b.textContent), ["웹1", "포토샵"]);
   v3.state.teacherTab = "teacher";
+  const c3 = await page("teachers", { supabase: s });
+  c3.querySelectorAll(".v2-listitem")[1].click();
+  assert.deepEqual([...c3.querySelectorAll(".v3-picks button")].map((b) => b.textContent), ["웹1", "포토샵"]);
+  v3.state.orders.clear();
 });

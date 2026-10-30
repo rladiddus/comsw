@@ -32,11 +32,31 @@ export async function render(container, { supabase }) {
   container.append(list);
 
   const editor = await mountCardList(list, {
-    supabase,
-    table: "instructors",
+    ...instructorCard(supabase, depts, subjects),
     title: "강사",
     description:
       "사이트 표시에 체크한 강사만 '학과 강사소개'에 나옵니다. 왼쪽 ⠿를 끌어 놓은 순서가 사이트 순서입니다.",
+  });
+  const run = () => {
+    const [d, s, n] = [deptPick.value, subjPick.value, namePick.value.trim()];
+    count.textContent = `${editor.setFilter((r, linked) =>
+      (!d || linked("departments").includes(d)) &&
+      (!s || linked("subjects").includes(s)) &&
+      (!n || (r.name || "").includes(n))
+    )}명`;
+  };
+  search.addEventListener("click", run);
+  namePick.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") run();
+  });
+  run();
+}
+
+// 강사 카드 한 장의 설정(이 화면 목록과 V3 강사 관리 팝업이 같이 쓴다).
+export function instructorCard(supabase, depts, subjects) {
+  return {
+    supabase,
+    table: "instructors",
     imageKey: "photo_url",
     imageLabel: "프로필 사진",
     stageClass: "portrait",
@@ -74,18 +94,5 @@ export async function render(container, { supabase }) {
     deleteConfirm: async (row) => cascadeMessage("강사", row.name, [
       ["강사 커리큘럼", await countRows(supabase, "instructor_curricula", "instructor_id", row.id)],
     ]),
-  });
-  const run = () => {
-    const [d, s, n] = [deptPick.value, subjPick.value, namePick.value.trim()];
-    count.textContent = `${editor.setFilter((r, linked) =>
-      (!d || linked("departments").includes(d)) &&
-      (!s || linked("subjects").includes(s)) &&
-      (!n || (r.name || "").includes(n))
-    )}명`;
   };
-  search.addEventListener("click", run);
-  namePick.addEventListener("keydown", (e) => {
-    if (e.key === "Enter") run();
-  });
-  run();
 }

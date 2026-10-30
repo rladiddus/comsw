@@ -227,8 +227,6 @@ test("V3 학과별 순서 → 로드맵·학과 커리큘럼이 같은 순서, �
   assert.ok(c.querySelector(".v3-steplist"), "스텝 박스만 스크롤되는 칸");
   assert.deepEqual(stepSubs(), [["웹1"]]);
 
-  const { affected } = await import("../../admin-v3/js/pages/instructors.mjs");
-  assert.equal(affected("i2", data().instructor_curricula.filter((x) => x.status === "approved"), data().curriculum_sets).length, 3);
   location.hash = "#/aggregate/s1";
   c = await page("aggregate");
   assert.ok(!c.textContent.includes("기여 강사와 출처"));
@@ -576,4 +574,26 @@ test("V3 방학 특강: 방특 신청 칸·설명 없이, 시기를 고르면 �
   [...c.querySelectorAll(".v3-teachtabs button")][0].click();
   sel.value = "v2"; sel.dispatchEvent(new dom.window.Event("change"));
   assert.deepEqual([...c.querySelectorAll(".v2-listitem b")].map((b) => b.textContent), ["이"]);
+});
+
+test("V3 강사 관리: 5번 안내·통합 출처·작업 없이, 학과→강사 고르기로 거르고, 줄을 누르면 펼친 강사 카드 팝업", async () => {
+  const c = await page("instructors");
+  assert.ok(!/퇴사는 강사 원문|통합 출처|작업/.test(c.textContent));
+  assert.deepEqual([...c.querySelectorAll(".v2-table th")].map((th) => th.textContent), ["강사", "재직 상태", "사이트", "담당 학과", "담당 과목"]);
+  const [dept, name] = c.querySelectorAll(".v2-panel-head select");
+  dept.value = "d2"; dept.dispatchEvent(new dom.window.Event("change"));
+  assert.equal(c.querySelectorAll(".v2-table tbody tr").length, 0, "건축학과 강사 없음");
+  dept.value = "d1"; dept.dispatchEvent(new dom.window.Event("change"));
+  assert.deepEqual([...name.options].map((o) => o.textContent), ["전체 강사", "김", "이"]);
+  name.value = "i2"; name.dispatchEvent(new dom.window.Event("change"));
+  const rows = c.querySelectorAll(".v2-table tbody tr");
+  assert.equal(rows.length, 1);
+  rows[0].click();
+  await flush();
+  const d = document.querySelector("dialog.v3-tpop");
+  assert.match(d.querySelector("h3").textContent, /이 강사/);
+  const card = d.querySelector(".card-item");
+  assert.ok(card && !card.classList.contains("collapsed"), "펼친 카드 한 장");
+  assert.equal(d.querySelectorAll(".card-item").length, 1);
+  d.remove();
 });

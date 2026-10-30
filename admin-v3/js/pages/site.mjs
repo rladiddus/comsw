@@ -28,7 +28,7 @@ function editPopup(kind, ctx, onClose) {
   const scroll = (fill, cls = "") => { const b = el("div", { className: `v3-popscroll ${cls}` }); mount(b, () => fill(b)); return b; };
   const main = (b) => import("../../../admin/js/media-carousel.mjs").then((m) => m.mountMediaCarousel(b, { supabase }));
   const loading = (b) => import("../../../admin/js/pages/loading.mjs").then((m) => m.render(b, { supabase }));
-  const depts = (b) => import("../../../admin/js/pages/departments.mjs").then((m) => m.render(b, ctx));
+  const depts = (b) => import("../../../admin/js/pages/departments.mjs").then((m) => m.render(b, { ...ctx, categories: false }));
   const setting = (only) => (b) => import("../../../admin/js/pages/main-page.mjs").then((m) => m.settingsForm(b, supabase, only));
   let body;
   // 탭을 오갈 때 다시 불러오면 내용이 비었다 차면서 창 크기가 바뀌어 깜빡인다 → 탭 내용은 한 번만 그리고, 두 탭 높이를 같게.

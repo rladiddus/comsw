@@ -5,7 +5,8 @@ import { cascadeMessage } from "../format.mjs";
 import { countRows } from "../count.mjs";
 
 // 학과: 로딩 화면과 같은 카드(대표 이미지 왼쪽, 내용 오른쪽, 끌어서 순서, 접기·펼치기).
-export async function render(container, { supabase }) {
+// categories: false면 아래 '카테고리' 표를 그리지 않는다(V3 기본 설정 › 학과별 자료 팝업).
+export async function render(container, { supabase, categories = true }) {
   container.append(Object.assign(document.createElement("h2"), { textContent: "학과" }));
   await mountCardList(container, {
     supabase,
@@ -27,7 +28,7 @@ export async function render(container, { supabase }) {
       ["강사 연결", await countRows(supabase, "instructor_departments", "department_id", row.id)],
     ]),
   });
-  mountTableEditor(container, {
+  if (categories) mountTableEditor(container, {
     supabase,
     table: "site_categories",
     title: "카테고리",

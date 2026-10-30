@@ -523,6 +523,7 @@ test("V3 기본 설정: 페이지 속성 없이 [페이지 편집], 메뉴는 �
   const dd = document.querySelector("dialog.v3-modal");
   assert.match(dd.querySelector("h3").textContent, /학과 소개/);
   assert.ok(dd.querySelector(".v3-popscroll").children.length, "기존 학과 화면");
+  assert.ok(!/카테고리/.test(dd.textContent), "카테고리 표 없음");
   dd.remove();
   // 방학 특강: 메뉴에서 꺼져 있으면 미리보기로 설정된 모습, 팝업에 기수·배경
   await t("menus").insert({ id: "m9", name: "방학 특강", is_active: false, side: "left", sort_order: 9 }); // 위에서 지운 것을 다시(꺼 둔 메뉴)

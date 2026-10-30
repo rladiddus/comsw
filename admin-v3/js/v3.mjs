@@ -92,6 +92,28 @@ export function modal(title, body, actions) {
   return d;
 }
 
+// 끌어서 순서 바꾸기: pairs = [[줄, id]], ids = 지금 순서. 줄의 위쪽 절반이면 그 앞, 아래쪽 절반이면 뒤(경계에 점선).
+export function sortable(pairs, ids, onDrop) {
+  let dragged = null;
+  const clear = () => pairs.forEach(([n]) => n.classList.remove("drop-before", "drop-after"));
+  pairs.forEach(([r, id]) => {
+    r.draggable = true;
+    const after = (e) => { const b = r.getBoundingClientRect(); return e.clientY > b.top + b.height / 2; };
+    r.addEventListener("dragstart", (e) => { dragged = id; e.dataTransfer?.setData("text/plain", id); });
+    r.addEventListener("dragend", () => { dragged = null; clear(); });
+    r.addEventListener("dragover", (e) => { if (!dragged || dragged === id) return; e.preventDefault(); clear(); r.classList.add(after(e) ? "drop-after" : "drop-before"); });
+    r.addEventListener("dragleave", () => r.classList.remove("drop-before", "drop-after"));
+    r.addEventListener("drop", (e) => {
+      e.preventDefault(); clear();
+      if (!dragged || dragged === id) return;
+      const a = ids.filter((x) => x !== dragged);
+      a.splice(a.indexOf(id) + (after(e) ? 1 : 0), 0, dragged);
+      dragged = null;
+      onDrop(a);
+    });
+  });
+}
+
 // V3 전환 점검: 설계 정책과 지금 데이터가 어긋나는 곳(실데이터 기준). [제목, 설명, 이름 목록, 갈 곳]
 // 정책 7(2026-10-29): 과목 하나를 여러 학과가 같이 쓰는 것은 정상. 대신 강사 × 과목 커리큘럼은 하나여야 한다.
 export async function audit(supabase) {

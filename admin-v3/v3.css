@@ -13,15 +13,15 @@
 .v3-orderrow { display:flex; align-items:center; gap:8px; border:1px solid var(--line); border-radius:9px; padding:8px 10px; margin-bottom:6px; background:#fff; cursor:grab; }
 .v3-orderrow .ghost-btn { padding:4px 9px; }
 .v3-handle { color:#b5bac3; letter-spacing:-2px; }
-.v3-modal { border:0; border-radius:14px; padding:22px; width:min(520px,92vw); box-shadow:0 20px 60px #0003; }
+.v3-modal { position:fixed; inset:0; margin:auto; max-height:88vh; overflow:auto; border:0; border-radius:14px; padding:22px; width:min(520px,92vw); box-shadow:0 20px 60px #0003; }
 .v3-modal::backdrop { background:#1822304d; }
 .v3-modal h3 { margin:0 0 10px; }
 @media (max-width:1100px) { .v3-grid363, .v3-grid48, .v3-three { grid-template-columns:1fr; } }
 /* 끌어 놓을 자리: 줄 사이 경계(줄 간격 6px 한가운데)에 주황 점선 */
-.v3-orderrow { position:relative; }
-.v3-orderrow.drop-before::before, .v3-orderrow.drop-after::after { content:""; position:absolute; left:0; right:0; border-top:2px dashed var(--accent); pointer-events:none; }
-.v3-orderrow.drop-before::before { top:-5px; }
-.v3-orderrow.drop-after::after { bottom:-5px; }
+.v3-orderrow, .drop-before, .drop-after { position:relative; }
+.drop-before::before, .drop-after::after { content:""; position:absolute; left:0; right:0; border-top:2px dashed var(--accent); pointer-events:none; }
+.drop-before::before { top:-5px; }
+.drop-after::after { bottom:-5px; }
 .v3-grid39 { display:grid; grid-template-columns:minmax(220px,3fr) minmax(0,9fr); gap:16px; align-items:start; }
 .v3-lines { gap:2px; margin:0; }
 .v3-lines .v2-tab { min-width:30px; padding:4px 8px; }
@@ -41,3 +41,9 @@
 .v3-modal .v3-orderrow { margin-top:6px; }
 .v3-headrow { padding-top:0; font-size:12px; color:var(--muted); }
 @media (max-width:1100px) { .v3-gridagg { grid-template-columns:1fr; } .v3-headrow { display:none; } }
+/* 단계 카드 오른쪽 버튼(대표 이미지 수정 · AI생성 · 저장), 왼쪽 과목 추가 검색 */
+.v3-weekbtns { display:flex; flex-direction:column; gap:6px; flex:none; }
+.v3-week .v2-textarea { margin-top:6px; }
+.v3-addlist { max-height:220px; margin:6px 0; }
+.v3-addlist .v2-row { padding:4px 0; border-bottom:1px solid var(--line); }
+.v3-gridagg .v2-listitem[draggable=true] { cursor:grab; }

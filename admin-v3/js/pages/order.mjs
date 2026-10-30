@@ -1,5 +1,5 @@
 import { el, rows, pick, chip, hint, btn, locked, panel, empty, search, headActions } from "../../../admin-v2/js/ui.mjs";
-import { state, deptSubjects, contextBar, typeChip } from "../v3.mjs";
+import { state, deptSubjects, contextBar, typeChip, sortable } from "../v3.mjs";
 
 // 학과별 과목 순서(V3 시안): 학과 × 정규/방특마다 순서 하나. 전체 수업·과목 통합 커리큘럼·로드맵이 이 순서를 같이 쓴다.
 // 지금 DB에는 학과별 순서 칸이 없어(전체 공통 sort_order 하나) 저장은 잠그고, 바꾼 순서는 이 화면·로드맵·과목 통합 커리큘럼에서만 보인다.
@@ -16,7 +16,6 @@ export async function render(container, ctx) {
   headActions(ctx, btn("처음 순서로", () => { state.orders.delete(key()); draw(); }), locked("순서 저장", "학과별 순서 칸(subject_departments.sort_order)을 DB에 추가한 뒤 저장할 수 있습니다"));
   const key = () => `${state.dept}:${state.mode}`;
   const body = el("div");
-  let dragged = null;
   // 배치 가능한 과목 검색: 목록만 다시 그려 입력 중 커서가 유지되게 한다.
   const q = search("과목 검색");
   const restBox = el("div", { className: "v3-scroll" });
@@ -33,35 +32,12 @@ export async function render(container, ctx) {
   function draw() {
     const list = deptSubjects(state.dept, state.mode, data);
     const ids = list.map((s) => s.id);
-    const rowsEl = list.map((s, i) => {
-      const r = el("div", { className: "v3-orderrow", draggable: true }, [
-        el("span", { className: "v3-handle", textContent: "⋮⋮" }), el("span", { className: "v2-num", textContent: `${i + 1}` }),
-        el("b", { className: "v2-grow", textContent: s.name }), typeChip(s),
-        btn("빼기", () => setOrder(ids.filter((x) => x !== s.id))),
-      ]);
-      // 끌어 놓을 자리: 줄의 위쪽 절반이면 그 줄 앞, 아래쪽 절반이면 뒤. 들어갈 경계에 점선을 그린다.
-      const after = (e) => { const b = r.getBoundingClientRect(); return e.clientY > b.top + b.height / 2; };
-      const clear = () => rowsEl.forEach((x) => x.classList.remove("drop-before", "drop-after"));
-      r.addEventListener("dragstart", (e) => { dragged = s.id; e.dataTransfer?.setData("text/plain", s.id); });
-      r.addEventListener("dragend", () => { dragged = null; clear(); });
-      r.addEventListener("dragover", (e) => {
-        if (!dragged || dragged === s.id) return;
-        e.preventDefault();
-        clear();
-        r.classList.add(after(e) ? "drop-after" : "drop-before");
-      });
-      r.addEventListener("dragleave", () => r.classList.remove("drop-before", "drop-after"));
-      r.addEventListener("drop", (e) => {
-        e.preventDefault();
-        clear();
-        if (!dragged || dragged === s.id) return;
-        const a = ids.filter((x) => x !== dragged);
-        a.splice(a.indexOf(s.id) + (after(e) ? 1 : 0), 0, dragged);
-        dragged = null;
-        setOrder(a);
-      });
-      return r;
-    });
+    const rowsEl = list.map((s, i) => el("div", { className: "v3-orderrow" }, [
+      el("span", { className: "v3-handle", textContent: "⋮⋮" }), el("span", { className: "v2-num", textContent: `${i + 1}` }),
+      el("b", { className: "v2-grow", textContent: s.name }), typeChip(s),
+      btn("빼기", () => setOrder(ids.filter((x) => x !== s.id))),
+    ]));
+    sortable(rowsEl.map((r, i) => [r, ids[i]]), ids, setOrder);
     rest = subjects.filter((s) => Boolean(s.is_vacation) === (state.mode === "vacation") && !ids.includes(s.id)).sort((a, b) => a.name.localeCompare(b.name));
     addTo = (id) => setOrder([...ids, id]);
     fillRest();

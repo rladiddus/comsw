@@ -205,42 +205,67 @@ test("V3 학과별 순서 → 로드맵·학과 커리큘럼이 같은 순서, �
   assert.deepEqual(v3.state.picks.get("s1|regular"), ["i2", "i1"]);
   assert.match(c.textContent, /통합 강사: 이, 김/);
   assert.match(c.textContent, /다시 만들기 필요/);
-  // AI생성: 3줄 고르면 01, 02, 03 지시 + 명단 강사 원문, '저장'은 과목 문구
+  // 주차별 탭: 통합 문구는 없고(과목별 탭으로), 단계 카드마다 대표 이미지 수정 · AI생성 · 저장
+  assert.ok(!c.textContent.includes("과목 통합본"));
+  assert.ok(!c.textContent.includes("과목 통합 커리큘럼 문구"));
   const { configureServices } = await import("../../admin/js/services.mjs");
   let asked = null;
   const out = "01 가\n02 나\n03 다";
-  configureServices({ summarize: async (kind, text) => { asked = [kind, text]; return { text: out }; } });
+  configureServices({ summarize: async (kind, text) => { asked = [kind, text]; return { text: kind === "week" ? "단계 요약" : out }; } });
   const db = sb();
   location.hash = "#/aggregate/s1";
   c = await page("aggregate", { supabase: db });
-  [...c.querySelectorAll(".v3-lines button")].find((b) => b.textContent === "3").click();
-  button(c, "AI생성").click();
+  const week = c.querySelector(".v3-week");
+  button(week, "AI생성").click();
   await flush();
-  assert.equal(asked[0], "department");
-  assert.match(asked[1], /3줄로 정리: 각 줄은 01, 02, 03로 시작/);
-  assert.match(asked[1], /- 이 원문\n- 옛 원문/);
-  assert.equal(c.querySelector("textarea").value, out);
-  button(c, "저장").click();
+  assert.deepEqual(asked, ["week", "이 원문\n옛 원문"], "강사 팝업 순서대로 이 단계 원문");
+  assert.equal(week.querySelector("textarea").value, "단계 요약");
+  week.querySelector("textarea").value = "직접 고친 문구";
+  button(week, "저장").click();
   await flush();
-  assert.ok(db.calls.some(([k, t, , patch]) => k === "update" && t === "subjects" && patch.dept_curriculum === out));
-  configureServices();
-  // 대표 이미지: 팝업에서 강사 이미지를 고르면 사이트 단계 이미지로 저장
-  button(c, "대표 이미지 수정").click();
-  document.querySelector("dialog.v3-modal .v3-imgpick").click();
+  assert.ok(db.calls.some(([k, t, id, patch]) => k === "update" && t === "subject_weeks" && patch.summary === "직접 고친 문구"));
+  // 대표 이미지: 그 단계 강사 이미지만, 고르면 사이트 단계 이미지로 저장
+  button(week, "대표 이미지 수정").click();
+  let dlgImg = document.querySelector("dialog.v3-modal");
+  assert.equal(dlgImg.querySelectorAll(".v3-imgpick").length, 1);
+  dlgImg.querySelector(".v3-imgpick").click();
   await flush();
   assert.ok(db.calls.some(([k, t, id, patch]) => k === "update" && t === "subject_weeks" && patch.image_url === "https://example.com/b.png"));
-  // 과목별 커리큘럼: 학과 순서대로 표, 수정 → 저장(실제), 제외(V3 순서에서만)
+  // 왼쪽 과목 목록 '수정': + 과목 추가(검색), 끌어서 순서
   v3.state.orders.clear();
+  button(c, "수정").click();
+  button(c, "+ 과목 추가").click();
+  const sq = c.querySelector('input[type="search"]');
+  sq.value = "캐"; sq.dispatchEvent(new dom.window.Event("input"));
+  assert.match(c.textContent, /캐드/);
+  assert.ok(!/웹1추가/.test(c.textContent), "이미 있는 과목은 후보에 없음");
+  button(c, "추가").click();
+  assert.deepEqual(v3.state.orders.get("d1:regular"), ["s1", "s2", "s3"]);
+  const items = c.querySelectorAll(".v2-listitem");
+  drag(items[2], "dragstart"); drag(items[0], "dragover"); drag(items[0], "drop");
+  assert.deepEqual(v3.state.orders.get("d1:regular"), ["s3", "s1", "s2"]);
+  v3.state.orders.clear();
+  // 과목별 커리큘럼: 학과 순서대로 표, 수정 → AI생성(3줄)·저장(실제), 제외(V3 순서에서만)
   [...c.querySelectorAll(".v3-aggtabs button")][1].click();
   const rowsOf = () => [...c.querySelectorAll(".dept-curriculum-row:not(.v3-headrow)")];
   assert.deepEqual(rowsOf().map((r) => r.querySelector("input").value), ["포토샵", "웹1"]);
   assert.match(c.textContent, /학과별 커리큘럼 요약/);
   const first = rowsOf()[0];
+  assert.equal(first.querySelector(".v3-aicontrols").hidden, true, "수정 전에는 AI생성 없음");
   button(first, "수정").click();
+  assert.equal(first.querySelector(".v3-aicontrols").hidden, false);
+  [...first.querySelectorAll(".v3-lines button")].find((b) => b.textContent === "3").click();
+  button(first, "AI생성").click();
+  await flush();
+  assert.equal(asked[0], "department");
+  assert.match(asked[1], /3줄로 정리: 각 줄은 01, 02, 03로 시작/);
+  assert.match(asked[1], /- 이 원문\n- 옛 원문/);
+  assert.equal(first.querySelector(".cell-dept_curriculum textarea").value, out);
   first.querySelector(".cell-duration input").value = "2개월";
   button(first, "저장").click();
   await flush();
-  assert.ok(db.calls.some(([k, t, , patch]) => k === "update" && t === "subjects" && patch.duration === "2개월" && patch.name === "포토샵"));
+  assert.ok(db.calls.some(([k, t, , patch]) => k === "update" && t === "subjects" && patch.duration === "2개월" && patch.name === "포토샵" && patch.dept_curriculum === out));
+  configureServices();
   button(rowsOf()[1], "제외").click();
   assert.deepEqual(v3.state.orders.get("d1:regular"), ["s1"]);
   v3.state.orders.clear(); v3.state.aggTab = "weeks";

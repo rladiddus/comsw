@@ -79,7 +79,10 @@
 @media (max-width:900px) { .v3-sitegrid { grid-template-columns:1fr; } }
 .v2-frame.v3-siteframe { height:auto; aspect-ratio:16 / 9; }
 .v2-frame.v3-siteframe.tablet { max-width:none; aspect-ratio:1180 / 820; }
-.v3-modal.v3-wide { width:min(900px,94vw); }
+.v3-modal.v3-wide { width:min(1080px,94vw); }
+/* 팝업 안 카드(로딩 화면 등): 이름 칸은 글자만큼, 이미지는 조금 작게 → 입력 칸이 넓게 */
+.v3-popscroll .card-line { grid-template-columns:max-content minmax(0,1fr); gap:8px; }
+@media (min-width:901px) { .v3-popscroll .card-item:not(.collapsed) { grid-template-columns:28px minmax(200px,300px) minmax(0,1fr); } }
 .v3-popscroll.v3-popfixed { height:62vh; max-height:none; }
 /* 학과 소개 팝업: 제목과 겹치는 '학과' 제목 둘 숨김 */
 .v3-deptpop > h2, .v3-deptpop > h3:first-of-type { display:none; }

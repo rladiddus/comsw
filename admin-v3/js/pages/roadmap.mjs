@@ -83,6 +83,7 @@ export async function render(container, ctx) {
               { onclick: () => { step.ids = step.ids.filter((x) => x !== id); changed(step); if (!step.ids.length) step.removing = false; draw(); } })] : [])]))
             : [el("small", { className: "muted", textContent: "여기에 과목을 놓으세요" })])]),
         el("div", { className: "v3-steptext" }, [
+          el("b", { textContent: "로드맵 문구" }),
           el("p", { textContent: text || (step.ids.length > 1 ? `과목 ${step.ids.length}개의 문구를 요약해야 합니다.` : step.ids.length ? "로드맵 문구가 없습니다." : "왼쪽에서 과목을 끌어 놓으세요.") }),
           ...(needsText(step) ? [chip("문구 필요", "warn")] : []), msg]),
         el("div", { className: "v3-stepbtns" }, [

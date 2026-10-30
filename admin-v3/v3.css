@@ -68,6 +68,7 @@
 .v3-stepadd:hover { border-color:var(--accent); color:var(--accent); }
 .v3-step.drop-on { border:2px dashed var(--accent); }
 .v3-stepsubs { display:flex; flex-direction:column; gap:6px; align-items:flex-start; }
+.v3-steptext { display:flex; flex-direction:column; gap:6px; align-items:flex-start; }
 .v3-steptext p { margin:0 0 6px; font-size:13px; white-space:pre-line; }
 .v3-dragsrc { cursor:grab; }
 @media (max-width:700px) { .v3-step { grid-template-columns:1fr; } }

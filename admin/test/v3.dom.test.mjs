@@ -371,3 +371,33 @@ test("V3 방특 과목 목록: 정규 과목으로 낸 방특 커리큘럼도 �
   assert.deepEqual(list.map((s) => s.name), ["포토샵"], "학과 연결만 된 정규 과목(캐드)은 방특에 없음");
   assert.deepEqual(v3.addableSubjects([{ id: "x", name: "포토샵" }, { id: "z", name: "방특AI", is_vacation: true }], [], "regular").map((s) => s.id), ["x"]);
 });
+
+test("V3 강사 커리큘럼: 강사별 과목 / 과목별 강사 탭, 고르면 단계별 커리큘럼", async () => {
+  v3.state.dept = "d1"; v3.state.mode = "regular"; v3.state.teacherTab = "teacher"; v3.state.employed.clear();
+  const tables = data();
+  tables.instructor_curricula.push({ id: "c10", instructor_id: "i2", set_id: "set1", subject_id: "s2", step_label: "웹 1단계", written: "웹 원문", status: "approved", vacation: false, sort_order: 0 });
+  const s = fakeSupabase(tables); s.rpc = async () => ({ data: [], error: null });
+  const c = await page("teachers", { supabase: s });
+  const tabs = [...c.querySelectorAll(".v3-teachtabs button")];
+  assert.deepEqual(tabs.map((b) => b.textContent), ["강사별 과목 커리큘럼", "과목별 강사 커리큘럼"]);
+  const leftNames = () => [...c.querySelectorAll(".v2-listitem b")].map((b) => b.textContent);
+  const picks = () => [...c.querySelectorAll(".v3-picks button")].map((b) => b.textContent);
+  assert.deepEqual(leftNames(), ["김", "이"]);
+  assert.deepEqual(picks(), ["포토샵"]);
+  assert.match(c.textContent, /김 · 포토샵 커리큘럼/);
+  assert.match(c.textContent, /옛 원문/);
+  assert.match(c.textContent, /수정 대기/, "김 · 포토샵에 수정 제출이 있음");
+  c.querySelectorAll(".v2-listitem")[1].click();
+  assert.deepEqual(picks(), ["포토샵", "웹1"]);
+  button(c.querySelector(".v3-picks"), "웹1").click();
+  assert.match(c.textContent, /이 · 웹1 커리큘럼/);
+  assert.match(c.textContent, /웹 원문/);
+  tabs[1].click();
+  assert.deepEqual(leftNames(), ["포토샵", "웹1"]);
+  assert.deepEqual(picks(), ["김", "이"]);
+  button(c.querySelector(".v3-picks"), "이").click();
+  assert.match(c.textContent, /이 · 포토샵 커리큘럼/);
+  assert.match(c.textContent, /이 원문/);
+  assert.ok(c.querySelector(".v3-splitter"));
+  v3.state.teacherTab = "teacher";
+});

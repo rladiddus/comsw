@@ -12,6 +12,7 @@ export const state = {
   picks: load("v3.picks"), // "과목id|mode" → [강사id] (과목 통합에 넣을 강사)
   aggTab: "weeks", // 과목 통합 커리큘럼(정규): weeks 주차별 | subjects 과목별
   aiLines: 2, // 과목 통합 AI 요약 줄 수(2~4)
+  teacherTab: "teacher", // 강사 커리큘럼: teacher 강사별 과목 | subject 과목별 강사
   aggLeft: 0, // 과목 통합 커리큘럼 왼쪽 과목 칸 너비(px, 0 = 기본)
   employed: new Map(), // 강사id → false(퇴사 처리 시험)
   reviews: new Map(), // 제출 묶음 key → Map(준비물id → 최종 분류)
@@ -134,6 +135,23 @@ export function sortable(pairs, ids, onDrop) {
       onDrop(a);
     });
   });
+}
+
+// 왼쪽 목록 | 끌 수 있는 경계 | 오른쪽 내용. 왼쪽 너비(기본 330px, 160~520px)는 화면끼리 같이 쓰고 화면에서만 기억.
+export function splitGrid(left, right) {
+  const bar = el("div", { className: "v3-splitter", title: "끌어서 너비 조절" });
+  const grid = el("div", { className: "v3-gridagg" }, [left, bar, right]);
+  bar.addEventListener("pointerdown", (e) => {
+    e.preventDefault();
+    const x0 = grid.getBoundingClientRect().left;
+    const move = (ev) => { state.aggLeft = Math.min(520, Math.max(160, Math.round(ev.clientX - x0))); grid.style.setProperty("--agg-left", `${state.aggLeft}px`); };
+    const up = () => { document.removeEventListener("pointermove", move); document.removeEventListener("pointerup", up); grid.classList.remove("resizing"); };
+    grid.classList.add("resizing");
+    document.addEventListener("pointermove", move);
+    document.addEventListener("pointerup", up);
+  });
+  if (state.aggLeft) grid.style.setProperty("--agg-left", `${state.aggLeft}px`);
+  return grid;
 }
 
 // V3 전환 점검: 설계 정책과 지금 데이터가 어긋나는 곳(실데이터 기준). [제목, 설명, 이름 목록, 갈 곳]

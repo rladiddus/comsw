@@ -28,7 +28,7 @@
 .v3-x { border:0; background:none; margin-left:4px; padding:0 2px; cursor:pointer; color:inherit; font-weight:700; }
 @media (max-width:1100px) { .v3-grid39 { grid-template-columns:1fr; } }
 /* 과목 통합 커리큘럼: 왼쪽 과목 목록은 좁게, 오른쪽 통합본은 넓게 */
-.v3-gridagg { display:grid; grid-template-columns:var(--agg-left,250px) 16px minmax(0,1fr); align-items:stretch; }
+.v3-gridagg { display:grid; grid-template-columns:var(--agg-left,330px) 16px minmax(0,1fr); align-items:stretch; }
 .v3-gridagg > .v2-panel { align-self:start; min-width:0; }
 .v3-splitter { cursor:col-resize; position:relative; touch-action:none; }
 .v3-splitter::after { content:""; position:absolute; top:0; bottom:0; left:7px; width:2px; border-radius:2px; background:transparent; }
@@ -58,3 +58,6 @@
 .v3-tchip { display:flex; align-items:center; gap:6px; border:1px solid var(--line); border-radius:9px; padding:7px 10px; background:#fff; font:inherit; text-align:left; }
 .v3-tadd { cursor:pointer; color:var(--accent); border-style:dashed; }
 .v3-tchip .v3-x { font-size:18px; line-height:1; }
+/* 강사 커리큘럼: 학과 박스 아래 탭, 오른쪽 위 과목·강사 고르기 */
+.v3-teachtabs { margin:0 0 14px; }
+.v3-picks { display:flex; flex-wrap:wrap; gap:6px; margin-bottom:12px; }

@@ -4,7 +4,7 @@ import { getServices } from "../../../admin/js/services.mjs";
 import { driveThumbnail } from "../../../admin/js/drive.mjs";
 import { applyCrop } from "../../../admin/js/image-crop.mjs";
 import { LEVELS } from "../../../admin/js/pages/department-curriculum.mjs";
-import { state, deptSubjects, contextBar, isEmployed, modal, sortable, addableSubjects, saveLocal } from "../v3.mjs";
+import { state, deptSubjects, contextBar, isEmployed, modal, sortable, addableSubjects, saveLocal, splitGrid } from "../v3.mjs";
 
 // 과목 통합 커리큘럼(V3 시안 '학과 통합 커리큘럼', 정책 3·4·5·7): 과목 하나를 모든 학과가 같이 쓴다(2026-10-29 결정).
 // 정규는 두 탭: [주차별 커리큘럼] 고른 과목의 단계별 문구(AI생성·직접 입력·저장)와 대표 이미지(그 단계 강사 이미지 중 고르기), 실제 저장
@@ -31,7 +31,7 @@ export function aiRequest(name, n, parts) {
   return `이번에는 반드시 ${n}줄로 정리: 각 줄은 ${heads}로 시작하고 줄바꿈.\n\n${name} 커리큘럼\n${parts.join("\n\n")}`;
 }
 
-const thumb = (url, alt) => url ? applyCrop(el("img", { className: "v3-weekimg", src: driveThumbnail(url), alt }), url) : el("div", { className: "v3-weekimg empty", textContent: "이미지 없음" });
+export const thumb = (url, alt) => url ? applyCrop(el("img", { className: "v3-weekimg", src: driveThumbnail(url), alt }), url) : el("div", { className: "v3-weekimg empty", textContent: "이미지 없음" });
 const sayIn = (msg) => (t, err = false) => { msg.textContent = t; msg.className = `save-state${err ? " err" : ""}`; };
 
 export async function render(container, ctx) {
@@ -240,28 +240,11 @@ export async function render(container, ctx) {
         text, el("div", { className: "v2-actions v2-end" }, [save]), msg);
     }
 
-    // 가운데 경계를 끌어 왼쪽 너비 조절(160~520px). 화면에서만 기억.
-    const bar = el("div", { className: "v3-splitter", title: "끌어서 너비 조절" });
-    bar.addEventListener("pointerdown", (e) => {
-      e.preventDefault();
-      const left = grid.getBoundingClientRect().left;
-      const move = (ev) => { state.aggLeft = Math.min(520, Math.max(160, Math.round(ev.clientX - left))); grid.style.setProperty("--agg-left", `${state.aggLeft}px`); };
-      const up = () => { document.removeEventListener("pointermove", move); document.removeEventListener("pointerup", up); grid.classList.remove("resizing"); };
-      grid.classList.add("resizing");
-      document.addEventListener("pointermove", move);
-      document.addEventListener("pointerup", up);
-    });
-    const grid = el("div", { className: "v3-gridagg" }, [
-      subjectList(list),
-      bar,
-      panel(`주차별 커리큘럼 · ${subject?.name ?? ""}`, subject ? [
+    return splitGrid(subjectList(list), panel(`주차별 커리큘럼 · ${subject?.name ?? ""}`, subject ? [
         ...merged,
         ...(myWeeks.length ? myWeeks.map((w, i) => weekCard(subject, w, i)) : [empty("이 과목은 사이트 단계가 없습니다. 운영 관리 화면의 '학과 커리큘럼 > 단계'에서 만듭니다.")]),
         ...(shared.length > 1 ? [hint(`이 과목을 쓰는 ${shared.length}개 학과(${shared.join(", ")})에 같은 단계가 나옵니다. 고치면 모두 같이 바뀝니다.`)] : []),
-      ] : [empty("과목을 고르세요.")], "사이트 '전체 수업'의 단계"),
-    ]);
-    if (state.aggLeft) grid.style.setProperty("--agg-left", `${state.aggLeft}px`);
-    return grid;
+      ] : [empty("과목을 고르세요.")], "사이트 '전체 수업'의 단계"));
   }
 
   // 과목별 커리큘럼: 기존 '학과 커리큘럼' 표 모양. 수정 → 저장(실제), 제외 → 학과 순서에서 바로 뺌(이 브라우저에 저장)

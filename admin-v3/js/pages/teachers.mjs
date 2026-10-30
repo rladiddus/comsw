@@ -1,15 +1,18 @@
 import { el, rows, pick, chip, btn, panel, empty, editor, headActions, groupRequests, nameOf } from "../../../admin-v2/js/ui.mjs";
-import { driveThumbnail } from "../../../admin/js/drive.mjs";
-import { state, contextBar, typeChip, isEmployed } from "../v3.mjs";
+import { state, contextBar, typeChip, isEmployed, splitGrid } from "../v3.mjs";
+import { thumb } from "./aggregate.mjs";
 
-// 강사 커리큘럼(V3 시안): 학과·정규/방특을 고르면 강사 × 과목 승인본 카드. 수정 대기 제출이 있으면 함께 표시.
+// 강사 커리큘럼(V3 시안): 학과·정규/방특을 고르고 두 탭으로 승인본을 본다.
+// [강사별 과목 커리큘럼] 왼쪽 강사 → 오른쪽 그 강사의 과목 → 고른 과목의 단계별 커리큘럼
+// [과목별 강사 커리큘럼] 왼쪽 과목 → 오른쪽 그 과목의 강사 → 고른 강사의 단계별 커리큘럼
+// 수정 대기 제출이 있으면 함께 표시. 방특은 기수가 여럿이면 기수마다 따로 나온다.
 export async function render(container, ctx) {
   const { supabase } = ctx;
   const [depts, curricula, instructors, subjects, sets] = await Promise.all([
     rows(supabase, "departments", (q) => q.order("sort_order")),
     pick(supabase, "instructor_curricula", "instructor_id, set_id, subject_id, step_label, written, media_url, status, vacation, sort_order, updated_at"),
-    pick(supabase, "instructors", "id, name"),
-    pick(supabase, "subjects", "id, name, is_vacation"),
+    pick(supabase, "instructors", "id, name, sort_order"),
+    pick(supabase, "subjects", "id, name, is_vacation, sort_order"),
     pick(supabase, "curriculum_sets", "id, name, department_id, is_vacation"),
   ]);
   const edit = editor("강사 커리큘럼 고치기 (기존 '강사 커리큘럼' 화면)", () => import("../../../admin/js/pages/curricula.mjs"), ctx);
@@ -19,25 +22,57 @@ export async function render(container, ctx) {
     const set = sets.find((s) => s.id === setId);
     return state.mode === "vacation" ? Boolean(set?.is_vacation) : set?.department_id === state.dept && !set?.is_vacation;
   };
+  const pending = curricula.filter((c) => c.status === "pending");
+  const waiting = (g) => pending.some((p) => p.instructor_id === g.instructor_id && p.subject_id === g.subject_id);
+  const byOrder = (list) => (a, b) => (list.find((x) => x.id === a)?.sort_order ?? 1e9) - (list.find((x) => x.id === b)?.sort_order ?? 1e9) || nameOf(list, a).localeCompare(nameOf(list, b));
+  let left = "", pickKey = ""; // 왼쪽에서 고른 강사·과목 id, 오른쪽에서 고른 묶음 key
+
+  const tabs = el("div", { className: "v2-tabs v3-teachtabs" }, [["teacher", "강사별 과목 커리큘럼"], ["subject", "과목별 강사 커리큘럼"]].map(([k, t]) =>
+    Object.assign(el("button", { type: "button", className: "v2-tab", textContent: t }), { onclick: () => { state.teacherTab = k; left = ""; pickKey = ""; draw(); } })));
+
+  // 고른 강사 × 과목의 단계별 승인본
+  function curriculum(g) {
+    const subject = subjects.find((s) => s.id === g.subject_id);
+    const steps = [...g.rows].sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0));
+    return [
+      el("div", { className: "v2-row v2-gap" }, [typeChip(subject), ...(state.mode === "vacation" ? [chip(nameOf(sets, g.set_id), "vacation")] : []),
+        isEmployed(g.instructor_id) ? chip("재직", "good") : chip("퇴사(시험)", "red"),
+        ...(waiting(g) ? [chip("수정 대기", "warn"), btn("수정 제출 검토", () => { location.hash = "#/inbox"; }, true)] : [])]),
+      ...steps.map((r) => el("div", { className: "v2-mini-card v3-week" }, [thumb(r.media_url, `${r.step_label} 이미지`),
+        el("div", { className: "v2-grow" }, [el("b", { textContent: r.step_label }), el("p", { textContent: r.written || "(내용 없음)" })])])),
+    ];
+  }
 
   function draw() {
-    const approved = groupRequests(curricula.filter((c) => c.status === "approved" && inScope(c.set_id)));
-    const pending = curricula.filter((c) => c.status === "pending");
-    body.replaceChildren(approved.length ? el("div", { className: "v3-cards" }, approved.map((g) => {
-      const subject = subjects.find((s) => s.id === g.subject_id);
-      const steps = [...g.rows].sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0));
-      const img = steps.find((r) => r.media_url)?.media_url;
-      const waiting = pending.some((p) => p.instructor_id === g.instructor_id && p.subject_id === g.subject_id);
-      const more = el("div", { hidden: true }, steps.map((r) => el("div", { className: "v2-mini-card" }, [el("b", { textContent: r.step_label }), el("small", { textContent: String(r.written || "").slice(0, 200) })])));
-      return panel(`${nameOf(instructors, g.instructor_id)}`, [
-        el("div", { className: "v2-row" }, [el("b", { textContent: subject?.name ?? "" }), typeChip(subject)]),
-        img ? el("img", { className: "v2-thumb wide", src: driveThumbnail(img) || img, alt: "" }) : el("div", { className: "v2-preview-hero", textContent: "이미지 없음" }),
-        el("p", { className: "muted", textContent: `${state.mode === "vacation" ? nameOf(sets, g.set_id) : ""} 승인본 ${steps.length}단계` }),
-        more,
-        el("div", { className: "v2-actions" }, [btn("승인본 보기", () => { more.hidden = !more.hidden; }), ...(waiting ? [btn("수정 제출 검토", () => { location.hash = "#/inbox"; }, true)] : [])]),
-      ], "", [isEmployed(g.instructor_id) ? chip("재직", "good") : chip("퇴사(시험)", "red"), ...(waiting ? [chip("수정 대기", "warn")] : [])]);
-    })) : panel("강사 커리큘럼", [empty("이 학과·유형에 승인된 강사 커리큘럼이 없습니다.")]));
+    const teacherTab = state.teacherTab !== "subject";
+    [...tabs.children].forEach((b, i) => b.classList.toggle("active", (i === 0) === teacherTab));
+    const groups = groupRequests(curricula.filter((c) => c.status === "approved" && inScope(c.set_id)));
+    if (!groups.length) return body.replaceChildren(panel("강사 커리큘럼", [empty("이 학과·유형에 승인된 강사 커리큘럼이 없습니다.")]));
+    const [mine, other, mineList, otherList] = teacherTab ? ["instructor_id", "subject_id", instructors, subjects] : ["subject_id", "instructor_id", subjects, instructors];
+    const lefts = [...new Set(groups.map((g) => g[mine]))].sort(byOrder(mineList));
+    if (!lefts.includes(left)) left = lefts[0];
+    const mineGroups = groups.filter((g) => g[mine] === left).sort((a, b) => byOrder(otherList)(a[other], b[other]));
+    const chosen = mineGroups.find((g) => g.key === pickKey) ?? mineGroups[0];
+    pickKey = chosen.key;
+    const label = (g) => `${nameOf(otherList, g[other])}${state.mode === "vacation" && mineGroups.filter((x) => x[other] === g[other]).length > 1 ? ` · ${nameOf(sets, g.set_id)}` : ""}`;
+
+    const leftPanel = panel(teacherTab ? "강사" : "과목", [el("div", { className: "v2-boxlist" }, lefts.map((id) => {
+      const mg = groups.filter((g) => g[mine] === id);
+      return Object.assign(el("div", { className: `v2-listitem${id === left ? " active" : ""}` }, [
+        el("div", { className: "v2-row v2-gap" }, [el("b", { className: "v2-grow", textContent: nameOf(mineList, id) }),
+          ...(teacherTab && !isEmployed(id) ? [chip("퇴사", "red")] : []), ...(mg.some(waiting) ? [chip("수정 대기", "warn")] : [])]),
+        el("small", { textContent: teacherTab ? `과목 ${mg.length}개` : `강사 ${mg.length}명` }),
+      ]), { onclick: () => { left = id; pickKey = ""; draw(); } });
+    }))], teacherTab ? "이 학과·유형에 승인본이 있는 강사" : "이 학과·유형에 승인본이 있는 과목");
+
+    const right = panel(`${nameOf(mineList, left)} · ${teacherTab ? "과목" : "강사"}`, [
+      el("div", { className: "v3-picks" }, mineGroups.map((g) => Object.assign(el("button", { type: "button", className: g.key === pickKey ? "publish-btn" : "ghost-btn", textContent: label(g) }),
+        { onclick: () => { pickKey = g.key; draw(); } }))),
+      el("p", { className: "v2-label", textContent: `${nameOf(instructors, chosen.instructor_id)} · ${nameOf(subjects, chosen.subject_id)} 커리큘럼` }),
+      ...curriculum(chosen),
+    ], teacherTab ? "과목을 고르면 그 과목의 커리큘럼이 나옵니다" : "강사를 고르면 그 강사의 커리큘럼이 나옵니다");
+    body.replaceChildren(splitGrid(leftPanel, right));
   }
-  container.append(contextBar(depts, draw), body, edit.node);
+  container.append(contextBar(depts, draw), tabs, body, edit.node);
   draw();
 }

@@ -27,56 +27,68 @@ async function applicantCount(supabase, seminarId) {
   return count;
 }
 
+// 신청자 명단(이름·연락처·신청 시각, 엑셀(CSV) 내려받기, 신청 취소)을 box에 그린다. 기존 화면과 V3 특강·세미나가 같이 쓴다.
+export async function drawRoster(box, supabase, seminar) {
+  const state = el("span", { className: "save-state" });
+  const { data, error } = await supabase.from("seminar_applications")
+    .select("id, name, phone, created_at").eq("seminar_id", seminar.id).order("created_at");
+  if (error) {
+    box.replaceChildren(el("p", { className: "save-state err", textContent: dbErrorMessage(error) }));
+    return;
+  }
+  const csvBtn = el("button", { type: "button", className: "ghost-btn", textContent: "엑셀(CSV) 내려받기" });
+  csvBtn.addEventListener("click", () => download(`${seminar.title}_신청자.csv`,
+    toCsv(["특강명", "이름", "연락처", "신청 시각"], data.map(a => [seminar.title, a.name, a.phone, formatSeoul(a.created_at)]))));
+  const rows = data.map(a => {
+    const cancel = el("button", { type: "button", className: "danger", textContent: "취소(삭제)" });
+    cancel.addEventListener("click", async () => {
+      if (!confirm(`${a.name}님의 신청을 삭제할까요?`)) return;
+      const { error: e } = await supabase.from("seminar_applications").delete().eq("id", a.id);
+      if (e) { state.textContent = dbErrorMessage(e); state.classList.add("err"); return; }
+      await drawRoster(box, supabase, seminar);
+    });
+    return el("tr", {}, [
+      el("td", { textContent: a.name }), el("td", { textContent: a.phone }),
+      el("td", { textContent: formatSeoul(a.created_at) }), el("td", { className: "actions" }, [cancel]),
+    ]);
+  });
+  box.replaceChildren(
+    el("h3", { textContent: `신청자 명단 — ${seminar.title} (${data.length}명)` }),
+    el("div", { className: "editor-bar" }, [csvBtn, state]),
+    el("table", { className: "editor" }, [
+      el("thead", {}, [el("tr", {}, ["이름", "연락처", "신청 시각", ""].map(t => el("th", { textContent: t })))]),
+      el("tbody", {}, rows.length ? rows : [el("tr", {}, [el("td", { colSpan: 4, textContent: "신청자가 없습니다." })])]),
+    ]),
+  );
+}
+
 // 특강 목록은 다른 카드 목록처럼 포스터 왼쪽, 처음엔 접힘, '수정'으로 고치고, ⠿를 끌어 순서 = 사이트 순서.
 export async function render(container, { supabase }) {
   const roster = el("section");
   container.append(el("h2", { textContent: "특강·세미나" }));
-
   async function showRoster(seminar) {
-    const state = el("span", { className: "save-state" });
-    const { data, error } = await supabase.from("seminar_applications")
-      .select("id, name, phone, created_at").eq("seminar_id", seminar.id).order("created_at");
-    if (error) {
-      roster.replaceChildren(el("p", { className: "save-state err", textContent: dbErrorMessage(error) }));
-      return;
-    }
-    const csvBtn = el("button", { type: "button", className: "ghost-btn", textContent: "엑셀(CSV) 내려받기" });
-    csvBtn.addEventListener("click", () => download(`${seminar.title}_신청자.csv`,
-      toCsv(["특강명", "이름", "연락처", "신청 시각"], data.map(a => [seminar.title, a.name, a.phone, formatSeoul(a.created_at)]))));
-    const rows = data.map(a => {
-      const cancel = el("button", { type: "button", className: "danger", textContent: "취소(삭제)" });
-      cancel.addEventListener("click", async () => {
-        if (!confirm(`${a.name}님의 신청을 삭제할까요?`)) return;
-        const { error: e } = await supabase.from("seminar_applications").delete().eq("id", a.id);
-        if (e) { state.textContent = dbErrorMessage(e); state.classList.add("err"); return; }
-        await showRoster(seminar);
-      });
-      return el("tr", {}, [
-        el("td", { textContent: a.name }), el("td", { textContent: a.phone }),
-        el("td", { textContent: formatSeoul(a.created_at) }), el("td", { className: "actions" }, [cancel]),
-      ]);
-    });
-    roster.replaceChildren(
-      el("h3", { textContent: `신청자 명단 — ${seminar.title} (${data.length}명)` }),
-      el("div", { className: "editor-bar" }, [csvBtn, state]),
-      el("table", { className: "editor" }, [
-        el("thead", {}, [el("tr", {}, ["이름", "연락처", "신청 시각", ""].map(t => el("th", { textContent: t })))]),
-        el("tbody", {}, rows.length ? rows : [el("tr", {}, [el("td", { colSpan: 4, textContent: "신청자가 없습니다." })])]),
-      ]),
-    );
+    await drawRoster(roster, supabase, seminar);
     roster.scrollIntoView({ behavior: "smooth" });
   }
 
   const list = el("div");
   container.append(list, roster);
   await mountCardList(list, {
-    supabase,
-    table: "seminars",
+    ...seminarCard(supabase),
     title: "특강 목록",
     description: "일시는 '2026년 8월 18일 14:00-16:00'처럼 적어주세요. 날짜가 지나면 사이트에서 신청이 자동으로 마감됩니다. 왼쪽 ⠿를 끌어 놓은 순서가 사이트 순서입니다.",
+    activeKey: null,
+    actions: [{ label: "신청자 명단", onClick: showRoster }],
+  });
+}
+
+// 특강 카드 한 장의 설정(이 화면 목록과 V3 특강·세미나 팝업이 같이 쓴다).
+export function seminarCard(supabase) {
+  return {
+    supabase,
+    table: "seminars",
     imageKey: "poster_url",
     imageLabel: "포스터",
-    activeKey: null,
     fields: [
       // 윗줄: 특강명 / 소주제, 아랫줄: 일시 / 강사명 / 장소 / 정원
       { key: "title", label: "특강명", type: "text", required: true, span: 6 },
@@ -89,6 +101,5 @@ export async function render(container, { supabase }) {
     defaults: (rows) => ({ title: freeName("새 특강", rows, "title") }),
     itemName: (row) => `'${row.title}'`,
     deleteConfirm: async (row) => deleteSeminarMessage(row.title, await applicantCount(supabase, row.id)),
-    actions: [{ label: "신청자 명단", onClick: showRoster }],
-  });
+  };
 }

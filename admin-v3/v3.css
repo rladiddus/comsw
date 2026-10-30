@@ -137,3 +137,11 @@
 .v3-modal.v3-tpop .card-item .media-actions { position:absolute; left:22px; bottom:22px; }
 /* 강사 팝업: 경력 칸을 크게(남는 여백 채움), 한마디는 그대로 */
 .v3-tpopbody .card-fields > .card-line:nth-last-child(2) textarea { height:170px; }
+/* 특강 팝업(강사 팝업과 같은 틀): 포스터 왼쪽 320px, 높이는 특강마다 같게 */
+.v3-modal.v3-tpop.v3-spop { height:min(480px,90vh); }
+.v3-spop .v3-tpopbody .card-item.no-sort { grid-template-columns:320px minmax(0,1fr); }
+.v3-spop .v3-tpopbody .card-item .card-stage { width:320px; min-height:220px; }
+.v3-newstage { display:flex; flex-direction:column; gap:8px; }
+.v3-newcard .card-line input { width:100%; padding:8px 10px; border:1px solid #d9dde4; border-radius:8px; }
+.v3-semtable tbody tr:not(.v3-rosterrow) { cursor:pointer; }
+.v3-roster { padding:8px 4px; cursor:default; }

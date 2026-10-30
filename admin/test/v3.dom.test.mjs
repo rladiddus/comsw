@@ -596,3 +596,39 @@ test("V3 강사 관리: 5번 안내·통합 출처·작업 없이, 학과→강�
   assert.ok(!/성별/.test(d.textContent), "성별 없음");
   d.remove();
 });
+
+test("V3 특강·세미나: 오른쪽 상세·아래 기존 화면 없이, 줄의 [신청자 명단]은 그 줄 아래, 줄을 누르면 특강 팝업, [특강 만들기]는 빈 칸 팝업", async () => {
+  const db = fakeSupabase({
+    seminars: [
+      { id: "m1", title: "AI 특강", subtitle: "소주제", datetime_text: "2026년 8월 5일 11:00-13:00", instructor: "조", place: "J강의장", capacity: 16, sort_order: 0, is_listed: true },
+      { id: "m2", title: "숨긴 특강", datetime_text: "2026년 8월 6일", sort_order: 1, is_listed: false },
+    ],
+    seminar_applications: [{ id: "a1", seminar_id: "m1", name: "이영희", phone: "010-1111-2222", created_at: "2026-10-01T00:00:00Z" }],
+  });
+  const head = document.createElement("div");
+  const c = await page("seminars", { supabase: db, headActions: head });
+  assert.ok(!/행사 상세|기존 '특강·세미나' 화면|아래 기존 화면/.test(c.textContent));
+  const rows = () => [...c.querySelectorAll(".v3-semtable tbody tr")];
+  assert.match(rows()[1].textContent, /비공개/);
+  button(rows()[0], "신청자 명단").click();
+  await flush();
+  assert.ok(rows()[1].classList.contains("v3-rosterrow"), "명단은 그 줄 바로 아래");
+  assert.match(rows()[1].textContent, /이영희/);
+  assert.ok(button(rows()[1], "엑셀(CSV) 내려받기"));
+  rows()[0].querySelector("td").click();
+  await flush();
+  const d = document.querySelector("dialog.v3-spop");
+  const card = d.querySelector(".card-item");
+  assert.ok(card && !card.classList.contains("collapsed"));
+  assert.ok([...card.querySelectorAll(".consent span")].some((x) => x.textContent === "공개"));
+  d.remove();
+  button(head, "특강 만들기").click();
+  const n = document.querySelector("dialog.v3-spop");
+  assert.equal(n.querySelector("h3").textContent, "특강 만들기");
+  const inputs = [...n.querySelectorAll(".card-line input")];
+  assert.ok(inputs.every((i) => !i.value && i.placeholder.startsWith("예:")), "빈 칸 + 예시 글");
+  inputs[0].value = "새 특강"; inputs[5].value = "20";
+  button(n, "만들기").click();
+  await flush();
+  assert.ok(db.calls.some(([k, t, row]) => k === "insert" && t === "seminars" && row.title === "새 특강" && row.capacity === 20 && row.is_listed === true));
+});

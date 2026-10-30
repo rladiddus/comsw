@@ -1,6 +1,6 @@
 import { el, rows, pick, chip, hint, btn, panel, empty, headActions } from "../../../admin-v2/js/ui.mjs";
 import { getServices } from "../../../admin/js/services.mjs";
-import { state, deptSubjects, contextBar, splitGrid } from "../v3.mjs";
+import { state, deptSubjects, contextBar, splitGrid, modal } from "../v3.mjs";
 
 // 로드맵(V3): 학과마다(정규만) 스텝을 위에서 아래로 쌓는다. 왼쪽 = 과목 통합 커리큘럼의 과목 순서, 오른쪽 = 스텝 박스.
 // 스텝에 과목 넣기 = 왼쪽 과목을 끌어 스텝 박스에 놓기(다른 스텝에 있던 과목이면 옮김). 맨 아래 '+ 스텝 추가'.
@@ -86,7 +86,7 @@ export async function render(container, ctx) {
           ...(needsText(step) ? [chip("문구 필요", "warn")] : []), msg]),
         el("div", { className: "v3-stepbtns" }, [
           Object.assign(btn(step.removing ? "삭제 끝" : "과목 삭제", () => { step.removing = !step.removing; draw(); }), { disabled: !step.ids.length }),
-          btn("스텝 삭제", () => { plan.splice(i, 1); draw(); }),
+          btn("스텝 삭제", () => modal("스텝 삭제", [el("p", { textContent: `정말 STEP ${i + 1}${"013678".includes(String(i + 1).at(-1)) ? "을" : "를"} 삭제하시나요?` })], [["삭제", () => { plan.splice(i, 1); draw(); }]]).classList.add("v3-narrow")),
           ai,
         ]),
       ]);
@@ -105,7 +105,7 @@ export async function render(container, ctx) {
     body.replaceChildren(splitGrid(
       panel("과목", [list.length ? el("div", { className: "v2-boxlist" }, items) : empty("이 학과에 과목이 없습니다.")], "과목 통합 커리큘럼 순서 · 끌어서 스텝에 놓기"),
       panel("로드맵 스텝", [
-        ...(boxes.length ? boxes : [empty("스텝이 없습니다. 아래 '+ 스텝 추가'를 누르세요.")]),
+        boxes.length ? el("div", { className: "v2-boxlist v3-steplist" }, boxes) : empty("스텝이 없습니다. 아래 '+ 스텝 추가'를 누르세요."), // 과목 목록처럼 스텝 박스만 스크롤
         Object.assign(el("button", { type: "button", className: "v3-step v3-stepadd", textContent: "+ 스텝 추가" }), { onclick: () => { plan.push({ ids: [], from: null, dirty: true, summary: "", removing: false }); draw(); } }),
         hint("스텝 구성과 AI 요약 문구는 화면에서만 기억합니다(저장 안 됨)."),
       ], "위에서 아래로 한 박스가 한 스텝"),

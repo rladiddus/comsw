@@ -211,6 +211,11 @@ test("V3 학과별 순서 → 로드맵·학과 커리큘럼이 같은 순서, �
   boxesOf()[0].querySelector('.v3-x[title="포토샵 빼기"]').click();
   assert.deepEqual(stepSubs(), [[], ["웹1"]]);
   button(boxesOf()[0], "스텝 삭제").click();
+  assert.deepEqual(stepSubs(), [[], ["웹1"]], "확인 전에는 그대로");
+  const del = document.querySelector("dialog.v3-modal");
+  assert.match(del.textContent, /정말 STEP 1을 삭제하시나요\?/);
+  button(del, "삭제").click();
+  assert.ok(c.querySelector(".v3-steplist"), "스텝 박스만 스크롤되는 칸");
   assert.deepEqual(stepSubs(), [["웹1"]]);
 
   const { affected } = await import("../../admin-v3/js/pages/instructors.mjs");

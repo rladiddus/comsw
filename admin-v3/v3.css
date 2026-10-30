@@ -71,3 +71,4 @@
 .v3-steptext p { margin:0 0 6px; font-size:13px; white-space:pre-line; }
 .v3-dragsrc { cursor:grab; }
 @media (max-width:700px) { .v3-step { grid-template-columns:1fr; } }
+.v3-steplist { padding:0 4px 0 0; margin-bottom:10px; }

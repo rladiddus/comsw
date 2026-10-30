@@ -37,7 +37,8 @@ export async function render(container, ctx) {
     const box = el("div", { className: "v3-tpopbody" });
     const d = modal(`${i.name} 강사`, [box], [], "닫기");
     d.classList.add("v3-tpop");
-    const card = await mountCardList(box, { ...instructorCard(supabase, depts, subjects), activeLabel: "공개", query: (q) => q.eq("id", i.id), toolbar: false, sortable: false });
+    const base = instructorCard(supabase, depts, subjects);
+    const card = await mountCardList(box, { ...base, fields: base.fields.filter((f) => f.key !== "gender"), activeLabel: "공개", query: (q) => q.eq("id", i.id), toolbar: false, sortable: false });
     card.setFold(false);
   }
 

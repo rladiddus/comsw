@@ -64,8 +64,8 @@ const button = (c, text) => [...c.querySelectorAll("button")].find((b) => b.text
 test("V3 메뉴: 시안의 16메뉴(이름은 기존에 가까운 말)", async () => {
   const src = (await import("node:fs")).readFileSync(new URL("../../admin-v3/js/app.mjs", import.meta.url), "utf8");
   const labels = [...src.matchAll(/\["([a-z-]+)", "[^"]+", "([^"]+)",/g)].map((m) => m[2]);
-  assert.deepEqual(labels, ["대시보드", "승인 대기", "준비물 검토", "학과 관리", "과목 관리", "학과별 과목 순서", "강사 관리", "강사 커리큘럼",
-    "과목 통합 커리큘럼", "로드맵", "수업별 준비물", "방학 특강", "사이트 반영", "내 커리큘럼", "내 프로필", "기본 설정 등"]);
+  assert.deepEqual(labels, ["기본 설정 등", "강사 관리", "강사 커리큘럼", "과목 통합 커리큘럼", "방학 특강", "로드맵", "수업별 준비물",
+    "내 커리큘럼", "내 프로필", "대시보드", "승인 대기", "준비물 검토", "학과 관리", "과목 관리", "학과별 과목 순서", "사이트 반영"]);
 });
 
 test("V3 재료 검사: 칸 나누기·분류 제안·같은 과목 안 중복만", () => {
@@ -605,5 +605,6 @@ test("V3 강사 관리: 5번 안내·통합 출처·작업 없이, 학과→강�
   assert.ok(card && !card.classList.contains("collapsed"), "펼친 카드 한 장");
   assert.ok([...card.querySelectorAll(".consent span")].some((x) => x.textContent === "공개"), "사이트 표시 → 공개");
   assert.equal(d.querySelectorAll(".card-item").length, 1);
+  assert.ok(!/성별/.test(d.textContent), "성별 없음");
   d.remove();
 });

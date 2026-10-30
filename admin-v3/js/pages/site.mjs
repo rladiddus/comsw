@@ -1,4 +1,4 @@
-import { el, btn, panel, tabBox, headActions } from "../../../admin-v2/js/ui.mjs";
+import { el, btn, hint, panel, tabBox, headActions } from "../../../admin-v2/js/ui.mjs";
 import { SITE_PAGES } from "../../../admin/js/preview.mjs";
 import { modal } from "../v3.mjs";
 import { menuEditor } from "./site-menu.mjs";
@@ -7,16 +7,15 @@ import { menuEditor } from "./site-menu.mjs";
 // '메뉴'는 화면 자리에 알약 메뉴 편집을 바로 보여 준다. 화면이 없는 페이지 편집은 해당 V3 메뉴로 간다.
 const page = (name) => SITE_PAGES.find((p) => p.name === name);
 const PAGES = [
-  { ...page("메인"), edit: "main" },
+  { name: "메인·로딩화면", file: "index", edit: "main", note: "배경 미디어 · 첫 방문 로딩 화면" },
   { name: "메뉴", menu: true },
-  { name: "로딩 화면", file: "index", edit: "loading", note: "첫 방문 때 잠깐 보이는 화면" },
   { ...page("전체 수업"), go: "#/roadmap" },
-  { ...page("학과별 자료"), go: "#/instructors" },
+  { ...page("학과별 자료"), edit: "depts" },
   { ...page("학과 커리큘럼"), go: "#/aggregate" },
   { ...page("특강/세미나"), off: "아래 '특강·세미나' 탭에서 고칩니다" },
   { ...page("수업별 준비물"), go: "#/materials" },
   { ...page("방학 특강"), edit: "vacation" },
-  { name: "기타 설정", file: "roadmap", edit: "logo", note: "로드맵 로고" },
+  { name: "로고 이미지", file: "roadmap", edit: "logo", note: "로드맵 로고" },
 ];
 
 async function mount(box, load) {
@@ -29,14 +28,12 @@ function editPopup(kind, ctx, onClose) {
   const scroll = (fill) => { const b = el("div", { className: "v3-popscroll" }); mount(b, () => fill(b)); return b; };
   const main = (b) => import("../../../admin/js/media-carousel.mjs").then((m) => m.mountMediaCarousel(b, { supabase }));
   const loading = (b) => import("../../../admin/js/pages/loading.mjs").then((m) => m.render(b, { supabase }));
+  const depts = (b) => import("../../../admin/js/pages/departments.mjs").then((m) => m.render(b, ctx));
   const setting = (only) => (b) => import("../../../admin/js/pages/main-page.mjs").then((m) => m.settingsForm(b, supabase, only));
   let body;
-  if (kind === "main" || kind === "loading") {
-    const [bar, tabBody] = tabBox(["메인 화면", "로딩 화면"], (i) => scroll(i ? loading : main));
-    if (kind === "loading") bar.children[1].click();
-    body = [bar, tabBody];
-  } else body = [scroll(setting(kind))];
-  const title = { main: "메인 화면 편집", loading: "메인 화면 편집", vacation: "방학 특강 편집", logo: "기타 설정" }[kind];
+  if (kind === "main") body = tabBox(["메인 화면", "로딩 화면"], (i) => scroll(i ? loading : main));
+  else body = [scroll(kind === "depts" ? depts : setting(kind))];
+  const title = { main: "메인·로딩화면 편집", depts: "학과 관리", vacation: "방학 특강 편집", logo: "로고 이미지" }[kind];
   const d = modal(title, body, [], "닫기");
   d.classList.add("v3-wide");
   d.addEventListener("close", onClose);
@@ -82,11 +79,18 @@ export async function render(container, ctx) {
       toggle("지금 공개본", !draft, () => { draft = false; draw(); }), toggle("반영 전 미리보기", draft, () => { draft = true; draw(); }),
     ]));
     if (sel.menu) { stage.replaceChildren(); await menuEditor(stage, ctx); return; }
+    // 사이트에서 꺼 둔 메뉴의 페이지(예: 방학 특강)는 공개본이 '준비 중'만 보이므로 미리보기로 설정된 모습을 보여 준다.
+    const { data: menus } = await ctx.supabase.from("menus").select("name, is_active");
+    const key = (v) => String(v ?? "").replace(/\s+/g, "");
+    const hidden = (menus ?? []).some((m) => key(m.name) === key(sel.name) && !m.is_active);
     // 반영 전 미리보기: 로그인 토큰을 같은 사이트 저장소에 두면 공개 페이지가 반영 전 내용을 읽는다.
-    if (draft) { try { localStorage.setItem("comsw_preview_token", await ctx.getToken()); } catch { draft = false; } }
+    let preview = draft || hidden;
+    if (preview) { try { localStorage.setItem("comsw_preview_token", await ctx.getToken()); } catch { preview = draft = false; } }
+    // 미리보기 표시는 이 탭 저장소에 남아 다음 페이지에도 이어지므로, 공개본을 볼 때는 지운다.
+    else try { sessionStorage.removeItem("comsw_preview"); } catch { /* 저장소 막힘 */ }
     frame.classList.toggle("tablet", tablet);
-    frame.src = `../${sel.file}${tablet ? "_tablet" : ""}.html${draft ? "?preview=1" : ""}`;
-    stage.replaceChildren(frame);
+    frame.src = `../${sel.file}${tablet ? "_tablet" : ""}.html${preview ? "?preview=1" : ""}`;
+    stage.replaceChildren(...(hidden && preview ? [hint("사이트에 숨겨 둔 페이지라 공개본에는 '준비 중입니다'만 보입니다. 지금 설정된 모습을 미리보기로 보여 줍니다.", "warn")] : []), frame);
   }
   container.append(el("div", { className: "v3-sitegrid" }, [
     panel("사이트 페이지", [list]),

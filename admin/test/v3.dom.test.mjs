@@ -526,11 +526,11 @@ test("V3 기본 설정: 페이지 속성 없이 [페이지 편집], 메뉴는 �
     { id: "m2", name: "방학 특강", is_active: false, side: "left", sort_order: 2 },
     { id: "m3", name: "특강/세미나", is_active: true, side: "right", sort_order: 3 },
   ]);
-  const c = await page("site", { supabase: db });
+  const c = await page("site", { supabase: db, getToken: async () => "tok" });
   assert.ok(!/페이지 속성/.test(c.textContent));
   assert.ok(button(c, "페이지 편집"), "사이트 화면 옆 버튼");
   const item = (name) => [...c.querySelectorAll(".v2-listitem")].find((x) => x.querySelector("b").textContent.includes(name));
-  assert.deepEqual([...c.querySelectorAll(".v2-listitem b")].slice(0, 2).map((b) => b.textContent.trim()), ["▤  메인", "▤  메뉴"].map((s) => s.trim()));
+  assert.deepEqual([...c.querySelectorAll(".v2-listitem b")].slice(0, 2).map((b) => b.textContent.trim()), ["▤  메인·로딩화면", "▤  메뉴"].map((s) => s.trim()));
   item("메뉴").click();
   await flush();
   const pills = () => [...c.querySelectorAll(".v3-pill:not(.v3-pilladd)")];
@@ -548,9 +548,21 @@ test("V3 기본 설정: 페이지 속성 없이 [페이지 편집], 메뉴는 �
   assert.ok(db.calls.some(([k, tb]) => k === "delete" && tb === "menus"));
   assert.ok(db.calls.some(([k, tb, id, p]) => k === "update" && tb === "menus" && id === "m1" && p.name === "모든 수업" && p.sort_order === 1));
   assert.ok(db.calls.some(([k, tb, p]) => k === "insert" && tb === "menus" && p.name === "새 메뉴" && p.side === "right" && p.sort_order === 3));
-  // 방학 특강 → 팝업에 기수·배경
+  // 학과별 자료 → 학과 관리 팝업
+  item("학과별 자료").click();
+  await flush();
+  button(c, "페이지 편집").click();
+  await flush();
+  const dd = document.querySelector("dialog.v3-modal");
+  assert.match(dd.querySelector("h3").textContent, /학과 관리/);
+  assert.ok(dd.querySelector(".v3-popscroll").children.length, "기존 학과 화면");
+  dd.remove();
+  // 방학 특강: 메뉴에서 꺼져 있으면 미리보기로 설정된 모습, 팝업에 기수·배경
+  await t("menus").insert({ id: "m9", name: "방학 특강", is_active: false, side: "left", sort_order: 9 }); // 위에서 지운 것을 다시(꺼 둔 메뉴)
   item("방학 특강").click();
   await flush();
+  assert.match(c.querySelector("iframe").src, /vacation\.html\?preview=1$/);
+  assert.match(c.textContent, /사이트에 숨겨 둔 페이지/);
   button(c, "페이지 편집").click();
   await flush();
   const d = document.querySelector("dialog.v3-modal");
@@ -558,7 +570,7 @@ test("V3 기본 설정: 페이지 속성 없이 [페이지 편집], 메뉴는 �
   assert.match(d.textContent, /방학 특강 배경/);
   assert.ok(!/로드맵 로고/.test(d.textContent));
   d.remove();
-  item("기타 설정").click();
+  item("로고 이미지").click();
   await flush();
   button(c, "페이지 편집").click();
   await flush();

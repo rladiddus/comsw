@@ -93,6 +93,7 @@
 .v3-pillx { border:0; background:none; color:#d33; font-size:16px; cursor:pointer; padding:0 2px; }
 .v3-pilladd { border:2px dashed #fff; background:transparent; color:#fff; font-size:18px; padding:6px 16px; cursor:pointer; box-shadow:none; }
 .v3-pillmid { width:52px; height:52px; border-radius:50%; background:#fff; display:inline-flex; align-items:center; justify-content:center; font-size:22px; }
-.v3-pill.drop-before { box-shadow:-4px 0 0 #ff6a00; }
-.v3-pill.drop-after { box-shadow:4px 0 0 #ff6a00; }
-.v3-pill.drop-before::before, .v3-pill.drop-after::after { display:none; }
+/* 알약을 끌 때 들어갈 자리: 알약 옆 세로 점선 */
+.v3-pill.drop-before::before, .v3-pill.drop-after::after { top:2px; bottom:2px; right:auto; border-top:0; border-left:3px dashed #fff; }
+.v3-pill.drop-before::before { left:-8px; }
+.v3-pill.drop-after::after { left:auto; right:-8px; }

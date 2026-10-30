@@ -1,10 +1,10 @@
-import { el, rows, pick, chip, hint, btn, panel, empty, search } from "../../../admin-v2/js/ui.mjs";
+import { el, rows, pick, chip, hint, btn, panel, empty, search, nameOf } from "../../../admin-v2/js/ui.mjs";
 import { dbErrorMessage } from "../../../admin/js/fields.mjs";
 import { getServices } from "../../../admin/js/services.mjs";
 import { driveThumbnail } from "../../../admin/js/drive.mjs";
 import { applyCrop } from "../../../admin/js/image-crop.mjs";
 import { LEVELS } from "../../../admin/js/pages/department-curriculum.mjs";
-import { state, deptSubjects, contextBar, isEmployed, modal, sortable, addableSubjects, saveLocal, splitGrid } from "../v3.mjs";
+import { state, deptSubjects, cohortSubjects, cohortsOf, contextBar, isEmployed, modal, sortable, addableSubjects, saveLocal, splitGrid } from "../v3.mjs";
 
 // 과목 통합 커리큘럼(V3 시안 '학과 통합 커리큘럼', 정책 3·4·5·7): 과목 하나를 모든 학과가 같이 쓴다(2026-10-29 결정).
 // 정규는 두 탭: [주차별 커리큘럼] 고른 과목의 단계별 문구(AI생성·직접 입력·저장)와 대표 이미지(그 단계 강사 이미지 중 고르기), 실제 저장
@@ -12,8 +12,10 @@ import { state, deptSubjects, contextBar, isEmployed, modal, sortable, addableSu
 // 방특은 탭 없이 주차별 화면에 통합 문구를 같이 둔다(과목별 표가 없어서).
 // 왼쪽 과목 목록: 끌어서 순서, '+ 과목 추가'(검색 팝업), 과목마다 '강사'(넣을 강사 명단)·'삭제'. 처음 강사 = 이 과목 승인본이 있는 재직 강사.
 // 바꾼 것은 '저장'을 눌러야 state.orders·state.picks로 옮겨 이 브라우저에 저장된다(DB 칸이 생기기 전까지).
-export function sources(approved, sets, mode, subjectId) {
-  return approved.filter((c) => c.subject_id === subjectId && Boolean(sets.find((s) => s.id === c.set_id)?.is_vacation) === (mode === "vacation"));
+// 방특은 고른 기수(cohort = 방학 특강 그룹)에 담긴 것만.
+export function sources(approved, sets, mode, subjectId, cohort = "") {
+  return approved.filter((c) => c.subject_id === subjectId && Boolean(sets.find((s) => s.id === c.set_id)?.is_vacation) === (mode === "vacation")
+    && (mode !== "vacation" || !cohort || c.set_id === cohort));
 }
 
 // 강사의 이 단계 행: 같은 단계 이름, 없으면 같은 자리(순서)의 단계
@@ -36,7 +38,7 @@ const sayIn = (msg) => (t, err = false) => { msg.textContent = t; msg.className 
 
 export async function render(container, ctx) {
   const { supabase } = ctx;
-  const [depts, subjects, links, approved, idepts, sets, instructors, weeks] = await Promise.all([
+  const [depts, subjects, links, approved, idepts, sets, instructors, weeks, vacSetting] = await Promise.all([
     rows(supabase, "departments", (q) => q.order("sort_order")),
     pick(supabase, "subjects", "id, name, is_vacation, sort_order, duration, dept_curriculum, tools, supplies, level"),
     pick(supabase, "subject_departments", "subject_id, department_id"),
@@ -45,16 +47,21 @@ export async function render(container, ctx) {
     pick(supabase, "curriculum_sets", "id, name, department_id, is_vacation"),
     pick(supabase, "instructors", "id, name, sort_order"),
     pick(supabase, "subject_weeks", "id, subject_id, week_label, written, summary, image_url, sort_order"),
+    pick(supabase, "site_settings", "key, value", (q) => q.eq("key", "vacation_set_id")),
   ]);
+  const cohorts = cohortsOf(sets, vacSetting[0]?.value);
   const data = { subjects, links, curricula: approved, idepts };
   const nameOfI = (id) => instructors.find((i) => i.id === id)?.name ?? "?";
-  const key = () => `${state.dept}:${state.mode}`;
+  const vac = () => state.mode === "vacation";
+  const key = () => (vac() ? `${state.cohort}:vacation` : `${state.dept}:${state.mode}`); // 학과 순서 key(방특은 기수)
+  const pk = (id) => `${id}|${vac() ? state.cohort : state.mode}`; // 강사 명단 key(방특은 기수마다)
+  const srcOf = (id) => sources(approved, sets, state.mode, id, state.cohort);
   let subjectId = location.hash.split("/")[2] ?? "";
   const body = el("div");
   // 저장 전 바꾼 것(과목 순서·추가·삭제, 강사 명단). '저장'을 누르면 state로 옮기고 이 브라우저에 저장한다.
   const dOrders = new Map(); // "학과id:mode" → [과목id]
   const dPicks = new Map(); // "과목id|mode" → [강사id]
-  const listOf = () => dOrders.get(key())?.map((id) => subjects.find((s) => s.id === id)).filter(Boolean) ?? deptSubjects(state.dept, state.mode, data);
+  const listOf = () => dOrders.get(key())?.map((id) => subjects.find((s) => s.id === id)).filter(Boolean) ?? (vac() ? cohortSubjects(state.cohort, data) : deptSubjects(state.dept, state.mode, data));
   const saveDraft = () => {
     dOrders.forEach((v, k) => state.orders.set(k, v));
     dPicks.forEach((v, k) => state.picks.set(k, v));
@@ -64,9 +71,9 @@ export async function render(container, ctx) {
   };
 
   // 과목에 넣을 강사(순서대로). 처음 = 이 과목 승인본이 있는 재직 강사(강사 순서).
-  const teachersOf = (id) => instructors.map((i) => i.id).filter((i) => sources(approved, sets, state.mode, id).some((c) => c.instructor_id === i));
-  const picks = (id) => dPicks.get(`${id}|${state.mode}`) ?? state.picks.get(`${id}|${state.mode}`) ?? teachersOf(id).filter(isEmployed);
-  const stale = (id) => dPicks.has(`${id}|${state.mode}`) || state.picks.has(`${id}|${state.mode}`) || teachersOf(id).some((i) => !isEmployed(i));
+  const teachersOf = (id) => instructors.map((i) => i.id).filter((i) => srcOf(id).some((c) => c.instructor_id === i));
+  const picks = (id) => dPicks.get(pk(id)) ?? state.picks.get(pk(id)) ?? teachersOf(id).filter(isEmployed);
+  const stale = (id) => dPicks.has(pk(id)) || state.picks.has(pk(id)) || teachersOf(id).some((i) => !isEmployed(i));
   const deptsOf = (id) => links.filter((l) => l.subject_id === id).map((l) => depts.find((d) => d.id === l.department_id)?.name ?? "");
 
   const tabs = el("div", { className: "v2-tabs v3-aggtabs" }, [["weeks", "주차별 커리큘럼"], ["subjects", "과목별 커리큘럼"]].map(([k, t]) =>
@@ -79,7 +86,7 @@ export async function render(container, ctx) {
     const gen = btn("AI생성", async () => {
       const fn = getServices().summarize;
       if (!fn) return say("AI 연결을 준비 중입니다", true);
-      const src = sources(approved, sets, state.mode, subject.id);
+      const src = srcOf(subject.id);
       const own = (id) => src.filter((c) => c.instructor_id === id);
       const chosen = picks(subject.id);
       const labels = [...new Set(chosen.flatMap((id) => own(id).sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0)).map((c) => c.step_label)))];
@@ -120,12 +127,12 @@ export async function render(container, ctx) {
       );
     };
     drawList();
-    modal(`${subject.name} · 기여 강사`, [box], [addBtn, ["완료", () => { dPicks.set(`${subject.id}|${state.mode}`, list); draw(); }]]).classList.add("v3-narrow");
+    modal(`${subject.name} · 기여 강사`, [box], [addBtn, ["완료", () => { dPicks.set(pk(subject.id), list); draw(); }]]).classList.add("v3-narrow");
   }
 
   // 대표 이미지 팝업: 그 단계에서 넣은 강사(강사 팝업 명단)의 이미지 중 고르면 사이트 단계 이미지로 저장
   function imagePopup(subject, week, index) {
-    const src = sources(approved, sets, state.mode, subject.id);
+    const src = srcOf(subject.id);
     const cands = picks(subject.id).flatMap((id) => stepRows(src.filter((c) => c.instructor_id === id), week.week_label, index)).filter((c) => c.media_url);
     const msg = el("p", { className: "save-state" });
     const d = modal(`${subject.name} · ${week.week_label} 대표 이미지`, [
@@ -151,7 +158,7 @@ export async function render(container, ctx) {
     const gen = btn("AI생성", async () => {
       const fn = getServices().summarize;
       if (!fn) return say("AI 연결을 준비 중입니다", true);
-      const src = sources(approved, sets, state.mode, subject.id);
+      const src = srcOf(subject.id);
       const raw = picks(subject.id).map((id) => stepText(src.filter((c) => c.instructor_id === id), w.week_label, i).trim()).filter(Boolean).join("\n") || w.written || "";
       if (!raw) return say("이 단계에 넣은 강사의 원문이 없습니다.", true);
       gen.disabled = true;
@@ -212,8 +219,24 @@ export async function render(container, ctx) {
     sortable(items.map((r, i) => [r, ids[i]]), ids, setOrder);
     const save = btn("저장", saveDraft, true);
     save.disabled = !dOrders.size && !dPicks.size;
-    return panel("과목", [list.length ? el("div", { className: "v2-boxlist" }, items) : empty("이 학과·유형에 과목이 없습니다.")],
+    return panel("과목", [list.length ? el("div", { className: "v2-boxlist" }, items) : empty(vac() ? "이 기수에 과목이 없습니다." : "이 학과·유형에 과목이 없습니다.")],
       "끌어서 순서를 바꿉니다", [btn("+ 과목 추가", () => addPopup(ids, setOrder)), save]);
+  }
+
+  // 방특 단계: 넣은 강사(강사 팝업 순서)의 이 기수 승인본을 단계 이름별로 모아 보여 준다(읽기만).
+  function cohortSteps(subject) {
+    const own = (id) => srcOf(subject.id).filter((c) => c.instructor_id === id).sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0));
+    const chosen = picks(subject.id);
+    const labels = [...new Set(chosen.flatMap((id) => own(id).map((c) => c.step_label)))];
+    if (!labels.length) return [empty("이 기수에 넣은 강사의 커리큘럼이 없습니다. 왼쪽 '강사'에서 강사를 넣어주세요.")];
+    return labels.map((label, i) => {
+      const parts = chosen.flatMap((id) => stepRows(own(id), label, i).map((r) => ({ ...r, who: nameOfI(id) })));
+      return el("div", { className: "v2-mini-card v3-week" }, [
+        thumb(parts.find((r) => r.media_url)?.media_url, `${label} 이미지`),
+        el("div", { className: "v2-grow" }, [el("b", { textContent: label }),
+          ...parts.map((r) => el("p", { textContent: `${r.who} · ${r.written || "(내용 없음)"}` }))]),
+      ]);
+    });
   }
 
   function weeksView(list) {
@@ -224,7 +247,8 @@ export async function render(container, ctx) {
 
     // 방특만: 통합 문구(정규는 '과목별 커리큘럼' 탭의 '학과별 커리큘럼 요약'에서 고친다)
     const merged = [];
-    if (subject && state.mode === "vacation") {
+    // 방특 과목(정규와 같이 쓰는 과목은 정규 문구를 바꾸게 되므로 '방특' 표시 과목만)
+    if (subject && vac() && subject.is_vacation) {
       const text = el("textarea", { className: "v2-textarea", value: subject.dept_curriculum || "", rows: 4 });
       const msg = el("p", { className: "save-state" });
       const say = sayIn(msg);
@@ -240,8 +264,13 @@ export async function render(container, ctx) {
         text, el("div", { className: "v2-actions v2-end" }, [save]), msg);
     }
 
+    if (vac()) {
+      return splitGrid(subjectList(list), panel(`주차별 커리큘럼 · ${subject?.name ?? ""}`, subject ? [
+        ...merged, ...cohortSteps(subject),
+        hint("방학 특강 사이트는 이 기수에 담긴 강사 커리큘럼을 그대로 보여 줍니다. 단계 문구·대표 이미지를 따로 정해 저장하는 칸은 아직 없습니다."),
+      ] : [empty("과목을 고르세요.")], `${nameOf(sets, state.cohort)} 기수에 담긴 강사 커리큘럼의 단계`));
+    }
     return splitGrid(subjectList(list), panel(`주차별 커리큘럼 · ${subject?.name ?? ""}`, subject ? [
-        ...merged,
         ...(myWeeks.length ? myWeeks.map((w, i) => weekCard(subject, w, i)) : [empty("이 과목은 사이트 단계가 없습니다. 운영 관리 화면의 '학과 커리큘럼 > 단계'에서 만듭니다.")]),
         ...(shared.length > 1 ? [hint(`이 과목을 쓰는 ${shared.length}개 학과(${shared.join(", ")})에 같은 단계가 나옵니다. 고치면 모두 같이 바뀝니다.`)] : []),
       ] : [empty("과목을 고르세요.")], "사이트 '전체 수업'의 단계"));
@@ -305,6 +334,6 @@ export async function render(container, ctx) {
     const list = listOf();
     body.replaceChildren(regular && state.aggTab === "subjects" ? subjectsView(list) : weeksView(list));
   }
-  container.append(contextBar(depts, draw, [tabs]), body);
+  container.append(contextBar(depts, draw, [tabs], cohorts), body);
   draw();
 }

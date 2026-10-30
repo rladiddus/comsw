@@ -1,14 +1,14 @@
 import { el, rows, pick, chip, btn, panel, empty, headActions, groupRequests, nameOf } from "../../../admin-v2/js/ui.mjs";
-import { state, contextBar, typeChip, isEmployed, splitGrid, deptSubjects } from "../v3.mjs";
+import { state, contextBar, typeChip, isEmployed, splitGrid, deptSubjects, cohortSubjects, cohortsOf } from "../v3.mjs";
 import { thumb } from "./aggregate.mjs";
 
 // 강사 커리큘럼(V3 시안): 학과·정규/방특을 고르고 두 탭으로 승인본을 본다.
 // [강사별 과목 커리큘럼] 왼쪽 강사 → 오른쪽 그 강사의 과목 → 고른 과목의 단계별 커리큘럼
 // [과목별 강사 커리큘럼] 왼쪽 과목 → 오른쪽 그 과목의 강사 → 고른 강사의 단계별 커리큘럼
-// 과목 순서는 '과목 통합 커리큘럼'(학과별 과목 순서)과 같다. 수정 대기 제출이 있으면 함께 표시. 방특은 기수가 여럿이면 기수마다 따로 나온다.
+// 방특은 학과 대신 기수를 고른다. 과목 순서는 '과목 통합 커리큘럼'(학과·기수별 과목 순서)과 같다. 수정 대기 제출이 있으면 함께 표시. 방특은 기수가 여럿이면 기수마다 따로 나온다.
 export async function render(container, ctx) {
   const { supabase } = ctx;
-  const [depts, curricula, instructors, subjects, sets, links, idepts] = await Promise.all([
+  const [depts, curricula, instructors, subjects, sets, links, idepts, vacSetting] = await Promise.all([
     rows(supabase, "departments", (q) => q.order("sort_order")),
     pick(supabase, "instructor_curricula", "instructor_id, set_id, subject_id, step_label, written, media_url, status, vacation, sort_order, updated_at"),
     pick(supabase, "instructors", "id, name, sort_order"),
@@ -16,19 +16,22 @@ export async function render(container, ctx) {
     pick(supabase, "curriculum_sets", "id, name, department_id, is_vacation"),
     pick(supabase, "subject_departments", "subject_id, department_id"),
     pick(supabase, "instructor_departments", "instructor_id, department_id"),
+    pick(supabase, "site_settings", "key, value", (q) => q.eq("key", "vacation_set_id")),
   ]);
+  const cohorts = cohortsOf(sets, vacSetting[0]?.value);
   headActions(ctx, btn("승인 대기 보기", () => { location.hash = "#/inbox"; }, true));
   const body = el("div");
   const inScope = (setId) => {
     const set = sets.find((s) => s.id === setId);
-    return state.mode === "vacation" ? Boolean(set?.is_vacation) : set?.department_id === state.dept && !set?.is_vacation;
+    return state.mode === "vacation" ? Boolean(set?.is_vacation) && setId === state.cohort : set?.department_id === state.dept && !set?.is_vacation;
   };
   const pending = curricula.filter((c) => c.status === "pending");
   const waiting = (g) => pending.some((p) => p.instructor_id === g.instructor_id && p.subject_id === g.subject_id);
   const byOrder = (list) => (a, b) => (list.find((x) => x.id === a)?.sort_order ?? 1e9) - (list.find((x) => x.id === b)?.sort_order ?? 1e9) || nameOf(list, a).localeCompare(nameOf(list, b));
   // 과목: 이 학과·유형의 과목 순서대로, 순서에 없는 과목은 그 뒤(전체 순서)
   const subjectOrder = () => {
-    const ids = deptSubjects(state.dept, state.mode, { subjects, links, curricula: curricula.filter((c) => c.status === "approved"), idepts }).map((s) => s.id);
+    const data = { subjects, links, curricula: curricula.filter((c) => c.status === "approved"), idepts };
+    const ids = (state.mode === "vacation" ? cohortSubjects(state.cohort, data) : deptSubjects(state.dept, state.mode, data)).map((s) => s.id);
     const at = (id) => (ids.includes(id) ? ids.indexOf(id) : 1e6);
     return (a, b) => at(a) - at(b) || byOrder(subjects)(a, b);
   };
@@ -54,7 +57,7 @@ export async function render(container, ctx) {
     const teacherTab = state.teacherTab !== "subject";
     [...tabs.children].forEach((b, i) => b.classList.toggle("active", (i === 0) === teacherTab));
     const groups = groupRequests(curricula.filter((c) => c.status === "approved" && inScope(c.set_id)));
-    if (!groups.length) return body.replaceChildren(panel("강사 커리큘럼", [empty("이 학과·유형에 승인된 강사 커리큘럼이 없습니다.")]));
+    if (!groups.length) return body.replaceChildren(panel("강사 커리큘럼", [empty(state.mode === "vacation" ? "이 기수에 승인된 강사 커리큘럼이 없습니다." : "이 학과·유형에 승인된 강사 커리큘럼이 없습니다.")]));
     const [mine, other, mineList, otherList] = teacherTab ? ["instructor_id", "subject_id", instructors, subjects] : ["subject_id", "instructor_id", subjects, instructors];
     const sortOf = (list) => (list === subjects ? subjectOrder() : byOrder(list));
     const lefts = [...new Set(groups.map((g) => g[mine]))].sort(sortOf(mineList));
@@ -81,6 +84,6 @@ export async function render(container, ctx) {
     ], teacherTab ? "과목을 고르면 그 과목의 커리큘럼이 나옵니다" : "강사를 고르면 그 강사의 커리큘럼이 나옵니다");
     body.replaceChildren(splitGrid(leftPanel, right));
   }
-  container.append(contextBar(depts, draw), tabs, body);
+  container.append(contextBar(depts, draw, [], cohorts), tabs, body);
   draw();
 }

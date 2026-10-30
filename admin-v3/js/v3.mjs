@@ -7,6 +7,7 @@ const load = (k) => { try { return new Map(JSON.parse(localStorage.getItem(k) ||
 export const state = {
   dept: "",
   mode: "regular", // regular | vacation
+  cohort: "", // 방특 기수(방학 특강 그룹 curriculum_sets id). 방특을 고르면 학과 대신 기수를 고른다.
   orders: load("v3.orders"), // "학과id:mode" → [과목id] (학과별 순서)
   steps: new Map(), // "학과id:mode" → Set(새 로드맵 단계를 시작하는 과목id) (묶음 시험)
   picks: load("v3.picks"), // "과목id|mode" → [강사id] (과목 통합에 넣을 강사)
@@ -80,21 +81,42 @@ export function deptSubjects(dept, mode, { subjects, links, curricula = [], idep
   return saved ? saved.map((id) => subjects.find((s) => s.id === id)).filter(Boolean) : base;
 }
 
+// 방특 기수 목록(방학 특강 그룹). 처음 고를 기수 = 사이트에 걸린 기수(site_settings.vacation_set_id).
+export function cohortsOf(sets, current) {
+  const list = sets.filter((s) => s.is_vacation).sort((a, b) => b.name.localeCompare(a.name));
+  if (!list.some((s) => s.id === state.cohort)) state.cohort = list.some((s) => s.id === current) ? current : list[0]?.id ?? "";
+  return list;
+}
+
+// 기수의 과목: 그 기수에 담긴 승인 커리큘럼의 과목. 저장한 순서("기수id:vacation")가 있으면 그 순서.
+export function cohortSubjects(cohort, { subjects, curricula }) {
+  const used = new Set(curricula.filter((c) => c.set_id === cohort).map((c) => c.subject_id));
+  const saved = state.orders.get(`${cohort}:vacation`);
+  if (saved) return saved.map((id) => subjects.find((s) => s.id === id)).filter(Boolean);
+  return subjects.filter((s) => used.has(s.id)).sort((a, b) => (a.sort_order ?? 1e9) - (b.sort_order ?? 1e9) || a.name.localeCompare(b.name));
+}
+
 // 이 학과 순서에 더 넣을 수 있는 과목: 정규는 '방특' 표시가 없는 과목, 방특은 모든 과목(방특도 정규 과목을 쓴다).
 export const addableSubjects = (subjects, ids, mode) => subjects
   .filter((s) => !ids.includes(s.id) && (mode === "vacation" || !s.is_vacation))
   .sort((a, b) => a.name.localeCompare(b.name));
 
-// 화면 위 공통 막대: 학과 / 정규·방특.
-export function contextBar(depts, onChange, extra = []) {
+// 화면 위 공통 막대: 학과(방특이면 기수) / 정규·방특. cohorts를 주면 방특일 때 학과 대신 기수를 고른다.
+export function contextBar(depts, onChange, extra = [], cohorts = null) {
   if (!depts.some((d) => d.id === state.dept)) state.dept = depts[0]?.id ?? "";
-  const deptPick = select("학과", depts.map((d) => [d.id, d.name]));
-  deptPick.value = state.dept;
-  deptPick.addEventListener("change", () => { state.dept = deptPick.value; onChange(); });
+  const scope = el("span", { className: "v2-row v2-gap" });
+  const fillScope = () => {
+    const byCohort = cohorts && state.mode === "vacation";
+    const sel = byCohort ? select("기수", cohorts.map((c) => [c.id, c.name])) : select("학과", depts.map((d) => [d.id, d.name]));
+    sel.value = byCohort ? state.cohort : state.dept;
+    sel.addEventListener("change", () => { if (byCohort) state.cohort = sel.value; else state.dept = sel.value; onChange(); });
+    scope.replaceChildren(el("span", { className: "v2-label", textContent: byCohort ? "기수" : "학과" }), sel);
+  };
+  fillScope();
   const modeBtn = (mode, text) => Object.assign(el("button", { type: "button", className: state.mode === mode ? "publish-btn" : "ghost-btn", textContent: text }),
-    { onclick: () => { state.mode = mode; [...sw.children].forEach((b, i) => { b.className = (i === 0) === (mode === "regular") ? "publish-btn" : "ghost-btn"; }); onChange(); } });
+    { onclick: () => { state.mode = mode; [...sw.children].forEach((b, i) => { b.className = (i === 0) === (mode === "regular") ? "publish-btn" : "ghost-btn"; }); fillScope(); onChange(); } });
   const sw = el("div", { className: "v3-switch" }, [modeBtn("regular", "정규"), modeBtn("vacation", "방특")]);
-  return el("div", { className: "v2-panel v2-filter v2-bar" }, [el("span", { className: "v2-label", textContent: "학과" }), deptPick, sw, ...extra]);
+  return el("div", { className: "v2-panel v2-filter v2-bar" }, [scope, sw, ...extra]);
 }
 
 // 확인 창(브라우저 기본 dialog). actions: [글자, 할 일](누르면 닫고 실행) 또는 직접 만든 버튼. 창 밖을 누르면 닫힌다.

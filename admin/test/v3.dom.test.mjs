@@ -286,7 +286,7 @@ test("V3 학과별 순서 → 로드맵·학과 커리큘럼이 같은 순서, �
   button(addDlg, "완료").click();
   assert.deepEqual(listNames(), ["1. 방특AI", "2. 웹1"]);
   saveBtn().click();
-  assert.deepEqual(v3.state.orders.get("d1:vacation"), ["s4", "s2"]);
+  assert.deepEqual(v3.state.orders.get("v1:vacation"), ["s4", "s2"], "방특 순서는 기수(v1)마다");
   v3.state.mode = "regular";
   v3.state.orders.clear();
   c = await page("aggregate", { supabase: db });
@@ -409,4 +409,35 @@ test("V3 강사 커리큘럼: 강사별 과목 / 과목별 강사 탭, 고르면
   c3.querySelectorAll(".v2-listitem")[1].click();
   assert.deepEqual([...c3.querySelectorAll(".v3-picks button")].map((b) => b.textContent), ["웹1", "포토샵"]);
   v3.state.orders.clear();
+});
+
+test("V3 방특은 학과 대신 기수: 그 기수에 담긴 커리큘럼(방특 체크 없이 담긴 것도)의 과목·단계", async () => {
+  v3.state.dept = "d1"; v3.state.mode = "vacation"; v3.state.cohort = ""; v3.state.orders.clear(); v3.state.picks.clear(); v3.state.employed.clear();
+  const tables = data();
+  // 방특 체크 칸이 생기기 전에 기수에 담긴 정규 과목 커리큘럼(vacation=false)
+  tables.instructor_curricula.push({ id: "c11", instructor_id: "i1", set_id: "v2", subject_id: "s1", step_label: "1단계", written: "여름 포토샵", media_url: "https://example.com/v.png", status: "approved", vacation: false, sort_order: 0 });
+  const s = fakeSupabase(tables); s.rpc = async () => ({ data: [], error: null });
+  let c = await page("aggregate", { supabase: s });
+  const scope = () => c.querySelector(".v2-bar select");
+  assert.match(c.querySelector(".v2-bar").textContent, /기수/);
+  assert.equal(v3.state.cohort, "v1", "처음 기수 = 사이트에 걸린 기수");
+  const leftNames = () => [...c.querySelectorAll(".v2-listitem b")].map((b) => b.textContent);
+  assert.deepEqual(leftNames(), ["1. 방특AI"]);
+  scope().value = "v2"; scope().dispatchEvent(new dom.window.Event("change"));
+  assert.deepEqual(leftNames(), ["1. 포토샵", "2. 방특AI"]);
+  assert.match(c.textContent, /2026 여름 기수에 담긴 강사 커리큘럼의 단계/);
+  c.querySelectorAll(".v2-listitem")[0].click(); // 포토샵
+  assert.match(c.textContent, /김 · 여름 포토샵/);
+  assert.ok(!c.textContent.includes("기초 단계"), "정규 '전체 수업' 단계는 안 나옴");
+  assert.ok(!c.textContent.includes("과목 통합 커리큘럼 문구"), "정규와 같이 쓰는 과목은 문구 고치기 없음");
+  // 정규로 돌아가면 다시 학과
+  button(c, "정규").click();
+  assert.match(c.querySelector(".v2-bar").textContent, /학과/);
+  // 강사 커리큘럼도 같은 기수
+  v3.state.mode = "vacation"; v3.state.teacherTab = "subject";
+  c = await page("teachers", { supabase: s });
+  assert.match(c.querySelector(".v2-bar").textContent, /기수/);
+  assert.deepEqual(leftNames(), ["포토샵", "방특AI"]);
+  assert.match(c.textContent, /여름 포토샵/);
+  v3.state.mode = "regular"; v3.state.teacherTab = "teacher"; v3.state.cohort = "";
 });

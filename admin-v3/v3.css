@@ -145,9 +145,9 @@
 .v3-newstage { display:flex; flex-direction:column; gap:8px; }
 .v3-newcard .card-line input { width:100%; padding:8px 10px; border:1px solid #d9dde4; border-radius:8px; }
 .v3-semtable tbody tr { cursor:pointer; }
-/* 특강·세미나: 왼쪽 목록 3/4 · 오른쪽 신청자 명단 1/4 */
-.v3-semgrid { display:grid; grid-template-columns:minmax(0,3fr) minmax(0,1fr); gap:16px; align-items:start; }
-@media (max-width:1100px) { .v3-semgrid { grid-template-columns:1fr; } }
+/* 특강·세미나: 왼쪽 목록 · 오른쪽 신청자 명단(기본 330px, 경계를 끌어 조절) */
+.v3-gridagg.v3-gridright { grid-template-columns:minmax(0,1fr) 16px var(--agg-right,330px); }
+.v3-gridright > div { min-width:0; }
 .v3-roster table.editor { width:100%; font-size:12px; }
 .v3-roster h3 { font-size:14px; margin:0 0 8px; }
 /* 특강 팝업: 포스터는 잘리지 않게 전체(강사 사진처럼) */
@@ -156,3 +156,4 @@
 /* 특강 팝업 칸: 특강명·소주제·일시·강사명·장소·정원을 세로로 한 줄씩(이름 왼쪽, 값 오른쪽) */
 .v3-spop .card-fields.span-grid { grid-template-columns:minmax(0,1fr); gap:8px; }
 .v3-spop .card-fields.span-grid .card-line { grid-column:1 / -1 !important; grid-template-columns:64px minmax(0,1fr); align-items:center; }
+@media (max-width:1100px) { .v3-gridagg.v3-gridright { grid-template-columns:1fr; } }

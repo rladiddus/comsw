@@ -610,10 +610,11 @@ test("V3 특강·세미나: 오른쪽 상세·아래 기존 화면 없이, 줄�
   assert.ok(!/행사 상세|기존 '특강·세미나' 화면|아래 기존 화면/.test(c.textContent));
   const rows = () => [...c.querySelectorAll(".v3-semtable tbody tr")];
   assert.match(rows()[1].textContent, /비공개/);
-  assert.ok(c.querySelector(".v3-semgrid"), "왼쪽 목록 · 오른쪽 명단");
+  assert.ok(c.querySelector(".v3-gridright"), "왼쪽 목록 · 오른쪽 명단");
   button(rows()[0], "신청자 명단").click();
   await flush();
-  const right = c.querySelector(".v3-semgrid").children[1];
+  const right = c.querySelector(".v3-gridright").children[2]; // [목록, 경계, 명단]
+  assert.ok(c.querySelector(".v3-gridright .v3-splitter"), "경계를 끌어 너비 조절");
   assert.match(right.textContent, /이영희/, "명단은 오른쪽 칸에");
   assert.ok(button(right, "엑셀(CSV) 내려받기"));
   assert.equal(rows().length, 2, "목록 사이에 줄이 생기지 않음");
@@ -623,10 +624,10 @@ test("V3 특강·세미나: 오른쪽 상세·아래 기존 화면 없이, 줄�
   const card = d.querySelector(".card-item");
   assert.ok(card && !card.classList.contains("collapsed"));
   assert.ok([...card.querySelectorAll(".consent span")].some((x) => x.textContent === "공개"));
-  const before = c.querySelector(".v3-semgrid");
+  const before = c.querySelector(".v3-gridright");
   d.close?.(); d.dispatchEvent(new dom.window.Event("close")); d.remove();
   await flush();
-  assert.equal(c.querySelector(".v3-semgrid"), before, "닫아도 화면 전체를 다시 그리지 않음");
+  assert.equal(c.querySelector(".v3-gridright"), before, "닫아도 화면 전체를 다시 그리지 않음");
   button(head, "특강 만들기").click();
   const n = document.querySelector("dialog.v3-spop");
   assert.equal(n.querySelector("h3").textContent, "특강 만들기");

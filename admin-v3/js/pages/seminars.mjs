@@ -5,9 +5,9 @@ import { seminarCard, drawRoster } from "../../../admin/js/pages/seminars.mjs";
 import { mountImageUpload } from "../../../admin/js/image-upload.mjs";
 import { mediaPreview } from "../../../admin/js/media-preview.mjs";
 import { dbErrorMessage } from "../../../admin/js/fields.mjs";
-import { modal } from "../v3.mjs";
+import { modal, splitGrid } from "../v3.mjs";
 
-// 특강·세미나(V3): 통계 + 왼쪽(3/4) 특강 목록 · 오른쪽(1/4) 신청자 명단(줄의 [신청자 명단]을 누르면, 엑셀 내려받기).
+// 특강·세미나(V3): 통계 + 왼쪽 특강 목록 · 오른쪽 신청자 명단(기본 330px, 경계를 끌어 조절)(줄의 [신청자 명단]을 누르면, 엑셀 내려받기).
 // 줄을 누르면 특강 카드 팝업(포스터 왼쪽·잘리지 않게, 공개 체크), [특강 만들기]는 빈 칸 팝업에서 채워 만든다.
 // '공개'(seminars.is_listed)는 DB 칸 추가(20261030020000) 전에는 체크된 채로 잠겨 있다(지금은 모두 공개).
 const PLACEHOLDER = {
@@ -115,6 +115,6 @@ export async function render(container, ctx) {
   q.addEventListener("input", draw);
   statePick.addEventListener("change", draw);
   await load();
-  container.append(statBox, el("div", { className: "v3-semgrid" }, [listBox, rosterBox]));
+  container.append(statBox, splitGrid(listBox, rosterBox, { right: true }));
   draw();
 }

@@ -14,6 +14,7 @@ export const state = {
   aiLines: 2, // 과목 통합 AI 요약 줄 수(2~4)
   teacherTab: "teacher", // 강사 커리큘럼: teacher 강사별 과목 | subject 과목별 강사
   aggLeft: 0, // 과목 통합 커리큘럼 왼쪽 과목 칸 너비(px, 0 = 기본)
+  aggRight: 0, // 특강·세미나 오른쪽 신청자 명단 칸 너비(px, 0 = 기본 330)
   employed: new Map(), // 강사id → false(퇴사 처리 시험)
   reviews: new Map(), // 제출 묶음 key → Map(준비물id → 최종 분류)
 };
@@ -150,19 +151,22 @@ export function sortable(pairs, ids, onDrop) {
 }
 
 // 왼쪽 목록 | 끌 수 있는 경계 | 오른쪽 내용. 왼쪽 너비(기본 330px, 160~520px)는 화면끼리 같이 쓰고 화면에서만 기억.
-export function splitGrid(left, right) {
+// right = true: 오른쪽 칸 너비를 정한다(기본 330px, 특강·세미나의 신청자 명단). 너비는 따로 기억(state.aggRight).
+export function splitGrid(left, right, { right: fromRight = false } = {}) {
   const bar = el("div", { className: "v3-splitter", title: "끌어서 너비 조절" });
-  const grid = el("div", { className: "v3-gridagg" }, [left, bar, right]);
+  const grid = el("div", { className: fromRight ? "v3-gridagg v3-gridright" : "v3-gridagg" }, [left, bar, right]);
+  const key = fromRight ? "aggRight" : "aggLeft";
+  const prop = fromRight ? "--agg-right" : "--agg-left";
   bar.addEventListener("pointerdown", (e) => {
     e.preventDefault();
-    const x0 = grid.getBoundingClientRect().left;
-    const move = (ev) => { state.aggLeft = Math.min(520, Math.max(160, Math.round(ev.clientX - x0))); grid.style.setProperty("--agg-left", `${state.aggLeft}px`); };
+    const box = grid.getBoundingClientRect();
+    const move = (ev) => { state[key] = Math.min(520, Math.max(160, Math.round(fromRight ? box.right - ev.clientX : ev.clientX - box.left))); grid.style.setProperty(prop, `${state[key]}px`); };
     const up = () => { document.removeEventListener("pointermove", move); document.removeEventListener("pointerup", up); grid.classList.remove("resizing"); };
     grid.classList.add("resizing");
     document.addEventListener("pointermove", move);
     document.addEventListener("pointerup", up);
   });
-  if (state.aggLeft) grid.style.setProperty("--agg-left", `${state.aggLeft}px`);
+  if (state[key]) grid.style.setProperty(prop, `${state[key]}px`);
   return grid;
 }
 

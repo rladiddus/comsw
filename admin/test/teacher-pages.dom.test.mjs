@@ -562,3 +562,20 @@ test("V3 내 커리큘럼: '+ 개월 추가' 없음, 알약 옆 '과목명 동�
   const [, args] = calls.find(([n]) => n === "comsw_submit_curriculum");
   assert.deepEqual(args.p_subjects, [{ custom_name: "웹툰 캐릭터", from: "w1", steps: [{ step_label: "1단계", written: "새 과목 1단계", media_url: "" }] }]);
 });
+
+test("V3 등록하기: '방특'에 체크하면 '선택 학과' 자리에서 방학 특강 그룹을 골라 그 그룹으로 제출", async () => {
+  const data = twoSubjects();
+  data.curriculum_sets.push({ id: "vac", name: "2026년 여름방학특강", department_id: null, is_vacation: true });
+  const { c, calls } = await setup("mine", data, { v3: true });
+  tabButton(c, "write").click();
+  const vac = c.querySelector("[name=vacation]");
+  vac.checked = true; vac.dispatchEvent(new dom.window.Event("change"));
+  const set = c.querySelector("[name=set_id]");
+  assert.deepEqual([...set.options].map((o) => o.textContent), ["2026년 여름방학특강"]);
+  assert.equal(set.closest(".form-field").querySelector("span").textContent, "방학 특강");
+  c.querySelector(".subject-panel:not([hidden]) [name=written]").value = "방특 원문";
+  submitForm(c);
+  await flush();
+  const sent = calls.filter(([n]) => n === "comsw_submit_curriculum").map(([, a]) => [a.p_set_id, a.p_vacation]);
+  assert.deepEqual(sent, [["vac", true]]);
+});

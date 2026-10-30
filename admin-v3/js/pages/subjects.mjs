@@ -2,7 +2,7 @@ import { el, rows, pick, chip, hint, btn, locked, stats, panel, dl, listDetail, 
 import { subpages } from "../../../admin/js/subpages.mjs";
 import { typeChip } from "../v3.mjs";
 
-// 과목 관리(V3 시안 '과목 카탈로그'): 정규 과목은 하나를 여러 학과가 같이 쓴다(정책 7, 2026-10-29). 방특은 기수마다 새 과목(6B).
+// 과목 관리(V3 시안 '과목 카탈로그'): 정규 과목은 하나를 여러 학과가 같이 쓴다(정책 7, 2026-10-29). 방특은 시기마다 새 과목(6B).
 // 과목 아래는 강사별 커리큘럼(포토샵 - A강사, - B강사 …). 고유 ID는 화면에 보이지 않는다.
 const old = (file) => () => import(`../../../admin/js/pages/${file}.mjs`);
 
@@ -34,7 +34,7 @@ export async function render(container, ctx) {
   const deptPick = select("학과", [["", "모든 학과"], ...depts.map((d) => [d.id, d.name])]);
   container.append(
     el("div", { className: "v3-callout" }, [el("b", { textContent: "과목 하나, 모든 학과 공용  " }),
-      document.createTextNode("포토샵 하나를 시각편집학과·모션학과가 같이 씁니다. 고치면 모든 학과에 같이 반영됩니다. 강사별 커리큘럼은 과목 아래에 따로 있고, 방특은 기수마다 새 과목입니다.")]),
+      document.createTextNode("포토샵 하나를 시각편집학과·모션학과가 같이 씁니다. 고치면 모든 학과에 같이 반영됩니다. 강사별 커리큘럼은 과목 아래에 따로 있고, 방특은 시기마다 새 과목입니다.")]),
     stats([
       ["정규 과목", `${items.filter((i) => !i.s.is_vacation).length}`, "학과 정규 과정"],
       ["방특 과목", `${items.filter((i) => i.s.is_vacation).length}`, "방학 특강 전용"],

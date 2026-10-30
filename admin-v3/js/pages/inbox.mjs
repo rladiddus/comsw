@@ -9,7 +9,7 @@ import { state, CAT, materialsOf, typeChip } from "../v3.mjs";
 
 // 승인 대기(V3 시안 '통합 승인함'): 승인 단위 = 한 강사 × 한 과목 × 전체 단계(정책 1A). 프로필은 따로.
 // 준비물은 '준비물 검토'에서 학과장이 전부 확인해야 승인 버튼이 열린다(정책 9D). 검토 결과는 아직 DB에 칸이 없어 이 화면에만 남는다.
-// 승인 = 단계마다 사이트 문구 저장 + 기존 단계 승인 함수(comsw_approve_curriculum)를 전체 단계에 차례로. 방특은 고른 기수로 옮긴 뒤 승인(기존 '방학 특강'과 같음).
+// 승인 = 단계마다 사이트 문구 저장 + 기존 단계 승인 함수(comsw_approve_curriculum)를 전체 단계에 차례로. 방특은 고른 시기로 옮긴 뒤 승인(기존 '방학 특강'과 같음).
 // ponytail: 단계별로 따로 승인해서 중간에 끊기면 일부만 승인됨(남은 단계는 목록에 남아 다시 누르면 됨). 한 번에 묶으려면 DB 함수 추가.
 // 준비물 검토 결과(최종 분류)는 아직 DB에 칸이 없어 저장되지 않고, 승인 함수는 선생님이 적은 칸 그대로 과목 값에 합친다.
 const CURR = "id, instructor_id, set_id, subject_id, step_label, written, summary, media_url, status, vacation, sort_order, updated_at";
@@ -43,7 +43,7 @@ export async function render(container, ctx) {
         key: g.key, g, at: g.at, subject: subjects.find((s) => s.id === g.subject_id),
         before: approved.filter((a) => a.instructor_id === g.instructor_id && a.set_id === g.set_id && a.subject_id === g.subject_id),
         mats: materialsOf(materials.find((m) => m.instructor_id === g.instructor_id && m.subject_id === g.subject_id)),
-        who: nameOf(instructors, g.instructor_id), scope: g.vacation ? (set?.is_vacation ? set.name : "방특(기수 담기 전)") : nameOf(depts, set?.department_id) || set?.name || "",
+        who: nameOf(instructors, g.instructor_id), scope: g.vacation ? (set?.is_vacation ? set.name : "방특(시기 담기 전)") : nameOf(depts, set?.department_id) || set?.name || "",
       };
     }),
     ...drafts.map((d) => ({ key: `profile|${d.instructor_id}`, d, at: d.updated_at, who: nameOf(instructors, d.instructor_id) })),
@@ -69,13 +69,13 @@ export async function render(container, ctx) {
 
   const say = (text, err = false) => { status.textContent = text; status.className = `save-state${err ? " err" : ""}`; };
 
-  // 단계마다 사이트 문구 칸(공개 사이트에 보이는 글), 방특은 담을 기수
+  // 단계마다 사이트 문구 칸(공개 사이트에 보이는 글), 방특은 담을 시기
   function inputs(it) {
     it.texts ??= new Map(it.g.rows.map((r) => [r.id, el("textarea", { className: "v2-textarea", value: r.summary ?? "", placeholder: "사이트에 보일 문구", maxLength: 2000 })]));
     if (it.g.vacation && !it.cohort) {
       const set = sets.find((s) => s.id === it.g.set_id);
       const pre = set?.is_vacation ? set.id : nowCohort[0]?.value ?? "";
-      it.cohort = el("select", {}, [el("option", { value: "", textContent: "방특 기수 고르기" }), ...cohorts.map((c) => el("option", { value: c.id, textContent: c.name, selected: c.id === pre }))]);
+      it.cohort = el("select", {}, [el("option", { value: "", textContent: "방특 시기 고르기" }), ...cohorts.map((c) => el("option", { value: c.id, textContent: c.name, selected: c.id === pre }))]);
     }
     return it;
   }
@@ -103,7 +103,7 @@ export async function render(container, ctx) {
     const blank = it.g.rows.filter((r) => !it.texts.get(r.id).value.trim());
     if (blank.length) return say(`${blank.map((r) => r.step_label).join(", ")} 사이트 문구가 비어 있습니다. 직접 쓰거나 '빈 문구 AI로 채우기'를 눌러주세요.`, true);
     const setId = it.g.vacation ? it.cohort.value : null;
-    if (it.g.vacation && !setId) return say("담을 방특 기수를 골라주세요", true);
+    if (it.g.vacation && !setId) return say("담을 방특 시기를 골라주세요", true);
     const where = it.g.vacation ? `'${nameOf(cohorts, setId)}' 방특` : it.scope;
     if (!confirm(`${it.who} 선생님의 ${it.subject?.name ?? ""} 전체 ${it.g.rows.length}단계를 ${where}에 승인할까요?`)) return;
     if (b) b.disabled = true;
@@ -154,7 +154,7 @@ export async function render(container, ctx) {
       el("h4", { textContent: "사이트 문구 (단계마다 공개 사이트에 보이는 글)" }),
       ...steps.map((r) => el("label", { className: "v3-block" }, [el("b", { textContent: r.step_label }), it.texts.get(r.id)])),
       el("div", { className: "v2-actions" }, [ai]),
-      ...(it.g.vacation ? [el("h4", { textContent: "담을 방특 기수" }), it.cohort] : []),
+      ...(it.g.vacation ? [el("h4", { textContent: "담을 방특 시기" }), it.cohort] : []),
       el("h4", {}, [document.createTextNode("준비물 검토 상태 "), chip(done ? "모두 학과장 검토 완료" : "검토 대기", done ? "good" : "warn")]),
       el("small", { className: "muted", textContent: it.mats.length ? `교재·물품·사용 프로그램·AI 도구 ${it.mats.length}개 · 검토 ${n}/${it.mats.length}` : "선생님이 적은 준비물(교재·물품·프로그램·AI 도구)이 없습니다(‘준비물 없음 확인’ 필요)" }),
       ...it.mats.map((m) => el("div", { className: "v3-line" }, [chip(state.reviews.get(it.key)?.has(m.id) ? "확정" : "대기", state.reviews.get(it.key)?.has(m.id) ? "good" : "warn"),

@@ -34,14 +34,14 @@ const data = () => ({
   ],
 });
 
-async function renderPage(path, tables = data()) {
+async function renderPage(path, tables = data(), extra = {}) {
   const { render } = await import(path);
   const container = document.createElement("div");
   document.body.replaceChildren(container);
   const supabase = fakeSupabase(tables);
   supabase.rpcCalls = [];
   supabase.rpc = async (name, args) => { supabase.rpcCalls.push([name, args]); return { data: null, error: null }; };
-  await render(container, { supabase });
+  await render(container, { supabase, ...extra });
   await flush();
   return { c: container, tables, supabase };
 }
@@ -282,4 +282,17 @@ test("강사 커리큘럼: 줄이 많으면 30개씩 그리고 '더 보기'로 �
   await searchBy(c, { subj: "s1" });
   assert.equal(c.querySelectorAll(".card-item").length, 30);
   assert.match(c.textContent, /71개/);
+});
+
+test("V3 방학 특강: 방특 신청은 고른 방학 특강으로 낸 것만, 방학 특강 없이 낸 예전 신청은 따로", async () => {
+  const tables = data();
+  tables.instructor_curricula.push(
+    { id: "v1", set_id: "set-vac", instructor_id: "i1", subject_id: "s1", step_label: "1단계", written: "이 그룹", status: "pending", vacation: true, sort_order: 9 },
+    { id: "v2", set_id: "set-web", instructor_id: "i1", subject_id: "s2", step_label: "1단계", written: "예전 방식", status: "pending", vacation: true, sort_order: 10 },
+  );
+  const { c } = await renderPage("../js/pages/vacation.mjs", tables, { v3: true });
+  const pool = c.querySelector(".vacation-pool");
+  assert.match(pool.querySelector("h3").textContent, /방특 신청 1건 — 2026년 여름방학특강/);
+  assert.match(pool.textContent, /방학 특강을 고르지 않은 신청 1건/);
+  assert.equal(pool.querySelectorAll(".vacation-pool-item").length, 2);
 });

@@ -7,7 +7,7 @@ const load = (k) => { try { return new Map(JSON.parse(localStorage.getItem(k) ||
 export const state = {
   dept: "",
   mode: "regular", // regular | vacation
-  cohort: "", // 방특 기수(방학 특강 그룹 curriculum_sets id). 방특을 고르면 학과 대신 기수를 고른다.
+  cohort: "", // 방특 시기(방학 특강 그룹 curriculum_sets id). 방특을 고르면 학과 대신 시기를 고른다.
   orders: load("v3.orders"), // "학과id:mode" → [과목id] (학과별 순서)
   roadmap: new Map(), // 학과id → [{ ids: [과목id], from: 처음 로드맵 단계id }] (로드맵 스텝, 저장 안 됨)
   picks: load("v3.picks"), // "과목id|mode" → [강사id] (과목 통합에 넣을 강사)
@@ -19,7 +19,7 @@ export const state = {
   reviews: new Map(), // 제출 묶음 key → Map(준비물id → 최종 분류)
 };
 
-// 화면마다 학과·정규/방특·기수를 따로 기억한다(한 화면에서 고른 것이 다른 화면에 옮겨 가지 않게).
+// 화면마다 학과·정규/방특·시기를 따로 기억한다(한 화면에서 고른 것이 다른 화면에 옮겨 가지 않게).
 // 처음 여는 화면은 첫 학과·정규. 다른 화면에 갔다 돌아오면 떠날 때 고른 그대로.
 const pageCtx = new Map();
 let currentPage = "";
@@ -91,14 +91,14 @@ export function deptSubjects(dept, mode, { subjects, links, curricula = [], idep
   return saved ? saved.map((id) => subjects.find((s) => s.id === id)).filter(Boolean) : base;
 }
 
-// 방특 기수 목록(방학 특강 그룹). 처음 고를 기수 = 사이트에 걸린 기수(site_settings.vacation_set_id).
+// 방특 시기 목록(방학 특강 그룹). 처음 고를 시기 = 사이트에 걸린 시기(site_settings.vacation_set_id).
 export function cohortsOf(sets, current) {
   const list = sets.filter((s) => s.is_vacation).sort((a, b) => b.name.localeCompare(a.name));
   if (!list.some((s) => s.id === state.cohort)) state.cohort = list.some((s) => s.id === current) ? current : list[0]?.id ?? "";
   return list;
 }
 
-// 기수의 과목: 그 기수에 담긴 승인 커리큘럼의 과목. 저장한 순서("기수id:vacation")가 있으면 그 순서.
+// 시기의 과목: 그 시기에 담긴 승인 커리큘럼의 과목. 저장한 순서("시기id:vacation")가 있으면 그 순서.
 export function cohortSubjects(cohort, { subjects, curricula }) {
   const used = new Set(curricula.filter((c) => c.set_id === cohort).map((c) => c.subject_id));
   const saved = state.orders.get(`${cohort}:vacation`);
@@ -111,16 +111,16 @@ export const addableSubjects = (subjects, ids, mode) => subjects
   .filter((s) => !ids.includes(s.id) && (mode === "vacation" || !s.is_vacation))
   .sort((a, b) => a.name.localeCompare(b.name));
 
-// 화면 위 공통 막대: 학과(방특이면 기수) / 정규·방특. cohorts를 주면 방특일 때 학과 대신 기수를 고른다.
+// 화면 위 공통 막대: 학과(방특이면 시기) / 정규·방특. cohorts를 주면 방특일 때 학과 대신 시기를 고른다.
 export function contextBar(depts, onChange, extra = [], cohorts = null) {
   if (!depts.some((d) => d.id === state.dept)) state.dept = depts[0]?.id ?? "";
   const scope = el("span", { className: "v2-row v2-gap" });
   const fillScope = () => {
     const byCohort = cohorts && state.mode === "vacation";
-    const sel = byCohort ? select("기수", cohorts.map((c) => [c.id, c.name])) : select("학과", depts.map((d) => [d.id, d.name]));
+    const sel = byCohort ? select("시기", cohorts.map((c) => [c.id, c.name])) : select("학과", depts.map((d) => [d.id, d.name]));
     sel.value = byCohort ? state.cohort : state.dept;
     sel.addEventListener("change", () => { if (byCohort) state.cohort = sel.value; else state.dept = sel.value; onChange(); });
-    scope.replaceChildren(el("span", { className: "v2-label", textContent: byCohort ? "기수" : "학과" }), sel);
+    scope.replaceChildren(el("span", { className: "v2-label", textContent: byCohort ? "시기" : "학과" }), sel);
   };
   fillScope();
   const modeBtn = (mode, text) => Object.assign(el("button", { type: "button", className: state.mode === mode ? "publish-btn" : "ghost-btn", textContent: text }),
@@ -207,7 +207,7 @@ export async function audit(supabase) {
     .filter((id) => approved.some((c) => c.subject_id === id && !vacSet.has(c.set_id))).map((id) => name(subjects, id));
   return [
     ["같은 과목을 여러 학과에 따로 낸 강사", "정책 7: 강사 × 과목 커리큘럼은 하나입니다. 합칠 때 가장 최근 승인본을 남깁니다.", twice, "#/teachers"],
-    ["여러 방특 기수에 쓰인 과목", "정책 6B: 방특 기수마다 과목 ID를 따로 둬야 합니다.", vacMulti, "#/vacation"],
+    ["여러 방특 시기에 쓰인 과목", "정책 6B: 방특 시기마다 과목 ID를 따로 둬야 합니다.", vacMulti, "#/vacation"],
     ["정규·방특에 함께 쓰인 과목", "정책 6B: 정규와 방특은 이름이 같아도 다른 과목입니다.", mixed, "#/subjects"],
   ];
 }

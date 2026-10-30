@@ -387,13 +387,21 @@ export async function render(container, ctx, { tab, as } = {}) {
         : mine.length
         ? ""
         : "이 학과에서 고른 과목이 없습니다. 수업 설정에서 수업하는 과목을 체크해주세요.";
+      // V3: '방특'에 체크하면 '선택 학과' 자리에서 방학 특강 그룹을 고른다(관리자가 먼저 만든 그룹, 그 그룹으로 제출).
+      const vacationPick = ctx.v3 && vacation.checked;
+      setField.querySelector("span").textContent = vacationPick ? "방학 특강" : "선택 학과";
+      const keep = set.value;
       options(
         set,
-        // 방학 특강 그룹은 '방특' 체크로 내므로 선택 학과 목록에서 뺀다.
-        sets.filter((s) =>
-          !s.is_vacation && (s.department_id === dept.value || s.department_id == null)
-        ),
+        vacationPick
+          ? sets.filter((s) => s.is_vacation)
+          // 방학 특강 그룹은 '방특' 체크로 내므로 선택 학과 목록에서 뺀다.
+          : sets.filter((s) =>
+            !s.is_vacation && (s.department_id === dept.value || s.department_id == null)
+          ),
       );
+      if ([...set.options].some((o) => o.value === keep)) set.value = keep;
+      if (vacationPick && !set.options.length) subjectHint.textContent = "방학 특강이 아직 없습니다. 관리자가 '방학 특강' 메뉴에서 먼저 추가해야 합니다.";
       subjectTabs.replaceChildren(...mine.map((s) => {
         panelFor(s);
         const b = el("button", { type: "button", role: "tab", textContent: s.name });
@@ -437,7 +445,7 @@ export async function render(container, ctx, { tab, as } = {}) {
             entry.tools.value.trim() !== (entry.saved?.tools ?? "") ||
             entry.supplies.value.trim() !== (entry.saved?.supplies ?? "")
           ));
-        if (!set.value) throw new Error("선택 학과를 골라주세요");
+        if (!set.value) throw new Error(ctx.v3 && vacation.checked ? "방학 특강을 골라주세요" : "선택 학과를 골라주세요");
         if (!filled.length && !changed.length) throw new Error("커리큘럼 내용을 입력해주세요");
         const missing = filled.find(({ st }) =>
           !st.stepInput.value.trim() || !st.written.value.trim()

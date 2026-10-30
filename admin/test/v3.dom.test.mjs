@@ -81,7 +81,7 @@ test("V3 재료 검사: 칸 나누기·분류 제안·같은 과목 안 중복�
 test("V3 전환 점검: 같은 과목을 여러 학과에 따로 낸 강사(7)·여러 기수 방특(6B), 공용 과목·여러 과목 로드맵 단계는 정상", async () => {
   const list = await v3.audit(sb());
   assert.deepEqual(list.map(([t, , l]) => `${t}=${l.join(",")}`), [
-    "같은 과목을 여러 학과에 따로 낸 강사=김 · 포토샵", "여러 방특 기수에 쓰인 과목=방특AI", "정규·방특에 함께 쓰인 과목=",
+    "같은 과목을 여러 학과에 따로 낸 강사=김 · 포토샵", "여러 방특 시기에 쓰인 과목=방특AI", "정규·방특에 함께 쓰인 과목=",
   ]);
 });
 
@@ -143,7 +143,7 @@ test("V3 승인 대기 방특: 기수를 골라야 승인, 고른 기수로 옮�
   const c = await page("inbox", { supabase: db });
   button(c, "과목 전체 승인").click();
   await flush();
-  assert.match(c.textContent, /담을 방특 기수를 골라주세요/);
+  assert.match(c.textContent, /담을 방특 시기를 골라주세요/);
   const pickCohort = [...c.querySelectorAll("select")].at(-1);
   pickCohort.value = "v2";
   button(c, "과목 전체 승인").click();
@@ -483,13 +483,13 @@ test("V3 방특은 학과 대신 기수: 그 기수에 담긴 커리큘럼(방�
   const s = fakeSupabase(tables); s.rpc = async () => ({ data: [], error: null });
   let c = await page("aggregate", { supabase: s });
   const scope = () => c.querySelector(".v2-bar select");
-  assert.match(c.querySelector(".v2-bar").textContent, /기수/);
+  assert.match(c.querySelector(".v2-bar").textContent, /시기/);
   assert.equal(v3.state.cohort, "v1", "처음 기수 = 사이트에 걸린 기수");
   const leftNames = () => [...c.querySelectorAll(".v2-listitem b")].map((b) => b.textContent);
   assert.deepEqual(leftNames(), ["1. 방특AI"]);
   scope().value = "v2"; scope().dispatchEvent(new dom.window.Event("change"));
   assert.deepEqual(leftNames(), ["1. 포토샵", "2. 방특AI"]);
-  assert.match(c.textContent, /2026 여름 기수에 담긴 강사 커리큘럼의 단계/);
+  assert.match(c.textContent, /2026 여름 시기에 담긴 강사 커리큘럼의 단계/);
   c.querySelectorAll(".v2-listitem")[0].click(); // 포토샵
   assert.match(c.textContent, /김 · 여름 포토샵/);
   assert.ok(!c.textContent.includes("기초 단계"), "정규 '전체 수업' 단계는 안 나옴");
@@ -500,7 +500,7 @@ test("V3 방특은 학과 대신 기수: 그 기수에 담긴 커리큘럼(방�
   // 강사 커리큘럼도 같은 기수
   v3.state.mode = "vacation"; v3.state.teacherTab = "subject";
   c = await page("teachers", { supabase: s });
-  assert.match(c.querySelector(".v2-bar").textContent, /기수/);
+  assert.match(c.querySelector(".v2-bar").textContent, /시기/);
   assert.deepEqual(leftNames(), ["포토샵", "방특AI"]);
   assert.match(c.textContent, /여름 포토샵/);
   v3.state.mode = "regular"; v3.state.teacherTab = "teacher"; v3.state.cohort = "";

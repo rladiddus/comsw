@@ -138,7 +138,8 @@
 /* 강사 팝업: 경력 칸을 크게(남는 여백 채움), 한마디는 그대로 */
 .v3-tpopbody .card-fields > .card-line:nth-last-child(2) textarea { height:170px; }
 /* 특강 팝업(강사 팝업과 같은 틀): 포스터 왼쪽 320px, 높이는 특강마다 같게 */
-.v3-modal.v3-tpop.v3-spop { height:min(480px,90vh); }
+/* 특강 팝업: 강사 팝업의 70% 너비, 높이는 내용만큼(포스터 안 잘리고 스크롤 없게) */
+.v3-modal.v3-tpop.v3-spop { width:min(826px,94vw); height:auto; max-height:90vh; }
 .v3-spop .v3-tpopbody .card-item.no-sort { grid-template-columns:320px minmax(0,1fr); }
 .v3-spop .v3-tpopbody .card-item .card-stage { width:320px; }
 .v3-newstage { display:flex; flex-direction:column; gap:8px; }
@@ -152,3 +153,6 @@
 /* 특강 팝업: 포스터는 잘리지 않게 전체(강사 사진처럼) */
 .v3-spop .card-item .card-stage { min-height:0; aspect-ratio:auto; background:none; align-self:start; }
 .v3-spop .card-item .card-stage > img { position:static; width:100%; height:auto; object-fit:contain; border-radius:10px; }
+/* 특강 팝업 칸: 특강명·소주제·일시·강사명·장소·정원을 세로로 한 줄씩(이름 왼쪽, 값 오른쪽) */
+.v3-spop .card-fields.span-grid { grid-template-columns:minmax(0,1fr); gap:8px; }
+.v3-spop .card-fields.span-grid .card-line { grid-column:1 / -1 !important; grid-template-columns:64px minmax(0,1fr); align-items:center; }

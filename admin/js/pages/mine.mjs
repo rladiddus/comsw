@@ -91,11 +91,12 @@ export async function render(container, ctx, { tab, as } = {}) {
   const { supabase } = ctx;
   container.replaceChildren(
     el("h2", { textContent: "내 커리큘럼" }),
-    el("p", {
+    // V3는 안내 문구 없이
+    ...(ctx.v3 ? [] : [el("p", {
       className: "desc",
       textContent:
         "나의 수업을 단계별로 소개해주세요. 제출 후 학과장 승인을 거쳐 사이트에 반영됩니다.",
-    }),
+    })]),
   );
   const setState = stateLine(container);
   try {

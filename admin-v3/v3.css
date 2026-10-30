@@ -34,7 +34,7 @@
 .v3-splitter::after { content:""; position:absolute; top:0; bottom:0; left:7px; width:2px; border-radius:2px; background:transparent; }
 .v3-splitter:hover::after, .v3-gridagg.resizing .v3-splitter::after { background:var(--accent); }
 .v3-gridagg.resizing { user-select:none; cursor:col-resize; }
-.v3-aggtabs { margin:0 0 0 12px; }
+.v3-aggtabs { margin:0 0 14px; }
 .v3-week { display:flex; gap:14px; align-items:flex-start; }
 .v3-week p { margin:4px 0 0; font-size:13px; white-space:pre-line; }
 .v3-weekimg { width:96px; aspect-ratio:269 / 391; object-fit:cover; border-radius:8px; border:1px solid var(--line); background:#f4f5f7; flex:none; }

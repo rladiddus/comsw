@@ -580,6 +580,7 @@ test("V3 방학 특강: 방특 신청 칸·설명 없이, 시기를 고르면 �
 test("V3 강사 관리: 5번 안내·통합 출처·작업 없이, 학과→강사 고르기로 거르고, 줄을 누르면 펼친 강사 카드 팝업", async () => {
   const c = await page("instructors");
   assert.ok(!/퇴사는 강사 원문|통합 출처|작업/.test(c.textContent));
+  assert.ok(!/기존 화면/.test(c.textContent), "아래 기존 강사 화면 칸 없음");
   assert.deepEqual([...c.querySelectorAll(".v2-table th")].map((th) => th.textContent), ["강사", "사이트", "담당 학과", "담당 과목"], "재직 상태 칸 없음");
   const tabs = () => [...c.querySelectorAll(".v3-insttabs button")];
   assert.deepEqual(tabs().map((b) => b.textContent), ["전체", "공개", "비공개", "계정 연결"]);

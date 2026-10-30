@@ -1,5 +1,5 @@
-import { el, pick, chip, btn, stats, panel, table, editor, select, headActions, nameOf } from "../../../admin-v2/js/ui.mjs";
-import { subpages } from "../../../admin/js/subpages.mjs";
+import { el, pick, chip, btn, stats, panel, table, select, headActions, nameOf } from "../../../admin-v2/js/ui.mjs";
+import { dbErrorMessage } from "../../../admin/js/fields.mjs";
 import { mountCardList } from "../../../admin/js/card-list.mjs";
 import { instructorCard } from "../../../admin/js/pages/instructors.mjs";
 import { isEmployed, modal } from "../v3.mjs";
@@ -20,10 +20,16 @@ export async function render(container, ctx) {
     pick(supabase, "instructor_departments", "instructor_id, department_id"),
     pick(supabase, "instructor_subjects", "instructor_id, subject_id, sort_order"),
   ]);
-  const edit = editor("강사 추가·수정·계정 연결 (기존 화면)", async () => ({
-    render: subpages("강사 편집", [["list", "강사", old("instructors"), { fresh: true }], ["accounts", "계정 연결", old("accounts")]]),
-  }), ctx);
-  headActions(ctx, btn("강사 추가", edit.open, true));
+  // 강사 추가: '새 강사'(비공개)를 만들고 바로 그 카드 팝업을 연다(이름·사진 등은 팝업에서 '수정').
+  const add = btn("강사 추가", async () => {
+    add.disabled = true;
+    const { data, error } = await supabase.from("instructors").insert({ name: "새 강사", is_listed: false }).select().single();
+    add.disabled = false;
+    if (error) return alert(dbErrorMessage(error));
+    instructors.push(data);
+    fillNames(); draw(); open(data);
+  }, true);
+  headActions(ctx, add);
   const deptsOf = (id) => idepts.filter((x) => x.instructor_id === id).map((x) => x.department_id);
 
   // 강사 카드 팝업: 펼친 카드 한 장. 강사마다 같은 크기(.v3-tpop).
@@ -79,6 +85,6 @@ export async function render(container, ctx) {
     t.node.classList.add("v3-instable");
     listBox.replaceChildren(panel("강사 목록", [t.node], "", head));
   }
-  container.append(statBox, listBox, edit.node);
+  container.append(statBox, listBox);
   draw();
 }

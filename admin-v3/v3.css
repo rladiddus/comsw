@@ -161,3 +161,10 @@
 /* 신청자 명단 버튼: 고른 것(주황)과 안 고른 것의 크기가 같게 */
 .v3-semtable .v3-rosterbtn { padding:9px 14px; border:1px solid var(--line); font-weight:600; line-height:1.2; }
 .v3-semtable .v3-rosterbtn.publish-btn { border-color:var(--accent); }
+/* 왼쪽 메뉴 묶음 이름: 누르면 접고 펼친다 */
+.v3-navtoggle { display:flex; align-items:center; justify-content:space-between; width:100%; border:0; background:none; cursor:pointer; text-align:left; font-family:inherit; }
+.v3-navtoggle::after { content:"▾"; font-size:10px; transition:transform .15s; }
+.v3-navtoggle.folded::after { transform:rotate(-90deg); }
+.v3-navtoggle:hover { color:#555; }
+.side-nav a[hidden] { display:none; }
+@media (max-width:900px) { .side-nav a[hidden] { display:block; } } /* 좁은 화면은 묶음 이름이 숨겨져 접을 수 없으니 다 보이게 */

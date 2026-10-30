@@ -108,6 +108,7 @@ function pageHead(label, desc) {
 }
 
 let session = null;
+const foldedGroups = new Set((() => { try { return JSON.parse(localStorage.getItem("v3.navFolded")) ?? []; } catch { return []; } })());
 
 async function route() {
   const groups = menusFor(session.role);
@@ -116,14 +117,27 @@ async function route() {
   const found = all.find(([id]) => id === want) ?? all[0];
   if (!found) { $("#content").replaceChildren(); return; }
   const [id, , label, desc, load] = found;
-  $("#sideNav").replaceChildren(...groups.flatMap(([g, items]) => [
-    Object.assign(document.createElement("div"), { className: "v2-nav-group", textContent: g }),
-    ...items.map(([mid, icon, mlabel]) => {
+  // 묶음 이름을 누르면 그 아래 메뉴가 접히고 펼쳐진다(접은 묶음은 이 브라우저에 기억).
+  $("#sideNav").replaceChildren(...groups.flatMap(([g, items]) => {
+    const links = items.map(([mid, icon, mlabel]) => {
       const a = Object.assign(document.createElement("a"), { href: `#/${mid}`, className: mid === id ? "active" : "" });
       a.append(Object.assign(document.createElement("span"), { className: "v2-nav-icon", textContent: icon }), mlabel);
       return a;
-    }),
-  ]));
+    });
+    const head = Object.assign(document.createElement("button"), { type: "button", className: "v2-nav-group v3-navtoggle", textContent: g });
+    const fold = (on) => {
+      head.classList.toggle("folded", on);
+      head.setAttribute("aria-expanded", String(!on));
+      links.forEach((a) => { a.hidden = on; });
+    };
+    fold(foldedGroups.has(g));
+    head.addEventListener("click", () => {
+      if (foldedGroups.has(g)) foldedGroups.delete(g); else foldedGroups.add(g);
+      try { localStorage.setItem("v3.navFolded", JSON.stringify([...foldedGroups])); } catch { /* 저장소 막힘 */ }
+      fold(foldedGroups.has(g));
+    });
+    return [head, ...links];
+  }));
   usePage(id);
   try {
     await mountPage($("#content"), async () => ({

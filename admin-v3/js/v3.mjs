@@ -9,7 +9,7 @@ export const state = {
   mode: "regular", // regular | vacation
   cohort: "", // 방특 기수(방학 특강 그룹 curriculum_sets id). 방특을 고르면 학과 대신 기수를 고른다.
   orders: load("v3.orders"), // "학과id:mode" → [과목id] (학과별 순서)
-  steps: new Map(), // "학과id:mode" → Set(새 로드맵 단계를 시작하는 과목id) (묶음 시험)
+  roadmap: new Map(), // 학과id → [{ ids: [과목id], from: 처음 로드맵 단계id }] (로드맵 스텝, 저장 안 됨)
   picks: load("v3.picks"), // "과목id|mode" → [강사id] (과목 통합에 넣을 강사)
   aggTab: "weeks", // 과목 통합 커리큘럼(정규): weeks 주차별 | subjects 과목별
   aiLines: 2, // 과목 통합 AI 요약 줄 수(2~4)
@@ -18,6 +18,16 @@ export const state = {
   employed: new Map(), // 강사id → false(퇴사 처리 시험)
   reviews: new Map(), // 제출 묶음 key → Map(준비물id → 최종 분류)
 };
+
+// 화면마다 학과·정규/방특·기수를 따로 기억한다(한 화면에서 고른 것이 다른 화면에 옮겨 가지 않게).
+// 처음 여는 화면은 첫 학과·정규. 다른 화면에 갔다 돌아오면 떠날 때 고른 그대로.
+const pageCtx = new Map();
+let currentPage = "";
+export function usePage(name) {
+  if (currentPage) pageCtx.set(currentPage, { dept: state.dept, mode: state.mode, cohort: state.cohort });
+  currentPage = name;
+  Object.assign(state, pageCtx.get(name) ?? { dept: "", mode: "regular", cohort: "" });
+}
 
 export function saveLocal() {
   try {

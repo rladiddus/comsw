@@ -1,80 +1,93 @@
-import { el, rows, pick, chip, hint, btn, locked, panel, empty, editor, headActions } from "../../../admin-v2/js/ui.mjs";
-import { state, deptSubjects, contextBar, typeChip } from "../v3.mjs";
+import { el, rows, pick, chip, hint, btn, panel, empty, editor, headActions } from "../../../admin-v2/js/ui.mjs";
+import { state, deptSubjects, contextBar, splitGrid } from "../v3.mjs";
 
-// 로드맵(V3 시안 '자동 로드맵'): 순서는 '학과별 과목 순서'를 그대로 따르고(여기서 순서를 바꾸지 않음), 한 단계에 과목을 하나 이상 묶을 수 있다.
-// 묶음은 순서에서 이어진 과목끼리만. 처음 묶음은 지금 로드맵(roadmap_step_subjects)에서 같은 단계에 있는 이웃 과목끼리.
-// 묶음 바꾸기는 이 화면에서만 시험한다(state.steps, 저장 안 됨).
-// 로드맵 문구는 과목마다 하나(모든 학과 공용, 2026-10-29 결정). 과목이 묶인 단계의 문구 = 그 과목들의 문구를 요약한 것.
-// 지금 DB에는 과목별 문구 칸이 없어, 그 과목 하나만 든 로드맵 단계(어느 학과든)의 문구를 과목 문구로 본다.
-
-// list(순서대로 과목) · starts(새 단계를 시작하는 과목 id) → [[과목, …], …]
-export function group(list, starts) {
-  const out = [];
-  list.forEach((s, i) => (i === 0 || starts.has(s.id) ? out.push([s]) : out.at(-1).push(s)));
-  return out;
-}
-
+// 로드맵(V3): 학과마다(정규만) 스텝을 위에서 아래로 쌓는다. 왼쪽 = 과목 통합 커리큘럼의 과목 순서, 오른쪽 = 스텝 박스.
+// 스텝에 과목 넣기 = 왼쪽 과목을 끌어 스텝 박스에 놓기(다른 스텝에 있던 과목이면 옮김). 맨 아래 '+ 스텝 추가'.
+// 스텝 박스 왼쪽 = 넣은 과목, 오른쪽 = 요약 문구. 문구는 과목마다 하나(모든 학과 공용, 2026-10-29 결정)이고,
+// 과목을 여럿 넣은 스텝은 그 과목들의 문구를 요약한 것. 지금 DB에는 과목별 문구 칸이 없어 그 과목 하나만 든 로드맵 단계의 문구를 과목 문구로 본다.
+// 스텝 구성은 이 화면에서만 기억한다(state.roadmap, 저장 안 됨). 처음 = 지금 로드맵(roadmap_steps·roadmap_step_subjects).
 export async function render(container, ctx) {
   const { supabase } = ctx;
-  const [depts, subjects, links, curricula, idepts, tracks, steps, stepSubjects] = await Promise.all([
+  const [depts, subjects, links, tracks, steps, stepSubjects] = await Promise.all([
     rows(supabase, "departments", (q) => q.order("sort_order")),
-    pick(supabase, "subjects", "id, name, is_vacation, sort_order, dept_curriculum"),
+    pick(supabase, "subjects", "id, name, is_vacation, sort_order"),
     pick(supabase, "subject_departments", "subject_id, department_id"),
-    pick(supabase, "instructor_curricula", "instructor_id, subject_id, vacation"),
-    pick(supabase, "instructor_departments", "instructor_id, department_id"),
     pick(supabase, "roadmap_tracks", "id, name, department_id"),
     pick(supabase, "roadmap_steps", "id, track_id, position, summary"),
     pick(supabase, "roadmap_step_subjects", "step_id, subject_id"),
   ]);
   const edit = editor("로드맵 문구 고치기 (기존 '로드맵' 화면)", () => import("../../../admin/js/pages/roadmap.mjs"), ctx);
-  headActions(ctx, btn("학과별 순서 수정", () => { location.hash = "#/order"; }), btn("문구 고치기", edit.open, true));
-  const data = { subjects, links, curricula, idepts };
+  headActions(ctx, btn("과목 순서 수정", () => { location.hash = "#/aggregate"; }), btn("문구 고치기", edit.open, true));
+  state.mode = "regular"; // 로드맵은 정규만
+  const data = { subjects, links };
   const body = el("div");
+  const nameOfS = (id) => subjects.find((s) => s.id === id)?.name ?? "?";
+  const subsOf = (stepId) => stepSubjects.filter((x) => x.step_id === stepId).map((x) => x.subject_id);
+  // 과목 문구: 그 과목 하나만 든 로드맵 단계(어느 학과든)의 문구
+  const own = (id) => steps.find((st) => { const xs = subsOf(st.id); return xs.length === 1 && xs[0] === id; })?.summary?.trim() ?? "";
+  let dragged = null;
+
+  // 처음 스텝 = 이 학과 로드맵의 단계(위치 순서)
+  const stepsOf = () => {
+    if (!state.roadmap.has(state.dept)) {
+      const mine = tracks.filter((t) => t.department_id === state.dept).map((t) => t.id);
+      state.roadmap.set(state.dept, steps.filter((st) => mine.includes(st.track_id)).sort((a, b) => mine.indexOf(a.track_id) - mine.indexOf(b.track_id) || (a.position ?? 0) - (b.position ?? 0))
+        .map((st) => ({ ids: subsOf(st.id).filter((id) => subjects.some((s) => s.id === id)), from: st.id })));
+    }
+    return state.roadmap.get(state.dept);
+  };
+  const summaryOf = (step) => {
+    const saved = steps.find((st) => st.id === step.from);
+    const same = saved && subsOf(saved.id).length === step.ids.length && step.ids.every((id) => subsOf(saved.id).includes(id));
+    if (same && saved.summary?.trim()) return [saved.summary.trim(), chip("요약 있음", "good")];
+    if (step.ids.length === 1) return own(step.ids[0]) ? [own(step.ids[0]), chip("과목 문구", "good")] : ["로드맵 문구가 없습니다.", chip("과목 문구 없음", "warn")];
+    return step.ids.length ? [`과목 문구 ${step.ids.length}개를 요약해야 합니다.`, chip("다시 요약 필요", "warn")] : ["왼쪽에서 과목을 끌어 놓으세요.", chip("과목 없음", "")];
+  };
 
   function draw() {
-    const list = deptSubjects(state.dept, state.mode, data);
-    const myTracks = tracks.filter((t) => t.department_id === state.dept).map((t) => t.id);
-    const myStepIds = new Set(steps.filter((s) => myTracks.includes(s.track_id)).map((s) => s.id));
-    const savedStep = (id) => stepSubjects.find((x) => x.subject_id === id && myStepIds.has(x.step_id))?.step_id ?? null;
-    const key = `${state.dept}:${state.mode}`;
-    if (!state.steps.has(key)) state.steps.set(key, new Set(list.filter((s, i) => i > 0 && (!savedStep(s.id) || savedStep(s.id) !== savedStep(list[i - 1].id))).map((s) => s.id)));
-    const starts = state.steps.get(key);
-    const groups = group(list, starts);
-    const own = (id) => steps.find((st) => { const xs = stepSubjects.filter((x) => x.step_id === st.id); return xs.length === 1 && xs[0].subject_id === id; })?.summary?.trim() ?? "";
-    const redraw = (fn) => () => { fn(); draw(); };
+    const list = deptSubjects(state.dept, "regular", data);
+    const plan = stepsOf();
+    const stepNo = (id) => plan.findIndex((st) => st.ids.includes(id)) + 1;
 
-    body.replaceChildren(groups.length ? el("div", { className: "v3-cards" }, groups.map((g, i) => {
-      const ids = new Set(g.map((s) => savedStep(s.id)));
-      const saved = ids.size === 1 && !ids.has(null) ? steps.find((st) => st.id === [...ids][0]) : null;
-      const same = saved && stepSubjects.filter((x) => x.step_id === saved.id && list.some((s) => s.id === x.subject_id)).length === g.length;
-      const next = groups[i + 1]?.[0];
-      return panel(`STEP ${i + 1}  ${g.map((s) => s.name).join(" + ")}`, [
-        ...g.map((s, j) => el("div", { className: "v2-row v2-gap v3-line" }, [
-          el("span", { textContent: s.name }), typeChip(s),
-          el("small", { className: "muted", textContent: s.dept_curriculum ? "과목 통합 커리큘럼 있음" : "과목 통합 커리큘럼 없음" }),
-          ...(j > 0 ? [btn("여기서 나누기", redraw(() => starts.add(s.id)))] : []),
-          ...(g.length > 1 ? [el("small", { className: "v3-block", textContent: `과목 문구: ${own(s.id) || "없음"}` })] : []),
-        ])),
-        ...(g.length > 1
-          ? [el("p", { className: "v2-label", textContent: `묶은 단계 문구 (과목 문구 ${g.length}개를 요약)` }), el("p", { textContent: (same && String(saved.summary || "").trim()) || "아직 요약하지 않았습니다." }),
-            el("div", { className: "v2-row v2-gap" }, [same && saved.summary ? chip("요약 있음", "good") : chip("다시 요약 필요", "warn")])]
-          : [el("p", { textContent: own(g[0].id) || (same && String(saved.summary || "").trim()) || "로드맵 문구가 없습니다." }),
-            el("div", { className: "v2-row v2-gap" }, [own(g[0].id) || (same && saved.summary) ? chip("과목 문구 있음", "good") : chip("과목 문구 없음", "warn")])]),
-        el("div", { className: "v2-actions" }, [
-          ...(next ? [btn(`다음 과목(${next.name})도 이 단계에`, redraw(() => starts.delete(next.id)))] : []),
-          btn("과목 통합 커리큘럼 보기", () => { location.hash = `#/aggregate/${g[0].id}`; }),
-          locked("다시 요약", "과목 통합본으로 다시 요약하는 작업은 DB·서버 추가가 필요합니다"),
-        ]),
-      ], "", [chip(`과목 ${g.length}개`, g.length > 1 ? "vacation" : "")]);
-    })) : panel("로드맵", [empty("이 학과·유형에 과목이 없습니다.")]));
+    const items = list.map((s, i) => {
+      const n = stepNo(s.id);
+      const r = el("div", { className: "v2-listitem v3-dragsrc", draggable: true }, [el("div", { className: "v2-row v2-gap" }, [
+        el("span", { className: "v3-handle", textContent: "⋮⋮" }), el("b", { className: "v2-grow", textContent: `${i + 1}. ${s.name}` }),
+        n ? chip(`STEP ${n}`, "good") : chip("스텝 없음", "")])]);
+      r.addEventListener("dragstart", (e) => { dragged = s.id; e.dataTransfer?.setData("text/plain", s.id); });
+      r.addEventListener("dragend", () => { dragged = null; });
+      return r;
+    });
+    const boxes = plan.map((step, i) => {
+      const [text, status] = summaryOf(step);
+      const box = el("div", { className: "v3-step" }, [
+        el("div", { className: "v3-stepsubs" }, [el("b", { textContent: `STEP ${i + 1}` }),
+          ...(step.ids.length ? step.ids.map((id) => el("span", { className: "v3-tchip", textContent: nameOfS(id) })) : [el("small", { className: "muted", textContent: "여기에 과목을 놓으세요" })])]),
+        el("div", { className: "v3-steptext" }, [el("p", { textContent: text }), status]),
+      ]);
+      box.addEventListener("dragover", (e) => { if (!dragged) return; e.preventDefault(); box.classList.add("drop-on"); });
+      box.addEventListener("dragleave", () => box.classList.remove("drop-on"));
+      box.addEventListener("drop", (e) => {
+        e.preventDefault(); box.classList.remove("drop-on");
+        const id = dragged; dragged = null;
+        if (!id || step.ids.includes(id)) return;
+        plan.forEach((st) => { st.ids = st.ids.filter((x) => x !== id); }); // 다른 스텝에 있던 과목은 옮긴다
+        step.ids.push(id);
+        draw();
+      });
+      return box;
+    });
+    body.replaceChildren(splitGrid(
+      panel("과목", [list.length ? el("div", { className: "v2-boxlist" }, items) : empty("이 학과에 과목이 없습니다.")], "과목 통합 커리큘럼 순서 · 끌어서 스텝에 놓기"),
+      panel("로드맵 스텝", [
+        ...(boxes.length ? boxes : [empty("스텝이 없습니다. 아래 '+ 스텝 추가'를 누르세요.")]),
+        el("div", { className: "v2-actions" }, [btn("+ 스텝 추가", () => { plan.push({ ids: [], from: null }); draw(); })]),
+        hint("스텝 구성은 화면에서만 기억합니다(저장 안 됨). 실제 로드맵 문구는 '문구 고치기'(기존 로드맵 화면)에서 고칩니다."),
+      ], "위에서 아래로 한 박스가 한 스텝"),
+    ));
   }
-  container.append(
-    contextBar(depts, draw),
-    el("div", { className: "v3-callout" }, [document.createTextNode("로드맵에서는 순서를 따로 바꾸지 않습니다. 순서는 "), el("b", { textContent: "학과별 과목 순서" }),
-      document.createTextNode(" 한 곳에서만 정합니다. 로드맵 문구는 과목마다 하나(모든 학과 공용)이고, 과목을 묶은 단계는 그 과목들의 문구를 요약해 한 단계 문구로 만듭니다.")]),
-    body,
-    hint("묶음 바꾸기는 시험 기능입니다. 저장하지 않으며 새로고침하면 지금 로드맵 묶음으로 돌아갑니다. 실제 묶음은 '문구 고치기'(기존 로드맵 화면)에서 바꿉니다."),
-    edit.node,
-  );
+  const bar = contextBar(depts, draw);
+  bar.querySelector(".v3-switch")?.remove(); // 정규·방특 버튼 없음
+  container.append(bar, body, edit.node);
   draw();
 }

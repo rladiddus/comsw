@@ -8,6 +8,7 @@ import { mountPage, clearApp } from "../../admin/js/mount.mjs";
 import { auth } from "../../admin/js/firebase.mjs";
 import { SITE_PAGES, previewUrl, openPreview } from "../../admin/js/preview.mjs";
 import { configureServices, createServices } from "../../admin/js/services.mjs";
+import { usePage } from "./v3.mjs";
 
 const page = (file) => () => import(`./pages/${file}.mjs`);
 
@@ -27,7 +28,7 @@ export const GROUPS = [
   ["콘텐츠", [
     ["teachers", "✎", "강사 커리큘럼", "강사마다 승인본과 수정 대기 제출을 따로 봅니다.", page("teachers")],
     ["aggregate", "≡", "과목 통합 커리큘럼", "재직 강사들의 승인 커리큘럼을 모아 과목 통합 커리큘럼을 만듭니다.", page("aggregate")], // 시안: 학과 통합 커리큘럼(과목 하나를 모든 학과가 같이 씀)
-    ["roadmap", "◇", "로드맵", "학과별 과목 순서를 그대로 따르고, 과목 통합 커리큘럼에서만 문구를 만듭니다.", page("roadmap")], // 자동 로드맵
+    ["roadmap", "◇", "로드맵", "과목 통합 커리큘럼의 과목 순서를 보며 과목을 스텝에 넣습니다.", page("roadmap")], // 자동 로드맵
     ["materials", "▧", "수업별 준비물", "교재·준비물·사용 프로그램·AI 도구를 과목별로 확정합니다.", page("materials")], // 준비물·교재·AI 도구
   ]],
   ["프로그램", [
@@ -124,6 +125,7 @@ async function route() {
       return a;
     }),
   ]));
+  usePage(id);
   try {
     await mountPage($("#content"), async () => ({
       render: async (box, ctx) => {

@@ -153,7 +153,7 @@ test("V3 승인 대기 방특: 기수를 골라야 승인, 고른 기수로 옮�
 });
 
 test("V3 학과별 순서 → 로드맵·학과 커리큘럼이 같은 순서, 퇴사 시험은 출처에서 빠짐", async () => {
-  v3.state.dept = "d1"; v3.state.mode = "regular"; v3.state.orders.clear(); v3.state.employed.clear(); v3.state.steps.clear();
+  v3.state.dept = "d1"; v3.state.mode = "regular"; v3.state.orders.clear(); v3.state.employed.clear(); v3.state.roadmap.clear();
   let c = await page("order");
   assert.deepEqual([...c.querySelectorAll(".v3-orderrow b")].map((b) => b.textContent), ["포토샵", "웹1"]);
   assert.ok(![...c.querySelectorAll("button")].some((b) => /^[↑↓]$/.test(b.textContent)), "위·아래 화살표 없음");
@@ -169,15 +169,26 @@ test("V3 학과별 순서 → 로드맵·학과 커리큘럼이 같은 순서, �
   assert.ok(r1.classList.contains("drop-before"));
   drag(r1, "drop");
   assert.deepEqual(v3.state.orders.get("d1:regular"), ["s2", "s1"]);
+  v3.state.mode = "vacation"; // 로드맵은 정규만 → 들어가면 정규
   c = await page("roadmap");
-  const heads = () => [...c.querySelectorAll(".v2-panel-head h3")].map((h) => h.textContent);
-  assert.deepEqual(heads(), ["STEP 1  웹1 + 포토샵"], "지금 로드맵에서 한 단계인 두 과목은 그대로 한 단계");
-  assert.match(c.textContent, /묶은 단계 문구 \(과목 문구 2개를 요약\)기초/);
-  button(c, "여기서 나누기").click();
-  assert.deepEqual(heads(), ["STEP 1  웹1", "STEP 2  포토샵"]);
-  assert.match(c.textContent, /과목 문구 없음/, "과목 하나만 든 단계가 없으면 과목 문구 없음");
-  button(c, "다음 과목(포토샵)도 이 단계에").click();
-  assert.deepEqual(heads(), ["STEP 1  웹1 + 포토샵"]);
+  assert.equal(v3.state.mode, "regular");
+  assert.ok(!button(c, "정규") && !button(c, "방특"), "정규·방특 버튼 없음");
+  const left = () => [...c.querySelectorAll(".v3-dragsrc b")].map((b) => b.textContent);
+  assert.deepEqual(left(), ["1. 웹1", "2. 포토샵"], "왼쪽 과목은 과목 통합 커리큘럼 순서");
+  const stepSubs = () => [...c.querySelectorAll(".v3-step")].map((b) => [...b.querySelectorAll(".v3-stepsubs .v3-tchip")].map((x) => x.textContent));
+  assert.deepEqual(stepSubs(), [["포토샵", "웹1"]], "처음 = 지금 로드맵 단계");
+  assert.match(c.querySelector(".v3-step").textContent, /기초/);
+  button(c, "+ 스텝 추가").click();
+  assert.deepEqual(stepSubs(), [["포토샵", "웹1"], []]);
+  // 왼쪽 웹1을 끌어 STEP 2에 놓으면 STEP 1에서 옮겨 감
+  const src = c.querySelectorAll(".v3-dragsrc")[0];
+  const box2 = c.querySelectorAll(".v3-step")[1];
+  drag(src, "dragstart"); drag(box2, "dragover");
+  assert.ok(box2.classList.contains("drop-on"));
+  drag(box2, "drop");
+  assert.deepEqual(stepSubs(), [["포토샵"], ["웹1"]]);
+  assert.match(c.querySelectorAll(".v3-step")[0].textContent, /과목 문구 없음/, "과목 하나만 든 단계가 없으면 과목 문구 없음");
+  assert.match(c.textContent, /STEP 2/);
 
   const { affected } = await import("../../admin-v3/js/pages/instructors.mjs");
   assert.equal(affected("i2", data().instructor_curricula.filter((x) => x.status === "approved"), data().curriculum_sets).length, 3);
@@ -325,7 +336,7 @@ test("V3 학과별 순서 → 로드맵·학과 커리큘럼이 같은 순서, �
   [...c.querySelectorAll(".v3-aggtabs button")][1].click();
   assert.match(c.textContent, /다시 만들기 필요/);
   v3.state.aggTab = "weeks";
-  v3.state.employed.clear(); v3.state.orders.clear(); v3.state.steps.clear();
+  v3.state.employed.clear(); v3.state.orders.clear(); v3.state.roadmap.clear();
 });
 
 test("V3 준비물: 4분류 탭 안에서 바로 등록·수정, 사용 프로그램은 과목 칸 저장", async () => {
@@ -440,4 +451,16 @@ test("V3 방특은 학과 대신 기수: 그 기수에 담긴 커리큘럼(방�
   assert.deepEqual(leftNames(), ["포토샵", "방특AI"]);
   assert.match(c.textContent, /여름 포토샵/);
   v3.state.mode = "regular"; v3.state.teacherTab = "teacher"; v3.state.cohort = "";
+});
+
+test("V3 화면마다 학과·정규/방특·기수를 따로 기억", () => {
+  v3.usePage("aggregate"); v3.state.mode = "vacation"; v3.state.cohort = "v2";
+  v3.usePage("teachers");
+  assert.equal(v3.state.mode, "regular", "다른 화면은 처음 그대로");
+  v3.state.dept = "d2";
+  v3.usePage("aggregate");
+  assert.deepEqual([v3.state.mode, v3.state.cohort], ["vacation", "v2"], "돌아오면 떠날 때 고른 그대로");
+  v3.usePage("teachers");
+  assert.equal(v3.state.dept, "d2");
+  v3.state.dept = "d1"; v3.state.mode = "regular"; v3.state.cohort = "";
 });

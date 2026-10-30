@@ -4,7 +4,7 @@ import { getServices } from "../../../admin/js/services.mjs";
 import { driveThumbnail } from "../../../admin/js/drive.mjs";
 import { applyCrop } from "../../../admin/js/image-crop.mjs";
 import { LEVELS } from "../../../admin/js/pages/department-curriculum.mjs";
-import { state, deptSubjects, contextBar, isEmployed, modal, sortable } from "../v3.mjs";
+import { state, deptSubjects, contextBar, isEmployed, modal, sortable, addableSubjects } from "../v3.mjs";
 
 // 과목 통합 커리큘럼(V3 시안 '학과 통합 커리큘럼', 정책 3·4·5·7): 과목 하나를 모든 학과가 같이 쓴다(2026-10-29 결정).
 // 정규는 두 탭: [주차별 커리큘럼] 고른 과목의 단계별 문구(AI생성·직접 입력·저장)와 대표 이미지(그 단계 강사 이미지 중 고르기), 실제 저장
@@ -51,7 +51,6 @@ export async function render(container, ctx) {
   const key = () => `${state.dept}:${state.mode}`;
   let subjectId = location.hash.split("/")[2] ?? "";
   let listEditing = false;
-  let adding = false;
   const body = el("div");
 
   // 과목에 넣을 강사(순서대로). 처음 = 이 과목 승인본이 있는 재직 강사(강사 순서).
@@ -168,6 +167,28 @@ export async function render(container, ctx) {
     ]);
   }
 
+  // 과목 추가 팝업: 위에 검색, 아래 목록. '추가'로 고르고 '완료'를 누르면 목록 끝에 붙는다(V3 학과 순서, 저장 안 됨).
+  function addPopup(ids, setOrder) {
+    const rest = addableSubjects(subjects, ids, state.mode);
+    const chosen = [];
+    const q = search("과목 검색");
+    const found = el("div", { className: "v3-scroll v3-addlist" });
+    const fill = () => {
+      const word = q.value.trim().toLowerCase();
+      const hit = rest.filter((s) => s.name.toLowerCase().includes(word));
+      found.replaceChildren(...(hit.length ? hit.map((s) => {
+        const on = chosen.includes(s.id);
+        return el("div", { className: "v2-row v2-gap" }, [el("span", { className: "v2-grow", textContent: s.name }), ...(s.is_vacation ? [chip("방특", "vacation")] : []),
+          Object.assign(el("button", { type: "button", className: on ? "publish-btn" : "ghost-btn", textContent: on ? "선택됨" : "추가" }),
+            { onclick: () => { if (on) chosen.splice(chosen.indexOf(s.id), 1); else chosen.push(s.id); fill(); } })]);
+      }) : [empty(rest.length ? "검색한 과목이 없습니다." : "더 넣을 과목이 없습니다.")]));
+    };
+    q.addEventListener("input", fill);
+    fill();
+    modal(`과목 추가 · ${state.mode === "vacation" ? "방특" : "정규"}`, [q, found], [["완료", () => { if (chosen.length) setOrder([...ids, ...chosen]); }]]).classList.add("v3-narrow");
+    q.focus?.();
+  }
+
   // 왼쪽 과목 목록. '수정'이면 끌어서 순서, '+ 과목 추가'(검색). 바꾼 순서는 V3 학과 순서(저장 안 됨).
   function subjectList(list) {
     const ids = list.map((s) => s.id);
@@ -180,25 +201,11 @@ export async function render(container, ctx) {
     if (listEditing) sortable(items.map((r, i) => [r, ids[i]]), ids, setOrder);
     const top = [];
     if (listEditing) {
-      top.push(btn(adding ? "추가 닫기" : "+ 과목 추가", () => { adding = !adding; draw(); }));
-      if (adding) {
-        const q = search("과목 검색");
-        const found = el("div", { className: "v3-scroll v3-addlist" });
-        const rest = subjects.filter((s) => Boolean(s.is_vacation) === (state.mode === "vacation") && !ids.includes(s.id)).sort((a, b) => a.name.localeCompare(b.name));
-        const fill = () => {
-          const word = q.value.trim().toLowerCase();
-          const hit = rest.filter((s) => s.name.toLowerCase().includes(word));
-          found.replaceChildren(...(hit.length ? hit.map((s) => el("div", { className: "v2-row v2-gap" }, [el("span", { className: "v2-grow", textContent: s.name }), btn("추가", () => setOrder([...ids, s.id]))]))
-            : [empty(rest.length ? "검색한 과목이 없습니다." : "더 넣을 과목이 없습니다.")]));
-        };
-        q.addEventListener("input", fill);
-        fill();
-        top.push(q, found);
-      }
+      top.push(btn("+ 과목 추가", () => addPopup(ids, setOrder)));
       top.push(el("small", { className: "muted", textContent: "끌어서 순서를 바꿉니다(화면에서만, 저장 안 됨)." }));
     }
     return panel("과목", [...top, list.length ? el("div", { className: "v2-boxlist" }, items) : empty("이 학과·유형에 과목이 없습니다.")], "학과별 과목 순서대로",
-      [btn(listEditing ? "수정 끝" : "수정", () => { listEditing = !listEditing; adding = false; draw(); })]);
+      [btn(listEditing ? "수정 끝" : "수정", () => { listEditing = !listEditing; draw(); })]);
   }
 
   function weeksView(list) {

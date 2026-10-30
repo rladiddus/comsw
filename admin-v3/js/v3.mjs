@@ -54,19 +54,26 @@ export const materialsOf = (row) => row ? [
 ] : [];
 
 // 학과·유형의 과목 순서. 저장된 학과별 순서 칸이 없어 지금은 전체 공통 순서(subjects.sort_order)를 쓴다.
-// 방특 과목은 학과 연결이 없는 경우가 많아, 그 학과 강사가 방특으로 낸 과목도 넣는다.
+// 정규 = 학과에 연결된 과목 중 '방특' 표시가 없는 것.
+// 방특 = 학과에 연결된 '방특' 표시 과목 + 그 학과 강사가 방특으로 낸 과목(지금 방특 제출은 대부분 정규 과목을 그대로 쓴다).
 export function deptSubjects(dept, mode, { subjects, links, curricula = [], idepts = [] }) {
   const vac = mode === "vacation";
   const linked = new Set(links.filter((l) => l.department_id === dept).map((l) => l.subject_id));
+  const used = new Set();
   if (vac) {
     const mine = new Set(idepts.filter((x) => x.department_id === dept).map((x) => x.instructor_id));
-    curricula.filter((c) => c.vacation && mine.has(c.instructor_id)).forEach((c) => linked.add(c.subject_id));
+    curricula.filter((c) => c.vacation && mine.has(c.instructor_id)).forEach((c) => used.add(c.subject_id));
   }
-  const base = subjects.filter((s) => linked.has(s.id) && Boolean(s.is_vacation) === vac)
+  const base = subjects.filter((s) => used.has(s.id) || (linked.has(s.id) && Boolean(s.is_vacation) === vac))
     .sort((a, b) => (a.sort_order ?? 1e9) - (b.sort_order ?? 1e9) || a.name.localeCompare(b.name));
   const saved = state.orders.get(`${dept}:${mode}`);
   return saved ? saved.map((id) => subjects.find((s) => s.id === id)).filter(Boolean) : base;
 }
+
+// 이 학과 순서에 더 넣을 수 있는 과목: 정규는 '방특' 표시가 없는 과목, 방특은 모든 과목(방특도 정규 과목을 쓴다).
+export const addableSubjects = (subjects, ids, mode) => subjects
+  .filter((s) => !ids.includes(s.id) && (mode === "vacation" || !s.is_vacation))
+  .sort((a, b) => a.name.localeCompare(b.name));
 
 // 화면 위 공통 막대: 학과 / 정규·방특.
 export function contextBar(depts, onChange, extra = []) {

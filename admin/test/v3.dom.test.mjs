@@ -248,12 +248,31 @@ test("V3 학과별 순서 → 로드맵·학과 커리큘럼이 같은 순서, �
   v3.state.orders.clear();
   button(c, "수정").click();
   button(c, "+ 과목 추가").click();
-  const sq = c.querySelector('input[type="search"]');
+  let addDlg = document.querySelector("dialog.v3-modal");
+  const addNames = () => [...addDlg.querySelectorAll(".v3-addlist .v2-grow")].map((x) => x.textContent);
+  assert.deepEqual(addNames(), ["캐드"], "정규: 이미 있는 과목·방특 표시 과목은 후보에 없음");
+  const sq = addDlg.querySelector('input[type="search"]');
+  sq.value = "없는"; sq.dispatchEvent(new dom.window.Event("input"));
+  assert.match(addDlg.textContent, /검색한 과목이 없습니다/);
   sq.value = "캐"; sq.dispatchEvent(new dom.window.Event("input"));
-  assert.match(c.textContent, /캐드/);
-  assert.ok(!/웹1추가/.test(c.textContent), "이미 있는 과목은 후보에 없음");
-  button(c, "추가").click();
+  button(addDlg, "추가").click();
+  assert.equal(v3.state.orders.has("d1:regular"), false, "완료 전에는 그대로");
+  button(addDlg, "완료").click();
   assert.deepEqual(v3.state.orders.get("d1:regular"), ["s1", "s2", "s3"]);
+  // 방특: 정규 과목도 추가 후보(방특 제출은 정규 과목을 그대로 쓴다)
+  v3.state.mode = "vacation";
+  c = await page("aggregate", { supabase: db });
+  button(c, "수정").click();
+  button(c, "+ 과목 추가").click();
+  addDlg = document.querySelector("dialog.v3-modal");
+  assert.deepEqual(addNames(), ["웹1", "캐드", "포토샵"]);
+  button(addDlg, "추가").click();
+  button(addDlg, "완료").click();
+  assert.deepEqual(v3.state.orders.get("d1:vacation"), ["s4", "s2"]);
+  assert.deepEqual([...c.querySelectorAll(".v2-listitem b")].map((b) => b.textContent), ["1. 방특AI", "2. 웹1"]);
+  v3.state.mode = "regular";
+  c = await page("aggregate", { supabase: db });
+  button(c, "수정").click();
   const items = c.querySelectorAll(".v2-listitem");
   drag(items[2], "dragstart"); drag(items[0], "dragover"); drag(items[0], "drop");
   assert.deepEqual(v3.state.orders.get("d1:regular"), ["s3", "s1", "s2"]);
@@ -328,4 +347,14 @@ test("V3 모든 화면이 오류 없이 그려진다", async () => {
   const s = await page("subjects");
   assert.match(s.textContent, /여러 학과 공용/);
   assert.ok(!/학과별 분리|고유 ID/.test(s.textContent));
+});
+
+test("V3 방특 과목 목록: 정규 과목으로 낸 방특 커리큘럼도 방특에 나온다", () => {
+  v3.state.orders.clear();
+  const list = v3.deptSubjects("d1", "vacation", {
+    subjects: [{ id: "x", name: "포토샵" }, { id: "y", name: "캐드" }], links: [{ subject_id: "y", department_id: "d1" }],
+    curricula: [{ vacation: true, instructor_id: "i1", subject_id: "x" }], idepts: [{ instructor_id: "i1", department_id: "d1" }],
+  });
+  assert.deepEqual(list.map((s) => s.name), ["포토샵"], "학과 연결만 된 정규 과목(캐드)은 방특에 없음");
+  assert.deepEqual(v3.addableSubjects([{ id: "x", name: "포토샵" }, { id: "z", name: "방특AI", is_vacation: true }], [], "regular").map((s) => s.id), ["x"]);
 });

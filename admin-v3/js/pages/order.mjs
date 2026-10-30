@@ -1,5 +1,5 @@
 import { el, rows, pick, chip, hint, btn, locked, panel, empty, search, headActions } from "../../../admin-v2/js/ui.mjs";
-import { state, deptSubjects, contextBar, typeChip, sortable } from "../v3.mjs";
+import { state, deptSubjects, contextBar, typeChip, sortable, addableSubjects } from "../v3.mjs";
 
 // 학과별 과목 순서(V3 시안): 학과 × 정규/방특마다 순서 하나. 전체 수업·과목 통합 커리큘럼·로드맵이 이 순서를 같이 쓴다.
 // 지금 DB에는 학과별 순서 칸이 없어(전체 공통 sort_order 하나) 저장은 잠그고, 바꾼 순서는 이 화면·로드맵·과목 통합 커리큘럼에서만 보인다.
@@ -38,13 +38,13 @@ export async function render(container, ctx) {
       btn("빼기", () => setOrder(ids.filter((x) => x !== s.id))),
     ]));
     sortable(rowsEl.map((r, i) => [r, ids[i]]), ids, setOrder);
-    rest = subjects.filter((s) => Boolean(s.is_vacation) === (state.mode === "vacation") && !ids.includes(s.id)).sort((a, b) => a.name.localeCompare(b.name));
+    rest = addableSubjects(subjects, ids, state.mode);
     addTo = (id) => setOrder([...ids, id]);
     fillRest();
     const shared = list.map((s, i) => `${i + 1}. ${s.name}`).join(" → ") || "과목 없음";
     body.replaceChildren(
       el("div", { className: "v3-grid48" }, [
-        panel("배치 가능한 과목", [restBox], "같은 유형(정규/방특) 과목만", [q]),
+        panel("배치 가능한 과목", [restBox], state.mode === "vacation" ? "방특은 모든 과목" : "정규 과목만", [q]),
         panel("현재 과목 순서", rowsEl.length ? rowsEl : [empty("배정된 과목이 없습니다.")], "끌어서 옮깁니다. 들어갈 자리에 점선이 보입니다", [state.orders.has(key()) ? chip("바꾼 순서 · 저장 안 됨", "warn") : chip("지금 순서", "good")]),
       ]),
       panel("같은 순서 자동 반영 미리보기", [

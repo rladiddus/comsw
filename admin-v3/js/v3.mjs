@@ -154,7 +154,8 @@ export function sortable(pairs, ids, onDrop) {
   pairs.forEach(([r, id]) => {
     r.draggable = true;
     const after = (e) => { const b = r.getBoundingClientRect(); return e.clientY > b.top + b.height / 2; };
-    r.addEventListener("dragstart", (e) => { dragged = id; e.dataTransfer?.setData("text/plain", id); });
+    // 안쪽 목록(예: 스텝 안 과목)을 끌 때 바깥 목록(스텝)이 같이 끌리지 않게 막는다
+    r.addEventListener("dragstart", (e) => { e.stopPropagation(); dragged = id; e.dataTransfer?.setData("text/plain", String(id)); });
     r.addEventListener("dragend", () => { dragged = null; clear(); });
     r.addEventListener("dragover", (e) => { if (!dragged || dragged === id) return; e.preventDefault(); clear(); r.classList.add(after(e) ? "drop-after" : "drop-before"); });
     r.addEventListener("dragleave", () => r.classList.remove("drop-before", "drop-after"));

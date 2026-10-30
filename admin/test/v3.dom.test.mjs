@@ -176,15 +176,19 @@ test("V3 학과별 순서 → 로드맵·학과 커리큘럼이 같은 순서, �
   const left = () => [...c.querySelectorAll(".v3-dragsrc b")].map((b) => b.textContent);
   assert.deepEqual(left(), ["1. 웹1", "2. 포토샵"], "왼쪽 과목은 과목 통합 커리큘럼 순서");
   const boxesOf = () => [...c.querySelectorAll(".v3-step:not(.v3-stepadd)")];
-  const stepSubs = () => boxesOf().map((b) => [...b.querySelectorAll(".v3-stepsubs .v3-tchip")].map((x) => x.textContent));
+  const stepSubs = () => boxesOf().map((b) => [...b.querySelectorAll(".v3-stepsub .v2-grow")].map((x) => x.textContent));
   assert.deepEqual(stepSubs(), [["포토샵", "웹1"]], "처음 = 지금 로드맵 단계");
+  // 스텝 안 과목 위아래 끌기: 웹1을 포토샵 위로
+  const [k1, k2] = boxesOf()[0].querySelectorAll(".v3-stepsub");
+  drag(k2, "dragstart"); drag(k1, "dragover"); drag(k1, "drop");
+  assert.deepEqual(stepSubs(), [["웹1", "포토샵"]]);
   assert.match(boxesOf()[0].textContent, /기초/);
   assert.ok(!c.textContent.includes("요약 있음"));
   assert.ok(!c.textContent.includes("로드맵 문구 고치기"), "아래 기존 화면 없음");
   assert.equal(button(boxesOf()[0], "AI 요약").disabled, true, "문구가 있고 바뀐 것이 없으면 AI 요약 꺼짐");
   assert.ok(c.querySelector("button.v3-step.v3-stepadd"), "스텝 추가는 스텝 박스 모양(점선)");
   button(c, "+ 스텝 추가").click();
-  assert.deepEqual(stepSubs(), [["포토샵", "웹1"], []]);
+  assert.deepEqual(stepSubs(), [["웹1", "포토샵"], []]);
   assert.equal(button(boxesOf()[1], "AI 요약").disabled, true, "과목이 없으면 꺼짐");
   // 왼쪽 웹1을 끌어 STEP 2에 놓으면 STEP 1에서 옮겨 감
   const src = c.querySelectorAll(".v3-dragsrc")[0];
@@ -194,6 +198,11 @@ test("V3 학과별 순서 → 로드맵·학과 커리큘럼이 같은 순서, �
   drag(box2, "drop");
   assert.deepEqual(stepSubs(), [["포토샵"], ["웹1"]]);
   assert.match(c.textContent, /STEP 2/);
+  // 스텝 끌어서 순서 바꾸기
+  drag(boxesOf()[1], "dragstart"); drag(boxesOf()[0], "dragover"); drag(boxesOf()[0], "drop");
+  assert.deepEqual(stepSubs(), [["웹1"], ["포토샵"]]);
+  drag(boxesOf()[1], "dragstart"); drag(boxesOf()[0], "dragover"); drag(boxesOf()[0], "drop");
+  assert.deepEqual(stepSubs(), [["포토샵"], ["웹1"]]);
   assert.equal(button(boxesOf()[0], "AI 요약").disabled, false, "과목이 바뀌면 AI 요약 켜짐");
   // AI 요약: 스텝 과목의 문구로 roadmap 요약
   const { configureServices: cfg } = await import("../../admin/js/services.mjs");
@@ -367,24 +376,40 @@ test("V3 학과별 순서 → 로드맵·학과 커리큘럼이 같은 순서, �
   v3.state.employed.clear(); v3.state.orders.clear(); v3.state.roadmap.clear();
 });
 
-test("V3 준비물: 4분류 탭 안에서 바로 등록·수정, 사용 프로그램은 과목 칸 저장", async () => {
-  v3.state.dept = "d1"; v3.state.mode = "regular";
+test("V3 준비물: 학과·정규/방특 없이 4분류 탭, 탭마다 학과별 묶음, 사용 프로그램도 같은 카드 목록", async () => {
   const db = sb();
   const c = await page("materials", { supabase: db });
+  assert.ok(!c.querySelector(".v2-bar"), "학과·정규/방특 칸 없음");
+  assert.ok(!/9D|과목별로 확정/.test(c.textContent), "9D 설명 없음");
   assert.deepEqual([...c.querySelectorAll(".v2-tab")].map((t) => t.textContent), ["교재", "물품", "사용 프로그램", "AI 도구"]);
-  assert.ok(!/품목 등록·수정/.test(c.textContent), "아래 따로 있던 기존 화면 없음");
   assert.ok(button(c, "+ 추가"), "교재 탭 안에 등록");
-  assert.ok(c.querySelector(".prep-subject"), "이 학과 과목(포토샵)의 교재 카드");
+  await flush();
+  assert.deepEqual([...c.querySelectorAll(".prep-dept h3")].map((h) => h.textContent), ["시각편집학과", "건축학과"], "모든 학과를 학과별로 한 번에");
   c.querySelectorAll(".v2-tab")[1].click();
   await flush();
   assert.ok(c.querySelector('textarea[placeholder="물품 내용"]'), "물품 탭은 '물품' 이름으로");
+  // 사용 프로그램: 과목 '프로그램' 칸을 같은 카드 목록으로
   c.querySelectorAll(".v2-tab")[2].click();
-  const box = c.querySelector(".v2-mini-card textarea");
-  assert.equal(box.value, "포토샵");
-  box.value = "포토샵, 라이트룸";
-  button(c, "저장").click();
   await flush();
-  assert.ok(db.calls.some(([k, t, , patch]) => k === "update" && t === "subjects" && patch.tools === "포토샵, 라이트룸"));
+  assert.ok(c.querySelector(".prep-dept .prep-subject .card-item"), "교재·물품과 같은 카드");
+  assert.ok(!c.querySelector(".v2-mini-card textarea"), "예전 글칸 모양 없음");
+  const card = c.querySelector(".card-item");
+  assert.ok([...card.querySelectorAll("input, textarea")].some((x) => x.value === "포토샵"));
+  button(card, "수정").click();
+  const input = [...card.querySelectorAll("input, textarea")].find((x) => x.value === "포토샵");
+  input.value = "라이트룸"; input.dispatchEvent(new dom.window.Event("input"));
+  button(card, "저장").click();
+  await flush();
+  assert.ok(db.calls.some(([k, t, id, patch]) => k === "update" && t === "subjects" && id === "s1" && patch.tools === "라이트룸"));
+  // + 추가: 학과 > 과목 고르고 내용 → 과목 프로그램 칸 끝에 붙임
+  button(c, "+ 추가").click();
+  const form = c.querySelector(".prep-add");
+  const dsel = form.querySelector('select[aria-label="학과"]'); dsel.value = "d1"; dsel.dispatchEvent(new dom.window.Event("change"));
+  const ssel = form.querySelector('select[aria-label="과목"]'); ssel.value = "s2";
+  form.querySelector('textarea[aria-label="내용"]').value = "피그마";
+  button(form, "저장").click();
+  await flush();
+  assert.ok(db.calls.some(([k, t, id, patch]) => k === "update" && t === "subjects" && id === "s2" && patch.tools === "피그마"));
 });
 
 test("V3 모든 화면이 오류 없이 그려진다", async () => {

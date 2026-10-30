@@ -1,9 +1,10 @@
 import { el, rows, pick, chip, hint, btn, panel, empty, headActions } from "../../../admin-v2/js/ui.mjs";
 import { getServices } from "../../../admin/js/services.mjs";
-import { state, deptSubjects, contextBar, splitGrid, modal } from "../v3.mjs";
+import { state, deptSubjects, contextBar, splitGrid, modal, sortable } from "../v3.mjs";
 
 // 로드맵(V3): 학과마다(정규만) 스텝을 위에서 아래로 쌓는다. 왼쪽 = 과목 통합 커리큘럼의 과목 순서, 오른쪽 = 스텝 박스.
 // 스텝에 과목 넣기 = 왼쪽 과목을 끌어 스텝 박스에 놓기(다른 스텝에 있던 과목이면 옮김). 맨 아래 '+ 스텝 추가'.
+// 스텝 안 과목(위아래)과 스텝 자체도 끌어서 순서를 바꾼다. 스텝 안 과목 순서 = 사이트 로드맵에 나오는 순서(roadmap_step_subjects.sort_order).
 // 스텝 박스 = 넣은 과목 | 요약 문구 | [과목 삭제][스텝 삭제][AI 요약]. AI 요약은 과목을 넣고 빼거나 새 스텝이라 문구가 필요할 때만 켜진다. 문구는 과목마다 하나(모든 학과 공용, 2026-10-29 결정)이고,
 // 과목을 여럿 넣은 스텝은 그 과목들의 문구를 요약한 것. 지금 DB에는 과목별 문구 칸이 없어 그 과목 하나만 든 로드맵 단계의 문구를 과목 문구로 본다.
 // 스텝 구성은 이 화면에서만 기억한다(state.roadmap, 저장 안 됨). 처음 = 지금 로드맵(roadmap_steps·roadmap_step_subjects).
@@ -77,7 +78,7 @@ export async function render(container, ctx) {
       ai.disabled = !needsText(step);
       const box = el("div", { className: "v3-step" }, [
         el("div", { className: "v3-stepsubs" }, [el("b", { textContent: `STEP ${i + 1}` }),
-          ...(step.ids.length ? step.ids.map((id) => el("span", { className: "v3-tchip" }, [el("span", { className: "v2-grow", textContent: nameOfS(id) }),
+          ...(step.ids.length ? step.ids.map((id) => el("span", { className: "v3-tchip v3-stepsub" }, [el("span", { className: "v3-handle", textContent: "⋮⋮" }), el("span", { className: "v2-grow", textContent: nameOfS(id) }),
             ...(step.removing ? [Object.assign(el("button", { type: "button", className: "v3-x", textContent: "−", title: `${nameOfS(id)} 빼기` }),
               { onclick: () => { step.ids = step.ids.filter((x) => x !== id); changed(step); if (!step.ids.length) step.removing = false; draw(); } })] : [])]))
             : [el("small", { className: "muted", textContent: "여기에 과목을 놓으세요" })])]),
@@ -90,6 +91,7 @@ export async function render(container, ctx) {
           ai,
         ]),
       ]);
+      sortable([...box.querySelectorAll(".v3-stepsub")].map((n, j) => [n, step.ids[j]]), step.ids, (a) => { step.ids = a; draw(); });
       box.addEventListener("dragover", (e) => { if (!dragged) return; e.preventDefault(); box.classList.add("drop-on"); });
       box.addEventListener("dragleave", () => box.classList.remove("drop-on"));
       box.addEventListener("drop", (e) => {
@@ -102,6 +104,7 @@ export async function render(container, ctx) {
       });
       return box;
     });
+    sortable(boxes.map((b, i) => [b, plan[i]]), [...plan], (a) => { plan.splice(0, plan.length, ...a); draw(); });
     body.replaceChildren(splitGrid(
       panel("과목", [list.length ? el("div", { className: "v2-boxlist" }, items) : empty("이 학과에 과목이 없습니다.")], "과목 통합 커리큘럼 순서 · 끌어서 스텝에 놓기"),
       panel("로드맵 스텝", [

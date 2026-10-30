@@ -3,6 +3,29 @@ import { el, mountTabs, stateLine } from "../teacher-workspace.mjs";
 import { dbErrorMessage } from "../fields.mjs";
 
 const CATEGORIES = [["textbook", "교재"], ["supply", "준비물"], ["ai", "AI 툴"]];
+// 사용 프로그램(V3 탭만): course_prep_items에 이 분류가 없어 과목의 '프로그램' 칸(subjects.tools)을 항목(쉼표·줄바꿈으로 나눔)으로 보고
+// 같은 카드 목록에서 고친다. toolsDb는 카드 목록이 쓰는 DB 호출(select·update·delete)을 받아 그 과목의 tools 한 칸으로 다시 저장한다.
+// 이미지·링크·정가 칸은 없다(내용만).
+const SOFTWARE = ["software", "사용 프로그램"];
+const splitTools = (t) => String(t || "").split(/[\n,]+/).map((x) => x.trim()).filter(Boolean);
+function toolsDb(supabase, subject) {
+  let items = splitTools(subject.tools).map((content, i) => ({ id: `${subject.id}:${i}`, subject_id: subject.id, category: "software", content, sort_order: i }));
+  const persist = async () => {
+    items.sort((a, b) => a.sort_order - b.sort_order);
+    const tools = items.map((x) => x.content.trim()).filter(Boolean).join(", ") || null;
+    const res = await supabase.from("subjects").update({ tools }).eq("id", subject.id);
+    if (!res.error) subject.tools = tools;
+    return res;
+  };
+  return {
+    from: () => ({
+      select: () => ({ order: async () => ({ data: items.map((x) => ({ ...x })), error: null }) }),
+      update: (patch) => ({ eq: async (_, id) => { Object.assign(items.find((x) => x.id === id) ?? {}, patch); return persist(); } }),
+      delete: () => ({ eq: async (_, id) => { items = items.filter((x) => x.id !== id); return persist(); } }),
+    }),
+  };
+}
+
 const empty = (label) => el("p", { className: "muted", textContent: `${label} 항목이 있는 과목이 없습니다.` });
 
 // 교재 / 준비물 / AI 툴 탭마다 그 분류 항목이 있는 과목을 학과별로 묶어 보여 준다(학과 제목 → 과목별 카드, 과목명은 카드 안 첫 칸).
@@ -15,7 +38,7 @@ const empty = (label) => el("p", { className: "muted", textContent: `${label} �
 export async function render(container, { supabase, prepCategory, prepSubjects, prepLabel }) {
   if (!prepCategory) container.append(el("h2", { textContent: "수업별 준비물" }));
   const [{ data: subjects }, { data: depts }, { data: links }] = await Promise.all([
-    supabase.from("subjects").select("id, name, sort_order"),
+    supabase.from("subjects").select(prepCategory === "software" ? "id, name, sort_order, tools" : "id, name, sort_order"),
     supabase.from("departments").select("id, name").order("sort_order"),
     supabase.from("subject_departments").select("subject_id, department_id"),
   ]);
@@ -30,7 +53,7 @@ export async function render(container, { supabase, prepCategory, prepSubjects, 
     const [x, y] = [subjects.find((s) => s.id === a), subjects.find((s) => s.id === b)];
     return (x.sort_order ?? Infinity) - (y.sort_order ?? Infinity) || x.name.localeCompare(y.name, "ko");
   };
-  const panels = CATEGORIES.filter(([cat]) => !prepCategory || cat === prepCategory)
+  const panels = [...CATEGORIES, SOFTWARE].filter(([cat]) => (!prepCategory && cat !== "software") || cat === prepCategory)
     .map(([cat, label]) => [cat, prepLabel ?? label, el("div", { className: "subpage" })]);
 
   // 학과 > 과목 고르기: 과목 목록 위쪽은 그 학과 과목, 아래 '다른 과목'은 나머지(학과에 없는 묶음 과목 등).
@@ -62,6 +85,7 @@ export async function render(container, { supabase, prepCategory, prepSubjects, 
 
   async function drawTab(cat) {
     const [, label, panel] = panels.find(([c]) => c === cat);
+    const soft = cat === "software";
     panel.replaceChildren();
     const setState = stateLine(panel);
     const lists = [];
@@ -83,8 +107,8 @@ export async function render(container, { supabase, prepCategory, prepSubjects, 
         el("label", { className: "form-field" }, [el("span", { textContent: "학과" }), deptPick]),
         el("label", { className: "form-field" }, [el("span", { textContent: "과목" }), pick]),
         el("label", { className: "form-field" }, [el("span", { textContent: "내용" }), content]),
-        el("label", { className: "form-field" }, [el("span", { textContent: "링크" }), link]),
-        el("label", { className: "form-field" }, [el("span", { textContent: "정가·설명" }), extra]),
+        ...(soft ? [] : [el("label", { className: "form-field" }, [el("span", { textContent: "링크" }), link]),
+          el("label", { className: "form-field" }, [el("span", { textContent: "정가·설명" }), extra])]),
       ]),
       el("div", { className: "form-actions" }, [save, cancel]),
     ]);
@@ -95,6 +119,17 @@ export async function render(container, { supabase, prepCategory, prepSubjects, 
       if (!pick.value) return setState("과목을 골라주세요", true);
       if (!content.value.trim()) return setState("내용을 입력해주세요", true);
       save.disabled = true;
+      if (soft) {
+        const s = subjects.find((x) => x.id === pick.value);
+        const tools = [...splitTools(s.tools), content.value.trim()].join(", ");
+        const { error } = await supabase.from("subjects").update({ tools }).eq("id", s.id);
+        save.disabled = false;
+        if (error) return setState(dbErrorMessage(error), true);
+        s.tools = tools;
+        await drawTab(cat);
+        panel.querySelector(".save-state").textContent = `'${s.name}'에 ${label}을(를) 추가했습니다.`;
+        return;
+      }
       const { data: same } = await supabase.from("course_prep_items").select("sort_order").eq("subject_id", pick.value).eq("category", cat);
       const sort_order = (same || []).reduce((m, r) => Math.max(m, r.sort_order ?? -1), -1) + 1;
       const { error } = await supabase.from("course_prep_items").insert({
@@ -113,14 +148,17 @@ export async function render(container, { supabase, prepCategory, prepSubjects, 
       foldBtn.textContent = fold ? "모두 펼치기" : "모두 접기";
     });
     panel.append(
-      el("p", { className: "desc", textContent:
-        "교재는 정가와 이미지가, AI 툴은 설명이 사이트에 함께 나옵니다. 왼쪽 ⠿를 끌어 놓은 순서가 그 과목의 사이트 순서입니다." }),
+      el("p", { className: "desc", textContent: soft
+        ? "과목의 '프로그램' 칸입니다(과목 공통, 이 과목을 쓰는 모든 학과에 같이 나옴). 왼쪽 ⠿를 끌어 놓은 순서가 그 과목의 사이트 순서입니다."
+        : "교재는 정가와 이미지가, AI 툴은 설명이 사이트에 함께 나옵니다. 왼쪽 ⠿를 끌어 놓은 순서가 그 과목의 사이트 순서입니다." }),
       el("div", { className: "editor-bar" }, [addBtn, foldBtn]),
       form,
     );
 
     // ── 학과 → 과목 → 카드 ──
-    const { data: items } = await supabase.from("course_prep_items").select("id, subject_id, department_id").eq("category", cat);
+    const { data: items } = soft
+      ? { data: (subjects || []).filter((x) => splitTools(x.tools).length).map((x) => ({ id: x.id, subject_id: x.id, department_id: null })) }
+      : await supabase.from("course_prep_items").select("id, subject_id, department_id").eq("category", cat);
     // 학과 → 과목 → 항목 id
     const buckets = new Map();
     for (const it of (items || []).filter((i) => nameOf.has(i.subject_id) && (!prepSubjects || prepSubjects.has(i.subject_id)))) {
@@ -143,12 +181,17 @@ export async function render(container, { supabase, prepCategory, prepSubjects, 
         section.dataset.subject = nameOf.get(subjectId);
         deptBox.append(section);
         mounts.push(mountCardList(section, {
-          supabase,
+          supabase: soft ? toolsDb(supabase, subjects.find((x) => x.id === subjectId)) : supabase,
           table: "course_prep_items",
           toolbar: false,
           activeKey: null,
-          query: (q) => q.in("id", bySubject.get(subjectId)),
-          fields: [
+          query: (q) => (soft ? q : q.in("id", bySubject.get(subjectId))),
+          ...(soft ? { preview: () => [], imageKey: "no_image" } : {}),
+          fields: soft ? [
+            { key: "subject_id", label: "과목", type: "select", locked: true, span: 2, options: () => [[subjectId, nameOf.get(subjectId)]] },
+            { key: "category", label: "분류", type: "select", locked: true, span: 1, options: () => [SOFTWARE] },
+            { key: "content", label: "내용", type: "text", required: true, span: 9 },
+          ] : [
             // 한 줄, 칸 너비 고정(12칸 격자): 과목 2 / 분류 1 / 내용 4 / 링크 3 / 정가·설명 2 — 카드마다 같은 자리.
             { key: "subject_id", label: "과목", type: "select", locked: true, span: 2, options: () => [[subjectId, nameOf.get(subjectId)]] },
             { key: "category", label: "분류", type: "select", locked: true, span: 1, options: () => CATEGORIES },

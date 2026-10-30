@@ -72,3 +72,5 @@
 .v3-dragsrc { cursor:grab; }
 @media (max-width:700px) { .v3-step { grid-template-columns:1fr; } }
 .v3-steplist { padding:0 4px 0 0; margin-bottom:10px; }
+.v3-stepsub { align-self:stretch; cursor:grab; }
+.v3-step[draggable=true] { cursor:grab; }

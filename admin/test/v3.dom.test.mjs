@@ -538,16 +538,22 @@ test("V3 기본 설정: 페이지 속성 없이 [페이지 편집], 메뉴는 �
   assert.ok(pills()[1].classList.contains("off"), "꺼 둔 메뉴는 흐리게");
   const save = button(c, "저장");
   assert.ok(save.disabled);
-  const input = pills()[0].querySelector("input[type=text]");
-  input.value = "모든 수업"; input.dispatchEvent(new dom.window.Event("input"));
-  pills()[1].querySelector(".v3-pillx").click();
-  c.querySelector(".v3-pills.right .v3-pilladd").click();
+  // 이름 고치기·삭제·추가는 없고, 체크와 끌어 옮기기만
+  assert.ok(!c.querySelector(".v3-menustage input[type=text], .v3-pillx, .v3-pilladd"));
+  const use = pills()[1].querySelector("input[type=checkbox]");
+  use.checked = true; use.dispatchEvent(new dom.window.Event("change"));
+  // '전체 수업'을 오른쪽 빈 자리로 끌어 놓기
+  const fire = (node, type) => node.dispatchEvent(Object.assign(new dom.window.Event(type, { bubbles: true, cancelable: true }), { clientX: 0 }));
+  fire(pills()[0], "dragstart");
+  fire(c.querySelector(".v3-pills.right"), "drop");
+  assert.deepEqual([...c.querySelectorAll(".v3-pills.right .v3-pillname")].map((x) => x.textContent), ["특강/세미나", "전체 수업"]);
   assert.ok(!save.disabled);
   save.click();
   await flush();
-  assert.ok(db.calls.some(([k, tb]) => k === "delete" && tb === "menus"));
-  assert.ok(db.calls.some(([k, tb, id, p]) => k === "update" && tb === "menus" && id === "m1" && p.name === "모든 수업" && p.sort_order === 1));
-  assert.ok(db.calls.some(([k, tb, p]) => k === "insert" && tb === "menus" && p.name === "새 메뉴" && p.side === "right" && p.sort_order === 3));
+  const up = (id) => db.calls.find(([k, tb, i]) => k === "update" && tb === "menus" && i === id)?.[3];
+  assert.deepEqual(up("m2"), { is_active: true, side: "left", sort_order: 1 });
+  assert.deepEqual(up("m1"), { is_active: true, side: "right", sort_order: 3 });
+  await t("menus").delete().eq("id", "m2"); // 아래 방학 특강 미리보기 확인용으로 다시 넣는다
   // 학과별 자료 → 학과 관리 팝업
   item("학과별 자료").click();
   await flush();

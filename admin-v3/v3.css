@@ -121,7 +121,7 @@
 /* 강사 관리: 담당 과목이 다 보이게, 줄을 누르면 강사 카드 팝업(강사마다 같은 크기) */
 .v3-instable td:last-child { white-space:normal; min-width:320px; }
 .v3-instable tbody tr { cursor:pointer; }
-.v3-modal.v3-tpop { width:min(1180px,94vw); height:min(600px,88vh); }
+.v3-modal.v3-tpop { width:min(1180px,94vw); height:min(640px,90vh); }
 .v3-modal.v3-tpop[open] { display:flex; flex-direction:column; }
 .v3-modal.v3-tpop .v3-tpopbody { flex:1; overflow:auto; min-height:0; }
 .v3-tpopbody > h3, .v3-tpopbody > .desc { display:none; }
@@ -136,4 +136,4 @@
 .v3-tpopbody .card-item { border:0; padding:0; position:static; }
 .v3-modal.v3-tpop .card-item .media-actions { position:absolute; left:22px; bottom:22px; }
 /* 강사 팝업: 경력 칸을 크게(남는 여백 채움), 한마디는 그대로 */
-.v3-tpopbody .card-fields > .card-line:nth-last-child(2) textarea { height:220px; }
+.v3-tpopbody .card-fields > .card-line:nth-last-child(2) textarea { height:170px; }

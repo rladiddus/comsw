@@ -318,7 +318,10 @@ export async function mountCardList(container, {
       });
     }
     inputs[imageKey].addEventListener("change", paint);
-    const active = el("input", { type: "checkbox", checked: Boolean(activeKey && row[activeKey]) });
+    // DB에 아직 그 칸이 없으면(새 칸 SQL 실행 전) 지금 상태(모두 공개)를 보여 주고 바꾸지 못하게 한다.
+    const noColumn = Boolean(activeKey) && !(activeKey in row);
+    const active = el("input", { type: "checkbox", checked: noColumn || Boolean(activeKey && row[activeKey]), disabled: noColumn });
+    if (noColumn) active.title = "DB에 칸을 추가한 뒤 바꿀 수 있습니다";
     active.setAttribute("aria-label", activeLabel);
     active.addEventListener("change", () => update(row, { [activeKey]: active.checked }));
     const upload = el("div", { className: "card-upload", hidden: true }, [line(`${imageLabel} 주소`, inputs[imageKey], true)]);

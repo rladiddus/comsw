@@ -18,7 +18,7 @@ export async function render(container, ctx) {
     pick(supabase, "roadmap_steps", "id, track_id, position, summary"),
     pick(supabase, "roadmap_step_subjects", "step_id, subject_id"),
   ]);
-  headActions(ctx, btn("과목 순서 수정", () => { location.hash = "#/aggregate"; }));
+  headActions(ctx);
   state.mode = "regular"; // 로드맵은 정규만
   const data = { subjects, links };
   const body = el("div");
@@ -116,6 +116,8 @@ export async function render(container, ctx) {
   }
   const bar = contextBar(depts, draw);
   bar.querySelector(".v3-switch")?.remove(); // 정규·방특 버튼 없음
-  container.append(bar, body);
+  // 학과 칸은 제목 오른쪽에(머리 자리가 없으면 화면 맨 위).
+  if (ctx.headBar) ctx.headBar.replaceChildren(bar); else container.append(bar);
+  container.append(body);
   draw();
 }

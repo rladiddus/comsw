@@ -31,7 +31,8 @@ export async function loadTeacherMembers() {
     where("department", "==", "교육부"),
     where("approved", "==", true),
   ));
-  return snap.docs.map((d) => {
+  // 쌤톡에서 '숨김 계정'(hiddenMember)으로 둔 회원은 빼고 보여 준다(쌤톡 회원 목록과 같음).
+  return snap.docs.filter((d) => d.data().hiddenMember !== true).map((d) => {
     const u = d.data();
     return {
       uid: d.id,

@@ -121,7 +121,14 @@
 /* 강사 관리: 담당 과목이 다 보이게, 줄을 누르면 강사 카드 팝업(강사마다 같은 크기) */
 .v3-instable td:last-child { white-space:normal; min-width:320px; }
 .v3-instable tbody tr { cursor:pointer; }
-.v3-modal.v3-tpop { width:min(1180px,94vw); height:min(560px,88vh); }
+.v3-modal.v3-tpop { width:min(1180px,94vw); height:min(600px,88vh); }
 .v3-modal.v3-tpop[open] { display:flex; flex-direction:column; }
 .v3-modal.v3-tpop .v3-tpopbody { flex:1; overflow:auto; min-height:0; }
 .v3-tpopbody > h3, .v3-tpopbody > .desc { display:none; }
+.v3-instable td:first-child { white-space:nowrap; }
+.v3-insttabs { margin:0 0 0 8px; }
+.v3-instaccounts > h2 { display:none; }
+/* 강사 카드 팝업: 사진을 줄여 스크롤 없이 한 화면에, 접기 버튼 없음 */
+.v3-tpopbody .card-item.no-sort { grid-template-columns:200px minmax(0,1fr); }
+.v3-tpopbody .card-item .card-stage { width:200px; }
+.v3-tpopbody .fold-btn { display:none; }

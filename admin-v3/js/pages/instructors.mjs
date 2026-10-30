@@ -5,8 +5,11 @@ import { instructorCard } from "../../../admin/js/pages/instructors.mjs";
 import { isEmployed, modal } from "../v3.mjs";
 
 // 강사 관리(V3 시안 '강사·재직 관리'): 재직 상태는 사이트 공개(is_listed)와 다르다(재직 칸은 DB 추가 전).
-// 강사 목록 오른쪽 위 [학과 ▾][강사 ▾]로 거르고, 줄을 누르면 그 강사 카드(기존 강사 화면과 같은 카드)를 팝업으로 연다.
+// 강사 목록 오른쪽 위 [학과 ▾][강사 ▾] + (전체)(공개)(비공개)(계정 연결) 탭. 줄을 누르면 그 강사 카드(기존 강사 화면과 같은 카드)를 팝업으로 연다.
+// 계정 연결 탭은 기존 '계정 연결' 화면(쌤톡 회원 ↔ 강사).
 const old = (file) => () => import(`../../../admin/js/pages/${file}.mjs`);
+const TABS = [["all", "전체"], ["listed", "공개"], ["hidden", "비공개"], ["accounts", "계정 연결"]];
+let tab = "all"; // 이 화면만 기억
 
 export async function render(container, ctx) {
   const { supabase } = ctx;
@@ -28,7 +31,7 @@ export async function render(container, ctx) {
     const box = el("div", { className: "v3-tpopbody" });
     const d = modal(`${i.name} 강사`, [box], [], "닫기");
     d.classList.add("v3-tpop");
-    const card = await mountCardList(box, { ...instructorCard(supabase, depts, subjects), query: (q) => q.eq("id", i.id), toolbar: false, sortable: false });
+    const card = await mountCardList(box, { ...instructorCard(supabase, depts, subjects), activeLabel: "공개", query: (q) => q.eq("id", i.id), toolbar: false, sortable: false });
     card.setFold(false);
   }
 
@@ -45,9 +48,15 @@ export async function render(container, ctx) {
   namePick.addEventListener("change", draw);
   fillNames();
 
+  const tabBar = el("div", { className: "v2-tabs v3-insttabs" }, TABS.map(([k, t]) =>
+    Object.assign(el("button", { type: "button", className: "v2-tab", textContent: t }), { onclick: () => { tab = k; draw(); } })));
+  const pickers = el("div", { className: "v2-row v2-gap" }, [deptPick, namePick]);
+  let accounts = null; // 계정 연결 화면은 처음 열 때 한 번만 그린다
   const statBox = el("div");
   const listBox = el("div");
   function draw() {
+    [...tabBar.children].forEach((b, i) => b.classList.toggle("active", TABS[i][0] === tab));
+    pickers.hidden = tab === "accounts";
     const out = instructors.filter((i) => !isEmployed(i.id)).length;
     statBox.replaceChildren(stats([
       ["재직(확인 전)", `${instructors.length - out}`, "재직 상태는 아직 DB에 없음"],
@@ -55,14 +64,20 @@ export async function render(container, ctx) {
       ["사이트 공개", `${instructors.filter((i) => i.is_listed).length}`, "재직과 별개인 '사이트에 보이기'"],
       ["계정 연결", `${instructors.filter((i) => i.account_uid).length}`, "쌤톡 계정과 연결됨"],
     ]));
-    const shown = instructors.filter((i) => (!deptPick.value || deptsOf(i.id).includes(deptPick.value)) && (!namePick.value || i.id === namePick.value));
-    const t = table(["강사", "재직 상태", "사이트", "담당 학과", "담당 과목"], shown, (i) => [
-      i.name, isEmployed(i.id) ? chip("재직", "good") : chip("퇴사(시험)", "red"), i.is_listed ? chip("공개", "vacation") : chip("비공개"),
+    const head = [el("div", { className: "v2-row v2-gap" }, [pickers, tabBar])];
+    if (tab === "accounts") {
+      if (!accounts) { accounts = el("div", { className: "v3-instaccounts" }); old("accounts")().then((m) => m.render(accounts, ctx)).catch((e) => accounts.append(el("p", { className: "save-state err", textContent: e.message }))); }
+      return listBox.replaceChildren(panel("강사 목록", [accounts], "", head));
+    }
+    const shown = instructors.filter((i) => (!deptPick.value || deptsOf(i.id).includes(deptPick.value)) && (!namePick.value || i.id === namePick.value)
+      && (tab === "all" || (tab === "listed") === Boolean(i.is_listed)));
+    const t = table(["강사", "사이트", "담당 학과", "담당 과목"], shown, (i) => [
+      i.name, i.is_listed ? chip("공개", "vacation") : chip("비공개"),
       deptsOf(i.id).map((id) => nameOf(depts, id)).join(", ") || "—",
       isubjects.filter((x) => x.instructor_id === i.id).sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0)).map((x) => nameOf(subjects, x.subject_id)).join(", ") || "—",
     ], open);
     t.node.classList.add("v3-instable");
-    listBox.replaceChildren(panel("강사 목록", [t.node], "", [el("div", { className: "v2-row v2-gap" }, [deptPick, namePick])]));
+    listBox.replaceChildren(panel("강사 목록", [t.node], "", head));
   }
   container.append(statBox, listBox, edit.node);
   draw();

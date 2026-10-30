@@ -580,7 +580,14 @@ test("V3 방학 특강: 방특 신청 칸·설명 없이, 시기를 고르면 �
 test("V3 강사 관리: 5번 안내·통합 출처·작업 없이, 학과→강사 고르기로 거르고, 줄을 누르면 펼친 강사 카드 팝업", async () => {
   const c = await page("instructors");
   assert.ok(!/퇴사는 강사 원문|통합 출처|작업/.test(c.textContent));
-  assert.deepEqual([...c.querySelectorAll(".v2-table th")].map((th) => th.textContent), ["강사", "재직 상태", "사이트", "담당 학과", "담당 과목"]);
+  assert.deepEqual([...c.querySelectorAll(".v2-table th")].map((th) => th.textContent), ["강사", "사이트", "담당 학과", "담당 과목"], "재직 상태 칸 없음");
+  const tabs = () => [...c.querySelectorAll(".v3-insttabs button")];
+  assert.deepEqual(tabs().map((b) => b.textContent), ["전체", "공개", "비공개", "계정 연결"]);
+  tabs()[1].click();
+  assert.deepEqual([...c.querySelectorAll(".v2-table tbody tr td:first-child")].map((td) => td.textContent), ["김"], "공개만");
+  tabs()[2].click();
+  assert.deepEqual([...c.querySelectorAll(".v2-table tbody tr td:first-child")].map((td) => td.textContent), ["이"], "비공개만");
+  tabs()[0].click();
   const [dept, name] = c.querySelectorAll(".v2-panel-head select");
   dept.value = "d2"; dept.dispatchEvent(new dom.window.Event("change"));
   assert.equal(c.querySelectorAll(".v2-table tbody tr").length, 0, "건축학과 강사 없음");
@@ -595,6 +602,7 @@ test("V3 강사 관리: 5번 안내·통합 출처·작업 없이, 학과→강�
   assert.match(d.querySelector("h3").textContent, /이 강사/);
   const card = d.querySelector(".card-item");
   assert.ok(card && !card.classList.contains("collapsed"), "펼친 카드 한 장");
+  assert.ok([...card.querySelectorAll(".consent span")].some((x) => x.textContent === "공개"), "사이트 표시 → 공개");
   assert.equal(d.querySelectorAll(".card-item").length, 1);
   d.remove();
 });

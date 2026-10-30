@@ -101,3 +101,12 @@
 .v3-pill.drop-before::before, .v3-pill.drop-after::after { top:2px; bottom:2px; right:auto; border-top:0; border-left:3px dashed #fff; }
 .v3-pill.drop-before::before { left:-8px; }
 .v3-pill.drop-after::after { left:auto; right:-8px; }
+/* 내 커리큘럼(V3): 학과 드롭다운 폭 줄이고 '방특' 체크를 같은 줄 높이로, 알약 옆 '과목명 동일' */
+.form-row.curriculum-head-row { grid-template-columns:minmax(0,320px) minmax(0,320px) auto; justify-content:start; align-items:end; }
+.vacation-check .consent { min-height:42px; box-sizing:border-box; }
+@media (max-width:700px) { .form-row.curriculum-head-row { grid-template-columns:1fr; } }
+.subject-tab-row { display:flex; align-items:center; gap:12px; flex-wrap:wrap; }
+.subject-tab-row .subject-tabs { margin:14px 0 4px; min-width:0; }
+.same-subject { display:inline-flex; align-items:center; gap:6px; font-weight:600; white-space:nowrap; }
+.same-subject input { width:auto; margin:0; }
+.new-subject-name { max-width:420px; margin-bottom:12px; }

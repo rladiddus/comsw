@@ -537,3 +537,28 @@ test("수업 설정: 학과 과목은 연결한 순서가 아니라 학과 관�
   findButton(box, "수정").click();
   assert.deepEqual([...box.querySelectorAll(".subject-check")].map((l) => l.textContent), ["웹2", "웹1"]);
 });
+
+test("V3 내 커리큘럼: '+ 개월 추가' 없음, 알약 옆 '과목명 동일'을 끄면 새 과목명으로 제출(custom_name)", async () => {
+  const data = tables();
+  data.subjects = [{ id: "w1", name: "웹툰1" }];
+  data.subject_departments = [{ subject_id: "w1", department_id: "dept" }];
+  data.instructor_subjects = [{ instructor_id: "me", subject_id: "w1", sort_order: 0 }];
+  const { c, calls } = await setup("mine", data, { v3: true });
+  tabButton(c, "write").click();
+  assert.ok(!findButton(c, "+ 개월 추가"));
+  const same = c.querySelector(".subject-tab-row .same-subject input");
+  assert.equal(same.checked, true, "처음엔 과목명 동일");
+  const panel = c.querySelector(".subject-panel:not([hidden])");
+  assert.ok(panel.querySelector(".new-subject-name").hidden);
+  same.checked = false; same.dispatchEvent(new dom.window.Event("change"));
+  assert.ok(!panel.querySelector(".new-subject-name").hidden, "끄면 새 과목명 칸");
+  panel.querySelector("[name=written]").value = "새 과목 1단계";
+  submitForm(c);
+  await flush();
+  assert.ok(!calls.some(([n]) => n === "comsw_submit_curriculum"), "새 과목명이 비면 제출 안 함");
+  panel.querySelector(".new-subject-name input").value = "웹툰 캐릭터";
+  submitForm(c);
+  await flush();
+  const [, args] = calls.find(([n]) => n === "comsw_submit_curriculum");
+  assert.deepEqual(args.p_subjects, [{ custom_name: "웹툰 캐릭터", from: "w1", steps: [{ step_label: "1단계", written: "새 과목 1단계", media_url: "" }] }]);
+});

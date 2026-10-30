@@ -286,7 +286,14 @@ export async function render(container, ctx, { tab, as } = {}) {
         el("label", { className: "form-field" }, [el("span", { textContent: "사용 프로그램" }), tools]),
         el("label", { className: "form-field" }, [el("span", { textContent: "준비물" }), supplies]),
       ]));
-      const entry = { panel, steps, list, tools, supplies, saved };
+      // V3: '과목명 동일'을 끄면 이 과목 대신 새 과목명으로 낸다(제출할 때 새 과목을 만든다).
+      const newName = el("input", { type: "text", maxLength: 80, placeholder: "새 과목명" });
+      newName.setAttribute("aria-label", "새 과목명");
+      const newNameField = el("label", { className: "form-field new-subject-name", hidden: true }, [
+        el("span", { textContent: "새 과목명" }), newName,
+      ]);
+      if (ctx.v3) panel.prepend(newNameField);
+      const entry = { panel, steps, list, tools, supplies, saved, same: true, newName, newNameField };
       function addStep(label) {
         const box = el("section", { className: "step-row" });
         const stepInput = el("input", {
@@ -346,14 +353,27 @@ export async function render(container, ctx, { tab, as } = {}) {
         textContent: "+ 개월 추가",
       });
       addMonthBtn.addEventListener("click", () => addMonth(subject));
-      panel.append(list, el("div", { className: "step-add-row" }, [add, addMonthBtn]));
+      // V3에서는 '+ 개월 추가' 대신 '과목명 동일' 체크로 새 과목을 낸다.
+      panel.append(list, el("div", { className: "step-add-row" }, ctx.v3 ? [add] : [add, addMonthBtn]));
       addStep("1단계");
       panels.set(subject.id, entry);
       panelsBox.append(panel);
       return entry;
     }
+    // 알약 오른쪽 '과목명 동일'(V3): 지금 고른 과목 탭마다 따로 기억한다.
+    const same = el("input", { type: "checkbox", checked: true });
+    const sameLabel = el("label", { className: "consent same-subject" }, [same, el("span", { textContent: "과목명 동일" })]);
+    same.addEventListener("change", () => {
+      const entry = panels.get(current);
+      if (!entry) return;
+      entry.same = same.checked;
+      entry.newNameField.hidden = same.checked;
+      if (!same.checked) entry.newName.focus();
+    });
     function openSubject(id) {
       current = id;
+      same.checked = panels.get(id)?.same ?? true;
+      sameLabel.hidden = !id;
       for (const [sid, { panel }] of panels) panel.hidden = sid !== id;
       for (const b of subjectTabs.children) {
         b.classList.toggle("active", b.dataset.subject === id);
@@ -392,7 +412,7 @@ export async function render(container, ctx, { tab, as } = {}) {
       textContent: "승인 요청하기",
     });
     form.append(
-      subjectTabs,
+      ctx.v3 ? el("div", { className: "subject-tab-row" }, [subjectTabs, sameLabel]) : subjectTabs,
       panelsBox,
       el("div", { className: "form-actions" }, [send]),
     );
@@ -426,11 +446,20 @@ export async function render(container, ctx, { tab, as } = {}) {
           openSubject(missing.subject.id);
           throw new Error(`${missing.subject.name}: 단계와 커리큘럼 내용을 모두 입력해주세요`);
         }
-        // 과목별로 묶어 한 번에 보낸다(새 달 과목은 DB가 만들고, 프로그램·준비물은 바뀐 과목만).
+        // '과목명 동일'을 끈 과목은 새 과목명이 있어야 한다.
+        const renamed = (subject) => panels.get(subject.id)?.same === false;
+        const noName = [...filled, ...changed].find(({ subject }) => renamed(subject) && !panels.get(subject.id).newName.value.trim());
+        if (noName) {
+          openSubject(noName.subject.id);
+          throw new Error(`${noName.subject.name}: 새 과목명을 입력해주세요`);
+        }
+        // 과목별로 묶어 한 번에 보낸다(새 달 과목·새 과목은 DB가 만들고, 프로그램·준비물은 바뀐 과목만).
         const bySubject = new Map();
         const entryFor = (subject) => {
           if (!bySubject.has(subject.id)) {
-            bySubject.set(subject.id, subject.isNew
+            bySubject.set(subject.id, renamed(subject)
+              ? { custom_name: panels.get(subject.id).newName.value.trim(), from: subject.from ?? subject.id, steps: [] }
+              : subject.isNew
               ? { new_name: subject.name, from: subject.from, steps: [] }
               : { subject_id: subject.id, steps: [] });
           }

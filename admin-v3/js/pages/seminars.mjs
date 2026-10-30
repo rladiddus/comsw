@@ -79,7 +79,8 @@ export async function render(container, ctx) {
     const d = modal("특강 만들기", [body], [], "닫기");
     d.classList.add("v3-tpop", "v3-spop");
   }
-  headActions(ctx, locked("변경 이력", "수정 이력은 DB 추가가 필요합니다"), btn("특강 만들기", create, true));
+  headActions(ctx, locked("변경 이력", "수정 이력은 DB 추가가 필요합니다"));
+  const makeBtn = btn("특강 만들기", create, true); // '특강 목록' 제목 오른쪽
 
   const by = (name) => items.filter((i) => i.state[0] === name).length;
   const q = search("특강 검색");
@@ -106,7 +107,11 @@ export async function render(container, ctx) {
       }),
     ], (i) => open(i.s));
     t.node.classList.add("v3-semtable");
-    listBox.replaceChildren(panel("특강 목록", [t.node], "", [el("div", { className: "v2-row v2-gap" }, [q, statePick, count])]));
+    const listPanel = panel("특강 목록", [t.node], "", [el("div", { className: "v2-row v2-gap" }, [q, statePick, count])]);
+    const title = listPanel.querySelector(".v2-panel-head h3");
+    title.parentElement.classList.add("v2-row", "v2-gap");
+    title.after(makeBtn);
+    listBox.replaceChildren(listPanel);
     const chosen = seminars.find((s) => s.id === openRoster);
     const box = el("div", { className: "v3-roster" });
     rosterBox.replaceChildren(panel("신청자 명단", chosen ? [box] : [empty("특강 목록에서 [신청자 명단]을 누르면 여기에 나옵니다.")]));

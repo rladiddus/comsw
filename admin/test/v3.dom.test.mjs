@@ -628,7 +628,8 @@ test("V3 특강·세미나: 오른쪽 상세·아래 기존 화면 없이, 줄�
   d.close?.(); d.dispatchEvent(new dom.window.Event("close")); d.remove();
   await flush();
   assert.equal(c.querySelector(".v3-gridright"), before, "닫아도 화면 전체를 다시 그리지 않음");
-  button(head, "특강 만들기").click();
+  assert.ok(!button(head, "특강 만들기"), "오른쪽 위에는 없음");
+  button(c.querySelector(".v2-panel-head"), "특강 만들기").click(); // '특강 목록' 오른쪽
   const n = document.querySelector("dialog.v3-spop");
   assert.equal(n.querySelector("h3").textContent, "특강 만들기");
   const inputs = [...n.querySelectorAll(".card-line input")];

@@ -184,27 +184,33 @@ test("V3 학과별 순서 → 로드맵·학과 커리큘럼이 같은 순서, �
   location.hash = "#/aggregate/s1";
   c = await page("aggregate");
   assert.ok(!c.textContent.includes("기여 강사와 출처"));
-  assert.match(c.textContent, /통합 강사: 김, 이/);
+  assert.ok(!c.textContent.includes("통합 강사:"), "주차별 오른쪽 위 강사 줄 없음");
+  assert.ok(!c.textContent.includes("과목 통합 커리큘럼 고치기"), "아래 기존 화면 없음");
+  assert.match(c.querySelector(".v2-listitem.active").textContent, /통합 강사 2명/);
+  assert.ok(c.querySelector(".v3-splitter"), "가운데 경계 끌기");
   assert.equal(c.querySelector(".v3-aggtabs").hidden, false, "정규면 주차별·과목별 탭");
-  // 왼쪽 과목의 '강사' 팝업: 수정 → × 빼기, 추가, 끌어서 순서, 완료
+  // 왼쪽 과목의 '강사' 팝업: 두 명씩, '−'로 바로 빼기, [추가]는 더 넣을 강사가 있을 때만, 완료
   c.querySelector(".v2-listitem.active button").click(); // 고른 과목(포토샵)의 강사
-  const dlg = document.querySelector("dialog.v3-modal");
-  const names = () => [...dlg.querySelectorAll(".v3-orderrow b")].map((b) => b.textContent);
+  let dlg = document.querySelector("dialog.v3-modal");
+  const names = () => [...dlg.querySelectorAll(".v3-tchip b")].map((b) => b.textContent);
   assert.deepEqual(names(), ["김", "이"]);
-  assert.equal(dlg.querySelectorAll(".v3-x").length, 0);
-  button(dlg, "수정").click();
-  dlg.querySelector('.v3-x[title="이 빼기"]').click();
-  assert.deepEqual(names(), ["김"]);
-  const add = dlg.querySelector('select[aria-label="강사 추가"]');
-  add.value = "i2"; add.dispatchEvent(new dom.window.Event("change"));
-  assert.deepEqual(names(), ["김", "이"]);
-  const [t1, t2] = dlg.querySelectorAll(".v3-orderrow");
-  drag(t2, "dragstart"); drag(t1, "dragover"); drag(t1, "drop");
+  assert.ok(!button(dlg, "수정"), "수정 버튼 없음");
+  assert.ok(!dlg.querySelector(".v3-orderrow, .v2-num"), "순서·번호 없음");
+  assert.deepEqual([...dlg.querySelectorAll(".v2-actions button")].map((b) => b.textContent), ["취소", "추가", "완료"]);
+  assert.equal(button(dlg, "추가").disabled, true, "더 넣을 강사가 없으면 추가 꺼짐");
+  dlg.querySelector('.v3-x[title="김 빼기"]').click();
+  assert.deepEqual(names(), ["이"]);
+  assert.equal(button(dlg, "추가").disabled, false);
+  button(dlg, "추가").click();
+  button(dlg, "+ 김").click();
   assert.deepEqual(names(), ["이", "김"]);
   button(dlg, "완료").click();
   assert.deepEqual(v3.state.picks.get("s1|regular"), ["i2", "i1"]);
-  assert.match(c.textContent, /통합 강사: 이, 김/);
-  assert.match(c.textContent, /다시 만들기 필요/);
+  // 창 밖을 누르면 닫힘
+  c.querySelector(".v2-listitem.active button").click();
+  dlg = document.querySelector("dialog.v3-modal");
+  dlg.dispatchEvent(new dom.window.MouseEvent("click", { bubbles: true, clientX: 5000, clientY: 5000 }));
+  assert.equal(document.querySelector("dialog.v3-modal"), null);
   // 주차별 탭: 통합 문구는 없고(과목별 탭으로), 단계 카드마다 대표 이미지 수정 · AI생성 · 저장
   assert.ok(!c.textContent.includes("과목 통합본"));
   assert.ok(!c.textContent.includes("과목 통합 커리큘럼 문구"));
@@ -231,6 +237,13 @@ test("V3 학과별 순서 → 로드맵·학과 커리큘럼이 같은 순서, �
   dlgImg.querySelector(".v3-imgpick").click();
   await flush();
   assert.ok(db.calls.some(([k, t, id, patch]) => k === "update" && t === "subject_weeks" && patch.image_url === "https://example.com/b.png"));
+  v3.state.picks.set("s1|regular", ["i1"]);
+  c = await page("aggregate", { supabase: db });
+  button(c.querySelector(".v3-week"), "대표 이미지 수정").click();
+  assert.equal(document.querySelectorAll("dialog.v3-modal .v3-imgpick").length, 0, "뺀 강사의 이미지는 후보에 없음");
+  document.querySelector("dialog.v3-modal").remove();
+  v3.state.picks.set("s1|regular", ["i2", "i1"]);
+  c = await page("aggregate", { supabase: db });
   // 왼쪽 과목 목록 '수정': + 과목 추가(검색), 끌어서 순서
   v3.state.orders.clear();
   button(c, "수정").click();
@@ -276,8 +289,10 @@ test("V3 학과별 순서 → 로드맵·학과 커리큘럼이 같은 순서, �
   v3.state.picks.clear(); v3.state.aiLines = 2;
   v3.state.employed.set("i2", false);
   c = await page("aggregate");
-  assert.match(c.textContent, /통합 강사: 김(?!,)/);
+  assert.match(c.querySelector(".v2-listitem.active").textContent, /통합 강사 1명/);
+  [...c.querySelectorAll(".v3-aggtabs button")][1].click();
   assert.match(c.textContent, /다시 만들기 필요/);
+  v3.state.aggTab = "weeks";
   v3.state.employed.clear(); v3.state.orders.clear(); v3.state.steps.clear();
 });
 

@@ -28,7 +28,12 @@
 .v3-x { border:0; background:none; margin-left:4px; padding:0 2px; cursor:pointer; color:inherit; font-weight:700; }
 @media (max-width:1100px) { .v3-grid39 { grid-template-columns:1fr; } }
 /* 과목 통합 커리큘럼: 왼쪽 과목 목록은 좁게, 오른쪽 통합본은 넓게 */
-.v3-gridagg { display:grid; grid-template-columns:minmax(200px,250px) minmax(0,1fr); gap:16px; align-items:start; }
+.v3-gridagg { display:grid; grid-template-columns:var(--agg-left,250px) 16px minmax(0,1fr); align-items:stretch; }
+.v3-gridagg > .v2-panel { align-self:start; min-width:0; }
+.v3-splitter { cursor:col-resize; position:relative; touch-action:none; }
+.v3-splitter::after { content:""; position:absolute; top:0; bottom:0; left:7px; width:2px; border-radius:2px; background:transparent; }
+.v3-splitter:hover::after, .v3-gridagg.resizing .v3-splitter::after { background:var(--accent); }
+.v3-gridagg.resizing { user-select:none; cursor:col-resize; }
 .v3-aggtabs { margin:0 0 0 12px; }
 .v3-week { display:flex; gap:14px; align-items:flex-start; }
 .v3-week p { margin:4px 0 0; font-size:13px; white-space:pre-line; }
@@ -40,10 +45,16 @@
 .v3-imgpick .v3-weekimg { width:100%; }
 .v3-modal .v3-orderrow { margin-top:6px; }
 .v3-headrow { padding-top:0; font-size:12px; color:var(--muted); }
-@media (max-width:1100px) { .v3-gridagg { grid-template-columns:1fr; } .v3-headrow { display:none; } }
+@media (max-width:1100px) { .v3-gridagg { grid-template-columns:1fr; gap:16px; } .v3-splitter { display:none; } .v3-headrow { display:none; } }
 /* 단계 카드 오른쪽 버튼(대표 이미지 수정 · AI생성 · 저장), 왼쪽 과목 추가 검색 */
 .v3-weekbtns { display:flex; flex-direction:column; gap:6px; flex:none; }
 .v3-week .v2-textarea { margin-top:6px; }
 .v3-addlist { max-height:220px; margin:6px 0; }
 .v3-addlist .v2-row { padding:4px 0; border-bottom:1px solid var(--line); }
 .v3-gridagg .v2-listitem[draggable=true] { cursor:grab; }
+/* 강사 팝업: 한 줄에 두 명 */
+.v3-modal.v3-narrow { width:min(420px,92vw); }
+.v3-tgrid { display:grid; grid-template-columns:1fr 1fr; gap:8px; margin:8px 0; }
+.v3-tchip { display:flex; align-items:center; gap:6px; border:1px solid var(--line); border-radius:9px; padding:7px 10px; background:#fff; font:inherit; text-align:left; }
+.v3-tadd { cursor:pointer; color:var(--accent); border-style:dashed; }
+.v3-tchip .v3-x { font-size:18px; line-height:1; }

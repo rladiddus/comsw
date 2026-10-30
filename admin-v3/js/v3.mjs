@@ -10,6 +10,7 @@ export const state = {
   picks: new Map(), // "과목id|mode" → [강사id] 순서대로 (과목 통합에 넣을 강사 시험)
   aggTab: "weeks", // 과목 통합 커리큘럼(정규): weeks 주차별 | subjects 과목별
   aiLines: 2, // 과목 통합 AI 요약 줄 수(2~4)
+  aggLeft: 0, // 과목 통합 커리큘럼 왼쪽 과목 칸 너비(px, 0 = 기본)
   employed: new Map(), // 강사id → false(퇴사 처리 시험)
   reviews: new Map(), // 제출 묶음 key → Map(준비물id → 최종 분류)
 };
@@ -79,13 +80,18 @@ export function contextBar(depts, onChange, extra = []) {
   return el("div", { className: "v2-panel v2-filter v2-bar" }, [el("span", { className: "v2-label", textContent: "학과" }), deptPick, sw, ...extra]);
 }
 
-// 확인 창(브라우저 기본 dialog).
+// 확인 창(브라우저 기본 dialog). actions: [글자, 할 일](누르면 닫고 실행) 또는 직접 만든 버튼. 창 밖을 누르면 닫힌다.
 export function modal(title, body, actions) {
   const d = el("dialog", { className: "v3-modal" });
   const close = () => { d.close?.(); d.remove(); };
+  d.addEventListener("click", (e) => {
+    if (e.target !== d) return;
+    const b = d.getBoundingClientRect();
+    if (e.clientX < b.left || e.clientX > b.right || e.clientY < b.top || e.clientY > b.bottom) close();
+  });
   d.append(el("h3", { textContent: title }), ...body, el("div", { className: "v2-actions v2-end" }, [
     Object.assign(el("button", { type: "button", className: "ghost-btn", textContent: "취소" }), { onclick: close }),
-    ...actions.map(([text, fn]) => Object.assign(el("button", { type: "button", className: "publish-btn", textContent: text }), { onclick: () => { close(); fn(); } })),
+    ...actions.map((a) => Array.isArray(a) ? Object.assign(el("button", { type: "button", className: "publish-btn", textContent: a[0] }), { onclick: () => { close(); a[1](); } }) : a),
   ]));
   document.body.append(d);
   if (d.showModal) d.showModal(); else d.setAttribute("open", "");

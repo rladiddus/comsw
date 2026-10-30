@@ -1,10 +1,10 @@
-import { el, rows, pick, chip, hint, btn, panel, empty, editor, headActions, search } from "../../../admin-v2/js/ui.mjs";
+import { el, rows, pick, chip, hint, btn, panel, empty, search } from "../../../admin-v2/js/ui.mjs";
 import { dbErrorMessage } from "../../../admin/js/fields.mjs";
 import { getServices } from "../../../admin/js/services.mjs";
 import { driveThumbnail } from "../../../admin/js/drive.mjs";
 import { applyCrop } from "../../../admin/js/image-crop.mjs";
 import { LEVELS } from "../../../admin/js/pages/department-curriculum.mjs";
-import { state, deptSubjects, contextBar, typeChip, isEmployed, modal, sortable } from "../v3.mjs";
+import { state, deptSubjects, contextBar, isEmployed, modal, sortable } from "../v3.mjs";
 
 // 과목 통합 커리큘럼(V3 시안 '학과 통합 커리큘럼', 정책 3·4·5·7): 과목 하나를 모든 학과가 같이 쓴다(2026-10-29 결정).
 // 정규는 두 탭: [주차별 커리큘럼] 고른 과목의 단계별 문구(AI생성·직접 입력·저장)와 대표 이미지(그 단계 강사 이미지 중 고르기), 실제 저장
@@ -46,8 +46,6 @@ export async function render(container, ctx) {
     pick(supabase, "instructors", "id, name, sort_order"),
     pick(supabase, "subject_weeks", "id, subject_id, week_label, written, summary, image_url, sort_order"),
   ]);
-  const edit = editor("과목 통합 커리큘럼 고치기 (기존 '학과 커리큘럼' 화면)", () => import("../../../admin/js/pages/department-curriculum.mjs"), ctx);
-  headActions(ctx, btn("고치기", edit.open, true));
   const data = { subjects, links, curricula: approved, idepts };
   const nameOfI = (id) => instructors.find((i) => i.id === id)?.name ?? "?";
   const key = () => `${state.dept}:${state.mode}`;
@@ -94,37 +92,32 @@ export async function render(container, ctx) {
     return el("div", { className: "v2-row v2-gap v3-aicontrols" }, [gen, el("div", { className: "v2-tabs v3-lines", title: "요약 줄 수" }, lineBtns), el("small", { className: "muted", textContent: "줄" })]);
   }
 
-  // 강사 팝업: 목록(끌어서 순서), '수정'이면 × 로 빼기, '추가'로 넣기. '완료'를 눌러야 반영.
+  // 강사 팝업: 한 줄에 두 명, 이름 옆 '−'로 바로 빼기, [추가]는 더 넣을 강사가 있을 때만. '완료'를 눌러야 반영(화면에서만, 저장 안 됨).
   function teacherPopup(subject) {
     let list = [...picks(subject.id)];
-    let editing = false;
+    let adding = false;
     const box = el("div");
+    const addBtn = Object.assign(el("button", { type: "button", className: "ghost-btn", textContent: "추가" }), { onclick: () => { adding = !adding; drawList(); } });
     const drawList = () => {
       const addable = teachersOf(subject.id).filter((id) => !list.includes(id));
-      const add = el("select", {}, [el("option", { value: "", textContent: "+ 강사 추가" }), ...addable.map((id) => el("option", { value: id, textContent: `${nameOfI(id)}${isEmployed(id) ? "" : " (퇴사)"}` }))]);
-      add.setAttribute("aria-label", "강사 추가");
-      add.addEventListener("change", () => { if (add.value) { list.push(add.value); drawList(); } });
-      const rowsEl = list.map((id, i) => el("div", { className: "v3-orderrow" }, [el("span", { className: "v3-handle", textContent: "⋮⋮" }), el("span", { className: "v2-num", textContent: `${i + 1}` }),
-        el("b", { className: "v2-grow", textContent: nameOfI(id) }), ...(isEmployed(id) ? [] : [chip("퇴사", "red")]),
-        ...(editing ? [Object.assign(el("button", { type: "button", className: "v3-x", textContent: "×", title: `${nameOfI(id)} 빼기` }), { onclick: () => { list = list.filter((x) => x !== id); drawList(); } })] : [])]));
-      sortable(rowsEl.map((r, i) => [r, list[i]]), list, (a) => { list = a; drawList(); });
+      if (!addable.length) adding = false;
+      addBtn.disabled = !addable.length;
+      const name = (id) => `${nameOfI(id)}${isEmployed(id) ? "" : " (퇴사)"}`;
       box.replaceChildren(
-        el("div", { className: "v2-row v2-gap" }, [
-          btn(editing ? "수정 끝" : "수정", () => { editing = !editing; drawList(); }),
-          ...(addable.length ? [add] : [el("small", { className: "muted", textContent: "더 넣을 강사가 없습니다" })]),
-        ]),
-        ...(rowsEl.length ? rowsEl : [empty("넣은 강사가 없습니다.")]),
+        list.length ? el("div", { className: "v3-tgrid" }, list.map((id) => el("div", { className: "v3-tchip" }, [el("b", { className: "v2-grow", textContent: name(id) }),
+          Object.assign(el("button", { type: "button", className: "v3-x", textContent: "−", title: `${nameOfI(id)} 빼기` }), { onclick: () => { list = list.filter((x) => x !== id); drawList(); } })]))) : empty("넣은 강사가 없습니다."),
+        ...(adding ? [el("p", { className: "v2-label", textContent: "추가할 강사" }), el("div", { className: "v3-tgrid" }, addable.map((id) =>
+          Object.assign(el("button", { type: "button", className: "v3-tchip v3-tadd", textContent: `+ ${name(id)}` }), { onclick: () => { list.push(id); drawList(); } })))] : []),
       );
     };
     drawList();
-    modal(`${subject.name} · 기여 강사`, [el("p", { className: "muted", textContent: "이 과목 통합 커리큘럼에 들어가는 강사입니다. 끌어서 순서를 바꿉니다. 화면에서만 기억합니다(저장 안 됨)." }), box],
-      [["완료", () => { state.picks.set(`${subject.id}|${state.mode}`, list); draw(); }]]);
+    modal(`${subject.name} · 기여 강사`, [box], [addBtn, ["완료", () => { state.picks.set(`${subject.id}|${state.mode}`, list); draw(); }]]).classList.add("v3-narrow");
   }
 
-  // 대표 이미지 팝업: 그 단계의 강사 이미지 중 고르면 사이트 단계 이미지로 저장
+  // 대표 이미지 팝업: 그 단계에서 넣은 강사(강사 팝업 명단)의 이미지 중 고르면 사이트 단계 이미지로 저장
   function imagePopup(subject, week, index) {
     const src = sources(approved, sets, state.mode, subject.id);
-    const cands = teachersOf(subject.id).flatMap((id) => stepRows(src.filter((c) => c.instructor_id === id), week.week_label, index)).filter((c) => c.media_url);
+    const cands = picks(subject.id).flatMap((id) => stepRows(src.filter((c) => c.instructor_id === id), week.week_label, index)).filter((c) => c.media_url);
     const msg = el("p", { className: "save-state" });
     const d = modal(`${subject.name} · ${week.week_label} 대표 이미지`, [
       cands.length ? el("div", { className: "v3-imggrid" }, cands.map((c) => Object.assign(el("button", { type: "button", className: `v3-imgpick${c.media_url === week.image_url ? " active" : ""}`, title: "이 이미지로" },
@@ -136,7 +129,7 @@ export async function render(container, ctx) {
           d.close?.(); d.remove();
           draw();
         },
-      }))) : empty("이 단계에 강사가 올린 이미지가 없습니다."),
+      }))) : empty("이 단계에 넣은 강사의 이미지가 없습니다."),
       msg,
     ], []);
   }
@@ -211,7 +204,6 @@ export async function render(container, ctx) {
   function weeksView(list) {
     if (!list.some((s) => s.id === subjectId)) subjectId = list[0]?.id ?? "";
     const subject = subjects.find((s) => s.id === subjectId);
-    const chosen = picks(subjectId);
     const myWeeks = weeks.filter((w) => w.subject_id === subjectId).sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0));
     const shared = deptsOf(subjectId);
 
@@ -233,16 +225,28 @@ export async function render(container, ctx) {
         text, el("div", { className: "v2-actions v2-end" }, [save]), msg);
     }
 
-    return el("div", { className: "v3-gridagg" }, [
+    // 가운데 경계를 끌어 왼쪽 너비 조절(160~520px). 화면에서만 기억.
+    const bar = el("div", { className: "v3-splitter", title: "끌어서 너비 조절" });
+    bar.addEventListener("pointerdown", (e) => {
+      e.preventDefault();
+      const left = grid.getBoundingClientRect().left;
+      const move = (ev) => { state.aggLeft = Math.min(520, Math.max(160, Math.round(ev.clientX - left))); grid.style.setProperty("--agg-left", `${state.aggLeft}px`); };
+      const up = () => { document.removeEventListener("pointermove", move); document.removeEventListener("pointerup", up); grid.classList.remove("resizing"); };
+      grid.classList.add("resizing");
+      document.addEventListener("pointermove", move);
+      document.addEventListener("pointerup", up);
+    });
+    const grid = el("div", { className: "v3-gridagg" }, [
       subjectList(list),
+      bar,
       panel(`주차별 커리큘럼 · ${subject?.name ?? ""}`, subject ? [
-        el("div", { className: "v2-row v2-gap" }, [...(stale(subjectId) ? [chip("다시 만들기 필요", "warn")] : []), typeChip(subject),
-          el("small", { className: "muted", textContent: `통합 강사: ${chosen.map(nameOfI).join(", ") || "없음"}` })]),
         ...merged,
-        ...(myWeeks.length ? myWeeks.map((w, i) => weekCard(subject, w, i)) : [empty("이 과목은 사이트 단계가 없습니다. '고치기'(기존 학과 커리큘럼 > 단계)에서 만듭니다.")]),
+        ...(myWeeks.length ? myWeeks.map((w, i) => weekCard(subject, w, i)) : [empty("이 과목은 사이트 단계가 없습니다. 운영 관리 화면의 '학과 커리큘럼 > 단계'에서 만듭니다.")]),
         ...(shared.length > 1 ? [hint(`이 과목을 쓰는 ${shared.length}개 학과(${shared.join(", ")})에 같은 단계가 나옵니다. 고치면 모두 같이 바뀝니다.`)] : []),
       ] : [empty("과목을 고르세요.")], "사이트 '전체 수업'의 단계"),
     ]);
+    if (state.aggLeft) grid.style.setProperty("--agg-left", `${state.aggLeft}px`);
+    return grid;
   }
 
   // 과목별 커리큘럼: 기존 '학과 커리큘럼' 표 모양. 수정 → 저장(실제), 제외 → V3 학과 순서에서 뺌(저장 안 됨)
@@ -293,7 +297,7 @@ export async function render(container, ctx) {
       ...(list.length ? list.map(rowOf) : [empty("이 학과에 과목이 없습니다.")]),
       msg,
       hint("순서는 '학과별 과목 순서'에서 정한 순서입니다. '수정' 후 '저장'은 실제 저장(과목 공통이라 쓰는 모든 학과에 같이 반영). '수정' 중에는 요약을 AI생성(2~4줄)할 수 있습니다. 강사 명단·순서는 '주차별 커리큘럼' 왼쪽 '강사'에서 정합니다. '제외'는 V3 학과 순서에서만 빠집니다(저장 안 됨)."),
-    ], "학과별 과목 순서대로", [state.orders.has(key()) ? chip("바꾼 순서 · 저장 안 됨", "warn") : chip("지금 순서", "good")]);
+    ], "학과별 과목 순서대로", state.orders.has(key()) ? [chip("바꾼 순서 · 저장 안 됨", "warn")] : []);
   }
 
   function draw() {
@@ -303,6 +307,6 @@ export async function render(container, ctx) {
     const list = deptSubjects(state.dept, state.mode, data);
     body.replaceChildren(regular && state.aggTab === "subjects" ? subjectsView(list) : weeksView(list));
   }
-  container.append(contextBar(depts, draw, [tabs]), body, edit.node);
+  container.append(contextBar(depts, draw, [tabs]), body);
   draw();
 }

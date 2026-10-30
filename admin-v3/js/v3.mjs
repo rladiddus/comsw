@@ -2,12 +2,14 @@
 // V3 전용 칸(4분류 확정·학과별 순서·재직 상태·통합본 버전)은 아직 DB에 없다. 그 값은 아래 state에만 두고(새로고침하면 사라짐) 저장하지 않는다.
 import { el, pick, chip, select } from "../../admin-v2/js/ui.mjs";
 
+// 학과 순서·강사 명단은 DB 칸이 생기기 전까지 이 브라우저(localStorage)에 저장한다(saveLocal).
+const load = (k) => { try { return new Map(JSON.parse(localStorage.getItem(k) || "[]")); } catch { return new Map(); } };
 export const state = {
   dept: "",
   mode: "regular", // regular | vacation
-  orders: new Map(), // "학과id:mode" → [과목id] (학과별 순서 시험)
+  orders: load("v3.orders"), // "학과id:mode" → [과목id] (학과별 순서)
   steps: new Map(), // "학과id:mode" → Set(새 로드맵 단계를 시작하는 과목id) (묶음 시험)
-  picks: new Map(), // "과목id|mode" → [강사id] 순서대로 (과목 통합에 넣을 강사 시험)
+  picks: load("v3.picks"), // "과목id|mode" → [강사id] (과목 통합에 넣을 강사)
   aggTab: "weeks", // 과목 통합 커리큘럼(정규): weeks 주차별 | subjects 과목별
   aiLines: 2, // 과목 통합 AI 요약 줄 수(2~4)
   aggLeft: 0, // 과목 통합 커리큘럼 왼쪽 과목 칸 너비(px, 0 = 기본)
@@ -15,7 +17,14 @@ export const state = {
   reviews: new Map(), // 제출 묶음 key → Map(준비물id → 최종 분류)
 };
 
-export const CAT = { textbook: "교재", supply: "물품", software: "사용 프로그램", ai: "AI 도구" };
+export function saveLocal() {
+  try {
+    localStorage.setItem("v3.orders", JSON.stringify([...state.orders]));
+    localStorage.setItem("v3.picks", JSON.stringify([...state.picks]));
+  } catch { /* 저장소를 못 쓰면 화면에서만 기억 */ }
+}
+
+export const CAT ={ textbook: "교재", supply: "물품", software: "사용 프로그램", ai: "AI 도구" };
 export const norm = (s) => String(s || "").replace(/[\s\-_.·()[\]]+/g, "").toLowerCase();
 export const typeChip = (s) => chip(s?.is_vacation ? "방특" : "정규", s?.is_vacation ? "profiles" : "vacation");
 export const isEmployed = (id) => state.employed.get(id) !== false;

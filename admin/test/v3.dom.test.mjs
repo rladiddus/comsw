@@ -204,8 +204,15 @@ test("V3 학과별 순서 → 로드맵·학과 커리큘럼이 같은 순서, �
   button(dlg, "추가").click();
   button(dlg, "+ 김").click();
   assert.deepEqual(names(), ["이", "김"]);
+  const saveBtn = () => button(c.querySelector(".v3-gridagg > .v2-panel"), "저장"); // 왼쪽 '과목' 칸의 저장
+  assert.equal(saveBtn().disabled, true, "바꾼 것이 없으면 저장 꺼짐");
   button(dlg, "완료").click();
+  assert.equal(v3.state.picks.has("s1|regular"), false, "저장 전에는 그대로");
+  assert.equal(saveBtn().disabled, false);
+  saveBtn().click();
   assert.deepEqual(v3.state.picks.get("s1|regular"), ["i2", "i1"]);
+  assert.deepEqual(JSON.parse(localStorage.getItem("v3.picks")), [["s1|regular", ["i2", "i1"]]], "이 브라우저에 저장");
+  assert.equal(saveBtn().disabled, true);
   // 창 밖을 누르면 닫힘
   c.querySelector(".v2-listitem.active button").click();
   dlg = document.querySelector("dialog.v3-modal");
@@ -242,11 +249,12 @@ test("V3 학과별 순서 → 로드맵·학과 커리큘럼이 같은 순서, �
   button(c.querySelector(".v3-week"), "대표 이미지 수정").click();
   assert.equal(document.querySelectorAll("dialog.v3-modal .v3-imgpick").length, 0, "뺀 강사의 이미지는 후보에 없음");
   document.querySelector("dialog.v3-modal").remove();
+  v3.state.orders.clear(); // 앞의 학과별 순서 시험(웹1·포토샵)을 지운 뒤 다시 그림
   v3.state.picks.set("s1|regular", ["i2", "i1"]);
   c = await page("aggregate", { supabase: db });
-  // 왼쪽 과목 목록 '수정': + 과목 추가(검색), 끌어서 순서
+  // 왼쪽 과목 목록: '수정' 없이 [+ 과목 추가](검색 팝업) [저장], 늘 끌어서 순서, 과목마다 [강사][삭제]
   v3.state.orders.clear();
-  button(c, "수정").click();
+  assert.ok(!button(c, "수정"), "왼쪽 수정 버튼 없음");
   button(c, "+ 과목 추가").click();
   let addDlg = document.querySelector("dialog.v3-modal");
   const addNames = () => [...addDlg.querySelectorAll(".v3-addlist .v2-grow")].map((x) => x.textContent);
@@ -256,27 +264,32 @@ test("V3 학과별 순서 → 로드맵·학과 커리큘럼이 같은 순서, �
   assert.match(addDlg.textContent, /검색한 과목이 없습니다/);
   sq.value = "캐"; sq.dispatchEvent(new dom.window.Event("input"));
   button(addDlg, "추가").click();
-  assert.equal(v3.state.orders.has("d1:regular"), false, "완료 전에는 그대로");
   button(addDlg, "완료").click();
-  assert.deepEqual(v3.state.orders.get("d1:regular"), ["s1", "s2", "s3"]);
+  const listNames = () => [...c.querySelectorAll(".v2-listitem b")].map((b) => b.textContent);
+  assert.deepEqual(listNames(), ["1. 포토샵", "2. 웹1", "3. 캐드"]);
+  assert.equal(v3.state.orders.has("d1:regular"), false, "저장 전에는 그대로");
+  const items = c.querySelectorAll(".v2-listitem");
+  drag(items[2], "dragstart"); drag(items[0], "dragover"); drag(items[0], "drop");
+  assert.deepEqual(listNames(), ["1. 캐드", "2. 포토샵", "3. 웹1"]);
+  button(c.querySelectorAll(".v2-listitem")[2], "삭제").click();
+  assert.deepEqual(listNames(), ["1. 캐드", "2. 포토샵"]);
+  saveBtn().click();
+  assert.deepEqual(v3.state.orders.get("d1:regular"), ["s3", "s1"]);
+  assert.deepEqual(JSON.parse(localStorage.getItem("v3.orders")), [["d1:regular", ["s3", "s1"]]]);
   // 방특: 정규 과목도 추가 후보(방특 제출은 정규 과목을 그대로 쓴다)
   v3.state.mode = "vacation";
   c = await page("aggregate", { supabase: db });
-  button(c, "수정").click();
   button(c, "+ 과목 추가").click();
   addDlg = document.querySelector("dialog.v3-modal");
   assert.deepEqual(addNames(), ["웹1", "캐드", "포토샵"]);
   button(addDlg, "추가").click();
   button(addDlg, "완료").click();
+  assert.deepEqual(listNames(), ["1. 방특AI", "2. 웹1"]);
+  saveBtn().click();
   assert.deepEqual(v3.state.orders.get("d1:vacation"), ["s4", "s2"]);
-  assert.deepEqual([...c.querySelectorAll(".v2-listitem b")].map((b) => b.textContent), ["1. 방특AI", "2. 웹1"]);
   v3.state.mode = "regular";
-  c = await page("aggregate", { supabase: db });
-  button(c, "수정").click();
-  const items = c.querySelectorAll(".v2-listitem");
-  drag(items[2], "dragstart"); drag(items[0], "dragover"); drag(items[0], "drop");
-  assert.deepEqual(v3.state.orders.get("d1:regular"), ["s3", "s1", "s2"]);
   v3.state.orders.clear();
+  c = await page("aggregate", { supabase: db });
   // 과목별 커리큘럼: 학과 순서대로 표, 수정 → AI생성(3줄)·저장(실제), 제외(V3 순서에서만)
   [...c.querySelectorAll(".v3-aggtabs button")][1].click();
   const rowsOf = () => [...c.querySelectorAll(".dept-curriculum-row:not(.v3-headrow)")];

@@ -4,14 +4,14 @@ import { getServices } from "../../../admin/js/services.mjs";
 import { driveThumbnail } from "../../../admin/js/drive.mjs";
 import { applyCrop } from "../../../admin/js/image-crop.mjs";
 import { LEVELS } from "../../../admin/js/pages/department-curriculum.mjs";
-import { state, deptSubjects, contextBar, isEmployed, modal, sortable, addableSubjects } from "../v3.mjs";
+import { state, deptSubjects, contextBar, isEmployed, modal, sortable, addableSubjects, saveLocal } from "../v3.mjs";
 
 // 과목 통합 커리큘럼(V3 시안 '학과 통합 커리큘럼', 정책 3·4·5·7): 과목 하나를 모든 학과가 같이 쓴다(2026-10-29 결정).
 // 정규는 두 탭: [주차별 커리큘럼] 고른 과목의 단계별 문구(AI생성·직접 입력·저장)와 대표 이미지(그 단계 강사 이미지 중 고르기), 실제 저장
 //              [과목별 커리큘럼] 학과 과목을 순서대로 표(과목명·기간·학과별 커리큘럼 요약·프로그램·준비물·학습 수준), 수정은 실제 저장(요약은 AI생성 2~4줄), 제외는 V3 학과 순서에서만.
 // 방특은 탭 없이 주차별 화면에 통합 문구를 같이 둔다(과목별 표가 없어서).
-// 과목마다 넣을 강사(순서 포함)는 왼쪽 '강사' 팝업에서 고친다(state.picks, 저장 안 됨). 처음 = 이 과목 승인본이 있는 재직 강사.
-// 왼쪽 과목 목록의 '수정'은 V3 학과 순서(state.orders, 저장 안 됨)를 바꾼다: 끌어서 순서, '+ 과목 추가'(검색).
+// 왼쪽 과목 목록: 끌어서 순서, '+ 과목 추가'(검색 팝업), 과목마다 '강사'(넣을 강사 명단)·'삭제'. 처음 강사 = 이 과목 승인본이 있는 재직 강사.
+// 바꾼 것은 '저장'을 눌러야 state.orders·state.picks로 옮겨 이 브라우저에 저장된다(DB 칸이 생기기 전까지).
 export function sources(approved, sets, mode, subjectId) {
   return approved.filter((c) => c.subject_id === subjectId && Boolean(sets.find((s) => s.id === c.set_id)?.is_vacation) === (mode === "vacation"));
 }
@@ -50,13 +50,23 @@ export async function render(container, ctx) {
   const nameOfI = (id) => instructors.find((i) => i.id === id)?.name ?? "?";
   const key = () => `${state.dept}:${state.mode}`;
   let subjectId = location.hash.split("/")[2] ?? "";
-  let listEditing = false;
   const body = el("div");
+  // 저장 전 바꾼 것(과목 순서·추가·삭제, 강사 명단). '저장'을 누르면 state로 옮기고 이 브라우저에 저장한다.
+  const dOrders = new Map(); // "학과id:mode" → [과목id]
+  const dPicks = new Map(); // "과목id|mode" → [강사id]
+  const listOf = () => dOrders.get(key())?.map((id) => subjects.find((s) => s.id === id)).filter(Boolean) ?? deptSubjects(state.dept, state.mode, data);
+  const saveDraft = () => {
+    dOrders.forEach((v, k) => state.orders.set(k, v));
+    dPicks.forEach((v, k) => state.picks.set(k, v));
+    dOrders.clear(); dPicks.clear();
+    saveLocal();
+    draw();
+  };
 
   // 과목에 넣을 강사(순서대로). 처음 = 이 과목 승인본이 있는 재직 강사(강사 순서).
   const teachersOf = (id) => instructors.map((i) => i.id).filter((i) => sources(approved, sets, state.mode, id).some((c) => c.instructor_id === i));
-  const picks = (id) => state.picks.get(`${id}|${state.mode}`) ?? teachersOf(id).filter(isEmployed);
-  const stale = (id) => state.picks.has(`${id}|${state.mode}`) || teachersOf(id).some((i) => !isEmployed(i));
+  const picks = (id) => dPicks.get(`${id}|${state.mode}`) ?? state.picks.get(`${id}|${state.mode}`) ?? teachersOf(id).filter(isEmployed);
+  const stale = (id) => dPicks.has(`${id}|${state.mode}`) || state.picks.has(`${id}|${state.mode}`) || teachersOf(id).some((i) => !isEmployed(i));
   const deptsOf = (id) => links.filter((l) => l.subject_id === id).map((l) => depts.find((d) => d.id === l.department_id)?.name ?? "");
 
   const tabs = el("div", { className: "v2-tabs v3-aggtabs" }, [["weeks", "주차별 커리큘럼"], ["subjects", "과목별 커리큘럼"]].map(([k, t]) =>
@@ -91,7 +101,7 @@ export async function render(container, ctx) {
     return el("div", { className: "v2-row v2-gap v3-aicontrols" }, [gen, el("div", { className: "v2-tabs v3-lines", title: "요약 줄 수" }, lineBtns), el("small", { className: "muted", textContent: "줄" })]);
   }
 
-  // 강사 팝업: 한 줄에 두 명, 이름 옆 '−'로 바로 빼기, [추가]는 더 넣을 강사가 있을 때만. '완료'를 눌러야 반영(화면에서만, 저장 안 됨).
+  // 강사 팝업: 한 줄에 두 명, 이름 옆 '−'로 바로 빼기, [추가]는 더 넣을 강사가 있을 때만. '완료'로 반영, 왼쪽 '저장'으로 저장.
   function teacherPopup(subject) {
     let list = [...picks(subject.id)];
     let adding = false;
@@ -110,7 +120,7 @@ export async function render(container, ctx) {
       );
     };
     drawList();
-    modal(`${subject.name} · 기여 강사`, [box], [addBtn, ["완료", () => { state.picks.set(`${subject.id}|${state.mode}`, list); draw(); }]]).classList.add("v3-narrow");
+    modal(`${subject.name} · 기여 강사`, [box], [addBtn, ["완료", () => { dPicks.set(`${subject.id}|${state.mode}`, list); draw(); }]]).classList.add("v3-narrow");
   }
 
   // 대표 이미지 팝업: 그 단계에서 넣은 강사(강사 팝업 명단)의 이미지 중 고르면 사이트 단계 이미지로 저장
@@ -167,7 +177,7 @@ export async function render(container, ctx) {
     ]);
   }
 
-  // 과목 추가 팝업: 위에 검색, 아래 목록. '추가'로 고르고 '완료'를 누르면 목록 끝에 붙는다(V3 학과 순서, 저장 안 됨).
+  // 과목 추가 팝업: 위에 검색, 아래 목록. '추가'로 고르고 '완료'를 누르면 목록 끝에 붙는다('저장' 전까지는 저장 안 됨).
   function addPopup(ids, setOrder) {
     const rest = addableSubjects(subjects, ids, state.mode);
     const chosen = [];
@@ -189,23 +199,21 @@ export async function render(container, ctx) {
     q.focus?.();
   }
 
-  // 왼쪽 과목 목록. '수정'이면 끌어서 순서, '+ 과목 추가'(검색). 바꾼 순서는 V3 학과 순서(저장 안 됨).
+  // 왼쪽 과목 목록: 늘 끌어서 순서, 과목마다 [강사][삭제], 위에 [+ 과목 추가][저장](바꾼 것이 있을 때만 켜짐).
   function subjectList(list) {
     const ids = list.map((s) => s.id);
-    const setOrder = (a) => { state.orders.set(key(), a); draw(); };
+    const setOrder = (a) => { dOrders.set(key(), a); draw(); };
     const items = list.map((s, i) => Object.assign(el("div", { className: `v2-listitem${s.id === subjectId ? " active" : ""}` }, [
-      el("div", { className: "v2-row" }, [...(listEditing ? [el("span", { className: "v3-handle", textContent: "⋮⋮" })] : []), el("b", { className: "v2-grow", textContent: `${i + 1}. ${s.name}` }),
-        btn("강사", (e) => { e.stopPropagation(); teacherPopup(s); })]),
-      el("small", { textContent: `통합 강사 ${picks(s.id).length}명` }),
+      el("div", { className: "v2-row" }, [el("span", { className: "v3-handle", textContent: "⋮⋮" }), el("b", { className: "v2-grow", textContent: `${i + 1}. ${s.name}` })]),
+      el("div", { className: "v2-row" }, [el("small", { className: "v2-grow", textContent: `통합 강사 ${picks(s.id).length}명` }),
+        btn("강사", (e) => { e.stopPropagation(); teacherPopup(s); }),
+        btn("삭제", (e) => { e.stopPropagation(); setOrder(ids.filter((x) => x !== s.id)); })]),
     ]), { onclick: () => { subjectId = s.id; draw(); } }));
-    if (listEditing) sortable(items.map((r, i) => [r, ids[i]]), ids, setOrder);
-    const top = [];
-    if (listEditing) {
-      top.push(btn("+ 과목 추가", () => addPopup(ids, setOrder)));
-      top.push(el("small", { className: "muted", textContent: "끌어서 순서를 바꿉니다(화면에서만, 저장 안 됨)." }));
-    }
-    return panel("과목", [...top, list.length ? el("div", { className: "v2-boxlist" }, items) : empty("이 학과·유형에 과목이 없습니다.")], "학과별 과목 순서대로",
-      [btn(listEditing ? "수정 끝" : "수정", () => { listEditing = !listEditing; draw(); })]);
+    sortable(items.map((r, i) => [r, ids[i]]), ids, setOrder);
+    const save = btn("저장", saveDraft, true);
+    save.disabled = !dOrders.size && !dPicks.size;
+    return panel("과목", [list.length ? el("div", { className: "v2-boxlist" }, items) : empty("이 학과·유형에 과목이 없습니다.")],
+      "끌어서 순서를 바꿉니다", [btn("+ 과목 추가", () => addPopup(ids, setOrder)), save]);
   }
 
   function weeksView(list) {
@@ -256,7 +264,7 @@ export async function render(container, ctx) {
     return grid;
   }
 
-  // 과목별 커리큘럼: 기존 '학과 커리큘럼' 표 모양. 수정 → 저장(실제), 제외 → V3 학과 순서에서 뺌(저장 안 됨)
+  // 과목별 커리큘럼: 기존 '학과 커리큘럼' 표 모양. 수정 → 저장(실제), 제외 → 학과 순서에서 바로 뺌(이 브라우저에 저장)
   function subjectsView(list) {
     const ids = list.map((s) => s.id);
     const msg = el("p", { className: "save-state" });
@@ -294,7 +302,7 @@ export async function render(container, ctx) {
         cell("dept_curriculum", "학과별 커리큘럼 요약", [...(stale(s.id) ? [chip("다시 만들기 필요", "warn")] : []), ai]),
         cell("tools", "프로그램"), cell("supplies", "준비물"), cell("level", "학습 수준"),
         el("div", { className: "dept-cell cell-actions" }, [
-          btn("제외", () => { state.orders.set(key(), ids.filter((x) => x !== s.id)); draw(); }),
+          btn("제외", () => { dOrders.delete(key()); state.orders.set(key(), ids.filter((x) => x !== s.id)); saveLocal(); draw(); }),
           toggle,
         ]),
       ]);
@@ -303,15 +311,15 @@ export async function render(container, ctx) {
       el("div", { className: "dept-curriculum-row v3-headrow" }, ["", "과목명", "기간", "학과별 커리큘럼 요약", "프로그램", "준비물", "학습 수준", ""].map((t) => el("b", { textContent: t }))),
       ...(list.length ? list.map(rowOf) : [empty("이 학과에 과목이 없습니다.")]),
       msg,
-      hint("순서는 '학과별 과목 순서'에서 정한 순서입니다. '수정' 후 '저장'은 실제 저장(과목 공통이라 쓰는 모든 학과에 같이 반영). '수정' 중에는 요약을 AI생성(2~4줄)할 수 있습니다. 강사 명단·순서는 '주차별 커리큘럼' 왼쪽 '강사'에서 정합니다. '제외'는 V3 학과 순서에서만 빠집니다(저장 안 됨)."),
-    ], "학과별 과목 순서대로", state.orders.has(key()) ? [chip("바꾼 순서 · 저장 안 됨", "warn")] : []);
+      hint("순서는 '학과별 과목 순서'에서 정한 순서입니다. '수정' 후 '저장'은 실제 저장(과목 공통이라 쓰는 모든 학과에 같이 반영). '수정' 중에는 요약을 AI생성(2~4줄)할 수 있습니다. 강사 명단·순서는 '주차별 커리큘럼' 왼쪽 '강사'에서 정합니다. '제외'는 이 학과 순서에서 바로 빠집니다(이 브라우저에 저장, DB 저장은 아직 없음)."),
+    ], "학과별 과목 순서대로");
   }
 
   function draw() {
     const regular = state.mode === "regular";
     tabs.hidden = !regular;
     [...tabs.children].forEach((b, i) => b.classList.toggle("active", (i === 0) === (state.aggTab === "weeks")));
-    const list = deptSubjects(state.dept, state.mode, data);
+    const list = listOf();
     body.replaceChildren(regular && state.aggTab === "subjects" ? subjectsView(list) : weeksView(list));
   }
   container.append(contextBar(depts, draw, [tabs]), body);

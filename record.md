@@ -6,7 +6,7 @@
 ## redesign → main 배포 (2026-11-02, 사용자 요청 "지금까지의 내용을 배포해줘")
 
 - 테스트 334개 통과 후 `redesign`을 main에 fast-forward(e9d43a3..43cdfd0)하고 GitHub에 올림. 공개 사이트 `admin-v3/` 반영 확인.
-- 운영 SQL `20261030020000_seminar_listed.sql`은 사용자가 실행함(2026-11-02). `20261030010000_teacher_new_subject.sql`은 확인 필요.
+- 운영 SQL `20261030020000_seminar_listed.sql`은 사용자가 실행함(2026-11-02). `20261030010000_teacher_new_subject.sql`도 사용자가 실행함(2026-11-02). 남은 운영 SQL 없음.
 
 ## V3 왼쪽 메뉴 묶음 접기·펼치기 (2026-10-30, `redesign` 로컬만)
 

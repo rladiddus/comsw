@@ -1,0 +1,391 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex">
+<title>컴수원 새 관리 화면 매뉴얼 · 학과장용</title>
+<link rel="icon" href="data:,">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+KR:wght@500;700&family=Noto+Sans+KR:wght@400;500;700&display=swap">
+<link rel="stylesheet" href="manual.css">
+</head>
+<body>
+<div class="appbar">
+  <span class="appbar-title"><span class="appbar-kind">학과장용 매뉴얼</span><b></b></span>
+  <button type="button" aria-expanded="false" aria-controls="toc"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"/></svg>목차</button>
+</div>
+<div class="sheet-backdrop"></div>
+<div class="wrap">
+  <header class="top">
+    <span class="eyebrow">컴수원 새 관리 화면 · rladiddus.github.io/comsw/admin-v3</span>
+    <h1>학과장용 사용 매뉴얼</h1>
+    <p>새 관리 화면에서 학과장이 하는 일을 상황별로 정리했습니다. 왼쪽(휴대폰은 위의 목차)에서 상황을 고르면 누가, 어느 메뉴에서, 무엇을 하는지 순서대로 나옵니다. 선생님께는 <a href="v3-teacher.html">일반 강사용 매뉴얼</a>을 보내 주세요.</p>
+    <div class="legend">
+      <span class="who t">선생님</span>
+      <span class="who h">학과장</span>
+      <span class="who s">공개 사이트</span>
+    </div>
+  </header>
+
+  <nav class="toc" id="toc" aria-label="상황 고르기">
+    <span class="label">시작</span>
+    <button type="button" data-view="start">로그인과 메뉴 구성</button>
+    <button type="button" data-view="dashboard">대시보드: 지금 처리할 일</button>
+    <span class="label">커리큘럼 승인</span>
+    <button type="button" data-view="inbox">승인 대기: 과목 전체 승인</button>
+    <button type="button" data-view="validation">준비물 검토</button>
+    <button type="button" data-view="proxy">선생님 커리큘럼 대신 올리기</button>
+    <span class="label">운영 메뉴</span>
+    <button type="button" data-view="instructors">강사 관리</button>
+    <button type="button" data-view="teachers">강사 커리큘럼</button>
+    <button type="button" data-view="aggregate">과목 통합 커리큘럼</button>
+    <button type="button" data-view="roadmap">로드맵</button>
+    <button type="button" data-view="seminars">특강·세미나</button>
+    <button type="button" data-view="vacation">방학 특강</button>
+    <button type="button" data-view="materials">수업별 준비물</button>
+    <button type="button" data-view="subjects">과목 관리</button>
+    <button type="button" data-view="site">기본 설정 등: 사이트 화면·메뉴</button>
+    <span class="label">마무리</span>
+    <button type="button" data-view="release">사이트 반영</button>
+    <button type="button" data-view="trial">아직 시험 중인 기능</button>
+    <button type="button" data-view="faq">자주 묻는 질문</button>
+  </nav>
+
+  <main>
+    <section class="case" data-view-panel="start" hidden>
+      <h2>로그인과 메뉴 구성</h2>
+      <p class="lead">새 관리 화면 주소는 rladiddus.github.io/comsw/admin-v3 입니다. 쌤톡 아이디로 들어가고, 학과장·관리자는 모든 메뉴가 보입니다.</p>
+      <ol class="steps">
+        <li class="step">
+          <div class="step-head"><h3>로그인</h3><span class="who h">학과장</span></div>
+          <p>쌤톡 아이디(또는 이메일)와 비밀번호로 로그인합니다. 브라우저를 닫거나 30분 동안 아무것도 하지 않으면 로그아웃됩니다.</p>
+        </li>
+        <li class="step">
+          <div class="step-head"><h3>왼쪽 메뉴 묶음</h3></div>
+          <ul>
+            <li><strong>운영 메뉴</strong>: 기본 설정 등 · 강사 관리 · 강사 커리큘럼 · 과목 통합 커리큘럼 · 특강·세미나 · 방학 특강 · 로드맵 · 수업별 준비물</li>
+            <li><strong>선생님</strong>: 내 커리큘럼 · 내 프로필(학과장 본인 것, 다른 선생님 대신 올리기)</li>
+            <li><strong>업무</strong>: 대시보드 · 승인 대기 · 준비물 검토</li>
+            <li><strong>운영 기준</strong>: 과목 관리</li>
+            <li><strong>사이트 운영</strong>: 사이트 반영</li>
+          </ul>
+          <p>묶음 이름을 누르면 그 아래 메뉴가 접히고 펼쳐집니다. 접어 둔 상태는 그 브라우저에 기억됩니다.</p>
+        </li>
+        <li class="step">
+          <div class="step-head"><h3>화면 위쪽 고르기 칸</h3></div>
+          <p>여러 화면에서 제목 오른쪽에 [학과 ▾]나 탭이 있습니다. 메뉴마다 고른 학과를 따로 기억합니다(한 화면에서 바꿔도 다른 화면은 그대로).</p>
+        </li>
+        <li class="step">
+          <div class="step-head"><h3>운영 데이터 그대로</h3></div>
+          <p>새 관리 화면은 실제 운영 자료를 바로 읽고 저장합니다. 시험 삼아 입력·삭제하면 실제 자료가 바뀌니 조심해 주세요. 일부 기능은 아직 시험 중이라 저장되지 않습니다('아직 시험 중인 기능' 참고).</p>
+        </li>
+      </ol>
+    </section>
+
+    <section class="case" data-view-panel="dashboard" hidden>
+      <h2>대시보드: 지금 처리할 일</h2>
+      <ol class="steps">
+        <li class="step">
+          <div class="step-head"><h3>한 화면에서 보기</h3><span class="who h">학과장</span></div>
+          <div class="path"><b>업무</b> › <b>대시보드</b></div>
+          <ul>
+            <li><strong>지금 처리할 일</strong>: 승인 대기 커리큘럼·프로필 등. 누르면 그 화면으로 갑니다.</li>
+            <li><strong>자동 연계 상태</strong>: 승인 뒤 과목 통합 커리큘럼·로드맵에 이어질 일</li>
+            <li><strong>최근 AI 작업</strong>: AI로 만든 문구 기록</li>
+          </ul>
+          <p>오른쪽 위 [제출물 검토]를 누르면 승인 대기로 갑니다.</p>
+        </li>
+      </ol>
+    </section>
+
+    <section class="case" data-view-panel="inbox" hidden>
+      <h2>승인 대기: 과목 전체 승인</h2>
+      <p class="lead">승인은 '한 강사 × 한 과목'의 모든 단계를 한 번에 합니다. 프로필 승인은 따로 있습니다.</p>
+      <ol class="steps">
+        <li class="step">
+          <div class="step-head"><h3>제출 확인</h3><span class="who t">선생님</span><span class="who h">학과장</span></div>
+          <div class="path"><b>업무</b> › <b>승인 대기</b></div>
+          <p>선생님이 낸 과목이 목록에 나옵니다. 고르면 단계별 원문·이미지·준비물이 함께 보입니다. 이미지는 누르면 크게 보입니다.</p>
+        </li>
+        <li class="step">
+          <div class="step-head"><h3>준비물 먼저 확인</h3><span class="who h">학과장</span></div>
+          <p>[준비물 검토 보기]로 가서 준비물 분류를 모두 확인해야 [과목 전체 승인] 버튼이 열립니다('준비물 검토' 참고). 준비물이 없는 과목도 준비물 검토에서 '준비물 없음 확인'을 눌러야 합니다.</p>
+        </li>
+        <li class="step">
+          <div class="step-head"><h3>사이트 문구 정리</h3><span class="who h">학과장</span></div>
+          <ul>
+            <li>단계마다 공개 사이트에 보일 짧은 문구 칸이 있습니다. 직접 쓰거나 [빈 문구 AI로 채우기]를 누릅니다.</li>
+            <li>방특으로 낸 과목은 담을 방학 특강(시기)을 확인합니다. [방학 특강 보기]로 그 방학 특강 화면을 볼 수 있습니다.</li>
+            <li>'과목 승인 영향'에서 이 승인으로 바뀌는 과목 통합 커리큘럼을 미리 봅니다.</li>
+          </ul>
+        </li>
+        <li class="step">
+          <div class="step-head"><h3>과목 전체 승인</h3><span class="who h">학과장</span></div>
+          <p>[과목 전체 승인]을 누르면 모든 단계가 승인되고, 선생님 화면에 '승인됨'이 붙습니다. 중간에 연결이 끊기면 일부 단계만 승인될 수 있는데, 남은 단계는 목록에 그대로 있으니 다시 누르면 됩니다.</p>
+          <div class="note"><p>커리큘럼 '수정 요청' 버튼은 아직 잠겨 있습니다. 고칠 점은 직접 다듬어 승인하거나 선생님께 따로 알려 주세요.</p></div>
+        </li>
+        <li class="step">
+          <div class="step-head"><h3>프로필 승인</h3><span class="who h">학과장</span></div>
+          <p>선생님이 낸 소개·사진은 [프로필 승인]으로 승인합니다. 고칠 점이 있으면 내용을 적고 [수정 요청]을 누르면 선생님 대시보드에 표시됩니다.</p>
+        </li>
+      </ol>
+    </section>
+
+    <section class="case" data-view-panel="validation" hidden>
+      <h2>준비물 검토</h2>
+      <p class="lead">선생님이 적은 준비물을 교재·물품·사용 프로그램·AI 도구로 나눕니다. 선생님 분류 | 검사 제안 | 최종 분류를 나란히 봅니다.</p>
+      <ol class="steps">
+        <li class="step">
+          <div class="step-head"><h3>항목마다 정하기</h3><span class="who h">학과장</span></div>
+          <div class="path"><b>업무</b> › <b>준비물 검토</b></div>
+          <ul>
+            <li><strong>제안 수용</strong>: 검사 제안대로 분류</li>
+            <li><strong>원본 유지</strong>: 선생님이 적은 대로</li>
+            <li><strong>분류 바꾸기</strong>: 직접 골라 정하기</li>
+            <li><strong>전체 원본 유지로 검토 확정</strong>: 모두 선생님 분류대로 한 번에</li>
+            <li>같은 과목 안에 비슷한 이름이 있으면 중복 후보로 알려 줍니다.</li>
+          </ul>
+          <p>다 정하면 [승인 화면으로]를 눌러 승인 대기로 돌아갑니다.</p>
+        </li>
+      </ol>
+    </section>
+
+    <section class="case" data-view-panel="proxy" hidden>
+      <h2>선생님 커리큘럼 대신 올리기</h2>
+      <ol class="steps">
+        <li class="step">
+          <div class="step-head"><h3>타강사 커리큘럼</h3><span class="who h">학과장</span></div>
+          <div class="path"><b>선생님</b> › <b>내 커리큘럼</b> › <b>□ 타강사 커리큘럼</b> → 강사 고르기</div>
+          <p>체크하고 강사를 고르면 그 강사의 학과·과목으로 등록·조회합니다. 쓰는 방법은 선생님과 같습니다(일반 강사용 매뉴얼 참고). 대신 낸 것도 그 강사의 승인 대기가 되어 승인 대기에서 승인합니다.</p>
+        </li>
+      </ol>
+    </section>
+
+    <section class="case" data-view-panel="instructors" hidden>
+      <h2>강사 관리</h2>
+      <ol class="steps">
+        <li class="step">
+          <div class="step-head"><h3>강사 목록</h3><span class="who h">학과장</span></div>
+          <div class="path"><b>운영 메뉴</b> › <b>강사 관리</b></div>
+          <ul>
+            <li>목록 오른쪽 위 [학과 ▾][강사 ▾]로 좁히고, 탭으로 전체·공개·비공개를 나눠 봅니다.</li>
+            <li>'사이트'는 공개 사이트 강사소개에 나오는지(공개/비공개)입니다.</li>
+            <li>줄을 누르면 그 강사 카드가 팝업으로 열립니다. 사진·이름·경력·담당 학과·과목을 '수정'으로 고치고, '공개' 체크로 사이트에 보일지 정합니다.</li>
+          </ul>
+        </li>
+        <li class="step">
+          <div class="step-head"><h3>강사 추가</h3><span class="who h">학과장</span></div>
+          <p>오른쪽 위 [강사 추가]를 누르면 '새 강사'(비공개)가 만들어지고 카드 팝업이 열립니다. 이름과 내용을 고친 뒤 공개해 주세요.</p>
+        </li>
+        <li class="step">
+          <div class="step-head"><h3>계정 연결</h3><span class="who h">학과장</span></div>
+          <p>'계정 연결' 탭에서 쌤톡 회원과 강사를 이어 줍니다. 예전부터 사이트에 소개가 있던 선생님이 처음 로그인했는데 화면이 비어 있으면 여기서 연결합니다. 쌤톡에서 숨긴 회원은 목록에 나오지 않습니다.</p>
+        </li>
+      </ol>
+    </section>
+
+    <section class="case" data-view-panel="teachers" hidden>
+      <h2>강사 커리큘럼</h2>
+      <ol class="steps">
+        <li class="step">
+          <div class="step-head"><h3>승인된 커리큘럼 보기</h3><span class="who h">학과장</span></div>
+          <div class="path"><b>운영 메뉴</b> › <b>강사 커리큘럼</b> › [학과 ▾] · 탭</div>
+          <ul>
+            <li><strong>강사별 과목 커리큘럼</strong>: 왼쪽 강사 → 그 강사의 과목 → 단계별 커리큘럼</li>
+            <li><strong>과목별 강사 커리큘럼</strong>: 왼쪽 과목 → 그 과목의 강사 → 단계별 커리큘럼</li>
+            <li>정규 과목만 나옵니다(방특은 '방학 특강' 메뉴). 과목 순서는 과목 통합 커리큘럼과 같습니다.</li>
+            <li>수정 제출이 기다리고 있으면 함께 표시되고 [수정 제출 검토]로 승인 대기에 갈 수 있습니다.</li>
+          </ul>
+        </li>
+      </ol>
+    </section>
+
+    <section class="case" data-view-panel="aggregate" hidden>
+      <h2>과목 통합 커리큘럼</h2>
+      <p class="lead">과목 하나를 모든 학과가 같이 씁니다. 여러 강사의 승인 커리큘럼을 모아 과목마다 하나의 커리큘럼을 만듭니다.</p>
+      <ol class="steps">
+        <li class="step">
+          <div class="step-head"><h3>왼쪽 과목 목록</h3><span class="who h">학과장</span></div>
+          <div class="path"><b>운영 메뉴</b> › <b>과목 통합 커리큘럼</b> › [학과 ▾]</div>
+          <ul>
+            <li>과목을 끌어 순서를 바꾸고, '+ 과목 추가'로 있는 과목을 넣고, '삭제'로 뺍니다.</li>
+            <li>과목마다 [강사]로 이 과목에 넣을 강사를 고릅니다(처음엔 이 과목 승인본이 있는 강사).</li>
+            <li>바꾼 뒤 [저장]을 누릅니다. 왼쪽과 오른쪽 경계를 끌어 너비를 바꿀 수 있습니다.</li>
+          </ul>
+        </li>
+        <li class="step">
+          <div class="step-head"><h3>주차별 커리큘럼 탭</h3><span class="who h">학과장</span></div>
+          <p>고른 과목의 단계마다 사이트 문구를 씁니다. [AI생성]을 누르고 2·3·4줄 중 고르면 넣은 강사들의 원문을 요약해 줍니다. [대표 이미지 수정]으로 그 단계 강사 이미지 중 하나를 고릅니다. 문구와 대표 이미지는 실제로 저장됩니다.</p>
+        </li>
+        <li class="step">
+          <div class="step-head"><h3>과목별 커리큘럼 탭</h3><span class="who h">학과장</span><span class="who s">학과 커리큘럼</span></div>
+          <p>학과 과목을 순서대로 표로 봅니다(과목명·기간·요약·프로그램·준비물·학습 수준). [수정]으로 고치면 실제로 저장됩니다. [제외]는 이 학과 순서에서만 뺍니다.</p>
+        </li>
+        <li class="step">
+          <div class="step-head"><h3>강사 커리큘럼 → 과목 통합 커리큘럼</h3></div>
+          <div class="note"><p>과목 순서·넣을 강사·제외는 아직 그 브라우저에만 저장됩니다. 다른 컴퓨터에서는 처음 상태로 보이고 공개 사이트에도 반영되지 않습니다.</p></div>
+        </li>
+      </ol>
+    </section>
+
+    <section class="case" data-view-panel="roadmap" hidden>
+      <h2>로드맵</h2>
+      <ol class="steps">
+        <li class="step">
+          <div class="step-head"><h3>스텝에 과목 넣기</h3><span class="who h">학과장</span></div>
+          <div class="path"><b>운영 메뉴</b> › <b>로드맵</b> › [학과 ▾]</div>
+          <ul>
+            <li>왼쪽은 과목 통합 커리큘럼의 과목 순서, 오른쪽은 스텝 박스입니다(정규만).</li>
+            <li>왼쪽 과목을 끌어 스텝 박스에 놓으면 들어갑니다. 맨 아래 '+ 스텝 추가'로 스텝을 늘립니다.</li>
+            <li>스텝 안 과목과 스텝 자체도 끌어서 순서를 바꿉니다. '−'로 과목을 빼고 [스텝 삭제]로 스텝을 지웁니다.</li>
+            <li>스텝마다 <strong>로드맵 문구</strong>가 있습니다. 과목을 넣고 빼면 [AI 요약]이 켜져 새 문구를 만들 수 있습니다.</li>
+          </ul>
+          <div class="note"><p>로드맵 스텝 구성은 아직 저장되지 않는 시험 기능입니다. 새로 고치면 지금 사이트의 로드맵으로 돌아갑니다. 실제 로드맵은 기존 관리 화면에서 고쳐 주세요.</p></div>
+        </li>
+      </ol>
+    </section>
+
+    <section class="case" data-view-panel="seminars" hidden>
+      <h2>특강·세미나</h2>
+      <ol class="steps">
+        <li class="step">
+          <div class="step-head"><h3>특강 목록 보기</h3><span class="who h">학과장</span></div>
+          <div class="path"><b>운영 메뉴</b> › <b>특강·세미나</b></div>
+          <ul>
+            <li>위에 모집 중·마감 임박·종료·이번 달 신청 숫자가 나옵니다.</li>
+            <li>특강 목록에서 검색과 상태로 좁혀 봅니다.</li>
+            <li>줄의 [신청자 명단]을 누르면 오른쪽에 신청자가 나오고 엑셀로 내려받을 수 있습니다. 가운데 경계를 끌어 너비를 바꿉니다.</li>
+          </ul>
+        </li>
+        <li class="step">
+          <div class="step-head"><h3>특강 고치기·공개</h3><span class="who h">학과장</span><span class="who s">특강 및 세미나</span></div>
+          <p>줄을 누르면 특강 카드가 팝업으로 열립니다. '수정'으로 고치고, <strong>공개</strong> 체크를 끄면 사이트에 나오지 않고 신청도 받지 않습니다(사이트 반영 뒤).</p>
+        </li>
+        <li class="step">
+          <div class="step-head"><h3>특강 만들기</h3><span class="who h">학과장</span></div>
+          <p>'특강 목록' 제목 옆 [특강 만들기]를 누르고 예시를 참고해 칸을 채운 뒤 포스터를 올리고 [만들기]를 누릅니다. 새 특강은 목록 맨 위에 들어갑니다. 정원은 숫자로 적습니다.</p>
+        </li>
+      </ol>
+    </section>
+
+    <section class="case" data-view-panel="vacation" hidden>
+      <h2>방학 특강</h2>
+      <ol class="steps">
+        <li class="step">
+          <div class="step-head"><h3>방학 특강 만들기</h3><span class="who h">학과장</span></div>
+          <div class="path"><b>운영 메뉴</b> › <b>방학 특강</b> › [방학특강 추가]</div>
+          <p>이름(예: 2026년 겨울방학특강)만 적어 [만들기]를 누릅니다. 만들어야 선생님이 방특으로 낼 때 이 방학 특강을 고를 수 있습니다.</p>
+        </li>
+        <li class="step">
+          <div class="step-head"><h3>담긴 커리큘럼 보기</h3><span class="who h">학과장</span></div>
+          <p>[시기 ▾]로 방학 특강을 고르고 강사별·과목별 탭으로 승인된 커리큘럼을 봅니다(강사 커리큘럼과 같은 모양). 선생님의 방특 신청 승인은 '승인 대기'에서 합니다.</p>
+        </li>
+        <li class="step">
+          <div class="step-head"><h3>사이트에 보이기</h3><span class="who s">방학 특강</span></div>
+          <p>사이트 방학 특강 페이지의 화면 설정은 '기본 설정 등 › 방학 특강 › 페이지 편집'에서 합니다.</p>
+        </li>
+      </ol>
+    </section>
+
+    <section class="case" data-view-panel="materials" hidden>
+      <h2>수업별 준비물</h2>
+      <ol class="steps">
+        <li class="step">
+          <div class="step-head"><h3>네 가지 탭</h3><span class="who h">학과장</span><span class="who s">수업별 준비물</span></div>
+          <div class="path"><b>운영 메뉴</b> › <b>수업별 준비물</b></div>
+          <p>교재·물품·사용 프로그램·AI 도구 탭마다 모든 학과를 학과별로 묶어 보여 줍니다. 카드에서 바로 등록·수정하면 실제로 저장됩니다. 선생님이 낸 준비물 분류는 [준비물 검토 화면]에서 확인합니다.</p>
+        </li>
+      </ol>
+    </section>
+
+    <section class="case" data-view-panel="subjects" hidden>
+      <h2>과목 관리</h2>
+      <ol class="steps">
+        <li class="step">
+          <div class="step-head"><h3>과목 찾기·고치기</h3><span class="who h">학과장</span></div>
+          <div class="path"><b>운영 기준</b> › <b>과목 관리</b></div>
+          <ul>
+            <li>검색·유형·학과로 좁혀 봅니다. 정규 과목 하나를 여러 학과가 같이 씁니다.</li>
+            <li>[새 과목 등록]이나 과목의 [수정]을 누르면 과목 편집 화면(과목 정보·학과별 과목·신규 과목·기타 과목)이 열립니다. 새 과목은 '신규 과목'에서 만듭니다.</li>
+            <li>'방특으로 복제'는 아직 잠겨 있습니다.</li>
+          </ul>
+        </li>
+        <li class="step">
+          <div class="step-head"><h3>선생님이 만든 새 과목</h3><span class="who t">선생님</span><span class="who h">학과장</span></div>
+          <p>선생님이 '과목명 동일'을 끄고 새 과목명으로 내면 과목이 자동으로 만들어집니다. 승인한 뒤 과목 통합 커리큘럼 순서와 로드맵에 넣어 정리해 주세요.</p>
+        </li>
+      </ol>
+    </section>
+
+    <section class="case" data-view-panel="site" hidden>
+      <h2>기본 설정 등: 사이트 화면·메뉴</h2>
+      <p class="lead">탭이 세 개입니다: 기본 설정 · 채용 공고 · 시스템 설정.</p>
+      <ol class="steps">
+        <li class="step">
+          <div class="step-head"><h3>기본 설정: 페이지 고르고 편집</h3><span class="who h">학과장</span></div>
+          <div class="path"><b>운영 메뉴</b> › <b>기본 설정 등</b> › <b>기본 설정</b></div>
+          <ul>
+            <li>왼쪽에서 사이트 페이지를 고르면 오른쪽에 그 화면이 나옵니다. 사이트에서 꺼 둔 페이지는 설정된 모습을 미리보기로 보여 줍니다.</li>
+            <li>[페이지 편집]: 메인·로딩화면, 학과별 자료(학과 소개), 방학 특강, 로고 이미지는 팝업에서 고칩니다.</li>
+            <li>전체 수업·학과 커리큘럼·특강/세미나·수업별 준비물은 해당 메뉴(로드맵·과목 통합 커리큘럼·특강·세미나·수업별 준비물)로 갑니다.</li>
+          </ul>
+        </li>
+        <li class="step">
+          <div class="step-head"><h3>메뉴</h3><span class="who h">학과장</span><span class="who s">사이트 메뉴</span></div>
+          <p>'메뉴'를 고르면 사이트 메뉴가 알약 모양으로 나옵니다. 체크를 끄면 그 메뉴를 숨기고, 끌어서 왼쪽·오른쪽과 순서를 바꾼 뒤 저장합니다. 메뉴 이름 바꾸기·추가·삭제는 하지 않습니다.</p>
+        </li>
+        <li class="step">
+          <div class="step-head"><h3>채용 공고 · 시스템 설정</h3><span class="who h">학과장</span></div>
+          <p>채용 공고 탭에서 공고를 고칩니다. 시스템 설정의 '프롬프트' 탭에서 AI 문구를 만들 때 쓰는 지시문을 고칩니다.</p>
+        </li>
+      </ol>
+    </section>
+
+    <section class="case" data-view-panel="release" hidden>
+      <h2>사이트 반영</h2>
+      <p class="lead">승인·수정한 내용은 '사이트 반영'을 눌러야 공개 사이트에 나옵니다.</p>
+      <ol class="steps">
+        <li class="step">
+          <div class="step-head"><h3>미리보고 반영하기</h3><span class="who h">학과장</span><span class="who s">공개 사이트</span></div>
+          <div class="path"><b>사이트 운영</b> › <b>사이트 반영</b></div>
+          <ul>
+            <li>'반영 전 바뀐 곳'과 '반영 전 검사'를 확인합니다.</li>
+            <li>[미리볼 페이지 ▾]를 고르고 [PC 미리보기]·[태블릿 미리보기]로 반영 전 모습을 봅니다.</li>
+            <li>[검사 후 사이트에 반영]을 누르면 공개 사이트에 나옵니다. '반영 기록'에 남습니다.</li>
+          </ul>
+          <div class="note"><p>되돌리기·다시 시도 버튼은 아직 잠겨 있습니다.</p></div>
+        </li>
+      </ol>
+    </section>
+
+    <section class="case" data-view-panel="trial" hidden>
+      <h2>아직 시험 중인 기능</h2>
+      <p class="lead">아래 기능은 화면에서 써 볼 수 있지만 아직 DB에 저장되지 않습니다. 실제 운영에 쓰기 전에 알아 두세요.</p>
+      <table class="terms">
+        <tr><th>과목 통합 커리큘럼</th><td>과목 순서·넣을 강사·제외는 그 브라우저에만 저장됩니다(문구·대표 이미지·과목별 수정은 실제 저장).</td></tr>
+        <tr><th>로드맵</th><td>스텝 구성은 저장되지 않습니다. 새로 고치면 지금 사이트 로드맵으로 돌아갑니다.</td></tr>
+        <tr><th>준비물 검토</th><td>최종 분류 결정은 그 화면에만 남고, 승인하면 선생님이 적은 칸 그대로 과목에 합쳐집니다.</td></tr>
+        <tr><th>강사 관리 재직 상태</th><td>재직·퇴사 표시는 아직 DB에 없어 숫자가 '확인 전'으로 나옵니다.</td></tr>
+        <tr><th>잠긴 버튼</th><td>커리큘럼 수정 요청, 변경 이력, 반영 되돌리기 등 회색 버튼은 DB 추가 뒤에 열립니다.</td></tr>
+      </table>
+    </section>
+
+    <section class="case" data-view-panel="faq" hidden>
+      <h2>자주 묻는 질문</h2>
+      <table class="terms">
+        <tr><th>[과목 전체 승인]이 안 눌려요</th><td>준비물 검토를 먼저 끝내야 합니다. [준비물 검토 보기]에서 모든 항목을 정해 주세요.</td></tr>
+        <tr><th>승인했는데 사이트에 안 나와요</th><td>'사이트 반영'을 눌러야 공개 사이트에 나옵니다.</td></tr>
+        <tr><th>선생님이 방학 특강을 못 골라요</th><td>방학 특강 메뉴에서 이번 방학 특강을 먼저 만들어 주세요.</td></tr>
+        <tr><th>선생님 화면이 비어 있어요</th><td>강사 관리 › 계정 연결 탭에서 쌤톡 회원과 강사를 연결해 주세요.</td></tr>
+        <tr><th>다른 컴퓨터에서 과목 순서가 달라요</th><td>과목 통합 커리큘럼 순서는 아직 브라우저마다 따로 저장됩니다('아직 시험 중인 기능').</td></tr>
+        <tr><th>메뉴가 사라졌어요</th><td>왼쪽 묶음 이름을 눌러 접힌 것입니다. 한 번 더 누르면 펼쳐집니다.</td></tr>
+      </table>
+    </section>
+  </main>
+</div>
+<dialog class="zoom" id="zoom" aria-label="화면 크게 보기"><img alt=""></dialog>
+<script src="manual.js"></script>
+</body>
+</html>

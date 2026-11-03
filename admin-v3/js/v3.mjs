@@ -1,6 +1,9 @@
 // V3 시험판 공통: 설계(컴수원_V3_최종설계)의 정책을 지금 DB 위에서 보여 주는 데 필요한 것들.
 // V3 전용 칸(4분류 확정·학과별 순서·재직 상태·통합본 버전)은 아직 DB에 없다. 그 값은 아래 state에만 두고(새로고침하면 사라짐) 저장하지 않는다.
 import { el, pick, chip, select } from "../../admin-v2/js/ui.mjs";
+import { dbErrorMessage } from "../../admin/js/fields.mjs";
+import { cascadeMessage } from "../../admin/js/format.mjs";
+import { USES, seen } from "../../admin/js/pages/subject-manage.mjs";
 
 // 학과 순서·강사 명단은 DB 칸이 생기기 전까지 이 브라우저(localStorage)에 저장한다(saveLocal).
 const load = (k) => { try { return new Map(JSON.parse(localStorage.getItem(k) || "[]")); } catch { return new Map(); } };
@@ -96,6 +99,17 @@ export function deptSubjects(dept, mode, { subjects, links, curricula = [], idep
 export const addableSubjects = (subjects, ids, mode) => subjects
   .filter((s) => !ids.includes(s.id) && (mode === "vacation" || !s.is_vacation))
   .sort((a, b) => a.name.localeCompare(b.name));
+
+// 과목 지우기(기존 '과목 관리'와 같음): 쓰이는 곳 개수를 보여 확인받고, DB가 그 사이 바뀌었는지 다시 세어 지운다. 지웠으면 true.
+export async function deleteSubject(supabase, s) {
+  const { data, error } = await supabase.rpc("comsw_subject_usage", {});
+  if (error) throw new Error(dbErrorMessage(error));
+  const u = { ...Object.fromEntries(USES.map(([k]) => [k, 0])), ...(data || []).find((x) => x.subject_id === s.id) };
+  if (!confirm(cascadeMessage("과목", s.name, USES.map(([k, label]) => [label, u[k]])))) return false;
+  const { error: err } = await supabase.rpc("comsw_delete_subjects", { p_ids: [s.id], p_seen: seen(u) });
+  if (err) throw new Error(dbErrorMessage(err));
+  return true;
+}
 
 // 화면 위 공통 막대: 학과 / 정규·방특(필요 없는 화면은 .v3-switch를 지운다).
 export function contextBar(depts, onChange, extra = []) {

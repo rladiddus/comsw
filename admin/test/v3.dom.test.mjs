@@ -61,42 +61,59 @@ const page = async (file, ctx = {}) => {
 };
 const button = (c, text) => [...c.querySelectorAll("button")].find((b) => b.textContent === text);
 
-test("V3 메뉴: 14메뉴(과목 관리 삭제 → 학과 관리로, 특강·세미나 메뉴로)", async () => {
+test("V3 메뉴: 15메뉴(과목 관리는 학과 관리 위, 특강·세미나 메뉴로)", async () => {
   const src = (await import("node:fs")).readFileSync(new URL("../../admin-v3/js/app.mjs", import.meta.url), "utf8");
   const labels = [...src.matchAll(/\["([a-z-]+)", "[^"]+", "([^"]+)",/g)].map((m) => m[2]);
-  assert.deepEqual(labels, ["기본 설정 등", "강사 관리", "강사 커리큘럼", "학과 관리", "특강·세미나", "방학 특강", "로드맵", "수업별 준비물",
+  assert.deepEqual(labels, ["기본 설정 등", "강사 관리", "강사 커리큘럼", "과목 관리", "학과 관리", "특강·세미나", "방학 특강", "로드맵", "수업별 준비물",
     "내 커리큘럼", "내 프로필", "대시보드", "승인 대기", "준비물 검토", "사이트 반영"]);
 });
 
-test("V3 학과 관리: 학과 상자 옆 [과목 생성] → 학과 고르고 이름 적어 생성(comsw_create_subject), 목록 맨 뒤에", async () => {
-  const db = sb();
+test("V3 과목 관리: [과목 생성] 학과·이름으로 생성, [과목 정리] 커리큘럼 미입력·학과·방특 미포함 과목 삭제", async () => {
+  const tables = data();
+  tables.subjects.push({ id: "s5", name: "외톨이" }, { id: "s6", name: "방특만", is_vacation: false });
+  tables.instructor_curricula.push({ id: "c20", instructor_id: "i1", subject_id: "s6", step_label: "1단계", written: "방특", status: "approved", vacation: true, sort_order: 0 });
+  const db = fakeSupabase(tables);
   const calls = [];
   db.rpc = async (name, args) => { calls.push([name, args]); return { data: name === "comsw_create_subject" ? "new1" : [], error: null }; };
+  const c = await page("subjects", { supabase: db });
+  assert.deepEqual([...c.querySelectorAll(".v2-tabs button")].map((b) => b.textContent), ["과목 생성", "과목 정리"]);
+  button(c, "생성").click();
+  await flush();
+  assert.match(c.textContent, /과목 이름을 입력해주세요/);
+  c.querySelector('[aria-label="학과"]').value = "d2";
+  c.querySelector('[aria-label="과목 이름"]').value = " 새과목 ";
+  button(c, "생성").click();
+  await flush();
+  assert.deepEqual(calls.at(-1), ["comsw_create_subject", { p_name: "새과목", p_department_ids: ["d2"] }]);
+  assert.match(c.textContent, /'새과목' 과목을 건축학과 맨 뒤에 만들었습니다/);
+  button(c, "과목 정리").click();
+  const rowsOf = () => [...c.querySelectorAll("tbody tr")].map((r) => [...r.cells].slice(0, 3).map((td) => td.textContent));
+  const names = rowsOf().map((r) => r[0]);
+  assert.ok(names.includes("외톨이") && names.includes("새과목"), names.join());
+  assert.deepEqual(rowsOf().find((r) => r[0] === "외톨이"), ["외톨이", "—", "커리큘럼 미입력학과·방특 미포함"]);
+  assert.ok(!names.includes("방특만"), "방특 커리큘럼이 있으면 포함으로 봄");
+  globalThis.confirm = () => true;
+  button([...c.querySelectorAll("tbody tr")].find((r) => r.cells[0].textContent === "외톨이"), "삭제").click();
+  await flush();
+  assert.deepEqual(calls.filter(([n]) => n === "comsw_delete_subjects").map(([, a]) => a.p_ids), [["s5"]]);
+  assert.ok(!rowsOf().some((r) => r[0] === "외톨이"), "지운 과목은 목록에서 빠짐");
+  assert.match(c.textContent, /'외톨이' 과목을 삭제했습니다/);
+});
+
+test("V3 학과 관리: 과목 생성 버튼 없음, 과목별 커리큘럼 [과목 삭제]", async () => {
+  const db = sb();
+  const calls = [];
+  db.rpc = async (name, args) => { calls.push([name, args]); return { data: [], error: null }; };
   const headBar = document.createElement("div");
-  const c = await page("aggregate", { supabase: db, headBar });
-  const make = [...headBar.children].find((x) => x.textContent === "과목 생성");
-  assert.ok(make, "학과 상자 오른쪽에 과목 생성");
-  make.click();
-  const dlg = document.querySelector("dialog.v3-modal");
-  assert.equal(dlg.querySelector('[aria-label="학과"]').tagName, "SELECT");
-  button(dlg, "생성").click();
-  await flush();
-  assert.match(dlg.textContent, /과목 이름을 입력해주세요/);
-  dlg.querySelector('[aria-label="과목 이름"]').value = " 새과목 ";
-  button(dlg, "생성").click();
-  await flush();
-  assert.deepEqual(calls.at(-1), ["comsw_create_subject", { p_name: "새과목", p_department_ids: [v3.state.dept] }]);
-  assert.ok(!document.querySelector("dialog.v3-modal"), "만들면 닫힘");
-  assert.match(c.textContent, /새과목/);
-  // 과목별 커리큘럼 [과목 삭제]: 쓰이는 곳 개수 확인 후 comsw_delete_subjects
   globalThis.confirm = () => true;
   v3.state.aggTab = "subjects";
-  const c2 = await page("aggregate", { supabase: db, headBar: document.createElement("div") });
-  const row = [...c2.querySelectorAll(".dept-curriculum-row:not(.v3-headrow)")].find((r) => r.querySelector("input").value === "웹1");
+  const c = await page("aggregate", { supabase: db, headBar });
+  assert.ok(![...headBar.querySelectorAll("button")].some((b) => b.textContent === "과목 생성"));
+  const row = [...c.querySelectorAll(".dept-curriculum-row:not(.v3-headrow)")].find((r) => r.querySelector("input").value === "웹1");
   button(row, "과목 삭제").click();
   await flush();
-  assert.deepEqual(calls.filter(([n]) => n !== "comsw_create_subject").map(([n, a]) => [n, a.p_ids]), [["comsw_subject_usage", undefined], ["comsw_delete_subjects", ["s2"]]]);
-  assert.ok(![...c2.querySelectorAll(".dept-curriculum-row input")].some((i) => i.value === "웹1"), "지운 과목은 표에서 빠짐");
+  assert.deepEqual(calls.map(([n, a]) => [n, a.p_ids]), [["comsw_subject_usage", undefined], ["comsw_delete_subjects", ["s2"]]]);
+  assert.ok(![...c.querySelectorAll(".dept-curriculum-row input")].some((i) => i.value === "웹1"), "지운 과목은 표에서 빠짐");
   v3.state.aggTab = "weeks";
 });
 
@@ -431,7 +448,7 @@ test("V3 준비물: 학과·정규/방특 없이 4분류 탭, 탭마다 학과�
 });
 
 test("V3 모든 화면이 오류 없이 그려진다", async () => {
-  for (const f of ["dashboard", "inbox", "validation", "instructors", "teachers", "aggregate", "roadmap", "materials", "vacation", "seminars", "release", "legacy"]) { // mine·profile은 기존 화면이 Firebase(CDN)를 불러 테스트에서 못 염(V2 테스트와 같음)
+  for (const f of ["dashboard", "inbox", "validation", "subjects", "instructors", "teachers", "aggregate", "roadmap", "materials", "vacation", "seminars", "release", "legacy"]) { // mine·profile은 기존 화면이 Firebase(CDN)를 불러 테스트에서 못 염(V2 테스트와 같음)
     location.hash = `#/${f}`;
     const c = await page(f);
     assert.ok(!c.querySelector(".save-state.err"), `${f}: ${c.querySelector(".save-state.err")?.textContent}`);

@@ -1,12 +1,10 @@
-import { el, rows, pick, chip, hint, btn, panel, empty, search, select, nameOf } from "../../../admin-v2/js/ui.mjs";
+import { el, rows, pick, chip, hint, btn, panel, empty, search, nameOf } from "../../../admin-v2/js/ui.mjs";
 import { dbErrorMessage } from "../../../admin/js/fields.mjs";
 import { getServices } from "../../../admin/js/services.mjs";
 import { driveThumbnail } from "../../../admin/js/drive.mjs";
 import { applyCrop } from "../../../admin/js/image-crop.mjs";
 import { LEVELS } from "../../../admin/js/pages/department-curriculum.mjs";
-import { USES, seen } from "../../../admin/js/pages/subject-manage.mjs";
-import { cascadeMessage } from "../../../admin/js/format.mjs";
-import { state, deptSubjects, contextBar, isEmployed, modal, sortable, addableSubjects, saveLocal, splitGrid } from "../v3.mjs";
+import { state, deptSubjects, contextBar, isEmployed, modal, sortable, addableSubjects, saveLocal, splitGrid, deleteSubject } from "../v3.mjs";
 
 // 학과 관리(V3 시안 '학과 통합 커리큘럼', 정책 3·4·5·7): 과목 하나를 모든 학과가 같이 쓴다(2026-10-29 결정).
 // 정규는 두 탭: [주차별 커리큘럼] 고른 과목의 단계별 문구(AI생성·직접 입력·저장)와 대표 이미지(그 단계 강사 이미지 중 고르기), 실제 저장
@@ -257,15 +255,12 @@ export async function render(container, ctx) {
       ] : [empty("과목을 고르세요.")], "사이트 '전체 수업'의 단계"));
   }
 
-  // 과목 삭제(기존 '과목 관리'와 같음): 쓰이는 곳 개수를 보여 주고, DB가 그 사이 바뀌었는지 다시 세어 지운다.
+  // 과목 삭제: 쓰이는 곳 개수를 확인받고 지운다(과목 관리 › 과목 정리와 같음).
   async function removeSubject(s, button, say) {
     button.disabled = true;
-    const { data: usage, error } = await supabase.rpc("comsw_subject_usage", {});
-    if (error) { button.disabled = false; return say(dbErrorMessage(error), true); }
-    const u = { ...Object.fromEntries(USES.map(([k]) => [k, 0])), ...(usage || []).find((x) => x.subject_id === s.id) };
-    if (!confirm(cascadeMessage("과목", s.name, USES.map(([k, label]) => [label, u[k]])))) { button.disabled = false; return; }
-    const { error: err } = await supabase.rpc("comsw_delete_subjects", { p_ids: [s.id], p_seen: seen(u) });
-    if (err) { button.disabled = false; return say(dbErrorMessage(err), true); }
+    try {
+      if (!(await deleteSubject(supabase, s))) return;
+    } catch (e) { return say(e.message, true); } finally { button.disabled = false; }
     subjects.splice(subjects.indexOf(s), 1);
     for (let i = links.length - 1; i >= 0; i--) if (links[i].subject_id === s.id) links.splice(i, 1);
     dOrders.forEach((v, k) => dOrders.set(k, v.filter((id) => id !== s.id)));
@@ -333,36 +328,7 @@ export async function render(container, ctx) {
   // 학과 칸과 주차별/과목별 탭은 제목 오른쪽에(머리 자리가 없으면 화면 맨 위). 정규·방특 버튼 없음.
   const filter = contextBar(depts, draw, [tabs]);
   filter.querySelector(".v3-switch")?.remove();
-  // 과목 생성(2026-11-03): 학과를 고르고 이름을 적어 만든다(그 학과 맨 뒤 순서, 승인 없이 바로). 그 학과 선생님은 바로 이 과목 커리큘럼을 낸다.
-  const create = btn("과목 생성", () => {
-    const deptSel = select("학과", depts.map((d) => [d.id, d.name]));
-    deptSel.value = state.dept;
-    const name = el("input", { type: "text", className: "v2-field", maxLength: 80, placeholder: "과목 이름" });
-    name.setAttribute("aria-label", "과목 이름");
-    const say = el("p", { className: "save-state" });
-    const make = btn("생성", async () => {
-      const n = name.value.trim();
-      if (!n) { say.textContent = "과목 이름을 입력해주세요"; say.classList.add("err"); return; }
-      make.disabled = true;
-      const { data: id, error } = await supabase.rpc("comsw_create_subject", { p_name: n, p_department_ids: [deptSel.value] });
-      make.disabled = false;
-      if (error) { say.textContent = dbErrorMessage(error); say.classList.add("err"); return; }
-      subjects.push({ id, name: n, is_vacation: false, sort_order: 1e9 });
-      links.push({ subject_id: id, department_id: deptSel.value });
-      // 저장 전 고친 순서가 있으면 맨 뒤에 붙인다(없으면 DB 순서 맨 뒤).
-      const k = `${deptSel.value}:regular`;
-      if (dOrders.has(k)) dOrders.set(k, [...dOrders.get(k), id]);
-      d.close?.(); d.remove();
-      draw();
-    }, true);
-    const d = modal("과목 생성", [el("div", { className: "v3-newsubject" }, [
-      el("label", { className: "form-field" }, [el("span", { textContent: "학과" }), deptSel]),
-      el("label", { className: "form-field" }, [el("span", { textContent: "과목 이름" }), name]),
-      say,
-    ])], [make]);
-    name.focus();
-  }, true);
-  if (ctx.headBar) ctx.headBar.replaceChildren(filter, create); else container.append(filter, create);
+  if (ctx.headBar) ctx.headBar.replaceChildren(filter); else container.append(filter);
   container.append(body);
   draw();
 }

@@ -40,6 +40,7 @@
     <span class="label">운영 메뉴</span>
     <button type="button" data-view="instructors">강사 관리</button>
     <button type="button" data-view="teachers">강사 커리큘럼</button>
+    <button type="button" data-view="subjects">과목 관리</button>
     <button type="button" data-view="aggregate">학과 관리</button>
     <button type="button" data-view="roadmap">로드맵</button>
     <button type="button" data-view="seminars">특강·세미나</button>
@@ -64,7 +65,7 @@
         <li class="step">
           <div class="step-head"><h3>왼쪽 메뉴 묶음</h3></div>
           <ul>
-            <li><strong>운영 메뉴</strong>: 기본 설정 등 · 강사 관리 · 강사 커리큘럼 · 학과 관리 · 특강·세미나 · 방학 특강 · 로드맵 · 수업별 준비물</li>
+            <li><strong>운영 메뉴</strong>: 기본 설정 등 · 강사 관리 · 강사 커리큘럼 · 과목 관리 · 학과 관리 · 특강·세미나 · 방학 특강 · 로드맵 · 수업별 준비물</li>
             <li><strong>선생님</strong>: 내 커리큘럼 · 내 프로필(학과장 본인 것, 다른 선생님 대신 올리기)</li>
             <li><strong>업무</strong>: 대시보드 · 승인 대기 · 준비물 검토</li>
             <li><strong>사이트 운영</strong>: 사이트 반영</li>
@@ -200,19 +201,35 @@
       </ol>
     </section>
 
+    <section class="case" data-view-panel="subjects" hidden>
+      <h2>과목 관리</h2>
+      <p class="lead">과목을 만들고, 만들었지만 쓰이지 않는 과목을 정리합니다. 과목 순서와 학과에 넣기·빼기는 학과 관리에서 합니다.</p>
+      <ol class="steps">
+        <li class="step">
+          <div class="step-head"><h3>과목 생성 탭</h3><span class="who h">학과장</span></div>
+          <div class="path"><b>운영 메뉴</b> › <b>과목 관리</b> › <b>과목 생성</b></div>
+          <ul>
+            <li>학과를 드롭다운에서 고르고 과목 이름을 적은 뒤 [생성]을 누릅니다. 이미 있는 이름이면 만들 수 없습니다.</li>
+            <li>새 과목은 승인 없이 바로 그 학과 과목 맨 뒤에 들어갑니다(공개 사이트에는 사이트 반영 뒤).</li>
+            <li>그 학과 선생님은 수업 설정에서 따로 고르지 않아도 내 커리큘럼에서 바로 이 과목 커리큘럼을 낼 수 있습니다.</li>
+          </ul>
+        </li>
+        <li class="step">
+          <div class="step-head"><h3>과목 정리 탭</h3><span class="who h">학과장</span></div>
+          <div class="path"><b>운영 메뉴</b> › <b>과목 관리</b> › <b>과목 정리</b></div>
+          <ul>
+            <li><strong>커리큘럼 미입력</strong>: 선생님 커리큘럼(승인·승인 대기·방특)이 하나도 없는 과목</li>
+            <li><strong>학과·방특 미포함</strong>: 어느 학과에도 없고 방학 특강에도 쓰이지 않은 과목(방특 전용 과목은 빼고 보여 줍니다)</li>
+            <li>[삭제]를 누르면 쓰이는 곳(과목 단계·로드맵·준비물 등) 개수를 보여 주고 확인을 받은 뒤 과목을 지웁니다. 공개 사이트에서는 사이트 반영 뒤 빠집니다.</li>
+          </ul>
+        </li>
+      </ol>
+    </section>
+
     <section class="case" data-view-panel="aggregate" hidden>
       <h2>학과 관리</h2>
       <p class="lead">학과마다 과목을 만들고 순서를 정합니다. 과목 하나를 모든 학과가 같이 쓰고, 여러 강사의 승인 커리큘럼을 모아 과목마다 하나의 커리큘럼을 만듭니다.</p>
       <ol class="steps">
-        <li class="step">
-          <div class="step-head"><h3>과목 생성</h3><span class="who h">학과장</span></div>
-          <div class="path"><b>운영 메뉴</b> › <b>학과 관리</b> › 학과 상자 오른쪽 [과목 생성]</div>
-          <ul>
-            <li>팝업에서 학과를 고르고 과목 이름을 적은 뒤 [생성]을 누릅니다. 이미 있는 이름이면 만들 수 없습니다.</li>
-            <li>새 과목은 승인 없이 바로 그 학과 과목 목록 맨 뒤에 들어갑니다(공개 사이트에는 사이트 반영 뒤).</li>
-            <li>그 학과 선생님은 수업 설정에서 따로 고르지 않아도 내 커리큘럼에서 바로 이 과목 커리큘럼을 낼 수 있습니다.</li>
-          </ul>
-        </li>
         <li class="step">
           <div class="step-head"><h3>왼쪽 과목 목록</h3><span class="who h">학과장</span></div>
           <div class="path"><b>운영 메뉴</b> › <b>학과 관리</b> › [학과 ▾]</div>
@@ -373,7 +390,7 @@
         <tr><th>승인했는데 사이트에 안 나와요</th><td>'사이트 반영'을 눌러야 공개 사이트에 나옵니다.</td></tr>
         <tr><th>선생님이 방학 특강을 못 골라요</th><td>방학 특강 메뉴에서 이번 방학 특강을 먼저 만들어 주세요.</td></tr>
         <tr><th>선생님 화면이 비어 있어요</th><td>강사 관리 › 계정 연결 탭에서 쌤톡 회원과 강사를 연결해 주세요.</td></tr>
-        <tr><th>과목을 지우고 싶어요</th><td>학과 관리 › 과목별 커리큘럼 › [과목 삭제]. 이 학과에서만 빼려면 [제외].</td></tr>
+        <tr><th>과목을 만들거나 지우고 싶어요</th><td>과목 관리 › 과목 생성 / 과목 정리. 학과 관리 › 과목별 커리큘럼 › [과목 삭제]로도 지울 수 있고, 이 학과에서만 빼려면 [제외].</td></tr>
         <tr><th>메뉴가 사라졌어요</th><td>왼쪽 묶음 이름을 눌러 접힌 것입니다. 한 번 더 누르면 펼쳐집니다.</td></tr>
       </table>
     </section>

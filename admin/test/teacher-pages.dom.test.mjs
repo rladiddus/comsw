@@ -585,7 +585,7 @@ test("V3 타강사: 수업 설정의 '타 강사 수업 설정'으로 그 강사
   assert.deepEqual([...pick.options].map((o) => o.textContent), ["강사 고르기", "김민주"]);
   pick.value = "other"; pick.dispatchEvent(new dom.window.Event("change"));
   await flush();
-  assert.match(c.textContent, /김민주 선생님 수업 설정/);
+  assert.equal(c.querySelector(".class-settings .proxy-title [aria-label=\"강사 선택\"]").value, "other", "수업 설정 박스 제목 줄에 강사 고르기");
   assert.equal(c.querySelector(".main-dept"), null, "메인 학과 고르기는 본인 것만");
   const add = c.querySelector('[aria-label="추가할 학과"]');
   add.value = "d2";

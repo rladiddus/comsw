@@ -25,19 +25,24 @@ export async function mountClassSettings(container, opts) {
   const toggle = el("input", { type: "checkbox", checked: Boolean(target) });
   toggle.setAttribute("aria-label", "타 강사 수업 설정");
   const toggleLabel = el("label", { className: "consent proxy-toggle" }, [toggle, el("span", { textContent: "타 강사 수업 설정" })]);
-  const bar = el("div", { className: "box-title proxy-title" });
   const body = el("div");
-  container.append(bar, body);
+  container.append(body);
+  // 체크 칸은 수업 설정 박스 제목 줄 오른쪽(내 커리큘럼과 같은 자리), 체크하면 제목 자리에 강사 고르기.
   async function show() {
     const on = toggle.checked;
-    bar.replaceChildren(...(on ? teacherPicker({
+    const picker = on ? teacherPicker({
       v3: true, depts, teachers: others, links, current: target?.id,
       onPick: (id) => { target = others.find((i) => i.id === id); show(); },
-    }) : []), toggleLabel);
+    }) : null;
     body.replaceChildren();
-    if (!on) return mountOne(body, opts);
-    if (!target) return body.append(el("p", { className: "muted", textContent: "위에서 강사를 고르면 그 강사의 수업 설정이 나옵니다." }));
-    await mountOne(body, { ...opts, own: target, other: true, isHead: false });
+    if (!on) return mountOne(body, { ...opts, tail: toggleLabel });
+    if (!target) {
+      return body.append(el("section", { className: "workspace-card class-settings" }, [
+        el("div", { className: "box-title proxy-title" }, [...picker, toggleLabel]),
+        el("p", { className: "muted", textContent: "강사를 고르면 그 강사의 수업 설정이 나옵니다." }),
+      ]));
+    }
+    await mountOne(body, { ...opts, own: target, other: true, isHead: false, lead: picker, tail: toggleLabel });
   }
   toggle.addEventListener("change", () => { if (!toggle.checked) target = null; show(); });
   await show();
@@ -45,11 +50,13 @@ export async function mountClassSettings(container, opts) {
 
 async function mountOne(
   container,
-  { supabase, uid, own, isHead = false, loadMyMajors, saveMyMajors, other = false },
+  { supabase, uid, own, isHead = false, loadMyMajors, saveMyMajors, other = false, lead = null, tail = null },
 ) {
-  // '수정' 버튼은 보기 화면일 때만 제목 옆에 붙는다.
-  const heading = el("h3", { textContent: other ? `${own.name} 선생님 수업 설정` : "수업 설정" });
-  const title = el("div", { className: "box-title" }, [heading]);
+  // '수정' 버튼은 보기 화면일 때만 제목 옆에 붙는다. lead = 제목 대신(타 강사 고르기), tail = 오른쪽 끝(타 강사 수업 설정 체크).
+  const heading = el("h3", { textContent: "수업 설정" });
+  const title = el("div", { className: tail ? "box-title proxy-title" : "box-title" });
+  const setTitle = (...mid) => title.replaceChildren(...(lead ?? [heading]), ...mid, ...(tail ? [tail] : []));
+  setTitle();
   const box = el("section", { className: "workspace-card class-settings" }, [
     title,
     el("p", {
@@ -156,7 +163,7 @@ async function mountOne(
       textContent: "수정",
     });
     edit.addEventListener("click", () => {
-      title.replaceChildren(heading);
+      setTitle();
       summary.hidden = true;
       editor.hidden = false;
       draw();
@@ -172,7 +179,7 @@ async function mountOne(
         ])
       ),
     );
-    title.replaceChildren(heading, edit);
+    setTitle(edit);
     summary.hidden = false;
     editor.hidden = true;
   }

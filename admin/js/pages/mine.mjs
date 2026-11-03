@@ -87,6 +87,7 @@ const nextStep = (label) => {
 
 // 학과장·관리자는 '타강사 커리큘럼'에 체크하고 강사를 고르면(as) 그 강사의 학과·과목으로 대신 등록·조회한다.
 // 대신 낸 줄도 그 강사의 승인 대기 줄이 되어 '신청 과목'(방특이면 '방학 특강')에서 승인한다.
+let proxyDept = ""; // V3 타강사 고르기에서 고른 학과(다시 그려도 유지)
 export async function render(container, ctx, { tab, as } = {}) {
   const { supabase } = ctx;
   container.replaceChildren(
@@ -167,7 +168,14 @@ export async function render(container, ctx, { tab, as } = {}) {
     const heading = el("h3", { textContent: `${target.name} 선생님의 수업` });
     const titleRow = el("div", { className: "box-title proxy-title" }, [heading]);
     if (staff) {
-      const others = (await rows(supabase, "instructors", (q) => q.order("name"))).filter((i) => i.id !== own.id);
+      const [all, idepts] = await Promise.all([rows(supabase, "instructors", (q) => q.order("name")), ctx.v3 ? rows(supabase, "instructor_departments") : []]);
+      const others = all.filter((i) => i.id !== own.id);
+      const deptPick = el("select");
+      deptPick.setAttribute("aria-label", "학과 선택");
+      deptPick.replaceChildren(el("option", { value: "", textContent: "전체 학과" }), ...depts.map((d) => el("option", { value: d.id, textContent: d.name })));
+      deptPick.value = proxyDept;
+      deptPick.addEventListener("change", () => { proxyDept = deptPick.value; fillTeachers(); });
+      const inDept = (i) => !deptPick.value || idepts.some((x) => x.instructor_id === i.id && x.department_id === deptPick.value);
       const toggle = el("input", { type: "checkbox", checked: proxy });
       toggle.setAttribute("aria-label", "타강사 커리큘럼");
       const find = el("input", { type: "search", placeholder: "강사 이름 검색" });
@@ -178,15 +186,15 @@ export async function render(container, ctx, { tab, as } = {}) {
         const word = find.value.trim();
         pickTeacher.replaceChildren(
           el("option", { value: "", textContent: "강사 고르기" }),
-          ...others.filter((i) => !word || i.name.includes(word)).map((i) => el("option", { value: i.id, textContent: `${i.name} 선생님` })),
+          ...others.filter((i) => inDept(i) && (!word || i.name.includes(word))).map((i) => el("option", { value: i.id, textContent: ctx.v3 ? i.name : `${i.name} 선생님` })),
         );
-        pickTeacher.value = proxy && others.some((i) => i.id === target.id && (!word || i.name.includes(word))) ? target.id : "";
+        pickTeacher.value = proxy && others.some((i) => i.id === target.id && inDept(i) && (!word || i.name.includes(word))) ? target.id : "";
       };
       find.addEventListener("input", fillTeachers);
       pickTeacher.addEventListener("change", () => {
         if (pickTeacher.value) render(container, ctx, { tab: "write", as: pickTeacher.value });
       });
-      const showPicker = (on) => titleRow.replaceChildren(...(on ? [find, pickTeacher] : [heading]), toggleLabel);
+      const showPicker = (on) => titleRow.replaceChildren(...(on ? (ctx.v3 ? [deptPick, pickTeacher, find] : [find, pickTeacher]) : [heading]), toggleLabel);
       const toggleLabel = el("label", { className: "consent proxy-toggle" }, [toggle, el("span", { textContent: "타강사 커리큘럼" })]);
       toggle.addEventListener("change", () => {
         if (toggle.checked) {
@@ -245,7 +253,7 @@ export async function render(container, ctx, { tab, as } = {}) {
       const ids = links.filter((l) => l.department_id === dept.value).map((l) =>
         l.subject_id
       );
-      const base = subjects.filter((s) => ids.includes(s.id) && myIds.has(s.id));
+      const base = subjects.filter((s) => ids.includes(s.id) && (ctx.v3 || myIds.has(s.id))); // V3: 학과 과목 전부
       // '방특'에 체크하면 관리자가 방특 과목으로 정한 과목(기타 과목 › 방특)도 고를 수 있다.
       if (vacation.checked) base.push(...subjects.filter((s) => s.is_vacation && !base.includes(s)));
       const extra = months.filter((m) => m.dept === dept.value && !base.some((b) => b.id === m.id));
@@ -287,14 +295,7 @@ export async function render(container, ctx, { tab, as } = {}) {
         el("label", { className: "form-field" }, [el("span", { textContent: "사용 프로그램" }), tools]),
         el("label", { className: "form-field" }, [el("span", { textContent: "준비물" }), supplies]),
       ]));
-      // V3: '과목명 동일'을 끄면 이 과목 대신 새 과목명으로 낸다(제출할 때 새 과목을 만든다).
-      const newName = el("input", { type: "text", maxLength: 80, placeholder: "새 과목명" });
-      newName.setAttribute("aria-label", "새 과목명");
-      const newNameField = el("label", { className: "form-field new-subject-name", hidden: true }, [
-        el("span", { textContent: "새 과목명" }), newName,
-      ]);
-      if (ctx.v3) panel.prepend(newNameField);
-      const entry = { panel, steps, list, tools, supplies, saved, same: true, newName, newNameField };
+      const entry = { panel, steps, list, tools, supplies, saved };
       function addStep(label) {
         const box = el("section", { className: "step-row" });
         const stepInput = el("input", {
@@ -361,20 +362,8 @@ export async function render(container, ctx, { tab, as } = {}) {
       panelsBox.append(panel);
       return entry;
     }
-    // 알약 오른쪽 '과목명 동일'(V3): 지금 고른 과목 탭마다 따로 기억한다.
-    const same = el("input", { type: "checkbox", checked: true });
-    const sameLabel = el("label", { className: "consent same-subject" }, [same, el("span", { textContent: "과목명 동일" })]);
-    same.addEventListener("change", () => {
-      const entry = panels.get(current);
-      if (!entry) return;
-      entry.same = same.checked;
-      entry.newNameField.hidden = same.checked;
-      if (!same.checked) entry.newName.focus();
-    });
     function openSubject(id) {
       current = id;
-      same.checked = panels.get(id)?.same ?? true;
-      sameLabel.hidden = !id;
       for (const [sid, { panel }] of panels) panel.hidden = sid !== id;
       for (const b of subjectTabs.children) {
         b.classList.toggle("active", b.dataset.subject === id);
@@ -387,6 +376,8 @@ export async function render(container, ctx, { tab, as } = {}) {
         ? "내 학과가 없습니다. 수업 설정에서 학과를 추가해주세요."
         : mine.length
         ? ""
+        : ctx.v3
+        ? "이 학과에 과목이 없습니다. 학과장에게 과목을 만들어 달라고 요청해주세요."
         : "이 학과에서 고른 과목이 없습니다. 수업 설정에서 수업하는 과목을 체크해주세요.";
       // V3: '방특'에 체크하면 '선택 학과' 자리에서 방학 특강 그룹을 고른다(관리자가 먼저 만든 그룹, 그 그룹으로 제출).
       const vacationPick = ctx.v3 && vacation.checked;
@@ -421,7 +412,7 @@ export async function render(container, ctx, { tab, as } = {}) {
       textContent: "승인 요청하기",
     });
     form.append(
-      ctx.v3 ? el("div", { className: "subject-tab-row" }, [subjectTabs, sameLabel]) : subjectTabs,
+      subjectTabs,
       panelsBox,
       el("div", { className: "form-actions" }, [send]),
     );
@@ -455,20 +446,11 @@ export async function render(container, ctx, { tab, as } = {}) {
           openSubject(missing.subject.id);
           throw new Error(`${missing.subject.name}: 단계와 커리큘럼 내용을 모두 입력해주세요`);
         }
-        // '과목명 동일'을 끈 과목은 새 과목명이 있어야 한다.
-        const renamed = (subject) => panels.get(subject.id)?.same === false;
-        const noName = [...filled, ...changed].find(({ subject }) => renamed(subject) && !panels.get(subject.id).newName.value.trim());
-        if (noName) {
-          openSubject(noName.subject.id);
-          throw new Error(`${noName.subject.name}: 새 과목명을 입력해주세요`);
-        }
         // 과목별로 묶어 한 번에 보낸다(새 달 과목·새 과목은 DB가 만들고, 프로그램·준비물은 바뀐 과목만).
         const bySubject = new Map();
         const entryFor = (subject) => {
           if (!bySubject.has(subject.id)) {
-            bySubject.set(subject.id, renamed(subject)
-              ? { custom_name: panels.get(subject.id).newName.value.trim(), from: subject.from ?? subject.id, steps: [] }
-              : subject.isNew
+            bySubject.set(subject.id, subject.isNew
               ? { new_name: subject.name, from: subject.from, steps: [] }
               : { subject_id: subject.id, steps: [] });
           }

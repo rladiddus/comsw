@@ -113,7 +113,7 @@ export async function render(container, ctx) {
         if (error) throw new Error(dbErrorMessage(error));
         await rpc(supabase, "comsw_approve_curriculum", { p_id: r.id });
       }
-      say("승인했습니다. 과목 통합 커리큘럼·로드맵 문구는 해당 메뉴에서 확인하고, 공개 사이트에는 '사이트 반영' 후 보입니다.");
+      say("승인했습니다. 학과 관리·로드맵 문구는 해당 메뉴에서 확인하고, 공개 사이트에는 '사이트 반영' 후 보입니다.");
       items.splice(items.indexOf(it), 1);
       selected = items[0];
       setTimeout(draw, 1200);
@@ -174,12 +174,12 @@ export async function render(container, ctx) {
     const row = (text, c) => el("div", { className: "v3-impact" }, [el("div", { textContent: text }), c]);
     return [panel("과목 승인 영향", [
       row("강사 개인 원문·이미지 + 확정 준비물", chip(done ? "승인 가능" : "준비물 검토 대기", done ? "good" : "warn")),
-      row(`과목 통합 커리큘럼 · ${it.subject?.name ?? ""}`, chip("재직 승인 강사 모두 포함 → 다시 만들기", "vacation")),
+      row(`학과 관리 · ${it.subject?.name ?? ""}`, chip("재직 승인 강사 모두 포함 → 다시 만들기", "vacation")),
       ...(it.g.vacation ? [] : [row(`이 과목을 쓰는 학과 ${links.filter((l) => l.subject_id === it.g.subject_id).length}곳`,
         el("small", { className: "muted", textContent: links.filter((l) => l.subject_id === it.g.subject_id).map((l) => nameOf(depts, l.department_id)).join(", ") + "에 같이 반영" }))]),
       row("로드맵 문구", chip("과목 통합본으로 다시 요약 · 학과장 확정", "vacation")),
       row("공개 사이트", chip("별도 반영", "")),
-      (it.g.vacation ? btn("방학 특강 보기", () => { location.hash = "#/vacation"; }) : btn("이 과목의 과목 통합 커리큘럼 보기", () => { location.hash = `#/aggregate/${it.g.subject_id}`; })),
+      (it.g.vacation ? btn("방학 특강 보기", () => { location.hash = "#/vacation"; }) : btn("이 과목의 학과 관리 보기", () => { location.hash = `#/aggregate/${it.g.subject_id}`; })),
     ])];
   }
 

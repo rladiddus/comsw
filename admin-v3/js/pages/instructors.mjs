@@ -67,7 +67,7 @@ export async function render(container, ctx) {
     const out = instructors.filter((i) => !isEmployed(i.id)).length;
     statBox.replaceChildren(stats([
       ["재직(확인 전)", `${instructors.length - out}`, "재직 상태는 아직 DB에 없음"],
-      ["퇴사 처리(시험)", `${out}`, "과목 통합 커리큘럼 출처에서 빠짐", out > 0],
+      ["퇴사 처리(시험)", `${out}`, "학과 관리 출처에서 빠짐", out > 0],
       ["사이트 공개", `${instructors.filter((i) => i.is_listed).length}`, "재직과 별개인 '사이트에 보이기'"],
       ["계정 연결", `${instructors.filter((i) => i.account_uid).length}`, "쌤톡 계정과 연결됨"],
     ]));

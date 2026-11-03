@@ -1,4 +1,4 @@
-import { el, rows, pick, chip, hint, btn, panel, empty, search, nameOf } from "../../../admin-v2/js/ui.mjs";
+import { el, rows, pick, chip, hint, btn, panel, empty, search, select, nameOf } from "../../../admin-v2/js/ui.mjs";
 import { dbErrorMessage } from "../../../admin/js/fields.mjs";
 import { getServices } from "../../../admin/js/services.mjs";
 import { driveThumbnail } from "../../../admin/js/drive.mjs";
@@ -6,7 +6,7 @@ import { applyCrop } from "../../../admin/js/image-crop.mjs";
 import { LEVELS } from "../../../admin/js/pages/department-curriculum.mjs";
 import { state, deptSubjects, contextBar, isEmployed, modal, sortable, addableSubjects, saveLocal, splitGrid } from "../v3.mjs";
 
-// 과목 통합 커리큘럼(V3 시안 '학과 통합 커리큘럼', 정책 3·4·5·7): 과목 하나를 모든 학과가 같이 쓴다(2026-10-29 결정).
+// 학과 관리(V3 시안 '학과 통합 커리큘럼', 정책 3·4·5·7): 과목 하나를 모든 학과가 같이 쓴다(2026-10-29 결정).
 // 정규는 두 탭: [주차별 커리큘럼] 고른 과목의 단계별 문구(AI생성·직접 입력·저장)와 대표 이미지(그 단계 강사 이미지 중 고르기), 실제 저장
 //              [과목별 커리큘럼] 학과 과목을 순서대로 표(과목명·기간·학과별 커리큘럼 요약·프로그램·준비물·학습 수준), 수정은 실제 저장(요약은 AI생성 2~4줄), 제외는 V3 학과 순서에서만.
 // 방특은 탭 없이 주차별 화면에 통합 문구를 같이 둔다(과목별 표가 없어서).
@@ -290,7 +290,37 @@ export async function render(container, ctx) {
   // 학과 칸과 주차별/과목별 탭은 제목 오른쪽에(머리 자리가 없으면 화면 맨 위). 정규·방특 버튼 없음.
   const filter = contextBar(depts, draw, [tabs]);
   filter.querySelector(".v3-switch")?.remove();
-  if (ctx.headBar) ctx.headBar.replaceChildren(filter); else container.append(filter);
+  // 과목 생성(2026-11-03): 학과를 고르고 이름을 적어 만든다(그 학과 맨 뒤 순서, 승인 없이 바로). 그 학과 선생님은 바로 이 과목 커리큘럼을 낸다.
+  const create = btn("과목 생성", () => {
+    const deptSel = select("학과", depts.map((d) => [d.id, d.name]));
+    deptSel.value = state.dept;
+    const name = el("input", { type: "text", className: "v2-field", maxLength: 80, placeholder: "과목 이름" });
+    name.setAttribute("aria-label", "과목 이름");
+    const say = el("p", { className: "save-state" });
+    const make = btn("생성", async () => {
+      const n = name.value.trim();
+      if (!n) { say.textContent = "과목 이름을 입력해주세요"; say.classList.add("err"); return; }
+      make.disabled = true;
+      const { data: id, error } = await supabase.rpc("comsw_create_subject", { p_name: n, p_department_ids: [deptSel.value] });
+      make.disabled = false;
+      if (error) { say.textContent = dbErrorMessage(error); say.classList.add("err"); return; }
+      subjects.push({ id, name: n, is_vacation: false, sort_order: 1e9 });
+      links.push({ subject_id: id, department_id: deptSel.value });
+      // 이 브라우저에 저장한 학과 순서가 있으면 맨 뒤에 붙인다(없으면 DB 순서에 맨 뒤로 들어감).
+      const k = `${deptSel.value}:regular`;
+      for (const m of [state.orders, dOrders]) if (m.has(k)) m.set(k, [...m.get(k), id]);
+      saveLocal();
+      d.close?.(); d.remove();
+      draw();
+    }, true);
+    const d = modal("과목 생성", [el("div", { className: "v3-newsubject" }, [
+      el("label", { className: "form-field" }, [el("span", { textContent: "학과" }), deptSel]),
+      el("label", { className: "form-field" }, [el("span", { textContent: "과목 이름" }), name]),
+      say,
+    ])], [make]);
+    name.focus();
+  }, true);
+  if (ctx.headBar) ctx.headBar.replaceChildren(filter, create); else container.append(filter, create);
   container.append(body);
   draw();
 }

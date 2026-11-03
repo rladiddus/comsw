@@ -104,7 +104,7 @@ test("방특 과목(is_vacation)은 선생님이 '방특'으로 낼 때만 수�
   const submit = (vacation) => db.query(`select comsw_submit_curriculum($1, $2, $3::jsonb)`,
     [setId, vacation, JSON.stringify([{ subject_id: x.id, steps: [{ step_label: "1단계", written: "캠프" }] }])]);
   await as(db, "authenticated", TEACHER);
-  await assert.rejects(submit(false), /수업 설정에서 고른 과목/, "방특이 아니면 막힘");
+  await assert.rejects(submit(false), /내 학과의 과목만/, "방특이 아니면 막힘");
   await as(db, "authenticated", TEACHER);
   await submit(true);
   await as(db, null);
@@ -118,7 +118,7 @@ test("선생님 제출은 수업 설정에서 고른 과목만(이미 낸 과목
   const submit = (sid) => db.query(`select comsw_submit_curriculum($1, false, $2::jsonb)`,
     [setId, JSON.stringify([{ subject_id: sid, steps: [{ step_label: "1단계", written: "원문" }] }])]);
   await as(db, "authenticated", TEACHER);
-  await assert.rejects(submit(x.id), /수업 설정에서 고른 과목/);
+  await assert.rejects(submit(x.id), /내 학과의 과목만/);
   await as(db, "authenticated", TEACHER);
   await submit(webtoon);
   await as(db, null);

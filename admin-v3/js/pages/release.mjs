@@ -6,7 +6,7 @@ import { audit } from "../v3.mjs";
 
 // 사이트 반영(V3 시안 '연계 작업·게시 센터'): 연계 작업 | 반영 전 검사 | 바뀐 곳. 반영은 승인과 따로(정책 2A).
 // 연계 작업 대기열(통합→로드맵)은 아직 없어 기존 AI 작업 기록을 보여 준다. 반영·미리보기는 실제로 동작한다.
-const KIND = { week: "단계 요약", department: "과목 통합 커리큘럼", roadmap: "로드맵 문구", profile: "프로필 사진" };
+const KIND = { week: "단계 요약", department: "학과 관리", roadmap: "로드맵 문구", profile: "프로필 사진" };
 const STATUS = { completed: ["완료", "good"], reserved: ["진행 중", "warn"], failed: ["실패", "red"] };
 
 export async function render(container, ctx) {

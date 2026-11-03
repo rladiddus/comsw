@@ -2,7 +2,7 @@ import { el, rows, pick, chip, hint, btn, panel, empty, headActions } from "../.
 import { getServices } from "../../../admin/js/services.mjs";
 import { state, deptSubjects, contextBar, splitGrid, modal, sortable } from "../v3.mjs";
 
-// 로드맵(V3): 학과마다(정규만) 스텝을 위에서 아래로 쌓는다. 왼쪽 = 과목 통합 커리큘럼의 과목 순서, 오른쪽 = 스텝 박스.
+// 로드맵(V3): 학과마다(정규만) 스텝을 위에서 아래로 쌓는다. 왼쪽 = 학과 관리의 과목 순서, 오른쪽 = 스텝 박스.
 // 스텝에 과목 넣기 = 왼쪽 과목을 끌어 스텝 박스에 놓기(다른 스텝에 있던 과목이면 옮김). 맨 아래 '+ 스텝 추가'.
 // 스텝 안 과목(위아래)과 스텝 자체도 끌어서 순서를 바꾼다. 스텝 안 과목 순서 = 사이트 로드맵에 나오는 순서(roadmap_step_subjects.sort_order).
 // 스텝 박스 = 넣은 과목 | 요약 문구 | [과목 삭제][스텝 삭제][AI 요약]. AI 요약은 과목을 넣고 빼거나 새 스텝이라 문구가 필요할 때만 켜진다. 문구는 과목마다 하나(모든 학과 공용, 2026-10-29 결정)이고,
@@ -107,7 +107,7 @@ export async function render(container, ctx) {
     });
     sortable(boxes.map((b, i) => [b, plan[i]]), [...plan], (a) => { plan.splice(0, plan.length, ...a); draw(); });
     body.replaceChildren(splitGrid(
-      panel("과목", [list.length ? el("div", { className: "v2-boxlist" }, items) : empty("이 학과에 과목이 없습니다.")], "과목 통합 커리큘럼 순서 · 끌어서 스텝에 놓기"),
+      panel("과목", [list.length ? el("div", { className: "v2-boxlist" }, items) : empty("이 학과에 과목이 없습니다.")], "학과 관리 순서 · 끌어서 스텝에 놓기"),
       panel("로드맵 스텝", [
         boxes.length ? el("div", { className: "v2-boxlist v3-steplist" }, boxes) : empty("스텝이 없습니다. 아래 '+ 스텝 추가'를 누르세요."), // 과목 목록처럼 스텝 박스만 스크롤
         Object.assign(el("button", { type: "button", className: "v3-step v3-stepadd", textContent: "+ 스텝 추가" }), { onclick: () => { plan.push({ ids: [], from: null, dirty: true, summary: "", removing: false }); draw(); } }),

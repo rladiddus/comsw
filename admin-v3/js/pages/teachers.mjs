@@ -5,7 +5,7 @@ import { thumb } from "./aggregate.mjs";
 // 강사 커리큘럼(V3 시안): 학과를 고르고 두 탭으로 정규 승인본을 본다(방특은 '방학 특강' 메뉴).
 // [강사별 과목 커리큘럼] 왼쪽 강사 → 오른쪽 그 강사의 과목 → 고른 과목의 단계별 커리큘럼
 // [과목별 강사 커리큘럼] 왼쪽 과목 → 오른쪽 그 과목의 강사 → 고른 강사의 단계별 커리큘럼
-// 과목 순서는 '과목 통합 커리큘럼'(학과·시기별 과목 순서)과 같다. 수정 대기 제출이 있으면 함께 표시. 방특은 시기가 여럿이면 시기마다 따로 나온다.
+// 과목 순서는 '학과 관리'(학과·시기별 과목 순서)과 같다. 수정 대기 제출이 있으면 함께 표시. 방특은 시기가 여럿이면 시기마다 따로 나온다.
 export async function render(container, ctx) {
   const { supabase } = ctx;
   const [depts, curricula, instructors, subjects, sets, links, idepts] = await Promise.all([

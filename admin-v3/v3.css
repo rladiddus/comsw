@@ -27,7 +27,7 @@
 .v3-lines .v2-tab { min-width:30px; padding:4px 8px; }
 .v3-x { border:0; background:none; margin-left:4px; padding:0 2px; cursor:pointer; color:inherit; font-weight:700; }
 @media (max-width:1100px) { .v3-grid39 { grid-template-columns:1fr; } }
-/* 과목 통합 커리큘럼: 왼쪽 과목 목록은 좁게, 오른쪽 통합본은 넓게 */
+/* 학과 관리: 왼쪽 과목 목록은 좁게, 오른쪽 통합본은 넓게 */
 .v3-gridagg { display:grid; grid-template-columns:var(--agg-left,330px) 16px minmax(0,1fr); align-items:stretch; }
 .v3-gridagg > .v2-panel { align-self:start; min-width:0; }
 .v3-splitter { cursor:col-resize; position:relative; touch-action:none; }
@@ -102,21 +102,17 @@
 .v3-pill.drop-before::before, .v3-pill.drop-after::after { top:2px; bottom:2px; right:auto; border-top:0; border-left:3px dashed #fff; }
 .v3-pill.drop-before::before { left:-8px; }
 .v3-pill.drop-after::after { left:auto; right:-8px; }
-/* 내 커리큘럼(V3): 학과 드롭다운 폭 줄이고 '방특' 체크를 같은 줄 높이로, 알약 옆 '과목명 동일' */
+/* 내 커리큘럼(V3): 학과 드롭다운 폭 줄이고 '방특' 체크를 같은 줄 높이로 */
 .form-row.curriculum-head-row { grid-template-columns:minmax(0,320px) minmax(0,320px) auto; justify-content:start; align-items:start; }
 .form-row.curriculum-head-row .form-field select, .vacation-check .consent { height:42px; box-sizing:border-box; }
-.vacation-check .consent, .same-subject { margin:0; align-self:flex-start; }
+.vacation-check .consent { margin:0; align-self:flex-start; }
 @media (max-width:700px) { .form-row.curriculum-head-row { grid-template-columns:1fr; } }
-.subject-tab-row { display:flex; align-items:center; gap:12px; flex-wrap:wrap; }
-.subject-tab-row .subject-tabs { margin:14px 0 4px; min-width:0; }
-.subject-tab-row .same-subject { align-self:center; }
-.same-subject { display:inline-flex; align-items:center; gap:6px; font-size:14px; font-weight:600; white-space:nowrap; }
-.same-subject input { width:auto; margin:0; }
-.new-subject-name { max-width:420px; margin-bottom:12px; }
 /* 제목 오른쪽 고르기 칸(강사 커리큘럼의 학과·정규/방특) */
 .v3-titlerow { display:flex; align-items:center; gap:16px; flex-wrap:wrap; margin-bottom:6px; }
 .v3-titlerow h1 { margin:0; }
 .v3-headbar:empty { display:none; }
+.v3-headbar { display:flex; align-items:center; gap:12px; flex-wrap:wrap; }
+.v3-newsubject { display:grid; gap:12px; min-width:min(360px, 80vw); }
 .v3-headbar .v2-bar { margin:0; padding:8px 12px; }
 /* 강사 관리: 담당 과목이 다 보이게, 줄을 누르면 강사 카드 팝업(강사마다 같은 크기) */
 .v3-instable td:last-child { white-space:normal; min-width:320px; }

@@ -64,8 +64,30 @@ const button = (c, text) => [...c.querySelectorAll("button")].find((b) => b.text
 test("V3 메뉴: 15메뉴(학과 관리·학과별 과목 순서 삭제, 특강·세미나 메뉴로)", async () => {
   const src = (await import("node:fs")).readFileSync(new URL("../../admin-v3/js/app.mjs", import.meta.url), "utf8");
   const labels = [...src.matchAll(/\["([a-z-]+)", "[^"]+", "([^"]+)",/g)].map((m) => m[2]);
-  assert.deepEqual(labels, ["기본 설정 등", "강사 관리", "강사 커리큘럼", "과목 통합 커리큘럼", "특강·세미나", "방학 특강", "로드맵", "수업별 준비물",
+  assert.deepEqual(labels, ["기본 설정 등", "강사 관리", "강사 커리큘럼", "학과 관리", "특강·세미나", "방학 특강", "로드맵", "수업별 준비물",
     "내 커리큘럼", "내 프로필", "대시보드", "승인 대기", "준비물 검토", "과목 관리", "사이트 반영"]);
+});
+
+test("V3 학과 관리: 학과 상자 옆 [과목 생성] → 학과 고르고 이름 적어 생성(comsw_create_subject), 목록 맨 뒤에", async () => {
+  const db = sb();
+  const calls = [];
+  db.rpc = async (name, args) => { calls.push([name, args]); return { data: "new1", error: null }; };
+  const headBar = document.createElement("div");
+  const c = await page("aggregate", { supabase: db, headBar });
+  const make = [...headBar.children].find((x) => x.textContent === "과목 생성");
+  assert.ok(make, "학과 상자 오른쪽에 과목 생성");
+  make.click();
+  const dlg = document.querySelector("dialog.v3-modal");
+  assert.equal(dlg.querySelector('[aria-label="학과"]').tagName, "SELECT");
+  button(dlg, "생성").click();
+  await flush();
+  assert.match(dlg.textContent, /과목 이름을 입력해주세요/);
+  dlg.querySelector('[aria-label="과목 이름"]').value = " 새과목 ";
+  button(dlg, "생성").click();
+  await flush();
+  assert.deepEqual(calls.at(-1), ["comsw_create_subject", { p_name: "새과목", p_department_ids: [v3.state.dept] }]);
+  assert.ok(!document.querySelector("dialog.v3-modal"), "만들면 닫힘");
+  assert.match(c.textContent, /새과목/);
 });
 
 test("V3 재료 검사: 칸 나누기·분류 제안·같은 과목 안 중복만", () => {
@@ -154,7 +176,7 @@ test("V3 승인 대기 방특: 기수를 골라야 승인, 고른 기수로 옮�
 
 test("V3 과목 통합 순서 → 로드맵·학과 커리큘럼이 같은 순서, 퇴사 시험은 출처에서 빠짐", async () => {
   v3.state.dept = "d1"; v3.state.mode = "regular"; v3.state.orders.clear(); v3.state.employed.clear(); v3.state.roadmap.clear();
-  v3.state.orders.set("d1:regular", ["s2", "s1"]); // 과목 통합 커리큘럼 왼쪽 목록에서 바꾼 순서
+  v3.state.orders.set("d1:regular", ["s2", "s1"]); // 학과 관리 왼쪽 목록에서 바꾼 순서
   let c;
   const drag = (node, type) => node.dispatchEvent(new dom.window.MouseEvent(type, { bubbles: true, cancelable: true, clientY: 0 }));
   v3.state.mode = "vacation"; // 로드맵은 정규만 → 들어가면 정규
@@ -162,7 +184,7 @@ test("V3 과목 통합 순서 → 로드맵·학과 커리큘럼이 같은 순�
   assert.equal(v3.state.mode, "regular");
   assert.ok(!button(c, "정규") && !button(c, "방특"), "정규·방특 버튼 없음");
   const left = () => [...c.querySelectorAll(".v3-dragsrc b")].map((b) => b.textContent);
-  assert.deepEqual(left(), ["1. 웹1", "2. 포토샵"], "왼쪽 과목은 과목 통합 커리큘럼 순서");
+  assert.deepEqual(left(), ["1. 웹1", "2. 포토샵"], "왼쪽 과목은 학과 관리 순서");
   const boxesOf = () => [...c.querySelectorAll(".v3-step:not(.v3-stepadd)")];
   const stepSubs = () => boxesOf().map((b) => [...b.querySelectorAll(".v3-stepsub .v2-grow")].map((x) => x.textContent));
   assert.deepEqual(stepSubs(), [["포토샵", "웹1"]], "처음 = 지금 로드맵 단계");
@@ -219,7 +241,7 @@ test("V3 과목 통합 순서 → 로드맵·학과 커리큘럼이 같은 순�
   c = await page("aggregate");
   assert.ok(!c.textContent.includes("기여 강사와 출처"));
   assert.ok(!c.textContent.includes("통합 강사:"), "주차별 오른쪽 위 강사 줄 없음");
-  assert.ok(!c.textContent.includes("과목 통합 커리큘럼 고치기"), "아래 기존 화면 없음");
+  assert.ok(!c.textContent.includes("학과 관리 고치기"), "아래 기존 화면 없음");
   assert.match(c.querySelector(".v2-listitem.active").textContent, /통합 강사 2명/);
   assert.ok(c.querySelector(".v3-splitter"), "가운데 경계 끌기");
   assert.equal(c.querySelector(".v3-aggtabs").hidden, false, "정규면 주차별·과목별 탭");
@@ -254,7 +276,7 @@ test("V3 과목 통합 순서 → 로드맵·학과 커리큘럼이 같은 순�
   assert.equal(document.querySelector("dialog.v3-modal"), null);
   // 주차별 탭: 통합 문구는 없고(과목별 탭으로), 단계 카드마다 대표 이미지 수정 · AI생성 · 저장
   assert.ok(!c.textContent.includes("과목 통합본"));
-  assert.ok(!c.textContent.includes("과목 통합 커리큘럼 문구"));
+  assert.ok(!c.textContent.includes("학과 관리 문구"));
   const { configureServices } = await import("../../admin/js/services.mjs");
   let asked = null;
   const out = "01 가\n02 나\n03 다";
@@ -435,7 +457,7 @@ test("V3 강사 커리큘럼: 강사별 과목 / 과목별 강사 탭, 고르면
   assert.match(c.textContent, /이 원문/);
   assert.ok(c.querySelector(".v3-splitter"));
   assert.ok(!/고치기|승인본이 있는/.test(c.textContent), "기존 화면 영역·설명 없음");
-  // 과목 순서는 과목 통합 커리큘럼(학과별 과목 순서)을 따른다
+  // 과목 순서는 학과 관리(학과별 과목 순서)을 따른다
   v3.state.orders.set("d1:regular", ["s2", "s1"]);
   const c2 = await page("teachers", { supabase: s });
   assert.deepEqual([...c2.querySelectorAll(".v2-listitem b")].map((b) => b.textContent), ["웹1", "포토샵"]);
@@ -446,7 +468,7 @@ test("V3 강사 커리큘럼: 강사별 과목 / 과목별 강사 탭, 고르면
   v3.state.orders.clear();
 });
 
-test("V3 강사 커리큘럼·과목 통합 커리큘럼은 정규만(정규·방특 버튼 없음)", async () => {
+test("V3 강사 커리큘럼·학과 관리는 정규만(정규·방특 버튼 없음)", async () => {
   v3.state.dept = "d1"; v3.state.mode = "vacation"; v3.state.orders.clear(); v3.state.picks.clear(); v3.state.employed.clear();
   for (const f of ["aggregate", "teachers"]) {
     const c = await page(f);

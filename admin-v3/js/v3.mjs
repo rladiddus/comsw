@@ -10,10 +10,10 @@ export const state = {
   orders: load("v3.orders"), // "학과id:mode" → [과목id] (학과별 순서)
   roadmap: new Map(), // 학과id → [{ ids: [과목id], from: 처음 로드맵 단계id }] (로드맵 스텝, 저장 안 됨)
   picks: load("v3.picks"), // "과목id|mode" → [강사id] (과목 통합에 넣을 강사)
-  aggTab: "weeks", // 과목 통합 커리큘럼(정규): weeks 주차별 | subjects 과목별
+  aggTab: "weeks", // 학과 관리(정규): weeks 주차별 | subjects 과목별
   aiLines: 2, // 과목 통합 AI 요약 줄 수(2~4)
   teacherTab: "teacher", // 강사 커리큘럼: teacher 강사별 과목 | subject 과목별 강사
-  aggLeft: 0, // 과목 통합 커리큘럼 왼쪽 과목 칸 너비(px, 0 = 기본)
+  aggLeft: 0, // 학과 관리 왼쪽 과목 칸 너비(px, 0 = 기본)
   aggRight: 0, // 특강·세미나 오른쪽 신청자 명단 칸 너비(px, 0 = 기본 330)
   employed: new Map(), // 강사id → false(퇴사 처리 시험)
   reviews: new Map(), // 제출 묶음 key → Map(준비물id → 최종 분류)

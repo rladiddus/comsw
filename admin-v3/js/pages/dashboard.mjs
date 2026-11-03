@@ -49,13 +49,13 @@ export async function render(container, ctx) {
   container.append(
     statBox,
     el("div", { className: "v3-callout" }, [el("b", { textContent: "새 데이터 흐름  " }),
-      document.createTextNode("강사 승인본 → 같은 과목의 재직 강사 모음 → 과목 통합 커리큘럼 → 로드맵 문구 → 사이트 반영")]),
+      document.createTextNode("강사 승인본 → 같은 과목의 재직 강사 모음 → 학과 관리 → 로드맵 문구 → 사이트 반영")]),
     el("div", { className: "v2-grid2" }, [
       panel("지금 처리할 일", todo.length ? todo : [empty("처리할 일이 없습니다.")]),
       el("div", { className: "v2-stack" }, [
         panel("자동 연계 상태", [
           flow("① 강사 개인 승인본", chip(groups.length ? `대기 ${groups.length}` : "대기 없음", groups.length ? "warn" : "good")),
-          flow("② 과목 통합 커리큘럼", chip("확인은 '과목 통합 커리큘럼'에서", "vacation")),
+          flow("② 학과 관리", chip("확인은 '학과 관리'에서", "vacation")),
           flow("③ 로드맵 문구", chip("확인은 '로드맵'에서", "vacation")),
           flow("④ 사이트 반영", chip("별도 반영", "vacation")),
           hint("지금은 승인 후 통합·로드맵을 자동으로 다시 만드는 작업 대기열이 없습니다(DB 추가 필요). 기존 AI 작업 기록만 보여 줍니다."),

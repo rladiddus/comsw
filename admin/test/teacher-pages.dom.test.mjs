@@ -538,29 +538,34 @@ test("수업 설정: 학과 과목은 연결한 순서가 아니라 학과 관�
   assert.deepEqual([...box.querySelectorAll(".subject-check")].map((l) => l.textContent), ["웹2", "웹1"]);
 });
 
-test("V3 내 커리큘럼: '+ 개월 추가' 없음, 알약 옆 '과목명 동일'을 끄면 새 과목명으로 제출(custom_name)", async () => {
+test("V3 내 커리큘럼: '+ 개월 추가'·'과목명 동일' 없음, 수업 설정에서 안 고른 학과 과목도 탭으로", async () => {
   const data = tables();
-  data.subjects = [{ id: "w1", name: "웹툰1" }];
-  data.subject_departments = [{ subject_id: "w1", department_id: "dept" }];
+  data.subjects = [{ id: "w1", name: "웹툰1" }, { id: "w2", name: "웹툰2" }];
+  data.subject_departments = [{ subject_id: "w1", department_id: "dept" }, { subject_id: "w2", department_id: "dept" }];
   data.instructor_subjects = [{ instructor_id: "me", subject_id: "w1", sort_order: 0 }];
-  const { c, calls } = await setup("mine", data, { v3: true });
+  const { c } = await setup("mine", data, { v3: true });
   tabButton(c, "write").click();
   assert.ok(!findButton(c, "+ 개월 추가"));
-  const same = c.querySelector(".subject-tab-row .same-subject input");
-  assert.equal(same.checked, true, "처음엔 과목명 동일");
-  const panel = c.querySelector(".subject-panel:not([hidden])");
-  assert.ok(panel.querySelector(".new-subject-name").hidden);
-  same.checked = false; same.dispatchEvent(new dom.window.Event("change"));
-  assert.ok(!panel.querySelector(".new-subject-name").hidden, "끄면 새 과목명 칸");
-  panel.querySelector("[name=written]").value = "새 과목 1단계";
-  submitForm(c);
-  await flush();
-  assert.ok(!calls.some(([n]) => n === "comsw_submit_curriculum"), "새 과목명이 비면 제출 안 함");
-  panel.querySelector(".new-subject-name input").value = "웹툰 캐릭터";
-  submitForm(c);
-  await flush();
-  const [, args] = calls.find(([n]) => n === "comsw_submit_curriculum");
-  assert.deepEqual(args.p_subjects, [{ custom_name: "웹툰 캐릭터", from: "w1", steps: [{ step_label: "1단계", written: "새 과목 1단계", media_url: "" }] }]);
+  assert.ok(!/과목명 동일/.test(c.textContent));
+  assert.deepEqual([...c.querySelectorAll(".subject-tabs button")].map((b) => b.textContent), ["웹툰1", "웹툰2"]);
+});
+
+test("V3 타강사 커리큘럼: [학과][강사][이름 검색], 학과를 고르면 그 학과 강사만, 이름만 보인다", async () => {
+  const data = twoSubjects();
+  data.departments.push({ id: "d2", name: "모션학과", sort_order: 9 });
+  data.instructors.push({ id: "other", name: "김민주" }, { id: "x", name: "조해리" });
+  data.instructor_departments.push({ instructor_id: "other", department_id: "dept" }, { instructor_id: "x", department_id: "d2" });
+  const { c } = await setup("mine", data, { v3: true, role: "head" });
+  tabButton(c, "write").click();
+  const toggle = c.querySelector('[aria-label="타강사 커리큘럼"]');
+  toggle.checked = true; toggle.dispatchEvent(new dom.window.Event("change"));
+  assert.deepEqual([...c.querySelectorAll(".proxy-title [aria-label]")].map((x) => x.getAttribute("aria-label")), ["학과 선택", "강사 선택", "강사 검색", "타강사 커리큘럼"]);
+  const pick = c.querySelector('[aria-label="강사 선택"]');
+  assert.deepEqual([...pick.options].map((o) => o.textContent), ["강사 고르기", "김민주", "조해리"]);
+  const dept = c.querySelector('[aria-label="학과 선택"]');
+  dept.value = "d2"; dept.dispatchEvent(new dom.window.Event("change"));
+  assert.deepEqual([...pick.options].map((o) => o.textContent), ["강사 고르기", "조해리"]);
+  dept.value = ""; dept.dispatchEvent(new dom.window.Event("change"));
 });
 
 test("V3 등록하기: '방특'에 체크하면 '선택 학과' 자리에서 방학 특강 그룹을 골라 그 그룹으로 제출", async () => {

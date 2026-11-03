@@ -99,36 +99,40 @@ test("V3 과목 관리: [과목 생성] 학과·이름으로 생성, [과목 정
   assert.match(c.textContent, /'외톨이' 과목을 삭제했습니다/);
 });
 
-test("V3 과목 관리: [연결] 하위 과목 연결(이름 비슷한 과목 미리 체크)·방학 특강 지정, [과목 묶음]에서 연결 풀기", async () => {
+test("V3 과목 관리: [연결] 새 그룹 만들기(같은 이름 그룹, 비슷한 과목 미리 체크)·방학 특강 지정, 그룹에 넣은 과목은 과목 정리에서 빠짐", async () => {
   const tables = {
     departments: [{ id: "d1", name: "인테리어학과", sort_order: 0 }],
     subjects: [
-      { id: "cad", name: "캐드", sort_order: null, parent_id: null }, { id: "c1", name: "캐드1", sort_order: 0, parent_id: null },
-      { id: "c2", name: "캐드 2", sort_order: 1, parent_id: null }, { id: "ai", name: "AI에이전트", sort_order: null, parent_id: null },
+      { id: "cad", name: "캐드", sort_order: null, group_id: null }, { id: "c1", name: "캐드1", sort_order: 0, group_id: null },
+      { id: "c2", name: "캐드 2", sort_order: 1, group_id: null }, { id: "ai", name: "AI에이전트", sort_order: null, group_id: null },
     ],
     subject_departments: [{ subject_id: "c1", department_id: "d1" }, { subject_id: "c2", department_id: "d1" }],
     instructor_curricula: [{ subject_id: "c1", vacation: false }, { subject_id: "c2", vacation: false }],
     curriculum_sets: [{ id: "v1", name: "2026년 여름방학특강", is_vacation: true }],
     vacation_set_subjects: [],
+    subject_groups: [],
   };
-  const db = fakeSupabase(tables);
-  const c = await page("subjects", { supabase: db });
-  assert.deepEqual([...c.querySelectorAll(".v2-panel > .v2-tabs button")].map((b) => b.textContent), ["과목 생성", "과목 정리", "과목 묶음"]);
+  const c = await page("subjects", { supabase: fakeSupabase(tables) });
+  assert.deepEqual([...c.querySelectorAll(".v2-panel > .v2-tabs button")].map((b) => b.textContent), ["과목 생성", "과목 정리", "그룹 만들기"]);
   button(c, "과목 정리").click();
   const names = () => [...c.querySelectorAll("tbody tr")].map((r) => r.cells[0].textContent);
   assert.deepEqual(names(), ["캐드", "AI에이전트"], "커리큘럼·학과가 있는 캐드1·캐드 2는 안 나옴");
   const rowOf = (n) => [...c.querySelectorAll("tbody tr")].find((r) => r.cells[0].textContent === n);
   button(rowOf("캐드"), "연결").click();
   let dlg = document.querySelector("dialog.v3-modal");
+  const modes = [...dlg.querySelectorAll('input[name="v3-linkmode"]')];
+  assert.deepEqual(modes.map((r) => [r.checked, r.disabled]), [[true, false], [false, true]], "ⓐ 새 그룹이 기본, 그룹이 없으면 ⓑ 잠김");
+  assert.equal(dlg.querySelector('[aria-label="그룹 이름"]').value, "캐드", "그룹 이름은 이 과목 이름(과목과 겹쳐도 됨)");
   const checked = () => [...dlg.querySelectorAll(".v3-linklist label")].filter((l) => l.querySelector("input").checked).map((l) => l.textContent);
-  assert.deepEqual(checked().sort(), ["캐드 2", "캐드1"].sort(), "이름이 '캐드'로 시작하는 과목을 미리 체크(띄어쓰기 무시)");
-  assert.ok(!checked().includes("AI에이전트"));
-  button(dlg, "연결").click();
+  assert.deepEqual(checked().sort(), ["캐드", "캐드 2", "캐드1"].sort(), "이 과목과 이름이 '캐드'로 시작하는 과목을 미리 체크(띄어쓰기 무시)");
+  button(dlg, "그룹 만들기").click();
   await flush();
-  assert.deepEqual(tables.subjects.filter((x) => x.parent_id === "cad").map((x) => x.id).sort(), ["c1", "c2"]);
-  assert.ok(!document.querySelector("dialog.v3-modal"), "연결하면 닫힘");
-  assert.deepEqual(names(), ["AI에이전트"], "하위 과목이 있는 대표 과목은 정리 목록에서 빠짐");
-  // 학과·방학 특강 지정: 방학 특강에 넣으면 '학과·방특 미포함'이 없어짐
+  assert.deepEqual(tables.subject_groups.map((g) => g.name), ["캐드"]);
+  const gid = tables.subject_groups[0].id;
+  assert.deepEqual(tables.subjects.filter((x) => x.group_id === gid).map((x) => x.id).sort(), ["c1", "c2", "cad"]);
+  assert.ok(!document.querySelector("dialog.v3-modal"), "만들면 닫힘");
+  assert.deepEqual(names(), ["AI에이전트"], "그룹에 넣은 과목은 과목 정리에서 빠짐");
+  // 학과·방학 특강 지정
   button(rowOf("AI에이전트"), "연결").click();
   dlg = document.querySelector("dialog.v3-modal");
   button(dlg, "학과·방학 특강 지정").click();
@@ -138,73 +142,73 @@ test("V3 과목 관리: [연결] 하위 과목 연결(이름 비슷한 과목 �
   await flush();
   assert.deepEqual(tables.vacation_set_subjects, [{ id: "new0", set_id: "v1", subject_id: "ai" }]);
   assert.doesNotMatch(rowOf("AI에이전트").textContent, /학과·방특 미포함/);
-  assert.match(rowOf("AI에이전트").textContent, /커리큘럼 미입력/);
-  // 과목 묶음: 대표 과목과 하위 과목, '−'로 연결 풀기
-  button(c, "과목 묶음").click();
-  const g = c.querySelector("tbody tr");
-  assert.deepEqual([...g.cells].map((td) => td.textContent), ["캐드", "캐드1−캐드 2−", "인테리어학과", "하위 과목 추가"]);
-  c.querySelector('.v3-x[title="캐드1 연결 풀기"]').click();
+  // ⓑ 기존 그룹에 넣기
+  button(rowOf("AI에이전트"), "연결").click();
+  dlg = document.querySelector("dialog.v3-modal");
+  const b = dlg.querySelector('input[name="v3-linkmode"][value="b"]');
+  b.checked = true; b.dispatchEvent(new document.defaultView.Event("change"));
+  const r = dlg.querySelector('input[name="v3-group"]');
+  assert.equal(r.closest("label").textContent, "캐드 (3개)");
+  r.checked = true; r.dispatchEvent(new document.defaultView.Event("change"));
+  button(dlg, "넣기").click();
   await flush();
-  assert.equal(tables.subjects.find((x) => x.id === "c1").parent_id, null);
-  assert.match(c.textContent, /'캐드1'을\(를\) '캐드'에서 풀었습니다/);
+  assert.equal(tables.subjects.find((x) => x.id === "ai").group_id, gid);
+  assert.deepEqual(names(), [], "모두 그룹에 들어가 정리할 과목 없음");
 });
 
-test("V3 과목 관리: [연결] ⓐ/ⓑ 라디오로 다른 대표 과목 아래로 넣기, [과목 묶음]에서 대표 과목 만들기·하위 과목 추가", async () => {
+test("V3 과목 관리 [그룹 만들기] 탭: 그룹 만들기, 과목 고르기(이름 바꾸기), '−'로 빼기, 그룹 삭제(과목은 남음)", async () => {
   const tables = {
     departments: [{ id: "d1", name: "디자인학과", sort_order: 0 }],
     subjects: [
-      { id: "il", name: "일러스트 과정", sort_order: 0, parent_id: null }, { id: "i1", name: "일러스트1", sort_order: null, parent_id: null },
-      { id: "i2", name: "일러스트2", sort_order: 1, parent_id: null }, { id: "ps", name: "포토샵", sort_order: 2, parent_id: null },
-      { id: "p1", name: "포토샵1", sort_order: 3, parent_id: null },
+      { id: "ps", name: "포토샵", sort_order: 0, group_id: null }, { id: "p1", name: "포토샵1", sort_order: 1, group_id: null },
+      { id: "p2", name: "포토샵2", sort_order: 2, group_id: null }, { id: "il", name: "일러스트", sort_order: 3, group_id: null },
     ],
-    subject_departments: [{ subject_id: "il", department_id: "d1" }, { subject_id: "i2", department_id: "d1" }, { subject_id: "ps", department_id: "d1" }, { subject_id: "p1", department_id: "d1" }],
-    instructor_curricula: ["il", "i2", "ps", "p1"].map((id) => ({ subject_id: id, vacation: false })),
+    subject_departments: [{ subject_id: "ps", department_id: "d1" }],
+    instructor_curricula: [],
     curriculum_sets: [],
     vacation_set_subjects: [],
+    subject_groups: [],
   };
   const c = await page("subjects", { supabase: fakeSupabase(tables) });
-  button(c, "과목 정리").click();
-  const rowOf = (n) => [...c.querySelectorAll("tbody tr")].find((r) => r.cells[0].textContent === n);
-  button(rowOf("일러스트1"), "연결").click();
-  const dlg = document.querySelector("dialog.v3-modal");
-  const modes = [...dlg.querySelectorAll('input[name="v3-linkmode"]')];
-  assert.deepEqual(modes.map((r) => r.checked), [true, false], "라디오 두 개 중 ⓐ(대표 과목으로)가 기본");
-  modes[1].checked = true;
-  modes[1].dispatchEvent(new document.defaultView.Event("change"));
-  const radios = [...dlg.querySelectorAll('.v3-linklist input[type="radio"]')];
-  assert.equal(radios.length, 4, "대표 과목 후보 = 자기 자신 뺀 과목");
-  assert.equal(radios[0].closest("label").textContent, "일러스트 과정", "이 과목 이름이 그 이름으로 시작하지 않아도 후보에 있음");
-  button(dlg, "연결").click();
-  await flush();
-  assert.match(dlg.textContent, /대표 과목을 골라주세요/);
-  radios.find((r) => r.value === "il").checked = true;
-  radios.find((r) => r.value === "il").dispatchEvent(new document.defaultView.Event("change"));
-  button(dlg, "연결").click();
-  await flush();
-  assert.equal(tables.subjects.find((x) => x.id === "i1").parent_id, "il");
-  assert.ok(!document.querySelector("dialog.v3-modal"), "연결하면 닫힘");
-
-  // 과목 묶음: [하위 과목 추가]로 일러스트2 더 넣기
-  button(c, "과목 묶음").click();
-  button(c.querySelector("tbody tr"), "하위 과목 추가").click();
+  button(c.querySelector(".v2-panel > .v2-tabs"), "그룹 만들기").click();
+  assert.match(c.textContent, /만든 그룹이 없습니다/);
+  button(c.querySelector(".v3-headbar"), "그룹 만들기").click();
   let pop = document.querySelector("dialog.v3-modal");
   const box = (n) => [...pop.querySelectorAll(".v3-linklist label")].find((l) => l.textContent.startsWith(n)).querySelector("input");
-  assert.ok(box("일러스트1").checked, "이미 하위 과목은 체크된 채로");
-  box("일러스트2").checked = true;
-  box("일러스트2").dispatchEvent(new document.defaultView.Event("change"));
-  button(pop, "연결").click();
+  const tick = (n, on = true) => { box(n).checked = on; box(n).dispatchEvent(new document.defaultView.Event("change")); };
+  button(pop, "그룹 만들기").click();
   await flush();
-  assert.deepEqual(tables.subjects.filter((x) => x.parent_id === "il").map((x) => x.id).sort(), ["i1", "i2"]);
-  // [대표 과목 만들기]: 대표 과목을 고르면 이름이 그 과목으로 시작하는 과목이 미리 체크
-  button(c, "대표 과목 만들기").click();
+  assert.match(pop.textContent, /그룹 이름을 입력해주세요/);
+  pop.querySelector('[aria-label="그룹 이름"]').value = "포토샵";
+  button(pop, "그룹 만들기").click();
+  await flush();
+  assert.match(pop.textContent, /그룹에 넣을 과목을 골라주세요/);
+  ["포토샵", "포토샵1", "포토샵2"].forEach((n) => tick(n));
+  button(pop, "그룹 만들기").click();
+  await flush();
+  const row = () => c.querySelector("tbody tr");
+  assert.deepEqual([...row().cells].slice(0, 3).map((td) => td.textContent), ["포토샵", "포토샵−포토샵1−포토샵2−", "디자인학과"]);
+  // 과목 고르기: 이름 바꾸고 포토샵2 빼기
+  button(row(), "과목 고르기").click();
   pop = document.querySelector("dialog.v3-modal");
-  const sel = pop.querySelector('[aria-label="대표 과목"]');
-  assert.deepEqual([...sel.options].map((o) => o.textContent), ["포토샵", "포토샵1"], "하위 과목·대표 과목은 후보에서 빠짐");
-  assert.ok(box("포토샵1").checked);
-  button(pop, "연결").click();
+  assert.ok(box("포토샵1").checked, "지금 과목은 체크된 채로");
+  pop.querySelector('[aria-label="그룹 이름"]').value = "포토샵 과정";
+  tick("포토샵2", false);
+  button(pop, "저장").click();
   await flush();
-  assert.equal(tables.subjects.find((x) => x.id === "p1").parent_id, "ps");
-  assert.deepEqual([...c.querySelectorAll("tbody tr")].map((r) => r.cells[0].textContent), ["일러스트 과정", "포토샵"]);
+  assert.equal(tables.subject_groups[0].name, "포토샵 과정");
+  assert.equal(tables.subjects.find((x) => x.id === "p2").group_id, null);
+  // '−'로 빼기
+  c.querySelector('.v3-x[title="포토샵1 그룹에서 빼기"]').click();
+  await flush();
+  assert.equal(tables.subjects.find((x) => x.id === "p1").group_id, null);
+  // 그룹 삭제
+  globalThis.confirm = () => true;
+  button(row(), "그룹 삭제").click();
+  await flush();
+  assert.deepEqual(tables.subject_groups, []);
+  assert.equal(tables.subjects.length, 4, "과목은 그대로");
+  assert.match(c.textContent, /'포토샵 과정' 그룹을 삭제했습니다/);
 });
 
 test("V3 학과 관리: 과목 생성 버튼 없음, 과목별 커리큘럼 [과목 삭제]", async () => {

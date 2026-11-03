@@ -19,14 +19,17 @@ grant usage on schema public, auth to anon, authenticated, service_role;
 alter default privileges in schema public grant all on functions to anon, authenticated;
 `;
 
-export async function freshDb() {
+// before: 이 파일 이름 앞까지만 실행(옮기는 SQL을 그 전 상태에서 시험할 때). runMigration으로 나머지를 하나씩.
+export async function freshDb(before = "~") {
   const db = new PGlite();
   await db.exec(SUPABASE_SHIM);
-  for (const file of readdirSync(MIGRATIONS).filter(f => f.endsWith(".sql")).sort()) {
+  for (const file of readdirSync(MIGRATIONS).filter(f => f.endsWith(".sql") && f < before).sort()) {
     await db.exec(readFileSync(path.join(MIGRATIONS, file), "utf8"));
   }
   return db;
 }
+
+export const runMigration = (db, file) => db.exec(readFileSync(path.join(MIGRATIONS, file), "utf8"));
 
 export async function seeded() {
   const [{ transform }, { toSql }, { SAMPLE_ROWS }] = await Promise.all([

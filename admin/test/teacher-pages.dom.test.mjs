@@ -568,6 +568,49 @@ test("V3 타강사 커리큘럼: [학과][강사][이름 검색], 학과를 고�
   dept.value = ""; dept.dispatchEvent(new dom.window.Event("change"));
 });
 
+test("V3 타강사: 수업 설정의 '타 강사 수업 설정'으로 그 강사 학과·과목을 저장하면, 내 커리큘럼에서 '선택한 강사 학과'와 그 학과 과목 탭이 나온다", async () => {
+  const data = twoSubjects();
+  data.departments.push({ id: "d2", name: "모션학과", is_active: true, sort_order: 9 });
+  data.subjects.push({ id: "m1", name: "모션1" }, { id: "m2", name: "모션2" });
+  data.subject_departments.push({ subject_id: "m1", department_id: "d2" }, { subject_id: "m2", department_id: "d2" });
+  data.instructors.push({ id: "other", name: "김민주" });
+  const { c, sb, majors } = await setup("profile", data, { v3: true, role: "head" });
+  tabButton(c, "classes").click();
+  const toggle = c.querySelector('[aria-label="타 강사 수업 설정"]');
+  assert.ok(toggle, "학과장에게 '타 강사 수업 설정'");
+  toggle.checked = true; toggle.dispatchEvent(new dom.window.Event("change"));
+  await flush();
+  assert.deepEqual([...c.querySelectorAll(".proxy-title [aria-label]")].map((x) => x.getAttribute("aria-label")), ["학과 선택", "강사 선택", "강사 검색", "타 강사 수업 설정"]);
+  const pick = c.querySelector('[aria-label="강사 선택"]');
+  assert.deepEqual([...pick.options].map((o) => o.textContent), ["강사 고르기", "김민주"]);
+  pick.value = "other"; pick.dispatchEvent(new dom.window.Event("change"));
+  await flush();
+  assert.match(c.textContent, /김민주 선생님 수업 설정/);
+  assert.equal(c.querySelector(".main-dept"), null, "메인 학과 고르기는 본인 것만");
+  const add = c.querySelector('[aria-label="추가할 학과"]');
+  add.value = "d2";
+  findButton(c, "+ 학과 추가").click();
+  const box = [...c.querySelectorAll(".subject-check")].find((l) => l.textContent === "모션2").querySelector("input");
+  box.checked = true; box.dispatchEvent(new dom.window.Event("change"));
+  findButton(c, "저장").click();
+  await flush();
+  assert.deepEqual(data.instructor_departments.filter((x) => x.instructor_id === "other").map((x) => x.department_id), ["d2"]);
+  assert.deepEqual(data.instructor_subjects.filter((x) => x.instructor_id === "other").map((x) => x.subject_id), ["m2"]);
+  assert.equal(majors.saved, null, "쌤톡 학과는 건드리지 않음");
+
+  // 내 커리큘럼: 타강사로 김민주를 고르면 '선택한 강사 학과' = 모션학과, 그 학과 과목 탭
+  const m = document.createElement("div");
+  document.body.replaceChildren(m);
+  const { render } = await import("../js/pages/mine.mjs");
+  sb.rpc = async () => ({ data: [], error: null });
+  await render(m, { supabase: sb, uid: "uid", displayName: "선생님", role: "head", v3: true, loadMyMajors: async () => ["웹학과"] }, { tab: "write", as: "other" });
+  await flush();
+  const labels = [...m.querySelectorAll(".form-row:not(.materials-row) .form-field > span")].map((x) => x.textContent);
+  assert.equal(labels[0], "선택한 강사 학과");
+  assert.deepEqual([...m.querySelector("[name=department]").options].map((o) => o.textContent), ["모션학과"]);
+  assert.deepEqual([...m.querySelectorAll(".subject-tabs button")].map((b) => b.textContent), ["모션1", "모션2"]);
+});
+
 test("V3 등록하기: 방학 특강에 넣어 둔 과목은 '방특' + 그 방학 특강을 고르면 탭으로 나온다", async () => {
   const data = twoSubjects();
   data.curriculum_sets.push({ id: "vac", name: "2026년 여름방학특강", department_id: null, is_vacation: true });

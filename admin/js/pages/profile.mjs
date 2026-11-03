@@ -214,6 +214,7 @@ export async function render(container, ctx) {
       uid: ctx.uid,
       own,
       isHead: ctx.role === "head",
+      pickOthers: Boolean(ctx.v3) && ["admin", "head"].includes(ctx.role),
       loadMyMajors: ctx.loadMyMajors ?? (await members()).loadMyMajors,
       saveMyMajors: ctx.saveMyMajors ?? (await members()).saveMyMajors,
     });

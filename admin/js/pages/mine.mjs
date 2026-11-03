@@ -5,6 +5,7 @@ import {
   rows,
   rpc,
   stateLine,
+  teacherPicker,
 } from "../teacher-workspace.mjs";
 import { mountImageUpload } from "../image-upload.mjs";
 import { driveThumbnail } from "../drive.mjs";
@@ -87,7 +88,6 @@ const nextStep = (label) => {
 
 // 학과장·관리자는 '타강사 커리큘럼'에 체크하고 강사를 고르면(as) 그 강사의 학과·과목으로 대신 등록·조회한다.
 // 대신 낸 줄도 그 강사의 승인 대기 줄이 되어 '신청 과목'(방특이면 '방학 특강')에서 승인한다.
-let proxyDept = ""; // V3 타강사 고르기에서 고른 학과(다시 그려도 유지)
 export async function render(container, ctx, { tab, as } = {}) {
   const { supabase } = ctx;
   container.replaceChildren(
@@ -135,6 +135,8 @@ export async function render(container, ctx, { tab, as } = {}) {
     const goSettings = () => {
       try {
         sessionStorage.setItem("comsw_profile_tab", "classes");
+        // 타강사로 쓰던 중이면 수업 설정도 그 강사로 연다(V3).
+        if (proxy) sessionStorage.setItem("comsw_profile_as", target.id);
       } catch {
         // 탭 기억이 안 되면 내 프로필 첫 탭이 열린다.
       }
@@ -171,41 +173,19 @@ export async function render(container, ctx, { tab, as } = {}) {
     const titleRow = el("div", { className: "box-title proxy-title" }, [heading]);
     if (staff) {
       const [all, idepts] = await Promise.all([rows(supabase, "instructors", (q) => q.order("name")), ctx.v3 ? rows(supabase, "instructor_departments") : []]);
-      const others = all.filter((i) => i.id !== own.id);
-      const deptPick = el("select");
-      deptPick.setAttribute("aria-label", "학과 선택");
-      deptPick.replaceChildren(el("option", { value: "", textContent: "전체 학과" }), ...depts.map((d) => el("option", { value: d.id, textContent: d.name })));
-      deptPick.value = proxyDept;
-      deptPick.addEventListener("change", () => { proxyDept = deptPick.value; fillTeachers(); });
-      const inDept = (i) => !deptPick.value || idepts.some((x) => x.instructor_id === i.id && x.department_id === deptPick.value);
       const toggle = el("input", { type: "checkbox", checked: proxy });
       toggle.setAttribute("aria-label", "타강사 커리큘럼");
-      const find = el("input", { type: "search", placeholder: "강사 이름 검색" });
-      find.setAttribute("aria-label", "강사 검색");
-      const pickTeacher = el("select");
-      pickTeacher.setAttribute("aria-label", "강사 선택");
-      const fillTeachers = () => {
-        const word = find.value.trim();
-        pickTeacher.replaceChildren(
-          el("option", { value: "", textContent: "강사 고르기" }),
-          ...others.filter((i) => inDept(i) && (!word || i.name.includes(word))).map((i) => el("option", { value: i.id, textContent: ctx.v3 ? i.name : `${i.name} 선생님` })),
-        );
-        pickTeacher.value = proxy && others.some((i) => i.id === target.id && inDept(i) && (!word || i.name.includes(word))) ? target.id : "";
-      };
-      find.addEventListener("input", fillTeachers);
-      pickTeacher.addEventListener("change", () => {
-        if (pickTeacher.value) render(container, ctx, { tab: "write", as: pickTeacher.value });
+      const picker = teacherPicker({
+        v3: ctx.v3, depts, teachers: all.filter((i) => i.id !== own.id), links: idepts, current: proxy ? target.id : "",
+        onPick: (id) => render(container, ctx, { tab: "write", as: id }),
       });
-      const showPicker = (on) => titleRow.replaceChildren(...(on ? (ctx.v3 ? [deptPick, pickTeacher, find] : [find, pickTeacher]) : [heading]), toggleLabel);
       const toggleLabel = el("label", { className: "consent proxy-toggle" }, [toggle, el("span", { textContent: "타강사 커리큘럼" })]);
+      const showPicker = (on) => titleRow.replaceChildren(...(on ? picker : [heading]), toggleLabel);
       toggle.addEventListener("change", () => {
-        if (toggle.checked) {
-          fillTeachers();
-          showPicker(true);
-        } else if (proxy) render(container, ctx, { tab: "write" });
+        if (toggle.checked) showPicker(true);
+        else if (proxy) render(container, ctx, { tab: "write" });
         else showPicker(false);
       });
-      fillTeachers();
       showPicker(proxy);
     }
     form.append(
@@ -226,7 +206,8 @@ export async function render(container, ctx, { tab, as } = {}) {
         ]),
       ];
     };
-    const [dept, deptField] = select("내 학과", "department");
+    // V3 타강사: '내 학과' 대신 고른 강사의 학과(그 강사 수업 설정에 저장된 학과)
+    const [dept, deptField] = select(ctx.v3 && proxy ? "선택한 강사 학과" : "내 학과", "department");
     const [set, setField] = select("선택 학과", "set_id");
     // '방특'에 체크하면 학과 승인 대신 관리 화면 '방학 특강'에서 그룹에 담는다.
     const vacation = el("input", { type: "checkbox", name: "vacation" });
@@ -238,7 +219,7 @@ export async function render(container, ctx, { tab, as } = {}) {
     const settingsLink = el("button", {
       type: "button",
       className: "link-btn",
-      textContent: "내 프로필 > 수업 설정에서 학과·과목 바꾸기",
+      textContent: ctx.v3 && proxy ? "내 프로필 > 수업 설정 > 타 강사 수업 설정에서 이 강사의 학과·과목 바꾸기" : "내 프로필 > 수업 설정에서 학과·과목 바꾸기",
     });
     settingsLink.addEventListener("click", goSettings);
     const subjectHint = el("p", { className: "muted" });
@@ -392,7 +373,7 @@ export async function render(container, ctx, { tab, as } = {}) {
       if ([...set.options].some((o) => o.value === keep)) set.value = keep;
       const mine = deptSubjects();
       subjectHint.textContent = !myDeptList.length
-        ? "내 학과가 없습니다. 수업 설정에서 학과를 추가해주세요."
+        ? (ctx.v3 && proxy ? "이 강사의 학과가 없습니다. 내 프로필 > 수업 설정 > 타 강사 수업 설정에서 학과를 저장해주세요." : "내 학과가 없습니다. 수업 설정에서 학과를 추가해주세요.")
         : mine.length
         ? ""
         : ctx.v3

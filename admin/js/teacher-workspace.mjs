@@ -116,3 +116,32 @@ export async function requireInstructor({ supabase, uid, displayName = "", loadM
   await rpc(supabase, "comsw_create_my_instructor", { p_name: name });
   return await mine();
 }
+
+// 학과장·관리자의 타강사 고르기(내 커리큘럼·수업 설정). V3: [학과 ▾][강사 ▾][이름 검색], 학과를 고르면 그 학과 강사만,
+// 고른 학과는 화면을 다시 그려도 유지. 예전 화면: [이름 검색][강사 ▾](이름 뒤 '선생님').
+let pickedDept = "";
+export function teacherPicker({ v3, depts, teachers, links, current = "", onPick }) {
+  const deptPick = el("select");
+  deptPick.setAttribute("aria-label", "학과 선택");
+  deptPick.replaceChildren(el("option", { value: "", textContent: "전체 학과" }), ...depts.map((d) => el("option", { value: d.id, textContent: d.name })));
+  deptPick.value = pickedDept;
+  const find = el("input", { type: "search", placeholder: "강사 이름 검색" });
+  find.setAttribute("aria-label", "강사 검색");
+  const pick = el("select");
+  pick.setAttribute("aria-label", "강사 선택");
+  const inDept = (i) => !v3 || !deptPick.value || links.some((x) => x.instructor_id === i.id && x.department_id === deptPick.value);
+  const fill = () => {
+    const word = find.value.trim();
+    const shown = teachers.filter((i) => inDept(i) && (!word || i.name.includes(word)));
+    pick.replaceChildren(
+      el("option", { value: "", textContent: "강사 고르기" }),
+      ...shown.map((i) => el("option", { value: i.id, textContent: v3 ? i.name : `${i.name} 선생님` })),
+    );
+    pick.value = shown.some((i) => i.id === current) ? current : "";
+  };
+  deptPick.addEventListener("change", () => { pickedDept = deptPick.value; fill(); });
+  find.addEventListener("input", fill);
+  pick.addEventListener("change", () => { if (pick.value) onPick(pick.value); });
+  fill();
+  return v3 ? [deptPick, pick, find] : [find, pick];
+}

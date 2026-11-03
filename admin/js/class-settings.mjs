@@ -1,20 +1,62 @@
-import { el, rows, rpc, stateLine } from "./teacher-workspace.mjs";
+import { el, rows, rpc, stateLine, teacherPicker } from "./teacher-workspace.mjs";
+import { dbErrorMessage } from "./fields.mjs";
 
 // 내 프로필 > 수업 설정: 내 학과(쌤톡 학과와 같은 이름)와 학과별 담당 과목.
 // 저장하면 컴수원 강사 정보의 학과·담당 과목과 쌤톡 학과에 함께 반영한다.
-export async function mountClassSettings(
+// V3 학과장·관리자(pickOthers)는 '타 강사 수업 설정'에 체크하고 강사를 고르면 그 강사의 학과·과목을 고친다
+// (컴수원 강사 정보만, 쌤톡 학과는 본인 것만 고칠 수 있어 그대로). 내 커리큘럼 타강사의 학과·과목이 여기서 정한 것.
+export async function mountClassSettings(container, opts) {
+  if (!opts.pickOthers) return mountOne(container, opts);
+  const { supabase, own } = opts;
+  const [teachers, depts, links] = await Promise.all([
+    rows(supabase, "instructors", (q) => q.order("name")),
+    rows(supabase, "departments", (q) => q.eq("is_active", true).order("sort_order")),
+    rows(supabase, "instructor_departments"),
+  ]);
+  const others = teachers.filter((i) => i.id !== own.id);
+  // 내 커리큘럼 타강사에서 '수업 설정에서 바꾸기'로 오면 그 강사로 연다.
+  let target = null;
+  try {
+    target = others.find((i) => i.id === sessionStorage.getItem("comsw_profile_as")) ?? null;
+    sessionStorage.removeItem("comsw_profile_as");
+  } catch {
+    // 저장소를 못 쓰면 내 수업 설정부터.
+  }
+  const toggle = el("input", { type: "checkbox", checked: Boolean(target) });
+  toggle.setAttribute("aria-label", "타 강사 수업 설정");
+  const toggleLabel = el("label", { className: "consent proxy-toggle" }, [toggle, el("span", { textContent: "타 강사 수업 설정" })]);
+  const bar = el("div", { className: "box-title proxy-title" });
+  const body = el("div");
+  container.append(bar, body);
+  async function show() {
+    const on = toggle.checked;
+    bar.replaceChildren(...(on ? teacherPicker({
+      v3: true, depts, teachers: others, links, current: target?.id,
+      onPick: (id) => { target = others.find((i) => i.id === id); show(); },
+    }) : []), toggleLabel);
+    body.replaceChildren();
+    if (!on) return mountOne(body, opts);
+    if (!target) return body.append(el("p", { className: "muted", textContent: "위에서 강사를 고르면 그 강사의 수업 설정이 나옵니다." }));
+    await mountOne(body, { ...opts, own: target, other: true, isHead: false });
+  }
+  toggle.addEventListener("change", () => { if (!toggle.checked) target = null; show(); });
+  await show();
+}
+
+async function mountOne(
   container,
-  { supabase, uid, own, isHead = false, loadMyMajors, saveMyMajors },
+  { supabase, uid, own, isHead = false, loadMyMajors, saveMyMajors, other = false },
 ) {
   // '수정' 버튼은 보기 화면일 때만 제목 옆에 붙는다.
-  const heading = el("h3", { textContent: "수업 설정" });
+  const heading = el("h3", { textContent: other ? `${own.name} 선생님 수업 설정` : "수업 설정" });
   const title = el("div", { className: "box-title" }, [heading]);
   const box = el("section", { className: "workspace-card class-settings" }, [
     title,
     el("p", {
       className: "desc",
-      textContent:
-        "내 학과를 고르고, 학과마다 내가 수업하는 과목을 체크해주세요. 저장하면 쌤톡 학과와 강사소개의 담당 과목에 함께 반영됩니다(공개 사이트에는 '사이트에 반영' 후).",
+      textContent: other
+        ? "이 강사의 학과를 고르고, 학과마다 수업하는 과목을 체크해주세요. 저장하면 이 강사의 학과·담당 과목과 내 커리큘럼 '타강사 커리큘럼'에 반영됩니다(쌤톡 학과는 바뀌지 않음, 공개 사이트에는 '사이트에 반영' 후)."
+        : "내 학과를 고르고, 학과마다 내가 수업하는 과목을 체크해주세요. 저장하면 쌤톡 학과와 강사소개의 담당 과목에 함께 반영됩니다(공개 사이트에는 '사이트에 반영' 후).",
     }),
   ]);
   // 학과장: 쌤톡 학과엔 본인 학과와 관리 학과가 섞여 있어, 고른 학과 중 메인 학과를 정한다(강사소개는 메인 학과에만).
@@ -42,7 +84,7 @@ export async function mountClassSettings(
       rows(supabase, "subject_departments"),
       rows(supabase, "instructor_departments", (q) => q.eq("instructor_id", own.id)),
       rows(supabase, "instructor_subjects", (q) => q.eq("instructor_id", own.id)),
-      loadMyMajors(uid).catch(() => null),
+      other ? null : loadMyMajors(uid).catch(() => null),
     ]);
   const byName = (n) => depts.find((d) => d.name === n);
   // 쌤톡 학과를 기준으로 하고, 못 불러오면 컴수원에 저장된 학과를 보여 준다.
@@ -51,7 +93,7 @@ export async function mountClassSettings(
       ? majors.map((n) => byName(n)?.id).filter(Boolean)
       : myDepts.map((d) => d.department_id),
   );
-  if (!majors) {
+  if (!majors && !other) {
     setState("쌤톡 학과를 불러오지 못해 컴수원에 저장된 학과를 보여 드립니다.", true);
   }
   const checked = new Set(mySubjects.map((s) => s.subject_id));
@@ -210,6 +252,13 @@ export async function mountClassSettings(
       const deptIds = depts.filter((d) => selected.has(d.id)).map((d) => d.id);
       // 삭제한 학과의 과목은 빼고 저장한다.
       const allowed = new Set(deptIds.flatMap((id) => subjectsOf(id).map((s) => s.id)));
+      if (other) {
+        await saveOther(supabase, own.id, deptIds, [...checked].filter((id) => allowed.has(id)), myDepts, mySubjects);
+        setState("저장했습니다. 내 커리큘럼 '타강사 커리큘럼'에서 이 학과·과목이 나옵니다.");
+        saved = { depts: new Set(selected), subjects: new Set(checked) };
+        showSummary();
+        return;
+      }
       await rpc(supabase, "comsw_set_my_classes", {
         p_department_ids: deptIds,
         p_subject_ids: [...checked].filter((id) => allowed.has(id)),
@@ -237,4 +286,24 @@ export async function mountClassSettings(
   });
   if (saved.depts.size) showSummary();
   else draw();
+}
+
+// 다른 강사의 학과·담당 과목 저장(학과장·관리자, staff_all 권한으로 표에 바로). 넣을 것 먼저, 뺄 것 나중.
+// ponytail: 한 번에 묶이지 않아 중간에 실패하면 일부만 저장됨(다시 저장하면 맞춰짐). 묶어야 하면 DB 함수로.
+async function saveOther(supabase, id, deptIds, subjectIds, myDepts, mySubjects) {
+  const run = async (q) => { const { error } = await q; if (error) throw new Error(dbErrorMessage(error)); };
+  const hadDepts = myDepts.map((x) => x.department_id);
+  const hadSubjects = mySubjects.map((x) => x.subject_id);
+  const newDepts = deptIds.filter((d) => !hadDepts.includes(d));
+  const newSubjects = subjectIds.filter((s) => !hadSubjects.includes(s));
+  const top = Math.max(0, ...mySubjects.map((x) => x.sort_order ?? 0));
+  if (newDepts.length) await run(supabase.from("instructor_departments").insert(newDepts.map((d) => ({ instructor_id: id, department_id: d }))));
+  if (newSubjects.length) await run(supabase.from("instructor_subjects").insert(newSubjects.map((s, n) => ({ instructor_id: id, subject_id: s, sort_order: top + n + 1 }))));
+  const goneSubjects = hadSubjects.filter((s) => !subjectIds.includes(s));
+  const goneDepts = hadDepts.filter((d) => !deptIds.includes(d));
+  if (goneSubjects.length) await run(supabase.from("instructor_subjects").delete().eq("instructor_id", id).in("subject_id", goneSubjects));
+  if (goneDepts.length) await run(supabase.from("instructor_departments").delete().eq("instructor_id", id).in("department_id", goneDepts));
+  // 다음 저장의 비교 기준을 맞춘다.
+  myDepts.splice(0, myDepts.length, ...deptIds.map((d) => ({ instructor_id: id, department_id: d })));
+  mySubjects.splice(0, mySubjects.length, ...subjectIds.map((s) => mySubjects.find((x) => x.subject_id === s) ?? { instructor_id: id, subject_id: s, sort_order: top + 1 + newSubjects.indexOf(s) }));
 }

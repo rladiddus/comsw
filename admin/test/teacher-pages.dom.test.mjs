@@ -568,6 +568,20 @@ test("V3 타강사 커리큘럼: [학과][강사][이름 검색], 학과를 고�
   dept.value = ""; dept.dispatchEvent(new dom.window.Event("change"));
 });
 
+test("V3 등록하기: 방학 특강에 넣어 둔 과목은 '방특' + 그 방학 특강을 고르면 탭으로 나온다", async () => {
+  const data = twoSubjects();
+  data.curriculum_sets.push({ id: "vac", name: "2026년 여름방학특강", department_id: null, is_vacation: true });
+  data.subjects.push({ id: "summer", name: "여름 드로잉" });
+  data.vacation_set_subjects = [{ set_id: "vac", subject_id: "summer" }];
+  const { c } = await setup("mine", data, { v3: true });
+  tabButton(c, "write").click();
+  const tabs = () => [...c.querySelectorAll(".subject-tabs button")].map((b) => b.textContent);
+  assert.ok(!tabs().includes("여름 드로잉"), "방특이 아니면 안 나옴");
+  const vac = c.querySelector("[name=vacation]");
+  vac.checked = true; vac.dispatchEvent(new dom.window.Event("change"));
+  assert.ok(tabs().includes("여름 드로잉"));
+});
+
 test("V3 등록하기: '방특'에 체크하면 '선택 학과' 자리에서 방학 특강 그룹을 골라 그 그룹으로 제출", async () => {
   const data = twoSubjects();
   data.curriculum_sets.push({ id: "vac", name: "2026년 여름방학특강", department_id: null, is_vacation: true });

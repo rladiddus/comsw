@@ -76,7 +76,6 @@ test("V3 과목 관리: [과목 생성] 학과·이름으로 생성, [과목 정
   const calls = [];
   db.rpc = async (name, args) => { calls.push([name, args]); return { data: name === "comsw_create_subject" ? "new1" : [], error: null }; };
   const c = await page("subjects", { supabase: db });
-  assert.deepEqual([...c.querySelectorAll(".v2-tabs button")].map((b) => b.textContent), ["과목 생성", "과목 정리"]);
   button(c, "생성").click();
   await flush();
   assert.match(c.textContent, /과목 이름을 입력해주세요/);
@@ -98,6 +97,56 @@ test("V3 과목 관리: [과목 생성] 학과·이름으로 생성, [과목 정
   assert.deepEqual(calls.filter(([n]) => n === "comsw_delete_subjects").map(([, a]) => a.p_ids), [["s5"]]);
   assert.ok(!rowsOf().some((r) => r[0] === "외톨이"), "지운 과목은 목록에서 빠짐");
   assert.match(c.textContent, /'외톨이' 과목을 삭제했습니다/);
+});
+
+test("V3 과목 관리: [연결] 하위 과목 연결(이름 비슷한 과목 미리 체크)·방학 특강 지정, [과목 묶음]에서 연결 풀기", async () => {
+  const tables = {
+    departments: [{ id: "d1", name: "인테리어학과", sort_order: 0 }],
+    subjects: [
+      { id: "cad", name: "캐드", sort_order: null, parent_id: null }, { id: "c1", name: "캐드1", sort_order: 0, parent_id: null },
+      { id: "c2", name: "캐드 2", sort_order: 1, parent_id: null }, { id: "ai", name: "AI에이전트", sort_order: null, parent_id: null },
+    ],
+    subject_departments: [{ subject_id: "c1", department_id: "d1" }, { subject_id: "c2", department_id: "d1" }],
+    instructor_curricula: [{ subject_id: "c1", vacation: false }, { subject_id: "c2", vacation: false }],
+    curriculum_sets: [{ id: "v1", name: "2026년 여름방학특강", is_vacation: true }],
+    vacation_set_subjects: [],
+  };
+  const db = fakeSupabase(tables);
+  const c = await page("subjects", { supabase: db });
+  assert.deepEqual([...c.querySelectorAll(".v2-panel > .v2-tabs button")].map((b) => b.textContent), ["과목 생성", "과목 정리", "과목 묶음"]);
+  button(c, "과목 정리").click();
+  const names = () => [...c.querySelectorAll("tbody tr")].map((r) => r.cells[0].textContent);
+  assert.deepEqual(names(), ["캐드", "AI에이전트"], "커리큘럼·학과가 있는 캐드1·캐드 2는 안 나옴");
+  const rowOf = (n) => [...c.querySelectorAll("tbody tr")].find((r) => r.cells[0].textContent === n);
+  button(rowOf("캐드"), "연결").click();
+  let dlg = document.querySelector("dialog.v3-modal");
+  const checked = () => [...dlg.querySelectorAll(".v3-linklist label")].filter((l) => l.querySelector("input").checked).map((l) => l.textContent);
+  assert.deepEqual(checked().sort(), ["캐드 2", "캐드1"].sort(), "이름이 '캐드'로 시작하는 과목을 미리 체크(띄어쓰기 무시)");
+  assert.ok(!checked().includes("AI에이전트"));
+  button(dlg, "연결").click();
+  await flush();
+  assert.deepEqual(tables.subjects.filter((x) => x.parent_id === "cad").map((x) => x.id).sort(), ["c1", "c2"]);
+  assert.ok(!document.querySelector("dialog.v3-modal"), "연결하면 닫힘");
+  assert.deepEqual(names(), ["AI에이전트"], "하위 과목이 있는 대표 과목은 정리 목록에서 빠짐");
+  // 학과·방학 특강 지정: 방학 특강에 넣으면 '학과·방특 미포함'이 없어짐
+  button(rowOf("AI에이전트"), "연결").click();
+  dlg = document.querySelector("dialog.v3-modal");
+  button(dlg, "학과·방학 특강 지정").click();
+  const to = dlg.querySelector('[aria-label="학과 또는 방학 특강"]');
+  to.value = "v:v1";
+  button(dlg, "지정").click();
+  await flush();
+  assert.deepEqual(tables.vacation_set_subjects, [{ id: "new0", set_id: "v1", subject_id: "ai" }]);
+  assert.doesNotMatch(rowOf("AI에이전트").textContent, /학과·방특 미포함/);
+  assert.match(rowOf("AI에이전트").textContent, /커리큘럼 미입력/);
+  // 과목 묶음: 대표 과목과 하위 과목, '−'로 연결 풀기
+  button(c, "과목 묶음").click();
+  const g = c.querySelector("tbody tr");
+  assert.deepEqual([...g.cells].map((td) => td.textContent), ["캐드", "캐드1−캐드 2−", "인테리어학과"]);
+  c.querySelector('.v3-x[title="캐드1 연결 풀기"]').click();
+  await flush();
+  assert.equal(tables.subjects.find((x) => x.id === "c1").parent_id, null);
+  assert.match(c.textContent, /'캐드1'을\(를\) '캐드'에서 풀었습니다/);
 });
 
 test("V3 학과 관리: 과목 생성 버튼 없음, 과목별 커리큘럼 [과목 삭제]", async () => {

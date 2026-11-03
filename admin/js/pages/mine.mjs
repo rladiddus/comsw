@@ -109,7 +109,7 @@ export async function render(container, ctx, { tab, as } = {}) {
     const proxy = target.id !== own.id; // 다른 강사 대신
     const loadMyMajors = ctx.loadMyMajors ??
       (await import("../ssamtalk-members.mjs")).loadMyMajors;
-    const [depts, subjects, links, sets, submitted, mySubjects, myDepts, majors, materials] = await Promise.all([
+    const [depts, subjects, links, sets, submitted, mySubjects, myDepts, majors, materials, vacSubjects] = await Promise.all([
       rows(supabase, "departments", (q) => q.order("sort_order")),
       rows(supabase, "subjects", (q) => q.order("sort_order")),
       rows(supabase, "subject_departments"),
@@ -124,6 +124,8 @@ export async function render(container, ctx, { tab, as } = {}) {
       // 대신 쓸 때는 그 강사의 컴수원 학과(쌤톡 학과는 본인 것만 읽을 수 있음).
       proxy ? null : loadMyMajors(ctx.uid).catch(() => null),
       rows(supabase, "instructor_subject_materials", (q) => q.eq("instructor_id", target.id)),
+      // V3: 방학 특강에 넣어 둔 과목(20261103020000 전에는 표가 없어 빈 목록)
+      ctx.v3 ? rows(supabase, "vacation_set_subjects").catch(() => []) : [],
     ]);
     // 내 학과 = 쌤톡 학과(이름이 같은 컴수원 학과). 못 불러오면 컴수원에 저장된 내 학과.
     const myDeptList = majors
@@ -256,6 +258,8 @@ export async function render(container, ctx, { tab, as } = {}) {
       const base = subjects.filter((s) => ids.includes(s.id) && (ctx.v3 || myIds.has(s.id))); // V3: 학과 과목 전부
       // '방특'에 체크하면 관리자가 방특 과목으로 정한 과목(기타 과목 › 방특)도 고를 수 있다.
       if (vacation.checked) base.push(...subjects.filter((s) => s.is_vacation && !base.includes(s)));
+      // V3: 고른 방학 특강에 넣어 둔 과목도(과목 관리 › 과목 정리 › 연결)
+      if (vacation.checked) base.push(...subjects.filter((s) => vacSubjects.some((v) => v.set_id === set.value && v.subject_id === s.id) && !base.includes(s)));
       const extra = months.filter((m) => m.dept === dept.value && !base.some((b) => b.id === m.id));
       return [...base, ...extra];
     };
@@ -371,14 +375,7 @@ export async function render(container, ctx, { tab, as } = {}) {
       }
     }
     const refill = () => {
-      const mine = deptSubjects();
-      subjectHint.textContent = !myDeptList.length
-        ? "내 학과가 없습니다. 수업 설정에서 학과를 추가해주세요."
-        : mine.length
-        ? ""
-        : ctx.v3
-        ? "이 학과에 과목이 없습니다. 학과장에게 과목을 만들어 달라고 요청해주세요."
-        : "이 학과에서 고른 과목이 없습니다. 수업 설정에서 수업하는 과목을 체크해주세요.";
+      // 선택 학과(방특이면 방학 특강)를 먼저 채운다(V3 방학 특강 과목은 고른 방학 특강을 본다).
       // V3: '방특'에 체크하면 '선택 학과' 자리에서 방학 특강 그룹을 고른다(관리자가 먼저 만든 그룹, 그 그룹으로 제출).
       const vacationPick = ctx.v3 && vacation.checked;
       setField.querySelector("span").textContent = vacationPick ? "방학 특강" : "선택 학과";
@@ -393,6 +390,14 @@ export async function render(container, ctx, { tab, as } = {}) {
           ),
       );
       if ([...set.options].some((o) => o.value === keep)) set.value = keep;
+      const mine = deptSubjects();
+      subjectHint.textContent = !myDeptList.length
+        ? "내 학과가 없습니다. 수업 설정에서 학과를 추가해주세요."
+        : mine.length
+        ? ""
+        : ctx.v3
+        ? "이 학과에 과목이 없습니다. 학과장에게 과목을 만들어 달라고 요청해주세요."
+        : "이 학과에서 고른 과목이 없습니다. 수업 설정에서 수업하는 과목을 체크해주세요.";
       if (vacationPick && !set.options.length) subjectHint.textContent = "방학 특강이 아직 없습니다. 관리자가 '방학 특강' 메뉴에서 먼저 추가해야 합니다.";
       subjectTabs.replaceChildren(...mine.map((s) => {
         panelFor(s);
@@ -406,6 +411,7 @@ export async function render(container, ctx, { tab, as } = {}) {
     refill();
     dept.addEventListener("change", refill);
     vacation.addEventListener("change", refill);
+    if (ctx.v3) set.addEventListener("change", () => { if (vacation.checked) refill(); });
     const send = el("button", {
       type: "submit",
       className: "publish-btn",

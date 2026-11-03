@@ -64,7 +64,7 @@ const button = (c, text) => [...c.querySelectorAll("button")].find((b) => b.text
 test("V3 메뉴: 15메뉴(과목 관리는 학과 관리 위, 특강·세미나 메뉴로)", async () => {
   const src = (await import("node:fs")).readFileSync(new URL("../../admin-v3/js/app.mjs", import.meta.url), "utf8");
   const labels = [...src.matchAll(/\["([a-z-]+)", "[^"]+", "([^"]+)",/g)].map((m) => m[2]);
-  assert.deepEqual(labels, ["기본 설정 등", "강사 관리", "강사 커리큘럼", "과목 관리", "학과 관리", "특강·세미나", "방학 특강", "로드맵", "수업별 준비물",
+  assert.deepEqual(labels, ["기본 설정 등", "강사 관리", "커리큘럼 관리", "과목 관리", "학과 관리", "특강·세미나", "방학 특강", "로드맵", "수업별 준비물",
     "내 커리큘럼", "내 프로필", "대시보드", "승인 대기", "준비물 검토", "사이트 반영"]);
 });
 
@@ -142,11 +142,69 @@ test("V3 과목 관리: [연결] 하위 과목 연결(이름 비슷한 과목 �
   // 과목 묶음: 대표 과목과 하위 과목, '−'로 연결 풀기
   button(c, "과목 묶음").click();
   const g = c.querySelector("tbody tr");
-  assert.deepEqual([...g.cells].map((td) => td.textContent), ["캐드", "캐드1−캐드 2−", "인테리어학과"]);
+  assert.deepEqual([...g.cells].map((td) => td.textContent), ["캐드", "캐드1−캐드 2−", "인테리어학과", "하위 과목 추가"]);
   c.querySelector('.v3-x[title="캐드1 연결 풀기"]').click();
   await flush();
   assert.equal(tables.subjects.find((x) => x.id === "c1").parent_id, null);
   assert.match(c.textContent, /'캐드1'을\(를\) '캐드'에서 풀었습니다/);
+});
+
+test("V3 과목 관리: [연결] ⓐ/ⓑ 라디오로 다른 대표 과목 아래로 넣기, [과목 묶음]에서 대표 과목 만들기·하위 과목 추가", async () => {
+  const tables = {
+    departments: [{ id: "d1", name: "디자인학과", sort_order: 0 }],
+    subjects: [
+      { id: "il", name: "일러스트 과정", sort_order: 0, parent_id: null }, { id: "i1", name: "일러스트1", sort_order: null, parent_id: null },
+      { id: "i2", name: "일러스트2", sort_order: 1, parent_id: null }, { id: "ps", name: "포토샵", sort_order: 2, parent_id: null },
+      { id: "p1", name: "포토샵1", sort_order: 3, parent_id: null },
+    ],
+    subject_departments: [{ subject_id: "il", department_id: "d1" }, { subject_id: "i2", department_id: "d1" }, { subject_id: "ps", department_id: "d1" }, { subject_id: "p1", department_id: "d1" }],
+    instructor_curricula: ["il", "i2", "ps", "p1"].map((id) => ({ subject_id: id, vacation: false })),
+    curriculum_sets: [],
+    vacation_set_subjects: [],
+  };
+  const c = await page("subjects", { supabase: fakeSupabase(tables) });
+  button(c, "과목 정리").click();
+  const rowOf = (n) => [...c.querySelectorAll("tbody tr")].find((r) => r.cells[0].textContent === n);
+  button(rowOf("일러스트1"), "연결").click();
+  const dlg = document.querySelector("dialog.v3-modal");
+  const modes = [...dlg.querySelectorAll('input[name="v3-linkmode"]')];
+  assert.deepEqual(modes.map((r) => r.checked), [true, false], "라디오 두 개 중 ⓐ(대표 과목으로)가 기본");
+  modes[1].checked = true;
+  modes[1].dispatchEvent(new document.defaultView.Event("change"));
+  const radios = [...dlg.querySelectorAll('.v3-linklist input[type="radio"]')];
+  assert.equal(radios.length, 4, "대표 과목 후보 = 자기 자신 뺀 과목");
+  assert.equal(radios[0].closest("label").textContent, "일러스트 과정", "이 과목 이름이 그 이름으로 시작하지 않아도 후보에 있음");
+  button(dlg, "연결").click();
+  await flush();
+  assert.match(dlg.textContent, /대표 과목을 골라주세요/);
+  radios.find((r) => r.value === "il").checked = true;
+  radios.find((r) => r.value === "il").dispatchEvent(new document.defaultView.Event("change"));
+  button(dlg, "연결").click();
+  await flush();
+  assert.equal(tables.subjects.find((x) => x.id === "i1").parent_id, "il");
+  assert.ok(!document.querySelector("dialog.v3-modal"), "연결하면 닫힘");
+
+  // 과목 묶음: [하위 과목 추가]로 일러스트2 더 넣기
+  button(c, "과목 묶음").click();
+  button(c.querySelector("tbody tr"), "하위 과목 추가").click();
+  let pop = document.querySelector("dialog.v3-modal");
+  const box = (n) => [...pop.querySelectorAll(".v3-linklist label")].find((l) => l.textContent.startsWith(n)).querySelector("input");
+  assert.ok(box("일러스트1").checked, "이미 하위 과목은 체크된 채로");
+  box("일러스트2").checked = true;
+  box("일러스트2").dispatchEvent(new document.defaultView.Event("change"));
+  button(pop, "연결").click();
+  await flush();
+  assert.deepEqual(tables.subjects.filter((x) => x.parent_id === "il").map((x) => x.id).sort(), ["i1", "i2"]);
+  // [대표 과목 만들기]: 대표 과목을 고르면 이름이 그 과목으로 시작하는 과목이 미리 체크
+  button(c, "대표 과목 만들기").click();
+  pop = document.querySelector("dialog.v3-modal");
+  const sel = pop.querySelector('[aria-label="대표 과목"]');
+  assert.deepEqual([...sel.options].map((o) => o.textContent), ["포토샵", "포토샵1"], "하위 과목·대표 과목은 후보에서 빠짐");
+  assert.ok(box("포토샵1").checked);
+  button(pop, "연결").click();
+  await flush();
+  assert.equal(tables.subjects.find((x) => x.id === "p1").parent_id, "ps");
+  assert.deepEqual([...c.querySelectorAll("tbody tr")].map((r) => r.cells[0].textContent), ["일러스트 과정", "포토샵"]);
 });
 
 test("V3 학과 관리: 과목 생성 버튼 없음, 과목별 커리큘럼 [과목 삭제]", async () => {
@@ -517,7 +575,7 @@ test("V3 방특 과목 목록: 정규 과목으로 낸 방특 커리큘럼도 �
   assert.deepEqual(v3.addableSubjects([{ id: "x", name: "포토샵" }, { id: "z", name: "방특AI", is_vacation: true }], [], "regular").map((s) => s.id), ["x"]);
 });
 
-test("V3 강사 커리큘럼: 강사별 과목 / 과목별 강사 탭, 고르면 단계별 커리큘럼", async () => {
+test("V3 커리큘럼 관리: 강사별 과목 / 과목별 강사 탭, 고르면 단계별 커리큘럼", async () => {
   v3.state.dept = "d1"; v3.state.mode = "regular"; v3.state.teacherTab = "teacher"; v3.state.employed.clear();
   const tables = data();
   tables.instructor_curricula.push({ id: "c10", instructor_id: "i2", set_id: "set1", subject_id: "s2", step_label: "웹 1단계", written: "웹 원문", status: "approved", vacation: false, sort_order: 0 });
@@ -556,7 +614,7 @@ test("V3 강사 커리큘럼: 강사별 과목 / 과목별 강사 탭, 고르면
   v3.state.orders.clear();
 });
 
-test("V3 강사 커리큘럼·학과 관리는 정규만(정규·방특 버튼 없음)", async () => {
+test("V3 커리큘럼 관리·학과 관리는 정규만(정규·방특 버튼 없음)", async () => {
   v3.state.dept = "d1"; v3.state.mode = "vacation"; v3.state.orders.clear(); v3.state.picks.clear(); v3.state.employed.clear();
   for (const f of ["aggregate", "teachers"]) {
     const c = await page(f);

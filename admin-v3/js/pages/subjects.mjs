@@ -6,9 +6,10 @@ import { deleteSubject, modal } from "../v3.mjs";
 // [과목 생성] 학과를 고르고 과목명을 적어 그 학과 맨 뒤에 만든다(comsw_create_subject).
 // [과목 정리] 만들었지만 ① 강사 커리큘럼(승인·대기·방특)이 하나도 없거나 ② 어느 학과·방학 특강에도 없는 과목(방특 전용 과목은 포함으로 봄).
 //   하위 과목이 있는 대표 과목은 빼고 본다. 줄마다 [삭제] [연결]:
-//   연결 ① 하위 과목 연결 = 이 과목을 대표 과목으로(예: '캐드 과정' ← 캐드1·캐드2, 한 단계만, subjects.parent_id)
+//   연결 ① 하위 과목 연결(라디오 하나만): ⓐ 이 과목을 대표 과목으로(예: '캐드 과정' ← 캐드1·캐드2, 한 단계만, subjects.parent_id)
+//        ⓑ 이 과목을 다른 대표 과목 아래로
 //        ② 학과·방학 특강 지정 = 학과(맨 뒤 순서) 또는 방학 특강(vacation_set_subjects)에 넣기
-// [과목 묶음] 대표 과목과 하위 과목, '−'로 연결 풀기.
+// [과목 묶음] 대표 과목과 하위 과목, '−'로 연결 풀기, [대표 과목 만들기](있는 과목 중에서), 줄마다 [하위 과목 추가].
 // 대표 과목 칸·방학 특강 과목 표는 20261103020000 실행 전에는 없어서 그 기능만 잠긴다.
 const TABS = ["과목 생성", "과목 정리", "과목 묶음"];
 const norm = (t) => String(t ?? "").replace(/\s+/g, "").toLowerCase();
@@ -61,7 +62,69 @@ export async function render(container, ctx) {
     ])];
   }
 
-  // [연결] 팝업: ① 하위 과목 연결 ② 학과·방학 특강 지정
+  // 하위 과목 고르기(체크): 다른 대표 과목은 빼고, 이름이 대표 과목으로 시작하는 과목을 앞에 두고 미리 체크. 저장하면 onSaved()
+  function childPicker(p, say, onSaved) {
+    const like = (c) => norm(c.name).startsWith(norm(p.name));
+    const cands = subjects.filter((c) => c.id !== p.id && !isParent(c))
+      .sort((a, b) => Number(like(b)) - Number(like(a)) || a.name.localeCompare(b.name, "ko"));
+    const chosen = new Set(cands.filter((c) => c.parent_id === p.id || (like(c) && !c.parent_id)).map((c) => c.id));
+    const q = el("input", { type: "search", className: "v2-field", placeholder: "과목 검색" });
+    q.setAttribute("aria-label", "과목 검색");
+    const list = el("div", { className: "v3-linklist" });
+    const fill = () => list.replaceChildren(...cands.filter((c) => norm(c.name).includes(norm(q.value))).map((c) => {
+      const box = el("input", { type: "checkbox", checked: chosen.has(c.id) });
+      box.addEventListener("change", () => { if (box.checked) chosen.add(c.id); else chosen.delete(c.id); });
+      const now = c.parent_id && c.parent_id !== p.id ? ` (지금: ${nameOf(subjects, c.parent_id)})` : "";
+      return el("label", { className: "consent" }, [box, el("span", { textContent: `${c.name}${now}` })]);
+    }));
+    q.addEventListener("input", fill);
+    fill();
+    const save = btn("연결", async () => {
+      const add = [...chosen];
+      const drop = childrenOf(p.id).map((c) => c.id).filter((id) => !chosen.has(id));
+      if (!add.length && !drop.length) return fail(say, "연결할 과목을 골라주세요");
+      save.disabled = true;
+      const r1 = add.length ? await supabase.from("subjects").update({ parent_id: p.id }).in("id", add) : {};
+      const r2 = !r1.error && drop.length ? await supabase.from("subjects").update({ parent_id: null }).in("id", drop) : {};
+      save.disabled = false;
+      const error = r1.error || r2.error;
+      if (error) return fail(say, dbErrorMessage(error));
+      subjects.forEach((c) => { if (add.includes(c.id)) c.parent_id = p.id; if (drop.includes(c.id)) c.parent_id = null; });
+      onSaved();
+    }, true);
+    return [q, list, el("div", {}, [save])];
+  }
+
+  // 대표 과목 고르기(라디오): 하위 과목은 대표가 될 수 없어서 빼고, 이미 대표 과목인 것·이 과목 이름이 그 이름으로 시작하는 것을 앞에.
+  function parentPicker(s, say, onSaved) {
+    const like = (c) => norm(s.name).startsWith(norm(c.name));
+    const cands = subjects.filter((c) => c.id !== s.id && !c.parent_id)
+      .sort((a, b) => Number(isParent(b)) - Number(isParent(a)) || Number(like(b)) - Number(like(a)) || a.name.localeCompare(b.name, "ko"));
+    let chosen = s.parent_id ?? "";
+    const q = el("input", { type: "search", className: "v2-field", placeholder: "대표 과목 검색" });
+    q.setAttribute("aria-label", "대표 과목 검색");
+    const list = el("div", { className: "v3-linklist" });
+    const fill = () => list.replaceChildren(...cands.filter((c) => norm(c.name).includes(norm(q.value))).map((c) => {
+      const r = el("input", { type: "radio", name: "v3-parent", value: c.id, checked: c.id === chosen });
+      r.addEventListener("change", () => { chosen = c.id; });
+      const n = childrenOf(c.id).length;
+      return el("label", { className: "consent" }, [r, el("span", { textContent: n ? `${c.name} (하위 ${n}개)` : c.name })]);
+    }));
+    q.addEventListener("input", fill);
+    fill();
+    const save = btn("연결", async () => {
+      if (!chosen) return fail(say, "대표 과목을 골라주세요");
+      save.disabled = true;
+      const { error } = await supabase.from("subjects").update({ parent_id: chosen }).eq("id", s.id);
+      save.disabled = false;
+      if (error) return fail(say, dbErrorMessage(error));
+      s.parent_id = chosen;
+      onSaved();
+    }, true);
+    return [q, list, el("div", {}, [save])];
+  }
+
+  // [연결] 팝업: ① 하위 과목 연결(ⓐ/ⓑ 라디오) ② 학과·방학 특강 지정
   function linkPopup(s, redraw) {
     const say = el("p", { className: "save-state" });
     const body = el("div", { className: "v3-linkbody" });
@@ -70,37 +133,20 @@ export async function render(container, ctx) {
 
     function childPane() {
       if (!hasParent) return [empty("대표 과목 칸은 운영 SQL(20261103020000) 실행 뒤에 쓸 수 있습니다.")];
-      if (s.parent_id) return [empty(`이 과목은 '${nameOf(subjects, s.parent_id)}'의 하위 과목이라 대표 과목이 될 수 없습니다.`)];
-      // 후보: 자기 자신·다른 대표 과목은 빼고, 이름이 이 과목으로 시작하는 과목을 앞에 두고 미리 체크
-      const like = (c) => norm(c.name).startsWith(norm(s.name));
-      const cands = subjects.filter((c) => c.id !== s.id && !isParent(c))
-        .sort((a, b) => Number(like(b)) - Number(like(a)) || a.name.localeCompare(b.name, "ko"));
-      const chosen = new Set(cands.filter((c) => c.parent_id === s.id || (like(c) && !c.parent_id)).map((c) => c.id));
-      const q = el("input", { type: "search", className: "v2-field", placeholder: "과목 검색" });
-      q.setAttribute("aria-label", "과목 검색");
-      const list = el("div", { className: "v3-linklist" });
-      const fill = () => list.replaceChildren(...cands.filter((c) => norm(c.name).includes(norm(q.value))).map((c) => {
-        const box = el("input", { type: "checkbox", checked: chosen.has(c.id) });
-        box.addEventListener("change", () => { if (box.checked) chosen.add(c.id); else chosen.delete(c.id); });
-        const now = c.parent_id && c.parent_id !== s.id ? ` (지금: ${nameOf(subjects, c.parent_id)})` : "";
-        return el("label", { className: "consent" }, [box, el("span", { textContent: `${c.name}${now}` })]);
-      }));
-      q.addEventListener("input", fill);
-      fill();
-      const save = btn("연결", async () => {
-        const add = [...chosen];
-        const drop = childrenOf(s.id).map((c) => c.id).filter((id) => !chosen.has(id));
-        if (!add.length && !drop.length) return fail(say, "연결할 과목을 골라주세요");
-        save.disabled = true;
-        const r1 = add.length ? await supabase.from("subjects").update({ parent_id: s.id }).in("id", add) : {};
-        const r2 = !r1.error && drop.length ? await supabase.from("subjects").update({ parent_id: null }).in("id", drop) : {};
-        save.disabled = false;
-        const error = r1.error || r2.error;
-        if (error) return fail(say, dbErrorMessage(error));
-        subjects.forEach((c) => { if (add.includes(c.id)) c.parent_id = s.id; if (drop.includes(c.id)) c.parent_id = null; });
-        close();
-      }, true);
-      return [el("p", { className: "muted", textContent: `'${s.name}'을(를) 대표 과목으로 두고 아래 고른 과목을 하위 과목으로 묶습니다.` }), q, list, el("div", {}, [save])];
+      // ⓐ는 하위 과목이면, ⓑ는 하위 과목을 가진 대표 과목이면 못 고른다(한 단계만).
+      const mode = (value, text, off) => {
+        const r = el("input", { type: "radio", name: "v3-linkmode", value, disabled: Boolean(off) });
+        return [r, el("label", { className: "consent", title: off || "" }, [r, el("span", { textContent: text })])];
+      };
+      const [ra, la] = mode("a", `'${s.name}'을(를) 대표 과목으로 두고 하위 과목 고르기`, s.parent_id && `'${nameOf(subjects, s.parent_id)}'의 하위 과목이라 대표 과목이 될 수 없습니다`);
+      const [rb, lb] = mode("b", `'${s.name}'을(를) 다른 대표 과목 아래로 넣기`, isParent(s) && "하위 과목이 있는 대표 과목은 다른 과목 아래로 넣을 수 없습니다");
+      const area = el("div");
+      const show = () => area.replaceChildren(...(ra.checked ? childPicker(s, say, close) : parentPicker(s, say, close)));
+      (s.parent_id ? rb : ra).checked = true;
+      ra.addEventListener("change", show);
+      rb.addEventListener("change", show);
+      show();
+      return [el("div", { className: "v3-linkmode" }, [la, lb]), area];
     }
 
     function placePane() {
@@ -179,10 +225,33 @@ export async function render(container, ctx) {
     if (!hasParent) return [empty("과목 묶음은 운영 SQL(20261103020000) 실행 뒤에 쓸 수 있습니다.")];
     const box = el("div");
     const say = el("p", { className: "save-state" });
+    // 팝업에서 하위 과목을 고른다(대표 과목 만들기는 위에 대표 과목 고르기 칸이 더 있음). show(p)로 대표 과목을 바꾼다.
+    const popup = (title, top, first) => {
+      const psay = el("p", { className: "save-state" });
+      const area = el("div");
+      let d;
+      const saved = () => { d.close?.(); d.remove(); draw(); };
+      const show = (p) => area.replaceChildren(...(p ? childPicker(p, psay, saved) : [empty("대표 과목으로 둘 과목이 없습니다.")]));
+      d = modal(title, [el("div", { className: "v3-linkbody" }, [...top, area, psay])], [], "닫기");
+      d.classList.add("v3-narrow", "v3-linkpop");
+      show(first);
+      return show;
+    };
+    const make = btn("대표 과목 만들기", () => {
+      // 대표 과목 후보: 하위 과목도, 이미 대표 과목인 것도 아닌 과목
+      const cands = subjects.filter((x) => !x.parent_id && !isParent(x)).sort((a, b) => a.name.localeCompare(b.name, "ko"));
+      const sel = select("대표 과목", cands.map((x) => [x.id, x.name]));
+      const show = popup("대표 과목 만들기", [
+        el("p", { className: "muted", textContent: "대표 과목으로 둘 과목을 고르고 하위 과목을 체크합니다. 새 이름이 필요하면 [과목 생성]에서 먼저 만듭니다." }),
+        el("label", { className: "form-field" }, [el("span", { textContent: "대표 과목" }), sel]),
+      ], cands[0]);
+      sel.addEventListener("change", () => show(cands.find((x) => x.id === sel.value)));
+    }, true);
     const draw = () => {
       const parents = subjects.filter(isParent);
-      if (!parents.length) return box.replaceChildren(empty("묶은 과목이 없습니다. 과목 정리에서 [연결]로 묶습니다."), say);
-      const t = table(["대표 과목", "하위 과목", "학과(하위 과목)"], parents, (p) => [
+      const head = el("div", { className: "v3-headbar" }, [make]);
+      if (!parents.length) return box.replaceChildren(head, empty("묶은 과목이 없습니다. [대표 과목 만들기] 또는 과목 정리의 [연결]로 묶습니다."), say);
+      const t = table(["대표 과목", "하위 과목", "학과(하위 과목)", ""], parents, (p) => [
         p.name,
         el("span", { className: "v2-row v2-gap v3-wrap" }, childrenOf(p.id).map((c) => el("span", { className: "v3-tchip" }, [
           el("span", { textContent: c.name }),
@@ -197,8 +266,9 @@ export async function render(container, ctx) {
           }),
         ]))),
         [...new Set(childrenOf(p.id).flatMap((c) => links.filter((l) => l.subject_id === c.id).map((l) => nameOf(depts, l.department_id))))].join(", ") || "—",
+        btn("하위 과목 추가", () => popup(`${p.name} · 하위 과목`, [], p)),
       ]);
-      box.replaceChildren(t.node, say);
+      box.replaceChildren(head, t.node, say);
     };
     draw();
     return [box];

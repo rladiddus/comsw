@@ -15,7 +15,7 @@ export const state = {
   picks: load("v3.picks"), // "과목id|mode" → [강사id] (과목 통합에 넣을 강사)
   aggTab: "weeks", // 학과 관리(정규): weeks 주차별 | subjects 과목별
   aiLines: 2, // 과목 통합 AI 요약 줄 수(2~4)
-  teacherTab: "teacher", // 강사 커리큘럼: teacher 강사별 과목 | subject 과목별 강사
+  teacherTab: "teacher", // 커리큘럼 관리: teacher 강사별 과목 | subject 과목별 강사
   aggLeft: 0, // 학과 관리 왼쪽 과목 칸 너비(px, 0 = 기본)
   aggRight: 0, // 특강·세미나 오른쪽 신청자 명단 칸 너비(px, 0 = 기본 330)
   employed: new Map(), // 강사id → false(퇴사 처리 시험)

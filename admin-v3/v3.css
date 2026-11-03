@@ -58,7 +58,7 @@
 .v3-tchip { display:flex; align-items:center; gap:6px; border:1px solid var(--line); border-radius:9px; padding:7px 10px; background:#fff; font:inherit; text-align:left; }
 .v3-tadd { cursor:pointer; color:var(--accent); border-style:dashed; }
 .v3-tchip .v3-x { font-size:18px; line-height:1; }
-/* 강사 커리큘럼: 학과 박스 아래 탭, 오른쪽 위 과목·강사 고르기 */
+/* 커리큘럼 관리: 학과 박스 아래 탭, 오른쪽 위 과목·강사 고르기 */
 .v3-teachtabs { margin:0 0 0 12px; }
 .v3-picks { display:flex; flex-wrap:wrap; gap:6px; margin-bottom:12px; }
 /* 로드맵: 한 박스 = 한 스텝(왼쪽 과목, 오른쪽 문구), 과목을 끌어 놓을 때 주황 점선 */
@@ -107,7 +107,7 @@
 .form-row.curriculum-head-row .form-field select, .vacation-check .consent { height:42px; box-sizing:border-box; }
 .vacation-check .consent { margin:0; align-self:flex-start; }
 @media (max-width:700px) { .form-row.curriculum-head-row { grid-template-columns:1fr; } }
-/* 제목 오른쪽 고르기 칸(강사 커리큘럼의 학과·정규/방특) */
+/* 제목 오른쪽 고르기 칸(커리큘럼 관리의 학과·정규/방특) */
 .v3-titlerow { display:flex; align-items:center; gap:16px; flex-wrap:wrap; margin-bottom:6px; }
 .v3-titlerow h1 { margin:0; }
 .v3-headbar:empty { display:none; }
@@ -117,6 +117,8 @@
 .v3-linkbody { display:grid; gap:10px; }
 .v3-linklist { display:grid; gap:6px; max-height:300px; overflow:auto; padding:4px 0; }
 .v3-linklist .consent { margin:0; }
+.v3-linkmode { display:grid; gap:4px; padding-bottom:8px; border-bottom:1px solid var(--line, #e5e5e5); }
+.v3-linkmode .consent { margin:0; }
 .v3-wrap { flex-wrap:wrap; }
 .v3-headbar .v2-bar { margin:0; padding:8px 12px; }
 /* 강사 관리: 담당 과목이 다 보이게, 줄을 누르면 강사 카드 팝업(강사마다 같은 크기) */

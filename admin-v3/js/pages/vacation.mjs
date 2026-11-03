@@ -3,7 +3,7 @@ import { splitGrid, isEmployed } from "../v3.mjs";
 import { thumb } from "./aggregate.mjs";
 import { dbErrorMessage } from "../../../admin/js/fields.mjs";
 
-// 방학 특강(V3): 강사 커리큘럼과 같은 모양. 제목 오른쪽 박스 = [시기 ▾][방학특강 추가][강사별 과목 | 과목별 강사] 탭,
+// 방학 특강(V3): 커리큘럼 관리와 같은 모양. 제목 오른쪽 박스 = [시기 ▾][방학특강 추가][강사별 과목 | 과목별 강사] 탭,
 // 아래 왼쪽 강사(또는 과목) · 오른쪽 과목(또는 강사) → 단계별 이미지·커리큘럼(승인본). 선생님 방특 신청 승인은 '승인 대기'에서.
 let tab = "teacher"; // teacher 강사별 과목 | subject 과목별 강사 (이 화면만 기억)
 

@@ -2,7 +2,7 @@ import { el, rows, pick, chip, btn, panel, empty, headActions, groupRequests, na
 import { state, contextBar, typeChip, isEmployed, splitGrid, deptSubjects } from "../v3.mjs";
 import { thumb } from "./aggregate.mjs";
 
-// 강사 커리큘럼(V3 시안): 학과를 고르고 두 탭으로 정규 승인본을 본다(방특은 '방학 특강' 메뉴).
+// 커리큘럼 관리(V3 시안, 예전 '강사 커리큘럼'): 학과를 고르고 두 탭으로 정규 승인본을 본다(방특은 '방학 특강' 메뉴).
 // [강사별 과목 커리큘럼] 왼쪽 강사 → 오른쪽 그 강사의 과목 → 고른 과목의 단계별 커리큘럼
 // [과목별 강사 커리큘럼] 왼쪽 과목 → 오른쪽 그 과목의 강사 → 고른 강사의 단계별 커리큘럼
 // 과목 순서는 '학과 관리'(학과·시기별 과목 순서)과 같다. 수정 대기 제출이 있으면 함께 표시. 방특은 시기가 여럿이면 시기마다 따로 나온다.
@@ -56,7 +56,7 @@ export async function render(container, ctx) {
     const teacherTab = state.teacherTab !== "subject";
     [...tabs.children].forEach((b, i) => b.classList.toggle("active", (i === 0) === teacherTab));
     const groups = groupRequests(curricula.filter((c) => c.status === "approved" && inScope(c.set_id)));
-    if (!groups.length) return body.replaceChildren(panel("강사 커리큘럼", [empty("이 학과에 승인된 강사 커리큘럼이 없습니다.")]));
+    if (!groups.length) return body.replaceChildren(panel("커리큘럼 관리", [empty("이 학과에 승인된 강사 커리큘럼이 없습니다.")]));
     const [mine, other, mineList, otherList] = teacherTab ? ["instructor_id", "subject_id", instructors, subjects] : ["subject_id", "instructor_id", subjects, instructors];
     const sortOf = (list) => (list === subjects ? subjectOrder() : byOrder(list));
     const lefts = [...new Set(groups.map((g) => g[mine]))].sort(sortOf(mineList));
@@ -83,7 +83,7 @@ export async function render(container, ctx) {
     ], teacherTab ? "과목을 고르면 그 과목의 커리큘럼이 나옵니다" : "강사를 고르면 그 강사의 커리큘럼이 나옵니다");
     body.replaceChildren(splitGrid(leftPanel, right));
   }
-  // 학과·정규/방특 칸과 강사별/과목별 탭은 제목 '강사 커리큘럼' 오른쪽에(머리 자리가 없으면 화면 맨 위).
+  // 학과·정규/방특 칸과 강사별/과목별 탭은 제목 '커리큘럼 관리' 오른쪽에(머리 자리가 없으면 화면 맨 위).
   const filter = contextBar(depts, draw, [tabs]);
   filter.querySelector(".v3-switch")?.remove(); // 정규·방특 버튼 없음
   if (ctx.headBar) ctx.headBar.replaceChildren(filter); else container.append(filter);

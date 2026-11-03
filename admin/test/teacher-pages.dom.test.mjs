@@ -611,6 +611,15 @@ test("V3 타강사: 수업 설정의 '타 강사 수업 설정'으로 그 강사
   assert.deepEqual([...m.querySelectorAll(".subject-tabs button")].map((b) => b.textContent), ["모션1", "모션2"]);
 });
 
+test("V3 내 프로필 화면(admin-v3)은 관리자에게 '타 강사 수업 설정'을 보여 준다", async () => {
+  const c = document.createElement("div");
+  document.body.replaceChildren(c);
+  const { render } = await import("../../admin-v3/js/pages/profile.mjs");
+  await render(c, { supabase: fakeSupabase(twoSubjects()), uid: "uid", displayName: "선생님", role: "admin", loadMyMajors: async () => ["웹학과"], saveMyMajors: async () => {} });
+  await flush();
+  assert.ok(c.querySelector('[aria-label="타 강사 수업 설정"]'));
+});
+
 test("V3 등록하기: 방학 특강에 넣어 둔 과목은 '방특' + 그 방학 특강을 고르면 탭으로 나온다", async () => {
   const data = twoSubjects();
   data.curriculum_sets.push({ id: "vac", name: "2026년 여름방학특강", department_id: null, is_vacation: true });

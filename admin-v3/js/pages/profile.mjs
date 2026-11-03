@@ -5,5 +5,5 @@ export async function render(container, ctx) {
   const work = el("div", { className: "v2-work" });
   headActions(ctx, btn("프로필 승인 요청", () => work.scrollIntoView?.({ behavior: "smooth" }), true));
   container.append(work);
-  await (await import("../../../admin/js/pages/profile.mjs")).render(work, ctx);
+  await (await import("../../../admin/js/pages/profile.mjs")).render(work, { ...ctx, v3: true }); // v3 = 타 강사 수업 설정
 }

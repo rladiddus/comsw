@@ -392,8 +392,9 @@ test("V3 모든 화면이 오류 없이 그려진다", async () => {
   const c = await page("dashboard");
   assert.match(c.textContent, /데이터 검증 경고2/);
   const s = await page("subjects");
-  assert.match(s.textContent, /여러 학과 공용/);
-  assert.ok(!/학과별 분리|고유 ID/.test(s.textContent));
+  assert.match(s.textContent, /과목 정리/);
+  assert.match(s.textContent, /학과별 과목/);
+  assert.ok(!/새 과목 등록|방특으로 복제|고유 ID/.test(s.textContent));
 });
 
 test("V3 방특 과목 목록: 정규 과목으로 낸 방특 커리큘럼도 방특에 나온다", () => {

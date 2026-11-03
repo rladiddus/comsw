@@ -61,17 +61,17 @@ const page = async (file, ctx = {}) => {
 };
 const button = (c, text) => [...c.querySelectorAll("button")].find((b) => b.textContent === text);
 
-test("V3 메뉴: 15메뉴(학과 관리·학과별 과목 순서 삭제, 특강·세미나 메뉴로)", async () => {
+test("V3 메뉴: 14메뉴(과목 관리 삭제 → 학과 관리로, 특강·세미나 메뉴로)", async () => {
   const src = (await import("node:fs")).readFileSync(new URL("../../admin-v3/js/app.mjs", import.meta.url), "utf8");
   const labels = [...src.matchAll(/\["([a-z-]+)", "[^"]+", "([^"]+)",/g)].map((m) => m[2]);
   assert.deepEqual(labels, ["기본 설정 등", "강사 관리", "강사 커리큘럼", "학과 관리", "특강·세미나", "방학 특강", "로드맵", "수업별 준비물",
-    "내 커리큘럼", "내 프로필", "대시보드", "승인 대기", "준비물 검토", "과목 관리", "사이트 반영"]);
+    "내 커리큘럼", "내 프로필", "대시보드", "승인 대기", "준비물 검토", "사이트 반영"]);
 });
 
 test("V3 학과 관리: 학과 상자 옆 [과목 생성] → 학과 고르고 이름 적어 생성(comsw_create_subject), 목록 맨 뒤에", async () => {
   const db = sb();
   const calls = [];
-  db.rpc = async (name, args) => { calls.push([name, args]); return { data: "new1", error: null }; };
+  db.rpc = async (name, args) => { calls.push([name, args]); return { data: name === "comsw_create_subject" ? "new1" : [], error: null }; };
   const headBar = document.createElement("div");
   const c = await page("aggregate", { supabase: db, headBar });
   const make = [...headBar.children].find((x) => x.textContent === "과목 생성");
@@ -88,6 +88,16 @@ test("V3 학과 관리: 학과 상자 옆 [과목 생성] → 학과 고르고 �
   assert.deepEqual(calls.at(-1), ["comsw_create_subject", { p_name: "새과목", p_department_ids: [v3.state.dept] }]);
   assert.ok(!document.querySelector("dialog.v3-modal"), "만들면 닫힘");
   assert.match(c.textContent, /새과목/);
+  // 과목별 커리큘럼 [과목 삭제]: 쓰이는 곳 개수 확인 후 comsw_delete_subjects
+  globalThis.confirm = () => true;
+  v3.state.aggTab = "subjects";
+  const c2 = await page("aggregate", { supabase: db, headBar: document.createElement("div") });
+  const row = [...c2.querySelectorAll(".dept-curriculum-row:not(.v3-headrow)")].find((r) => r.querySelector("input").value === "웹1");
+  button(row, "과목 삭제").click();
+  await flush();
+  assert.deepEqual(calls.filter(([n]) => n !== "comsw_create_subject").map(([n, a]) => [n, a.p_ids]), [["comsw_subject_usage", undefined], ["comsw_delete_subjects", ["s2"]]]);
+  assert.ok(![...c2.querySelectorAll(".dept-curriculum-row input")].some((i) => i.value === "웹1"), "지운 과목은 표에서 빠짐");
+  v3.state.aggTab = "weeks";
 });
 
 test("V3 재료 검사: 칸 나누기·분류 제안·같은 과목 안 중복만", () => {
@@ -176,11 +186,13 @@ test("V3 승인 대기 방특: 기수를 골라야 승인, 고른 기수로 옮�
 
 test("V3 과목 통합 순서 → 로드맵·학과 커리큘럼이 같은 순서, 퇴사 시험은 출처에서 빠짐", async () => {
   v3.state.dept = "d1"; v3.state.mode = "regular"; v3.state.orders.clear(); v3.state.employed.clear(); v3.state.roadmap.clear();
-  v3.state.orders.set("d1:regular", ["s2", "s1"]); // 학과 관리 왼쪽 목록에서 바꾼 순서
+  // 학과 관리 왼쪽 목록에서 저장한 순서(DB 전체 순서): 웹1 → 포토샵
+  const ordered = data(); ordered.subjects.find((x) => x.id === "s1").sort_order = 5;
+  const odb = fakeSupabase(ordered); odb.rpc = async () => ({ data: [], error: null });
   let c;
   const drag = (node, type) => node.dispatchEvent(new dom.window.MouseEvent(type, { bubbles: true, cancelable: true, clientY: 0 }));
   v3.state.mode = "vacation"; // 로드맵은 정규만 → 들어가면 정규
-  c = await page("roadmap");
+  c = await page("roadmap", { supabase: odb });
   assert.equal(v3.state.mode, "regular");
   assert.ok(!button(c, "정규") && !button(c, "방특"), "정규·방특 버튼 없음");
   const left = () => [...c.querySelectorAll(".v3-dragsrc b")].map((b) => b.textContent);
@@ -329,9 +341,18 @@ test("V3 과목 통합 순서 → 로드맵·학과 커리큘럼이 같은 순�
   assert.deepEqual(listNames(), ["1. 캐드", "2. 포토샵", "3. 웹1"]);
   button(c.querySelectorAll(".v2-listitem")[2], "삭제").click();
   assert.deepEqual(listNames(), ["1. 캐드", "2. 포토샵"]);
+  const layout = [];
+  const rpc0 = db.rpc;
+  db.rpc = async (n, a) => { if (n === "comsw_save_subject_layout") layout.push(a); return rpc0(n, a); };
   saveBtn().click();
-  assert.deepEqual(v3.state.orders.get("d1:regular"), ["s3", "s1"]);
-  assert.deepEqual(JSON.parse(localStorage.getItem("v3.orders")), [["d1:regular", ["s3", "s1"]]]);
+  await flush();
+  assert.deepEqual(layout, [{ // DB에 저장: 캐드 넣고 웹1 빼고, 이 학과 과목 자리끼리 순서(캐드 → 포토샵)
+    p_add: [{ subject_id: "s3", department_id: "d1" }],
+    p_subjects: [{ id: "s1", sort_order: 2 }, { id: "s3", sort_order: 0 }],
+    p_remove: [{ subject_id: "s2", department_id: "d1" }],
+  }]);
+  assert.equal(v3.state.orders.has("d1:regular"), false, "브라우저에는 저장 안 함");
+  db.rpc = rpc0;
   v3.state.orders.clear();
   c = await page("aggregate", { supabase: db });
   // 과목별 커리큘럼: 학과 순서대로 표, 수정 → AI생성(3줄)·저장(실제), 제외(V3 순서에서만)
@@ -355,8 +376,13 @@ test("V3 과목 통합 순서 → 로드맵·학과 커리큘럼이 같은 순�
   await flush();
   assert.ok(db.calls.some(([k, t, , patch]) => k === "update" && t === "subjects" && patch.duration === "2개월" && patch.name === "포토샵" && patch.dept_curriculum === out));
   configureServices();
+  layout.length = 0;
+  db.rpc = async (n, a) => { if (n === "comsw_save_subject_layout") layout.push(a); return rpc0(n, a); };
+  globalThis.confirm = () => true;
   button(rowsOf()[1], "제외").click();
-  assert.deepEqual(v3.state.orders.get("d1:regular"), ["s1"]);
+  await flush();
+  assert.deepEqual(layout.map((a) => a.p_remove), [[{ subject_id: "s2", department_id: "d1" }]], "제외는 바로 DB에서 이 학과 연결만 뺌");
+  db.rpc = rpc0;
   v3.state.orders.clear(); v3.state.aggTab = "weeks";
   v3.state.picks.clear(); v3.state.aiLines = 2;
   v3.state.employed.set("i2", false);
@@ -405,7 +431,7 @@ test("V3 준비물: 학과·정규/방특 없이 4분류 탭, 탭마다 학과�
 });
 
 test("V3 모든 화면이 오류 없이 그려진다", async () => {
-  for (const f of ["dashboard", "inbox", "validation", "subjects", "instructors", "teachers", "aggregate", "roadmap", "materials", "vacation", "seminars", "release", "legacy"]) { // mine·profile은 기존 화면이 Firebase(CDN)를 불러 테스트에서 못 염(V2 테스트와 같음)
+  for (const f of ["dashboard", "inbox", "validation", "instructors", "teachers", "aggregate", "roadmap", "materials", "vacation", "seminars", "release", "legacy"]) { // mine·profile은 기존 화면이 Firebase(CDN)를 불러 테스트에서 못 염(V2 테스트와 같음)
     location.hash = `#/${f}`;
     const c = await page(f);
     assert.ok(!c.querySelector(".save-state.err"), `${f}: ${c.querySelector(".save-state.err")?.textContent}`);
@@ -413,10 +439,6 @@ test("V3 모든 화면이 오류 없이 그려진다", async () => {
   }
   const c = await page("dashboard");
   assert.match(c.textContent, /데이터 검증 경고2/);
-  const s = await page("subjects");
-  assert.match(s.textContent, /과목 정리/);
-  assert.match(s.textContent, /학과별 과목/);
-  assert.ok(!/새 과목 등록|방특으로 복제|고유 ID/.test(s.textContent));
 });
 
 test("V3 방특 과목 목록: 정규 과목으로 낸 방특 커리큘럼도 방특에 나온다", () => {
@@ -457,8 +479,8 @@ test("V3 강사 커리큘럼: 강사별 과목 / 과목별 강사 탭, 고르면
   assert.match(c.textContent, /이 원문/);
   assert.ok(c.querySelector(".v3-splitter"));
   assert.ok(!/고치기|승인본이 있는/.test(c.textContent), "기존 화면 영역·설명 없음");
-  // 과목 순서는 학과 관리(학과별 과목 순서)을 따른다
-  v3.state.orders.set("d1:regular", ["s2", "s1"]);
+  // 과목 순서는 학과 관리에서 저장한 순서(DB)를 따른다
+  tables.subjects.find((x) => x.id === "s1").sort_order = 5;
   const c2 = await page("teachers", { supabase: s });
   assert.deepEqual([...c2.querySelectorAll(".v2-listitem b")].map((b) => b.textContent), ["웹1", "포토샵"]);
   v3.state.teacherTab = "teacher";

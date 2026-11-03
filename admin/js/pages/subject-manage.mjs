@@ -4,13 +4,14 @@ import { cascadeMessage } from "../format.mjs";
 // 학과 관리 > 과목 관리: '학과별 보기'(학과마다 과목과 쓰임새)와 '정리 필요'(학과에는 있지만 승인 전이거나 커리큘럼이 없는 과목).
 // 학과가 하나도 없는 과목은 커리큘럼 관리 › 기타 과목에서 다룬다(같은 역할을 두 번 만들지 않음, 사용자 결정).
 // 사용처 개수는 DB 함수 하나(comsw_subject_usage)로, 지우기는 DB가 사용처 개수를 다시 센다(comsw_delete_subjects).
-const USES = [
+// V3 학과 관리의 과목 삭제도 같은 목록·계산을 쓴다.
+export const USES = [
   ["weeks", "학과 커리큘럼 단계"], ["approved", "승인된 강사 커리큘럼"], ["pending", "승인 대기 강사 커리큘럼"],
   ["vacation", "방학 특강 커리큘럼"], ["instructors", "담당 강사 연결"], ["materials", "강사별 프로그램·준비물"],
   ["prep", "수업별 준비물"], ["roadmap", "로드맵 연결"],
 ];
 const written = (u) => u.weeks + u.approved + u.pending + u.vacation;
-const seen = (u) => USES.reduce((n, [k]) => n + u[k], 0);
+export const seen = (u) => USES.reduce((n, [k]) => n + u[k], 0);
 
 export async function render(container, { supabase }) {
   container.append(

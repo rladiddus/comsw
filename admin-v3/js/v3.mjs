@@ -87,7 +87,8 @@ export function deptSubjects(dept, mode, { subjects, links, curricula = [], idep
   }
   const base = subjects.filter((s) => used.has(s.id) || (linked.has(s.id) && Boolean(s.is_vacation) === vac))
     .sort((a, b) => (a.sort_order ?? 1e9) - (b.sort_order ?? 1e9) || a.name.localeCompare(b.name));
-  const saved = state.orders.get(`${dept}:${mode}`);
+  // 정규 학과 순서는 DB(subjects.sort_order·subject_departments, 학과 관리 '저장')를 따른다. 이 브라우저 순서는 방특만.
+  const saved = vac ? state.orders.get(`${dept}:${mode}`) : null;
   return saved ? saved.map((id) => subjects.find((s) => s.id === id)).filter(Boolean) : base;
 }
 
@@ -191,6 +192,6 @@ export async function audit(supabase) {
   return [
     ["같은 과목을 여러 학과에 따로 낸 강사", "정책 7: 강사 × 과목 커리큘럼은 하나입니다. 합칠 때 가장 최근 승인본을 남깁니다.", twice, "#/teachers"],
     ["여러 방특 시기에 쓰인 과목", "정책 6B: 방특 시기마다 과목 ID를 따로 둬야 합니다.", vacMulti, "#/vacation"],
-    ["정규·방특에 함께 쓰인 과목", "정책 6B: 정규와 방특은 이름이 같아도 다른 과목입니다.", mixed, "#/subjects"],
+    ["정규·방특에 함께 쓰인 과목", "정책 6B: 정규와 방특은 이름이 같아도 다른 과목입니다.", mixed, "#/aggregate"],
   ];
 }

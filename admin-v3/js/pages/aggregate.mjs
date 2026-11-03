@@ -4,6 +4,8 @@ import { getServices } from "../../../admin/js/services.mjs";
 import { driveThumbnail } from "../../../admin/js/drive.mjs";
 import { applyCrop } from "../../../admin/js/image-crop.mjs";
 import { LEVELS } from "../../../admin/js/pages/department-curriculum.mjs";
+import { USES, seen } from "../../../admin/js/pages/subject-manage.mjs";
+import { cascadeMessage } from "../../../admin/js/format.mjs";
 import { state, deptSubjects, contextBar, isEmployed, modal, sortable, addableSubjects, saveLocal, splitGrid } from "../v3.mjs";
 
 // 학과 관리(V3 시안 '학과 통합 커리큘럼', 정책 3·4·5·7): 과목 하나를 모든 학과가 같이 쓴다(2026-10-29 결정).
@@ -58,13 +60,37 @@ export async function render(container, ctx) {
   const dOrders = new Map(); // "학과id:mode" → [과목id]
   const dPicks = new Map(); // "과목id|mode" → [강사id]
   const listOf = () => dOrders.get(key())?.map((id) => subjects.find((s) => s.id === id)).filter(Boolean) ?? deptSubjects(state.dept, state.mode, data);
-  const saveDraft = () => {
-    dOrders.forEach((v, k) => state.orders.set(k, v));
+  const saveMsg = el("span", { className: "save-state" });
+  const saveSay = sayIn(saveMsg);
+  // 저장(2026-11-03): 학과 과목 넣기·빼기·순서는 DB에(기존 '학과별 과목'과 같은 함수·계산), 강사 명단은 아직 이 브라우저에.
+  // 순서는 전체 하나(사이트 '전체 수업')라, 이 학과 과목이 있던 자리끼리만 새 순서로 바꾸고 다른 과목 자리는 그대로 둔다.
+  async function saveDraft() {
+    const p_add = [], p_remove = [];
+    const order = new Map(subjects.map((s) => [s.id, s.sort_order ?? null]));
+    let next = Math.max(-1, ...subjects.map((s) => s.sort_order ?? -1)) + 1;
+    for (const [k, after] of dOrders) {
+      const dept = k.split(":")[0];
+      const before = deptSubjects(dept, "regular", data).map((s) => s.id);
+      after.filter((id) => !before.includes(id)).forEach((id) => p_add.push({ subject_id: id, department_id: dept }));
+      before.filter((id) => !after.includes(id)).forEach((id) => p_remove.push({ subject_id: id, department_id: dept }));
+      for (const id of after) if (order.get(id) == null) order.set(id, next++); // 순서 없던 과목은 맨 뒤
+      const slots = after.map((id) => order.get(id)).sort((a, b) => a - b);
+      after.forEach((id, i) => order.set(id, slots[i]));
+    }
+    const moved = subjects.filter((s) => order.get(s.id) !== (s.sort_order ?? null));
+    if (p_add.length || p_remove.length || moved.length) {
+      const { error } = await supabase.rpc("comsw_save_subject_layout", { p_add, p_subjects: moved.map((s) => ({ id: s.id, sort_order: order.get(s.id) })), p_remove });
+      if (error) return saveSay(`${dbErrorMessage(error)} — 저장되지 않았습니다.`, true);
+      moved.forEach((s) => { s.sort_order = order.get(s.id); });
+      links.push(...p_add);
+      for (const r of p_remove) links.splice(links.findIndex((l) => l.subject_id === r.subject_id && l.department_id === r.department_id), 1);
+    }
     dPicks.forEach((v, k) => state.picks.set(k, v));
     dOrders.clear(); dPicks.clear();
     saveLocal();
+    saveSay("저장했습니다. 공개 사이트에는 '사이트 반영' 후 보입니다.");
     draw();
-  };
+  }
 
   // 과목에 넣을 강사(순서대로). 처음 = 이 과목 승인본이 있는 재직 강사(강사 순서).
   const teachersOf = (id) => instructors.map((i) => i.id).filter((i) => srcOf(id).some((c) => c.instructor_id === i));
@@ -213,9 +239,9 @@ export async function render(container, ctx) {
         btn("삭제", (e) => { e.stopPropagation(); setOrder(ids.filter((x) => x !== s.id)); })]),
     ]), { onclick: () => { subjectId = s.id; draw(); } }));
     sortable(items.map((r, i) => [r, ids[i]]), ids, setOrder);
-    const save = btn("저장", saveDraft, true);
+    const save = btn("저장", async () => { save.disabled = true; await saveDraft(); }, true);
     save.disabled = !dOrders.size && !dPicks.size;
-    return panel("과목", [list.length ? el("div", { className: "v2-boxlist" }, items) : empty("이 학과에 과목이 없습니다.")],
+    return panel("과목", [list.length ? el("div", { className: "v2-boxlist" }, items) : empty("이 학과에 과목이 없습니다."), saveMsg],
       "끌어서 순서를 바꿉니다", [btn("+ 과목 추가", () => addPopup(ids, setOrder)), save]);
   }
 
@@ -229,6 +255,22 @@ export async function render(container, ctx) {
         ...(myWeeks.length ? myWeeks.map((w, i) => weekCard(subject, w, i)) : [empty("이 과목은 사이트 단계가 없습니다. 운영 관리 화면의 '학과 커리큘럼 > 단계'에서 만듭니다.")]),
         ...(shared.length > 1 ? [hint(`이 과목을 쓰는 ${shared.length}개 학과(${shared.join(", ")})에 같은 단계가 나옵니다. 고치면 모두 같이 바뀝니다.`)] : []),
       ] : [empty("과목을 고르세요.")], "사이트 '전체 수업'의 단계"));
+  }
+
+  // 과목 삭제(기존 '과목 관리'와 같음): 쓰이는 곳 개수를 보여 주고, DB가 그 사이 바뀌었는지 다시 세어 지운다.
+  async function removeSubject(s, button, say) {
+    button.disabled = true;
+    const { data: usage, error } = await supabase.rpc("comsw_subject_usage", {});
+    if (error) { button.disabled = false; return say(dbErrorMessage(error), true); }
+    const u = { ...Object.fromEntries(USES.map(([k]) => [k, 0])), ...(usage || []).find((x) => x.subject_id === s.id) };
+    if (!confirm(cascadeMessage("과목", s.name, USES.map(([k, label]) => [label, u[k]])))) { button.disabled = false; return; }
+    const { error: err } = await supabase.rpc("comsw_delete_subjects", { p_ids: [s.id], p_seen: seen(u) });
+    if (err) { button.disabled = false; return say(dbErrorMessage(err), true); }
+    subjects.splice(subjects.indexOf(s), 1);
+    for (let i = links.length - 1; i >= 0; i--) if (links[i].subject_id === s.id) links.splice(i, 1);
+    dOrders.forEach((v, k) => dOrders.set(k, v.filter((id) => id !== s.id)));
+    say(`'${s.name}' 과목을 삭제했습니다. 공개 사이트에서는 '사이트 반영' 후 빠집니다.`);
+    draw();
   }
 
   // 과목별 커리큘럼: 기존 '학과 커리큘럼' 표 모양. 수정 → 저장(실제), 제외 → 학과 순서에서 바로 뺌(이 브라우저에 저장)
@@ -269,7 +311,8 @@ export async function render(container, ctx) {
         cell("dept_curriculum", "학과별 커리큘럼 요약", [...(stale(s.id) ? [chip("다시 만들기 필요", "warn")] : []), ai]),
         cell("tools", "프로그램"), cell("supplies", "준비물"), cell("level", "학습 수준"),
         el("div", { className: "dept-cell cell-actions" }, [
-          btn("제외", () => { dOrders.delete(key()); state.orders.set(key(), ids.filter((x) => x !== s.id)); saveLocal(); draw(); }),
+          btn("제외", () => { if (!confirm(`'${s.name}'을(를) 이 학과에서 뺄까요? 과목은 남습니다.`)) return; dOrders.set(key(), ids.filter((x) => x !== s.id)); saveDraft(); }),
+          btn("과목 삭제", (e) => removeSubject(s, e.currentTarget, say)),
           toggle,
         ]),
       ]);
@@ -278,7 +321,7 @@ export async function render(container, ctx) {
       el("div", { className: "dept-curriculum-row v3-headrow" }, ["", "과목명", "기간", "학과별 커리큘럼 요약", "프로그램", "준비물", "학습 수준", ""].map((t) => el("b", { textContent: t }))),
       ...(list.length ? list.map(rowOf) : [empty("이 학과에 과목이 없습니다.")]),
       msg,
-      hint("순서는 '주차별 커리큘럼' 왼쪽 과목 목록에서 정한 순서입니다. '수정' 후 '저장'은 실제 저장(과목 공통이라 쓰는 모든 학과에 같이 반영). '수정' 중에는 요약을 AI생성(2~4줄)할 수 있습니다. 강사 명단·순서는 '주차별 커리큘럼' 왼쪽 '강사'에서 정합니다. '제외'는 이 학과 순서에서 바로 빠집니다(이 브라우저에 저장, DB 저장은 아직 없음)."),
+      hint("순서는 '주차별 커리큘럼' 왼쪽 과목 목록에서 정한 순서입니다. '수정' 후 '저장'은 실제 저장(과목 공통이라 쓰는 모든 학과에 같이 반영). '수정' 중에는 요약을 AI생성(2~4줄)할 수 있습니다. 강사 명단·순서는 '주차별 커리큘럼' 왼쪽 '강사'에서 정합니다. '제외'는 이 학과에서 바로 빠지고(과목은 남음), '과목 삭제'는 과목 자체를 지웁니다."),
     ], "왼쪽 과목 순서대로");
   }
 
@@ -306,10 +349,9 @@ export async function render(container, ctx) {
       if (error) { say.textContent = dbErrorMessage(error); say.classList.add("err"); return; }
       subjects.push({ id, name: n, is_vacation: false, sort_order: 1e9 });
       links.push({ subject_id: id, department_id: deptSel.value });
-      // 이 브라우저에 저장한 학과 순서가 있으면 맨 뒤에 붙인다(없으면 DB 순서에 맨 뒤로 들어감).
+      // 저장 전 고친 순서가 있으면 맨 뒤에 붙인다(없으면 DB 순서 맨 뒤).
       const k = `${deptSel.value}:regular`;
-      for (const m of [state.orders, dOrders]) if (m.has(k)) m.set(k, [...m.get(k), id]);
-      saveLocal();
+      if (dOrders.has(k)) dOrders.set(k, [...dOrders.get(k), id]);
       d.close?.(); d.remove();
       draw();
     }, true);

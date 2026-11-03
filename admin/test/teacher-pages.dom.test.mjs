@@ -598,7 +598,7 @@ test("V3 타강사: 수업 설정의 '타 강사 수업 설정'으로 그 강사
   assert.deepEqual(data.instructor_subjects.filter((x) => x.instructor_id === "other").map((x) => x.subject_id), ["m2"]);
   assert.equal(majors.saved, null, "쌤톡 학과는 건드리지 않음");
 
-  // 내 커리큘럼: 타강사로 김민주를 고르면 '선택한 강사 학과' = 모션학과, 그 학과 과목 탭
+  // 내 커리큘럼: 타강사로 김민주를 고르면 '선택한 강사 학과' = 모션학과, 그 강사가 고른 과목 탭만
   const m = document.createElement("div");
   document.body.replaceChildren(m);
   const { render } = await import("../js/pages/mine.mjs");
@@ -608,7 +608,7 @@ test("V3 타강사: 수업 설정의 '타 강사 수업 설정'으로 그 강사
   const labels = [...m.querySelectorAll(".form-row:not(.materials-row) .form-field > span")].map((x) => x.textContent);
   assert.equal(labels[0], "선택한 강사 학과");
   assert.deepEqual([...m.querySelector("[name=department]").options].map((o) => o.textContent), ["모션학과"]);
-  assert.deepEqual([...m.querySelectorAll(".subject-tabs button")].map((b) => b.textContent), ["모션1", "모션2"]);
+  assert.deepEqual([...m.querySelectorAll(".subject-tabs button")].map((b) => b.textContent), ["모션2"], "타강사는 수업 설정에서 고른 과목만");
 });
 
 test("V3 내 프로필 화면(admin-v3)은 관리자에게 '타 강사 수업 설정'을 보여 준다", async () => {

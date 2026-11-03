@@ -236,7 +236,7 @@ export async function render(container, ctx, { tab, as } = {}) {
       const ids = links.filter((l) => l.department_id === dept.value).map((l) =>
         l.subject_id
       );
-      const base = subjects.filter((s) => ids.includes(s.id) && (ctx.v3 || myIds.has(s.id))); // V3: 학과 과목 전부
+      const base = subjects.filter((s) => ids.includes(s.id) && ((ctx.v3 && !proxy) || myIds.has(s.id))); // V3 본인: 학과 과목 전부, 타강사: 수업 설정에서 고른 과목만
       // '방특'에 체크하면 관리자가 방특 과목으로 정한 과목(기타 과목 › 방특)도 고를 수 있다.
       if (vacation.checked) base.push(...subjects.filter((s) => s.is_vacation && !base.includes(s)));
       // V3: 고른 방학 특강에 넣어 둔 과목도(과목 관리 › 과목 정리 › 연결)

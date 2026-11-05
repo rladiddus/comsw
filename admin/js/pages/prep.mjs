@@ -35,7 +35,9 @@ const empty = (label) => el("p", { className: "muted", textContent: `${label} �
 // 카드는 '수정'으로 이미지·내용·링크·정가·설명만 고치고, ⠿를 끌어 그 과목 안에서 순서를 바꾼다.
 // 과목의 항목을 다 지우면 그 과목은 탭에서 빠진다. 탭을 열 때마다 새로 그린다.
 // prepCategory를 주면(V3 '수업별 준비물'의 탭 안) 제목·탭 없이 그 분류 하나만, prepSubjects(Set)를 주면 그 과목 항목만, prepLabel은 분류 이름 바꾸기.
-export async function render(container, { supabase, prepCategory, prepSubjects, prepLabel }) {
+// prepGroupOf(Map 과목id → {id, name}, V3)를 주면 과목 이름 대신 그룹 이름으로 보이고, 교재·물품·AI 탭은 같은 그룹 과목의 항목을 한 묶음으로 보여 준다
+// (사용 프로그램은 과목마다 칸이 따로라 과목별 묶음 그대로, 이름만 그룹).
+export async function render(container, { supabase, prepCategory, prepSubjects, prepLabel, prepGroupOf }) {
   if (!prepCategory) container.append(el("h2", { textContent: "수업별 준비물" }));
   const [{ data: subjects }, { data: depts }, { data: links }] = await Promise.all([
     supabase.from("subjects").select(prepCategory === "software" ? "id, name, sort_order, tools" : "id, name, sort_order"),
@@ -43,6 +45,7 @@ export async function render(container, { supabase, prepCategory, prepSubjects, 
     supabase.from("subject_departments").select("subject_id, department_id"),
   ]);
   const nameOf = new Map((subjects || []).map((s) => [s.id, s.name]));
+  const unitName = (id) => prepGroupOf?.get(id)?.name ?? nameOf.get(id);
   // 과목 → 첫 학과(학과 순서 기준). 없으면 기타 과목.
   const deptOf = new Map();
   for (const d of depts || []) {
@@ -159,14 +162,20 @@ export async function render(container, { supabase, prepCategory, prepSubjects, 
     const { data: items } = soft
       ? { data: (subjects || []).filter((x) => splitTools(x.tools).length).map((x) => ({ id: x.id, subject_id: x.id, department_id: null })) }
       : await supabase.from("course_prep_items").select("id, subject_id, department_id").eq("category", cat);
-    // 학과 → 과목 → 항목 id
+    // 학과 → 과목(그룹이면 그룹 하나) → 항목 id. 묶음 key = 대표 과목 id(그 묶음에서 처음 나온 과목)
     const buckets = new Map();
+    const members = new Map(); // 대표 과목 id → 묶음 과목 id들
+    const lead = new Map(); // "학과|그룹id" → 대표 과목 id
     for (const it of (items || []).filter((i) => nameOf.has(i.subject_id) && (!prepSubjects || prepSubjects.has(i.subject_id)))) {
       const g = it.department_id ?? deptOf.get(it.subject_id) ?? null;
       if (!buckets.has(g)) buckets.set(g, new Map());
       const bySubject = buckets.get(g);
-      if (!bySubject.has(it.subject_id)) bySubject.set(it.subject_id, []);
-      bySubject.get(it.subject_id).push(it.id);
+      const grp = !soft && prepGroupOf?.get(it.subject_id);
+      const key = grp ? lead.get(`${g}|${grp.id}`) ?? it.subject_id : it.subject_id;
+      if (grp) lead.set(`${g}|${grp.id}`, key);
+      if (!bySubject.has(key)) { bySubject.set(key, []); members.set(`${g}|${key}`, new Set()); }
+      bySubject.get(key).push(it.id);
+      members.get(`${g}|${key}`).add(it.subject_id);
     }
     if (!buckets.size) return panel.append(empty(label));
     const mounts = [];
@@ -178,7 +187,8 @@ export async function render(container, { supabase, prepCategory, prepSubjects, 
       panel.append(deptBox);
       for (const subjectId of ids) {
         const section = el("section", { className: "prep-subject" });
-        section.dataset.subject = nameOf.get(subjectId);
+        section.dataset.subject = unitName(subjectId);
+        const mine = [...members.get(`${g.id}|${subjectId}`)];
         deptBox.append(section);
         mounts.push(mountCardList(section, {
           supabase: soft ? toolsDb(supabase, subjects.find((x) => x.id === subjectId)) : supabase,
@@ -188,12 +198,12 @@ export async function render(container, { supabase, prepCategory, prepSubjects, 
           query: (q) => (soft ? q : q.in("id", bySubject.get(subjectId))),
           ...(soft ? { preview: () => [], imageKey: "no_image" } : {}),
           fields: soft ? [
-            { key: "subject_id", label: "과목", type: "select", locked: true, span: 2, options: () => [[subjectId, nameOf.get(subjectId)]] },
+            { key: "subject_id", label: "과목", type: "select", locked: true, span: 2, options: () => [[subjectId, unitName(subjectId)]] },
             { key: "category", label: "분류", type: "select", locked: true, span: 1, options: () => [SOFTWARE] },
             { key: "content", label: "내용", type: "text", required: true, span: 9 },
           ] : [
             // 한 줄, 칸 너비 고정(12칸 격자): 과목 2 / 분류 1 / 내용 4 / 링크 3 / 정가·설명 2 — 카드마다 같은 자리.
-            { key: "subject_id", label: "과목", type: "select", locked: true, span: 2, options: () => [[subjectId, nameOf.get(subjectId)]] },
+            { key: "subject_id", label: "과목", type: "select", locked: true, span: 2, options: () => mine.map((id) => [id, unitName(id)]) },
             { key: "category", label: "분류", type: "select", locked: true, span: 1, options: () => CATEGORIES },
             { key: "content", label: "내용", type: "textarea", required: true, span: 4 },
             { key: "link_url", label: "링크", type: "text", span: 3 },
@@ -201,7 +211,7 @@ export async function render(container, { supabase, prepCategory, prepSubjects, 
           ],
           defaults: () => ({ subject_id: subjectId, department_id: g.id, category: cat }),
           itemName: (row) => `'${row.content || label}'`,
-          deleteConfirm: async (row) => `${nameOf.get(subjectId)} · ${label} '${row.content || ""}'을(를) 삭제할까요?`,
+          deleteConfirm: async (row) => `${unitName(row.subject_id ?? subjectId)} · ${label} '${row.content || ""}'을(를) 삭제할까요?`,
           // 다 지우면 이 과목은 이 분류가 없는 것 → 탭에서 뺀다(학과에 남은 과목이 없으면 학과 제목도).
           onRows: (rows) => {
             if (rows.length) return;

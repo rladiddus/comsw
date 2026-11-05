@@ -260,8 +260,8 @@ test("V3 승인 대기 → 재료 검토: 다 확인하기 전엔 승인으로 �
   assert.ok(c.querySelector("dialog.image-zoom img"), "누르면 크게 보기");
   assert.ok(!button(c, "과목 전체 승인") && !button(c, "적용"), "첫 쪽에는 승인 버튼 대신 '학과 커리큘럼 보기'");
   assert.ok(button(c, "학과 커리큘럼 보기"));
-  button(c, "준비물 검토 보기").click();
-  assert.match(decodeURIComponent(location.hash), /^#\/validation\/i1\|set1\|s1$/, "재료 검토로 감");
+  assert.ok(!button(c, "준비물 검토 보기") && button(c, "준비물 작성") && button(c, "그룹 설정"), "준비물 검토 보기 → 준비물 작성, 그룹 설정");
+  location.hash = "#/validation/i1%7Cset1%7Cs1";
 
   c = await page("validation");
   assert.match(c.textContent, /검토 0\/4/);
@@ -273,7 +273,10 @@ test("V3 승인 대기 → 재료 검토: 다 확인하기 전엔 승인으로 �
   // 한 화면 세 쪽, AI는 모두 토글(기본 꺼짐, 켜면 AI로 채움, 끄면 되돌림): ① 단계별 AI 요약 → ② 과목별 커리큘럼 AI생성 → ③ 로드맵 문구 AI 요약 → [적용]
   globalThis.confirm = () => true;
   location.hash = "#/inbox";
-  const db = sb();
+  const gd = data();
+  gd.subject_groups = [{ id: "g1", name: "포토샵 과정" }];
+  gd.subjects[0].group_id = "g1"; // 준비물이 있으면 그룹이 있어야 적용된다
+  const db = fakeSupabase(gd);
   const approvals = [];
   db.rpc = async (name, args) => { approvals.push([name, args]); return { data: null, error: null }; };
   c = await page("inbox", { supabase: db });
@@ -355,6 +358,57 @@ test("V3 승인 대기 → 재료 검토: 다 확인하기 전엔 승인으로 �
   assert.deepEqual(subj, { duration: "2개월", dept_curriculum: "01 고친 요약", tools: "포토샵\nChatGPT", supplies: null, level: "★★★☆☆", roadmap_summary: "포토샵 로드맵\n둘째 줄" });
   assert.ok(db.calls.some(([k, t, , patch]) => k === "update" && t === "roadmap_steps" && patch.summary === "포토샵 로드맵 둘째 줄\n"), "과목 둘이 든 곳은 이 과목 줄만, 다른 줄은 그대로");
   assert.match(c.textContent, /승인했습니다\(과목별 커리큘럼·로드맵 문구 함께 적용\)/);
+});
+
+test("V3 승인 대기 [준비물 작성]·[그룹 설정]: 학과장이 네 분류로 쓰면 검토 끝, 그룹 없으면 적용 막음, 적용하면 수업별 준비물에 분류대로", async () => {
+  v3.state.reviews.clear();
+  globalThis.confirm = () => true;
+  location.hash = "#/inbox";
+  const d = data();
+  d.subject_groups = [{ id: "g1", name: "포토샵 과정" }];
+  const db = fakeSupabase(d);
+  const approvals = [];
+  db.rpc = async (name, args) => { approvals.push([name, args]); return { data: null, error: null }; };
+  const c = await page("inbox", { supabase: db });
+  assert.match(c.textContent, /작성·검토 대기[\s\S]*그룹 없음/);
+  button(c, "준비물 작성").click();
+  const dlg = document.querySelector("dialog.v3-modal");
+  const box = (label) => dlg.querySelector(`[aria-label="${label}"]`);
+  assert.equal(box("교재").value, "포토샵 교재", "선생님 항목을 검사 제안 분류로 나눠 채움");
+  assert.equal(box("AI 도구").value, "ChatGPT");
+  assert.equal(box("사용 프로그램").value, "포토샵");
+  box("물품").value = "노트북, 마우스";
+  button(dlg, "저장").click();
+  await flush();
+  assert.match(c.textContent, /학과장 작성 완료/);
+  assert.match(c.textContent, /물품 노트북, 마우스/);
+  button(c, "학과 커리큘럼 보기").click();
+  await flush();
+  assert.equal(c.querySelector('[aria-label="준비물"]').value, "포토샵 교재, 노트북, 마우스", "작성한 교재·물품이 다음 쪽 준비물 칸에");
+  assert.equal(c.querySelector('[aria-label="프로그램"]').value, "포토샵", "작성한 사용 프로그램이 프로그램 칸에");
+  button(c, "로드맵 문구 보기").click();
+  button(c, "적용").click();
+  await flush();
+  assert.match(c.textContent, /먼저 \[그룹 설정\]으로 이 과목의 그룹을 정해주세요/);
+  assert.equal(approvals.length, 0);
+  // [그룹 설정] → 기존 그룹에 넣기
+  button(c, "이전").click(); button(c, "이전").click();
+  button(c, "그룹 설정").click();
+  const gdlg = [...document.querySelectorAll("dialog.v3-modal")].at(-1);
+  const join = gdlg.querySelector('input[value="b"]'); join.checked = true; join.dispatchEvent(new dom.window.Event("change"));
+  const r = gdlg.querySelector('input[name="v3-group"]'); r.checked = true; r.dispatchEvent(new dom.window.Event("change"));
+  button(gdlg, "넣기").click();
+  await flush();
+  assert.ok(db.calls.some(([k, t, id, patch]) => k === "update" && t === "subjects" && id === "s1" && patch.group_id === "g1"));
+  assert.match(c.textContent, /그룹: 포토샵 과정/);
+  button(c, "학과 커리큘럼 보기").click();
+  button(c, "로드맵 문구 보기").click();
+  button(c, "적용").click();
+  await flush();
+  assert.deepEqual(approvals, [["comsw_approve_curriculum", { p_id: "c1" }]]);
+  assert.ok(db.calls.some(([k, t, row]) => k === "upsert" && t === "instructor_subject_materials" && row.tools === "포토샵" && row.supplies === "포토샵 교재, 노트북, 마우스"), "선생님 칸을 작성한 것으로");
+  const added = db.calls.filter(([k, t]) => k === "insert" && t === "course_prep_items").flatMap(([, , rows]) => rows).map((x) => `${x.category}:${x.content}:${x.department_id}`);
+  assert.deepEqual(added, ["supply:노트북:d1", "supply:마우스:d1", "ai:ChatGPT:d1"], "이미 있는 교재는 건너뛰고 분류대로");
 });
 
 test("V3 승인 대기: 프로그램·준비물 합치기는 승인 함수(merge_items)와 같은 규칙", async () => {
@@ -598,6 +652,22 @@ test("V3 과목 통합 순서 → 로드맵·학과 커리큘럼이 같은 순�
   assert.match(c.textContent, /다시 만들기 필요/);
   v3.state.aggTab = "weeks";
   v3.state.employed.clear(); v3.state.orders.clear(); v3.state.roadmap.clear();
+});
+
+test("V3 준비물: 과목 이름 대신 그룹 이름, 같은 학과·같은 그룹 과목은 한 묶음", async () => {
+  const gd = data();
+  gd.subject_groups = [{ id: "g1", name: "포토샵 과정" }];
+  gd.subjects[0].group_id = "g1"; gd.subjects[1].group_id = "g1";
+  gd.course_prep_items.push({ id: "p9", subject_id: "s2", category: "textbook", content: "웹 교재" });
+  gd.course_prep_items.forEach((x, i) => { x.id ??= `p${i}`; });
+  const gc = await page("materials", { supabase: fakeSupabase(gd) });
+  gc.querySelectorAll(".v2-tab")[0].click();
+  await flush();
+  const d1 = [...gc.querySelectorAll(".prep-dept")].find((x) => x.querySelector("h3").textContent === "시각편집학과");
+  assert.deepEqual([...d1.querySelectorAll(".prep-subject")].map((x) => x.dataset.subject), ["포토샵 과정"], "포토샵·웹1이 그룹 하나로");
+  assert.equal(d1.querySelectorAll(".card-item").length, 2);
+  const d2 = [...gc.querySelectorAll(".prep-dept")].find((x) => x.querySelector("h3").textContent === "건축학과");
+  assert.deepEqual([...d2.querySelectorAll(".prep-subject")].map((x) => x.dataset.subject), ["캐드"], "그룹 없는 과목은 과목 이름");
 });
 
 test("V3 준비물: 학과·정규/방특 없이 4분류 탭, 탭마다 학과별 묶음, 사용 프로그램도 같은 카드 목록", async () => {

@@ -16,6 +16,97 @@ const norm = (t) => String(t ?? "").replace(/\s+/g, "").toLowerCase();
 const fail = (say, text) => { say.textContent = text; say.className = "save-state err"; };
 const done = (say, text) => { say.textContent = text; say.className = "save-state"; };
 
+// 그룹 과목 고르기(체크) + 그룹 이름. gx = { supabase, subjects, groups }(subjects에 group_id). g = 기존 그룹(이름 바꾸기 가능) 또는 null(새 그룹, first = 이 과목으로 시작).
+// 이미 다른 그룹에 있는 과목은 '(지금: 그룹)'으로 보이고 체크하면 이 그룹으로 옮긴다. 저장하면 onSaved()
+export function groupPicker(gx, g, say, onSaved, first = null) {
+  const { supabase, subjects, groups } = gx;
+  const membersOf = (id) => subjects.filter((c) => c.group_id === id);
+  const name = el("input", { type: "text", className: "v2-field", maxLength: 80, placeholder: "그룹 이름", value: g?.name ?? first?.name ?? "" });
+  name.setAttribute("aria-label", "그룹 이름");
+  const base = norm(name.value);
+  const like = (c) => base && norm(c.name).startsWith(base);
+  const chosen = new Set(subjects.filter((c) => (g && c.group_id === g.id) || c === first || (!c.group_id && like(c))).map((c) => c.id));
+  const cands = [...subjects].sort((a, b) => Number(chosen.has(b.id)) - Number(chosen.has(a.id)) || a.name.localeCompare(b.name, "ko"));
+  const q = el("input", { type: "search", className: "v2-field", placeholder: "과목 검색" });
+  q.setAttribute("aria-label", "과목 검색");
+  const list = el("div", { className: "v3-linklist" });
+  const fill = () => list.replaceChildren(...cands.filter((c) => norm(c.name).includes(norm(q.value))).map((c) => {
+    const box = el("input", { type: "checkbox", checked: chosen.has(c.id) });
+    box.addEventListener("change", () => { if (box.checked) chosen.add(c.id); else chosen.delete(c.id); });
+    const now = c.group_id && c.group_id !== g?.id ? ` (지금: ${nameOf(groups, c.group_id)})` : "";
+    return el("label", { className: "consent" }, [box, el("span", { textContent: `${c.name}${now}` })]);
+  }));
+  q.addEventListener("input", fill);
+  fill();
+  const save = btn(g ? "저장" : "그룹 만들기", async () => {
+    const n = name.value.trim();
+    if (!n) return fail(say, "그룹 이름을 입력해주세요");
+    if (!g && !chosen.size) return fail(say, "그룹에 넣을 과목을 골라주세요");
+    save.disabled = true;
+    try {
+      const dup = { duplicate: "같은 이름의 그룹이 이미 있습니다" };
+      let id = g?.id;
+      if (!g) {
+        const { data, error } = await supabase.from("subject_groups").insert({ name: n }).select().single();
+        if (error) return fail(say, dbErrorMessage(error, dup));
+        groups.push(data);
+        id = data.id;
+      } else if (n !== g.name) {
+        const { error } = await supabase.from("subject_groups").update({ name: n }).eq("id", g.id);
+        if (error) return fail(say, dbErrorMessage(error, dup));
+        g.name = n;
+      }
+      const add = [...chosen];
+      const drop = membersOf(id).map((c) => c.id).filter((x) => !chosen.has(x));
+      const r1 = add.length ? await supabase.from("subjects").update({ group_id: id }).in("id", add) : {};
+      const r2 = !r1.error && drop.length ? await supabase.from("subjects").update({ group_id: null }).in("id", drop) : {};
+      if (r1.error || r2.error) return fail(say, dbErrorMessage(r1.error || r2.error));
+      subjects.forEach((c) => { if (add.includes(c.id)) c.group_id = id; if (drop.includes(c.id)) c.group_id = null; });
+      onSaved();
+    } finally { save.disabled = false; }
+  }, true);
+  return [el("label", { className: "form-field" }, [el("span", { textContent: "그룹 이름" }), name]), q, list, el("div", {}, [save])];
+}
+
+// 기존 그룹에 넣기(라디오)
+export function joinPicker(gx, s, say, onSaved) {
+  const { supabase, subjects, groups } = gx;
+  const membersOf = (id) => subjects.filter((c) => c.group_id === id);
+  let chosen = "";
+  const list = el("div", { className: "v3-linklist" }, [...groups].sort((a, b) => a.name.localeCompare(b.name, "ko")).map((g) => {
+    const r = el("input", { type: "radio", name: "v3-group", value: g.id });
+    r.addEventListener("change", () => { chosen = g.id; });
+    return el("label", { className: "consent" }, [r, el("span", { textContent: `${g.name} (${membersOf(g.id).length}개)` })]);
+  }));
+  const save = btn("넣기", async () => {
+    if (!chosen) return fail(say, "그룹을 골라주세요");
+    save.disabled = true;
+    const { error } = await supabase.from("subjects").update({ group_id: chosen }).eq("id", s.id);
+    save.disabled = false;
+    if (error) return fail(say, dbErrorMessage(error));
+    s.group_id = chosen;
+    onSaved();
+  }, true);
+  return [list, el("div", {}, [save])];
+}
+
+// 그룹 연결(라디오 하나만): ⓐ 새 그룹 만들기(first = 이 과목) ⓑ 기존 그룹에 넣기. 과목 정리 [연결]과 승인 대기 [그룹 설정]이 같이 쓴다.
+export function groupChooser(gx, s, say, onSaved) {
+  const mode = (value, text, off) => {
+    const r = el("input", { type: "radio", name: "v3-linkmode", value, disabled: Boolean(off) });
+    return [r, el("label", { className: "consent", title: off || "" }, [r, el("span", { textContent: text })])];
+  };
+  const [ra, la] = mode("a", "새 그룹 만들기");
+  const [rb, lb] = mode("b", "기존 그룹에 넣기", !gx.groups.length && "아직 만든 그룹이 없습니다");
+  const area = el("div", { className: "v3-linkbody" });
+  const show = () => area.replaceChildren(...(ra.checked ? groupPicker(gx, null, say, onSaved, s) : joinPicker(gx, s, say, onSaved)));
+  ra.checked = true;
+  ra.addEventListener("change", show);
+  rb.addEventListener("change", show);
+  show();
+  return [el("div", { className: "v3-linkmode" }, [la, lb]), area];
+}
+
 export async function render(container, ctx) {
   const { supabase } = ctx;
   headActions(ctx);
@@ -33,6 +124,7 @@ export async function render(container, ctx) {
   const groups = groupTable ?? [];
   const hasGroup = Boolean(groupTable) && subjects.some((s) => "group_id" in s);
   const membersOf = (id) => subjects.filter((c) => c.group_id === id);
+  const gx = { supabase, subjects, groups };
   const LOCKED = "그룹은 운영 SQL(20261103030000) 실행 뒤에 쓸 수 있습니다.";
   const deptNames = (id) => links.filter((l) => l.subject_id === id).map((l) => nameOf(depts, l.department_id)).join(", ");
   const noCurriculum = (s) => !curricula.some((c) => c.subject_id === s.id);
@@ -64,76 +156,6 @@ export async function render(container, ctx) {
     ])];
   }
 
-  // 그룹 과목 고르기(체크) + 그룹 이름. g = 기존 그룹(이름 바꾸기 가능) 또는 null(새 그룹, first = 이 과목으로 시작).
-  // 이미 다른 그룹에 있는 과목은 '(지금: 그룹)'으로 보이고 체크하면 이 그룹으로 옮긴다. 저장하면 onSaved()
-  function groupPicker(g, say, onSaved, first = null) {
-    const name = el("input", { type: "text", className: "v2-field", maxLength: 80, placeholder: "그룹 이름", value: g?.name ?? first?.name ?? "" });
-    name.setAttribute("aria-label", "그룹 이름");
-    const base = norm(name.value);
-    const like = (c) => base && norm(c.name).startsWith(base);
-    const chosen = new Set(subjects.filter((c) => (g && c.group_id === g.id) || c === first || (!c.group_id && like(c))).map((c) => c.id));
-    const cands = [...subjects].sort((a, b) => Number(chosen.has(b.id)) - Number(chosen.has(a.id)) || a.name.localeCompare(b.name, "ko"));
-    const q = el("input", { type: "search", className: "v2-field", placeholder: "과목 검색" });
-    q.setAttribute("aria-label", "과목 검색");
-    const list = el("div", { className: "v3-linklist" });
-    const fill = () => list.replaceChildren(...cands.filter((c) => norm(c.name).includes(norm(q.value))).map((c) => {
-      const box = el("input", { type: "checkbox", checked: chosen.has(c.id) });
-      box.addEventListener("change", () => { if (box.checked) chosen.add(c.id); else chosen.delete(c.id); });
-      const now = c.group_id && c.group_id !== g?.id ? ` (지금: ${nameOf(groups, c.group_id)})` : "";
-      return el("label", { className: "consent" }, [box, el("span", { textContent: `${c.name}${now}` })]);
-    }));
-    q.addEventListener("input", fill);
-    fill();
-    const save = btn(g ? "저장" : "그룹 만들기", async () => {
-      const n = name.value.trim();
-      if (!n) return fail(say, "그룹 이름을 입력해주세요");
-      if (!g && !chosen.size) return fail(say, "그룹에 넣을 과목을 골라주세요");
-      save.disabled = true;
-      try {
-        const dup = { duplicate: "같은 이름의 그룹이 이미 있습니다" };
-        let id = g?.id;
-        if (!g) {
-          const { data, error } = await supabase.from("subject_groups").insert({ name: n }).select().single();
-          if (error) return fail(say, dbErrorMessage(error, dup));
-          groups.push(data);
-          id = data.id;
-        } else if (n !== g.name) {
-          const { error } = await supabase.from("subject_groups").update({ name: n }).eq("id", g.id);
-          if (error) return fail(say, dbErrorMessage(error, dup));
-          g.name = n;
-        }
-        const add = [...chosen];
-        const drop = membersOf(id).map((c) => c.id).filter((x) => !chosen.has(x));
-        const r1 = add.length ? await supabase.from("subjects").update({ group_id: id }).in("id", add) : {};
-        const r2 = !r1.error && drop.length ? await supabase.from("subjects").update({ group_id: null }).in("id", drop) : {};
-        if (r1.error || r2.error) return fail(say, dbErrorMessage(r1.error || r2.error));
-        subjects.forEach((c) => { if (add.includes(c.id)) c.group_id = id; if (drop.includes(c.id)) c.group_id = null; });
-        onSaved();
-      } finally { save.disabled = false; }
-    }, true);
-    return [el("label", { className: "form-field" }, [el("span", { textContent: "그룹 이름" }), name]), q, list, el("div", {}, [save])];
-  }
-
-  // 기존 그룹에 넣기(라디오)
-  function joinPicker(s, say, onSaved) {
-    let chosen = "";
-    const list = el("div", { className: "v3-linklist" }, [...groups].sort((a, b) => a.name.localeCompare(b.name, "ko")).map((g) => {
-      const r = el("input", { type: "radio", name: "v3-group", value: g.id });
-      r.addEventListener("change", () => { chosen = g.id; });
-      return el("label", { className: "consent" }, [r, el("span", { textContent: `${g.name} (${membersOf(g.id).length}개)` })]);
-    }));
-    const save = btn("넣기", async () => {
-      if (!chosen) return fail(say, "그룹을 골라주세요");
-      save.disabled = true;
-      const { error } = await supabase.from("subjects").update({ group_id: chosen }).eq("id", s.id);
-      save.disabled = false;
-      if (error) return fail(say, dbErrorMessage(error));
-      s.group_id = chosen;
-      onSaved();
-    }, true);
-    return [list, el("div", {}, [save])];
-  }
-
   // [연결] 팝업: ① 그룹 연결(ⓐ/ⓑ 라디오) ② 학과·방학 특강 지정
   function linkPopup(s, redraw) {
     const say = el("p", { className: "save-state" });
@@ -143,19 +165,7 @@ export async function render(container, ctx) {
 
     function groupPane() {
       if (!hasGroup) return [empty(LOCKED)];
-      const mode = (value, text, off) => {
-        const r = el("input", { type: "radio", name: "v3-linkmode", value, disabled: Boolean(off) });
-        return [r, el("label", { className: "consent", title: off || "" }, [r, el("span", { textContent: text })])];
-      };
-      const [ra, la] = mode("a", "새 그룹 만들기");
-      const [rb, lb] = mode("b", "기존 그룹에 넣기", !groups.length && "아직 만든 그룹이 없습니다");
-      const area = el("div", { className: "v3-linkbody" });
-      const show = () => area.replaceChildren(...(ra.checked ? groupPicker(null, say, close, s) : joinPicker(s, say, close)));
-      ra.checked = true;
-      ra.addEventListener("change", show);
-      rb.addEventListener("change", show);
-      show();
-      return [el("div", { className: "v3-linkmode" }, [la, lb]), area];
+      return groupChooser(gx, s, say, close);
     }
 
     function placePane() {
@@ -237,7 +247,7 @@ export async function render(container, ctx) {
       const psay = el("p", { className: "save-state" });
       let d;
       const saved = () => { d.close?.(); d.remove(); draw(); };
-      d = modal(title, [el("div", { className: "v3-linkbody" }, [...groupPicker(g, psay, saved), psay])], [], "닫기");
+      d = modal(title, [el("div", { className: "v3-linkbody" }, [...groupPicker(gx, g, psay, saved), psay])], [], "닫기");
       d.classList.add("v3-narrow", "v3-linkpop");
     };
     const make = btn("그룹 만들기", () => popup("그룹 만들기", null), true);

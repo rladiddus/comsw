@@ -94,7 +94,7 @@ export async function chooseThumbnail(source) {
       canvas.width = PREVIEW_W;
       canvas.height = PREVIEW_H;
       canvas.tabIndex = 0;
-      canvas.setAttribute("aria-label", "썸네일 미리보기. 드래그하거나 아래 슬라이더를 사용하세요.");
+      canvas.setAttribute("aria-label", "썸네일 미리보기. 드래그하거나 방향키로 위치를 옮기세요.");
       const context = canvas.getContext("2d");
       const state = document.createElement("p");
       state.className = "muted";
@@ -112,18 +112,10 @@ export async function chooseThumbnail(source) {
         return { wrap, input };
       }
       // 크기 슬라이더: 오른쪽으로 갈수록 영역이 커진다(덜 확대).
-      const size = slider("자르기 크기", (value) => {
+      const size = slider("확대·축소", (value) => {
         const cx = crop.x + crop.w / 2, cy = crop.y + crop.h / 2;
         const w = value;
         crop = adjustCrop(crop, { w, x: cx - w / 2, y: cy - w / THUMB_RATIO / 2 });
-        draw();
-      });
-      const horizontal = slider("가로 위치", (value) => {
-        crop = adjustCrop(crop, { x: value });
-        draw();
-      });
-      const vertical = slider("세로 위치", (value) => {
-        crop = adjustCrop(crop, { y: value });
         draw();
       });
       const set = (s, min, max, value) => {
@@ -134,8 +126,6 @@ export async function chooseThumbnail(source) {
         context.clearRect(0, 0, PREVIEW_W, PREVIEW_H);
         context.drawImage(image, crop.x, crop.y, crop.w, crop.h, 0, 0, PREVIEW_W, PREVIEW_H);
         set(size, Math.min(MIN_WIDTH, maxWidth(crop)), maxWidth(crop), crop.w);
-        set(horizontal, 0, crop.width - crop.w, crop.x);
-        set(vertical, 0, crop.height - crop.h, crop.y);
         state.textContent = `원본 ${crop.width}×${crop.height}px · 썸네일 영역 ${Math.floor(crop.w)}×${Math.floor(crop.h)}px`;
       }
       let pointer = null;
@@ -180,7 +170,7 @@ export async function chooseThumbnail(source) {
       });
       save.addEventListener("click", () => finish(cropFragment(crop)));
       actions.append(cancel, save);
-      dialog.append(title, desc, canvas, size.wrap, horizontal.wrap, vertical.wrap, state, actions);
+      dialog.append(title, desc, canvas, size.wrap, state, actions);
       document.body.append(dialog);
       draw();
       dialog.showModal();

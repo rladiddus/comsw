@@ -149,7 +149,7 @@ details summary { cursor:pointer; font-weight:650; }
 .crop-dialog::backdrop { background:#12182699; }
 .crop-dialog h2 { font-size:20px; margin-bottom:8px; }
 .crop-canvas { display:block; width:min(100%,420px); height:auto; margin:16px auto; border-radius:8px; background:repeating-conic-gradient(#eee 0% 25%,#fff 0% 50%) 50%/20px 20px; cursor:grab; touch-action:none; }
-.crop-canvas.thumb { width:auto; max-width:100%; height:min(55dvh,480px); max-height:none; } /* 공통 .thumb(120×70) 크기 제한을 풀어 미리보기를 크게 */
+.crop-canvas.thumb { width:auto; max-width:100%; height:min(55dvh,480px); max-height:none; border:1px solid #d0d5dd; } /* 공통 .thumb(120×70) 크기 제한을 풀어 미리보기를 크게 */
 .crop-canvas:active { cursor:grabbing; }
 .crop-control { display:grid; grid-template-columns:95px minmax(0,1fr); align-items:center; gap:12px; margin:12px 0; font-size:13px; }
 .crop-control input { width:100%; accent-color:var(--accent); }

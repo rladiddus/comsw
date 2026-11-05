@@ -171,9 +171,19 @@
 .side-nav a[hidden] { display:none; }
 @media (max-width:900px) { .side-nav a[hidden] { display:block; } } /* 좁은 화면은 묶음 이름이 숨겨져 접을 수 없으니 다 보이게 */
 /* 제출된 커리큘럼(승인 대기·대시보드): 단계마다 글 왼쪽, 이미지 오른쪽 */
-.v3-submitted .v2-diff-cols { grid-template-columns:minmax(0,1fr) auto; }
+.v3-submitted .v2-diff-cols { grid-template-columns:auto minmax(0,1fr); }
+.v3-submitted .v2-diff-cols.with-right { grid-template-columns:auto minmax(0,1fr) auto; }
+.v3-submitted .v2-diff-head > div { grid-column:1 / -1; }
 .v3-submitted .v2-diff-cols > div { border-right:0; background:#fff; }
-.v3-submitted .v2-diff-cols > div:last-child:not(:first-child) { padding-left:0; }
+.v3-submitted .v2-diff-cols:not(.v2-diff-head) > div:first-child { padding-right:0; }
+.v3-submitted .v2-textarea { margin-top:6px; }
+/* 적용 on/off 스위치 */
+.v3-onoff-label { display:flex; align-items:center; gap:6px; font-size:12px; font-weight:600; white-space:nowrap; cursor:pointer; }
+.v3-onoff { appearance:none; width:36px; height:20px; border-radius:10px; background:#d0d5dd; position:relative; cursor:pointer; transition:background .15s; flex:none; margin:0; }
+.v3-onoff::after { content:""; position:absolute; top:2px; left:2px; width:16px; height:16px; border-radius:50%; background:#fff; transition:left .15s; }
+.v3-onoff:checked { background:var(--accent); }
+.v3-onoff:checked::after { left:18px; }
+.v3-onoff:focus-visible { outline:2px solid var(--accent); outline-offset:2px; }
 /* 대시보드: 왼쪽 할 일 목록(좁게), 오른쪽 검토 */
 .v3-dash { display:grid; grid-template-columns:minmax(260px,340px) minmax(0,1fr); gap:16px; align-items:start; }
 @media (max-width:900px) { .v3-dash { grid-template-columns:1fr; } }

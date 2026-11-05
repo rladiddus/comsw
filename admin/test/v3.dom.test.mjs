@@ -255,7 +255,7 @@ test("V3 승인 대기 → 재료 검토: 다 확인하기 전엔 승인으로 �
   assert.doesNotMatch(c.textContent, /과목 승인 영향|승인 단위입니다|학과장 확인 후 승인합니다/, "1A·9D 안내와 영향 박스 없음");
   assert.doesNotMatch(c.textContent, /이전 승인본|옛 원문/, "이전 승인본은 안 보임");
   assert.match(c.textContent, /검토 0\/4/);
-  assert.equal(c.querySelectorAll(".v3-submitted .v2-diff-cols:not(.v2-diff-head) > div:last-child button.submission-thumb img").length, 1, "이미지는 단계 줄 오른쪽");
+  assert.equal(c.querySelectorAll(".v3-submitted .v2-diff-cols:not(.v2-diff-head) > div:first-child button.submission-thumb img").length, 1, "이미지는 단계 줄 왼쪽");
   c.querySelector(".v2-diff button.submission-thumb").click();
   assert.ok(c.querySelector("dialog.image-zoom img"), "누르면 크게 보기");
   button(c, "과목 전체 승인").click();
@@ -268,7 +268,7 @@ test("V3 승인 대기 → 재료 검토: 다 확인하기 전엔 승인으로 �
   assert.match(c.textContent, /검토 4\/4/);
   assert.equal(v3.state.reviews.get("i1|set1|s1").get("t1"), "ai", "ChatGPT는 제안대로 AI 도구");
 
-  // 승인 대기에서 바로 승인: 빈 사이트 문구는 막고, 채우면 단계마다 문구 저장 + 기존 단계 승인 함수
+  // 승인 대기에서 바로 승인: 적용을 켰는데 AI 요약이 비면 막고, 단계별 [AI 요약] → 적용 켜짐 → 그 요약 저장, 끄면 선생님 원문 저장
   globalThis.confirm = () => true;
   location.hash = "#/inbox";
   const db = sb();
@@ -277,11 +277,27 @@ test("V3 승인 대기 → 재료 검토: 다 확인하기 전엔 승인으로 �
   c = await page("inbox", { supabase: db });
   assert.match(c.textContent, /준비물 검토 완료/);
   assert.ok(!/기존 승인 화면|방학 특강 승인 화면/.test(c.textContent), "기존 승인 화면은 없음");
+  assert.match(c.textContent, /김 선생님의 포토샵 제출 커리큘럼/);
+  assert.doesNotMatch(c.textContent, /사이트 문구 \(단계마다|빈 문구 AI로 채우기/);
+  const on = c.querySelector('[aria-label="1단계 AI 요약 적용"]');
+  const summary = c.querySelector('[aria-label="1단계 AI 요약"]');
+  assert.equal(on.checked, false, "요약이 없으면 꺼짐");
+  assert.ok(summary.hidden, "요약 칸은 만들기 전엔 숨김");
+  on.checked = true;
   button(c, "과목 전체 승인").click();
   await flush();
-  assert.match(c.textContent, /1단계 사이트 문구가 비어 있습니다/);
+  assert.match(c.textContent, /1단계: 사이트에 보일 글이 없습니다/);
   assert.equal(approvals.length, 0);
-  c.querySelector(".v2-panel textarea").value = "포토샵 기초";
+  let asked = null;
+  const { configureServices } = await import("../../admin/js/services.mjs");
+  configureServices({ summarize: async (kind, text) => { asked = [kind, text]; return { text: "포토샵 기초" }; } });
+  on.checked = false;
+  button(c.querySelector(".v3-submitted"), "AI 요약").click();
+  await flush();
+  configureServices({});
+  assert.deepEqual(asked, ["week", "새 원문"], "기존 단계 요약 프롬프트(week)");
+  assert.equal(summary.value, "포토샵 기초");
+  assert.ok(!summary.hidden && on.checked, "만들면 칸이 보이고 적용이 켜짐");
   button(c, "과목 전체 승인").click();
   await flush();
   assert.deepEqual(approvals, [["comsw_approve_curriculum", { p_id: "c1" }]]);
@@ -578,7 +594,7 @@ test("V3 대시보드: 자동 연계 상태·최근 AI 작업 없음, 할 일에
   row.click();
   assert.ok(row.classList.contains("active"));
   const right = c.querySelector(".v3-dash > .v2-stack");
-  assert.match(right.textContent, /김의 포토샵 전체 승인 범위[\s\S]*제출된 커리큘럼[\s\S]*새 원문/);
+  assert.match(right.textContent, /김 선생님의 포토샵 제출 커리큘럼[\s\S]*제출된 커리큘럼[\s\S]*새 원문/);
   button(right, "승인 대기에서 승인하기").click();
   assert.match(decodeURIComponent(location.hash), /^#\/inbox\/i1\|set1\|s1$/);
 });

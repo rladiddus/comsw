@@ -4,7 +4,7 @@ import { canManage } from "../../../admin/js/roles.mjs";
 import { computeChanges } from "../../../admin-v2/js/pages/publishing.mjs";
 import { render as teacherDashboard } from "../../../admin-v2/js/pages/dashboard.mjs";
 import { audit, typeChip } from "../v3.mjs";
-import { imageZoom, sortSteps, submittedSteps } from "./inbox.mjs";
+import { imageZoom, sortSteps, submittedSteps, submittedTitle } from "./inbox.mjs";
 
 const go = (hash) => () => { location.hash = hash; };
 // 할 일 한 줄: 누르면 onClick(커리큘럼은 오른쪽에 검토 내용, 나머지는 그 메뉴로)
@@ -51,7 +51,7 @@ export async function render(container, ctx) {
     const who = nameOf(instructors, g.instructor_id), subject = subjectOf(g), set = sets.find((s) => s.id === g.set_id);
     const scope = g.vacation ? (set?.is_vacation ? set.name : "방특(시기 담기 전)") : nameOf(depts, set?.department_id) || set?.name || "";
     const steps = sortSteps(g.rows);
-    review.replaceChildren(panel(`${who}의 ${subject?.name ?? ""} 전체 승인 범위`, [
+    review.replaceChildren(panel(submittedTitle(who, subject), [
       el("div", { className: "v3-callout" }, [el("b", { textContent: "대상  " }), document.createTextNode(`${scope} / ${g.vacation ? "방특" : "정규"} / ${subject?.name ?? ""} / ${who} · 전체 ${steps.length}단계`)]),
       submittedSteps(steps, thumb),
       el("div", { className: "v2-actions v2-end" }, [btn("승인 대기에서 승인하기", go(`#/inbox/${encodeURIComponent(g.key)}`), true)]),

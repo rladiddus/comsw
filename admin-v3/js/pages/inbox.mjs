@@ -34,13 +34,18 @@ export function imageZoom() {
   return { zoom, thumb };
 }
 export const sortSteps = (rows) => [...rows].sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0) || String(a.step_label).localeCompare(String(b.step_label)));
-// 제출된 커리큘럼: 단계마다 글은 왼쪽, 이미지는 오른쪽
-export const submittedSteps = (steps, thumb) => el("div", { className: "v2-diff v3-submitted" }, [
+export const submittedTitle = (who, subject) => `${who} 선생님의 ${subject?.name ?? ""} 제출 커리큘럼`;
+// 제출된 커리큘럼: 단계마다 이미지 왼쪽, 글 오른쪽. extra(r) = { below: 글 아래, right: 맨 오른쪽 }(승인 대기의 AI 요약·적용 스위치)
+export const submittedSteps = (steps, thumb, extra) => el("div", { className: "v2-diff v3-submitted" }, [
   el("div", { className: "v2-diff-cols v2-diff-head" }, [el("div", { textContent: "제출된 커리큘럼" })]),
-  ...steps.map((r) => el("div", { className: "v2-diff-cols" }, [
-    el("div", {}, [el("b", { textContent: r.step_label }), el("div", { textContent: String(r.written || "").trim() || "(원문 없음)" })]),
-    el("div", {}, [thumb(r.media_url, `${r.step_label} 이미지`)]),
-  ])),
+  ...steps.map((r) => {
+    const more = extra?.(r);
+    return el("div", { className: `v2-diff-cols${more ? " with-right" : ""}` }, [
+      el("div", {}, [thumb(r.media_url, `${r.step_label} 이미지`)]),
+      el("div", {}, [el("b", { textContent: r.step_label }), el("div", { textContent: String(r.written || "").trim() || "(원문 없음)" }), ...(more?.below ?? [])]),
+      ...(more ? [el("div", {}, more.right)] : []),
+    ]);
+  }),
 ]);
 
 export async function render(container, ctx) {
@@ -81,9 +86,16 @@ export async function render(container, ctx) {
 
   const say = (text, err = false) => { status.textContent = text; status.className = `save-state${err ? " err" : ""}`; };
 
-  // 단계마다 사이트 문구 칸(공개 사이트에 보이는 글), 방특은 담을 시기
+  // 단계마다 AI 요약 칸과 적용 스위치(켜면 AI 요약, 끄면 선생님 원문이 공개 사이트 문구), 방특은 담을 시기
   function inputs(it) {
-    it.texts ??= new Map(it.g.rows.map((r) => [r.id, el("textarea", { className: "v2-textarea", value: r.summary ?? "", placeholder: "사이트에 보일 문구", maxLength: 2000 })]));
+    it.steps ??= new Map(it.g.rows.map((r) => {
+      const text = el("textarea", { className: "v2-textarea", value: r.summary ?? "", placeholder: "AI 요약", maxLength: 2000 });
+      text.setAttribute("aria-label", `${r.step_label} AI 요약`);
+      text.hidden = !text.value;
+      const on = el("input", { type: "checkbox", className: "v3-onoff", checked: Boolean(r.summary) });
+      on.setAttribute("aria-label", `${r.step_label} AI 요약 적용`);
+      return [r.id, { text, on }];
+    }));
     if (it.g.vacation && !it.cohort) {
       const set = sets.find((s) => s.id === it.g.set_id);
       const pre = set?.is_vacation ? set.id : nowCohort[0]?.value ?? "";
@@ -92,28 +104,28 @@ export async function render(container, ctx) {
     return it;
   }
 
-  async function fillAi(it, b) {
+  // 한 단계 AI 요약(학과 관리 '단계별 AI 요약'과 같은 프롬프트 week). 만들면 적용이 켜진다.
+  async function aiStep(r, s, b) {
     const fn = getServices().summarize;
     if (!fn) return say("AI 연결을 준비 중입니다", true);
-    const blank = it.g.rows.filter((r) => !it.texts.get(r.id).value.trim());
-    if (!blank.length) return say("빈 문구가 없습니다. 다시 만들려면 그 칸을 비우고 눌러주세요.");
+    if (!String(r.written || "").trim()) return say(`${r.step_label}: 선생님 원문이 없어 AI로 요약할 수 없습니다`, true);
     b.disabled = true;
     try {
       say("AI 요약 중…");
-      for (const r of blank) {
-        if (!String(r.written || "").trim()) throw new Error(`${r.step_label}: 선생님 원문이 없어 AI로 만들 수 없습니다`);
-        it.texts.get(r.id).value = (await fn("week", r.written)).text;
-      }
-      say("빈 문구를 AI로 채웠습니다. 확인 후 '과목 전체 승인'을 눌러주세요.");
+      s.text.value = (await fn("week", r.written)).text;
+      s.text.hidden = false;
+      s.on.checked = true;
+      say(`${r.step_label} AI 요약을 만들었습니다. 고칠 곳이 있으면 칸에서 바로 고쳐주세요.`);
     } catch (e) { say(e.message, true); }
     b.disabled = false;
   }
+  const siteText = (it, r) => { const s = it.steps.get(r.id); return (s.on.checked ? s.text.value : String(r.written || "")).trim(); };
 
   async function approve(it, b) {
     if (!reviewDone(it.key, it.mats)) { location.hash = `#/validation/${encodeURIComponent(it.key)}`; return; }
     inputs(it);
-    const blank = it.g.rows.filter((r) => !it.texts.get(r.id).value.trim());
-    if (blank.length) return say(`${blank.map((r) => r.step_label).join(", ")} 사이트 문구가 비어 있습니다. 직접 쓰거나 '빈 문구 AI로 채우기'를 눌러주세요.`, true);
+    const blank = it.g.rows.filter((r) => !siteText(it, r));
+    if (blank.length) return say(`${blank.map((r) => r.step_label).join(", ")}: 사이트에 보일 글이 없습니다. AI 요약을 만들거나, 적용을 끄면 선생님 원문이 쓰입니다.`, true);
     const setId = it.g.vacation ? it.cohort.value : null;
     if (it.g.vacation && !setId) return say("담을 방특 시기를 골라주세요", true);
     const where = it.g.vacation ? `'${nameOf(cohorts, setId)}' 방특` : it.scope;
@@ -121,7 +133,7 @@ export async function render(container, ctx) {
     if (b) b.disabled = true;
     try {
       for (const r of it.g.rows) {
-        const { error } = await supabase.from("instructor_curricula").update({ summary: it.texts.get(r.id).value.trim(), ...(setId ? { set_id: setId } : {}) }).eq("id", r.id);
+        const { error } = await supabase.from("instructor_curricula").update({ summary: siteText(it, r), ...(setId ? { set_id: setId } : {}) }).eq("id", r.id);
         if (error) throw new Error(dbErrorMessage(error));
         await rpc(supabase, "comsw_approve_curriculum", { p_id: r.id });
       }
@@ -149,14 +161,15 @@ export async function render(container, ctx) {
     const n = reviewedCount(it.key, it.mats);
     const done = reviewDone(it.key, it.mats);
     inputs(it);
-    const ai = btn("빈 문구 AI로 채우기", () => fillAi(it, ai));
     const go = btn("과목 전체 승인", () => approve(it, go), done);
-    return [panel(`${it.who}의 ${it.subject?.name ?? ""} 전체 승인 범위`, [
+    const extra = (r) => {
+      const s = it.steps.get(r.id);
+      const ai = btn("AI 요약", () => aiStep(r, s, ai));
+      return { below: [el("div", { className: "v2-actions" }, [ai]), s.text], right: [el("label", { className: "v3-onoff-label", title: "켜면 AI 요약, 끄면 선생님 원문이 사이트 문구" }, [s.on, el("span", { textContent: "적용" })])] };
+    };
+    return [panel(submittedTitle(it.who, it.subject), [
       el("div", { className: "v3-callout" }, [el("b", { textContent: "대상  " }), document.createTextNode(`${it.scope} / ${it.g.vacation ? "방특" : "정규"} / ${it.subject?.name ?? ""} / ${it.who} · 전체 ${steps.length}단계`)]),
-      submittedSteps(steps, thumb),
-      el("h4", { textContent: "사이트 문구 (단계마다 공개 사이트에 보이는 글)" }),
-      ...steps.map((r) => el("label", { className: "v3-block" }, [el("b", { textContent: r.step_label }), it.texts.get(r.id)])),
-      el("div", { className: "v2-actions" }, [ai]),
+      submittedSteps(steps, thumb, extra),
       ...(it.g.vacation ? [el("h4", { textContent: "담을 방특 시기" }), it.cohort] : []),
       el("h4", {}, [document.createTextNode("준비물 검토 상태 "), chip(done ? "모두 학과장 검토 완료" : "검토 대기", done ? "good" : "warn")]),
       el("small", { className: "muted", textContent: it.mats.length ? `교재·물품·사용 프로그램·AI 도구 ${it.mats.length}개 · 검토 ${n}/${it.mats.length}` : "선생님이 적은 준비물(교재·물품·프로그램·AI 도구)이 없습니다(‘준비물 없음 확인’ 필요)" }),

@@ -106,16 +106,37 @@ export async function render(container, ctx) {
   const { zoom, thumb } = imageZoom();
 
   const say = (text, err = false) => { status.textContent = text; status.className = `save-state${err ? " err" : ""}`; };
+  const summarize = () => { const fn = getServices().summarize; if (!fn) throw new Error("AI 연결을 준비 중입니다"); return fn; };
+  // AI 토글(세 쪽 공통): 기본 꺼짐. 켜면 AI로 만들어 칸을 채우고(실패하면 다시 꺼짐), 끄면 처음 글로 되돌린다.
+  function aiToggle(name, text, make, label = "AI 요약") {
+    const on = el("input", { type: "checkbox", className: "v3-onoff" });
+    on.setAttribute("aria-label", name);
+    const before = text.value;
+    on.addEventListener("change", async () => {
+      if (!on.checked) { text.value = before; return say(""); }
+      on.disabled = true;
+      try {
+        say("AI가 만드는 중…");
+        text.value = await make();
+        say("AI로 만들었습니다. 고칠 곳이 있으면 칸에서 바로 고쳐주세요.");
+      } catch (e) { on.checked = false; say(e.message, true); }
+      on.disabled = false;
+    });
+    return { on, el: el("label", { className: "v3-onoff-label" }, [on, el("span", { textContent: label })]) };
+  }
 
-  // 단계마다 AI 요약 칸과 적용 스위치(켜면 AI 요약, 끄면 선생님 원문이 공개 사이트 문구), 방특은 담을 시기
+  // 단계마다 AI 요약 토글(켜면 AI 요약 칸이 나오고 그 글이, 끄면 선생님 원문이 공개 사이트 문구), 방특은 담을 시기
+  // 학과 관리 '단계별 AI 요약'과 같은 프롬프트(week).
   function inputs(it) {
     it.steps ??= new Map(it.g.rows.map((r) => {
-      const text = el("textarea", { className: "v2-textarea", value: r.summary ?? "", placeholder: "AI 요약", maxLength: 2000 });
-      text.setAttribute("aria-label", `${r.step_label} AI 요약`);
-      text.hidden = !text.value;
-      const on = el("input", { type: "checkbox", className: "v3-onoff", checked: Boolean(r.summary) });
-      on.setAttribute("aria-label", `${r.step_label} AI 요약 적용`);
-      return [r.id, { text, on }];
+      const text = el("textarea", { className: "v2-textarea", placeholder: "AI 요약", maxLength: 2000, hidden: true });
+      text.setAttribute("aria-label", `${r.step_label} AI 요약 글`);
+      const t = aiToggle(`${r.step_label} AI 요약`, text, async () => {
+        if (!String(r.written || "").trim()) throw new Error(`${r.step_label}: 선생님 원문이 없어 AI로 요약할 수 없습니다`);
+        return (await summarize()("week", r.written)).text;
+      });
+      t.on.addEventListener("change", () => { text.hidden = !t.on.checked; });
+      return [r.id, { text, on: t.on, toggle: t.el }];
     }));
     if (it.g.vacation && !it.cohort) {
       const set = sets.find((s) => s.id === it.g.set_id);
@@ -125,25 +146,10 @@ export async function render(container, ctx) {
     return it;
   }
 
-  // 한 단계 AI 요약(학과 관리 '단계별 AI 요약'과 같은 프롬프트 week). 만들면 적용이 켜진다.
-  async function aiStep(r, s, b) {
-    const fn = getServices().summarize;
-    if (!fn) return say("AI 연결을 준비 중입니다", true);
-    if (!String(r.written || "").trim()) return say(`${r.step_label}: 선생님 원문이 없어 AI로 요약할 수 없습니다`, true);
-    b.disabled = true;
-    try {
-      say("AI 요약 중…");
-      s.text.value = (await fn("week", r.written)).text;
-      s.text.hidden = false;
-      s.on.checked = true;
-      say(`${r.step_label} AI 요약을 만들었습니다. 고칠 곳이 있으면 칸에서 바로 고쳐주세요.`);
-    } catch (e) { say(e.message, true); }
-    b.disabled = false;
-  }
   const siteText = (it, r) => { const s = it.steps.get(r.id); return (s.on.checked ? s.text.value : String(r.written || "")).trim(); };
   const blankSteps = (it) => {
     const blank = it.g.rows.filter((r) => !siteText(it, r));
-    if (blank.length) say(`${blank.map((r) => r.step_label).join(", ")}: 사이트에 보일 글이 없습니다. AI 요약을 만들거나, 적용을 끄면 선생님 원문이 쓰입니다.`, true);
+    if (blank.length) say(`${blank.map((r) => r.step_label).join(", ")}: 사이트에 보일 글이 없습니다. AI 요약 칸에 글을 쓰거나, AI 요약을 끄면 선생님 원문이 쓰입니다.`, true);
     return blank.length > 0;
   };
 
@@ -167,22 +173,13 @@ export async function render(container, ctx) {
     f.level.setAttribute("aria-label", "학습 수준");
     f.none.setAttribute("aria-label", "준비물 없음");
     f.none.addEventListener("change", () => { if (f.none.checked) f.supplies.value = ""; f.supplies.disabled = f.none.checked; });
+    // AI생성 토글: 학과 관리 '과목별 커리큘럼'의 AI생성과 같은 프롬프트(department, 줄 수 지시). 지금 요약이 있으면 그것과 이번 제출본을 합친다.
+    f.ai = aiToggle("학과별 커리큘럼 요약 AI생성", f.dept, async () => {
+      const now = String(it.subject?.dept_curriculum ?? "").trim();
+      const mine = sortSteps(it.g.rows).map((r) => `[${r.step_label}]\n- ${siteText(it, r)}`).join("\n\n");
+      return (await summarize()("department", aiRequest(it.subject?.name ?? "", state.aiLines, [...(now ? [`[지금 학과별 커리큘럼 요약]\n${now}`] : []), `[${it.who} 선생님 새 커리큘럼]\n${mine}`]))).text;
+    }, "AI생성").el;
     return (it.f = f);
-  }
-  // 학과 관리 '과목별 커리큘럼'의 AI생성과 같은 프롬프트(department, 줄 수 지시). 지금 요약이 있으면 그것과 이번 제출본을 합친다.
-  async function aiDept(it, b) {
-    const fn = getServices().summarize;
-    if (!fn) return say("AI 연결을 준비 중입니다", true);
-    const now = String(it.subject?.dept_curriculum ?? "").trim();
-    const mine = sortSteps(it.g.rows).map((r) => `[${r.step_label}]\n- ${siteText(it, r)}`).join("\n\n");
-    const ask = aiRequest(it.subject?.name ?? "", state.aiLines, [...(now ? [`[지금 학과별 커리큘럼 요약]\n${now}`] : []), `[${it.who} 선생님 새 커리큘럼]\n${mine}`]);
-    b.disabled = true;
-    try {
-      say("AI가 과목별 커리큘럼을 만드는 중…");
-      fields(it).dept.value = (await fn("department", ask)).text;
-      say(`${state.aiLines}줄로 만들었습니다. 고칠 곳이 있으면 칸에서 바로 고쳐주세요.`);
-    } catch (e) { say(e.message, true); }
-    b.disabled = false;
   }
 
   // ③ 로드맵 문구: 과목마다 하나(subjects.roadmap_summary, 모든 학과 공용). 로드맵에 아직 안 넣은 과목도 만들어 둔다.
@@ -205,18 +202,9 @@ export async function render(container, ctx) {
     });
     const text = el("textarea", { className: "v2-textarea", rows: 3, value: it.subject?.roadmap_summary ?? steps.find((x) => x.members.length === 1)?.line ?? "", placeholder: "로드맵 문구", maxLength: 2000 });
     text.setAttribute("aria-label", "로드맵 문구");
-    return (it.road = { text, steps });
-  }
-  async function aiRoad(it, b) {
-    const fn = getServices().summarize;
-    if (!fn) return say("AI 연결을 준비 중입니다", true);
-    b.disabled = true;
-    try {
-      say("AI가 로드맵 문구를 만드는 중…");
-      road(it).text.value = (await fn("roadmap", `[과목] ${it.subject?.name ?? ""}\n${fields(it).dept.value.trim()}`)).text;
-      say("로드맵 문구를 만들었습니다. 고칠 곳이 있으면 칸에서 바로 고쳐주세요.");
-    } catch (e) { say(e.message, true); }
-    b.disabled = false;
+    // AI 요약 토글: ②의 학과별 커리큘럼 요약으로 로드맵 문구(roadmap 프롬프트)
+    const ai = aiToggle("로드맵 문구 AI 요약", text, async () => (await summarize()("roadmap", `[과목] ${it.subject?.name ?? ""}\n${fields(it).dept.value.trim()}`)).text).el;
+    return (it.road = { text, steps, ai });
   }
 
   async function approve(it, b) {
@@ -301,8 +289,7 @@ export async function render(container, ctx) {
     const done = reviewDone(it.key, it.mats);
     const extra = (r) => {
       const s = it.steps.get(r.id);
-      const ai = btn("AI 요약", () => aiStep(r, s, ai));
-      return { below: [s.text], right: [el("div", { className: "v3-stepright" }, [ai, el("label", { className: "v3-onoff-label", title: "켜면 AI 요약, 끄면 선생님 원문이 사이트 문구" }, [s.on, el("span", { textContent: "적용" })])])] };
+      return { below: [s.text], right: [s.toggle] };
     };
     return [
       submittedSteps(steps, thumb, extra),
@@ -314,11 +301,9 @@ export async function render(container, ctx) {
     ];
   }
 
-  // ② 과목별 커리큘럼(학과 관리 표 모양, 이 과목 한 줄). 처음 들어오면 AI가 한 번 만들어 둔다.
+  // ② 과목별 커리큘럼(학과 관리 표 모양, 이 과목 한 줄). AI생성 토글은 글 상자 아래.
   function deptPage(it) {
     const f = fields(it);
-    const ai = btn("AI생성", () => aiDept(it, ai));
-    if (!it.deptAi) { it.deptAi = true; aiDept(it, ai); }
     const cell = (k, kids) => el("div", { className: `dept-cell cell-${k}` }, kids);
     return [
       el("h4", { textContent: "과목별 커리큘럼" }),
@@ -327,29 +312,26 @@ export async function render(container, ctx) {
         el("span", { className: "v2-num", textContent: "1" }),
         cell("name", [el("b", { textContent: it.subject?.name ?? "" })]),
         cell("duration", [f.duration]),
-        cell("dept_curriculum", [el("div", { className: "v2-actions" }, [ai]), f.dept]),
+        cell("dept_curriculum", [f.dept, f.ai]),
         cell("tools", [f.tools]),
-        cell("supplies", [el("label", { className: "consent supplies-none" }, [f.none, el("span", { textContent: "없음" })]), f.supplies]),
+        cell("supplies", [f.supplies, el("label", { className: "v3-check" }, [f.none, el("span", { textContent: "없음" })])]),
         cell("level", [f.level]),
       ]),
-      el("small", { className: "muted", textContent: "AI가 지금 학과별 커리큘럼 요약과 이번 제출 커리큘럼을 합쳐 만듭니다. 모든 칸을 바로 고칠 수 있습니다. 프로그램·준비물은 선생님이 적은 것을 합친 모습이고, [적용]하면 이 칸 그대로 저장됩니다(이 과목을 쓰는 모든 학과 공통)." }),
+      el("small", { className: "muted", textContent: "AI생성을 켜면 AI가 지금 학과별 커리큘럼 요약과 이번 제출 커리큘럼을 합쳐 만들고, 끄면 지금 문구로 돌아갑니다. 모든 칸을 바로 고칠 수 있습니다. 프로그램·준비물은 선생님이 적은 것을 합친 모습이고, [적용]하면 이 칸 그대로 저장됩니다(이 과목을 쓰는 모든 학과 공통)." }),
     ];
   }
 
-  // ③ 로드맵 문구(로드맵 화면의 박스 모양, 스텝·삭제 버튼 없음). 처음 들어오면 AI가 한 번 만들어 둔다.
+  // ③ 로드맵 문구(로드맵 화면의 박스 모양, 스텝·삭제 버튼 없음). AI 요약 토글은 글 상자 아래.
   function roadPage(it) {
     const rd = road(it);
-    const ai = btn("AI 요약", () => aiRoad(it, ai), true);
-    if (!it.roadAi) { it.roadAi = true; aiRoad(it, ai); }
     const where = rd.steps.map((x) => `${nameOf(tracks, x.st.track_id) || "로드맵"}${x.members.length > 1 ? `(${x.members.map((m) => nameOf(subjects, m.subject_id)).join("·")} 함께)` : ""}`);
     return [
       el("h4", { textContent: "로드맵 문구" }),
-      el("div", { className: "v3-step" }, [
+      el("div", { className: "v3-step v3-step2" }, [
         el("div", { className: "v3-stepsubs" }, [el("span", { className: "v3-tchip v3-stepsub active", textContent: it.subject?.name ?? "" }),
           el("small", { className: "muted", textContent: where.length ? `${where.join(", ")} 로드맵에 들어 있음` : "아직 로드맵에 넣지 않았습니다. 문구는 과목에 저장해 두고, 로드맵에 넣으면 쓰입니다." })]),
-        el("div", { className: "v3-steptext" }, [el("b", { textContent: "로드맵 문구" }), rd.text,
+        el("div", { className: "v3-steptext" }, [el("b", { textContent: "로드맵 문구" }), rd.text, rd.ai,
           ...(rd.steps.some((x) => x.members.length > 1) ? [el("small", { className: "muted", textContent: `과목 여럿이 함께 든 로드맵은 ${it.subject?.name ?? ""} 줄만 바뀝니다.` })] : [])]),
-        el("div", { className: "v3-stepbtns" }, [ai]),
       ]),
       ...(hasRoad ? [] : [hint("과목 로드맵 문구 칸이 아직 DB에 없습니다(운영 SQL 실행 전). 지금은 로드맵에 들어 있는 곳에만 반영됩니다.")]),
     ];

@@ -178,7 +178,10 @@
 .v3-submitted .v2-diff-cols:not(.v2-diff-head) > div:first-child { padding-right:0; }
 .v3-submitted .v2-textarea { margin-top:6px; }
 /* 적용 on/off 스위치 */
-.v3-stepright { display:flex; flex-direction:column; align-items:flex-end; gap:8px; }
+.v3-step2 { grid-template-columns:minmax(160px,1fr) minmax(0,2fr); }
+.v3-check { display:flex; align-items:center; gap:6px; margin-top:6px; font-size:13px; white-space:nowrap; cursor:pointer; }
+.v3-deptrow .v3-onoff-label { margin-top:6px; }
+.v3-deptrow input[type=text], .v3-deptrow select, .v3-deptrow .v2-textarea { width:100%; box-sizing:border-box; }
 .v3-deptrow { grid-template-columns:24px 110px 80px minmax(0,1.6fr) minmax(0,.8fr) minmax(0,.8fr) 100px; }
 .v3-deptrow .dept-cell { white-space:pre-line; font-size:13px; }
 .v3-stepsub.active { border-color:var(--accent); font-weight:700; }

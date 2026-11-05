@@ -34,7 +34,7 @@
     <button type="button" data-view="start">로그인과 메뉴 구성</button>
     <button type="button" data-view="dashboard">대시보드: 지금 처리할 일</button>
     <span class="label">커리큘럼 승인</span>
-    <button type="button" data-view="inbox">승인 대기: 과목 전체 승인</button>
+    <button type="button" data-view="inbox">승인 대기: 한 화면에서 적용</button>
     <button type="button" data-view="validation">준비물 검토</button>
     <button type="button" data-view="proxy">선생님 커리큘럼 대신 올리기</button>
     <span class="label">운영 메뉴</span>
@@ -100,8 +100,8 @@
     </section>
 
     <section class="case" data-view-panel="inbox" hidden>
-      <h2>승인 대기: 과목 전체 승인</h2>
-      <p class="lead">승인은 '한 강사 × 한 과목'의 모든 단계를 한 번에 합니다. 프로필 승인은 따로 있습니다.</p>
+      <h2>승인 대기: 한 화면에서 적용</h2>
+      <p class="lead">승인은 '한 강사 × 한 과목'의 모든 단계를 한 번에 합니다. 다른 메뉴로 가지 않고 한 화면에서 [이전]·[다음]으로 제출된 커리큘럼 → 과목별 커리큘럼 → 로드맵 문구를 확인한 뒤 [적용]을 누릅니다. 프로필 승인은 따로 있습니다.</p>
       <ol class="steps">
         <li class="step">
           <div class="step-head"><h3>제출 확인</h3><span class="who t">선생님</span><span class="who h">학과장</span></div>
@@ -110,19 +110,27 @@
         </li>
         <li class="step">
           <div class="step-head"><h3>준비물 먼저 확인</h3><span class="who h">학과장</span></div>
-          <p>[준비물 검토 보기]로 가서 준비물 분류를 모두 확인해야 [과목 전체 승인] 버튼이 열립니다('준비물 검토' 참고). 준비물이 없는 과목도 준비물 검토에서 '준비물 없음 확인'을 눌러야 합니다.</p>
+          <p>[준비물 검토 보기]로 가서 준비물 분류를 모두 확인해야 [적용]이 됩니다('준비물 검토' 참고). 준비물이 없는 과목도 준비물 검토에서 '준비물 없음 확인'을 눌러야 합니다.</p>
         </li>
         <li class="step">
           <div class="step-head"><h3>사이트 문구 정리(AI 요약·적용)</h3><span class="who h">학과장</span></div>
           <ul>
-            <li>제출 커리큘럼은 단계마다 이미지 왼쪽, 선생님 글 오른쪽입니다. 글 아래 [AI 요약]을 누르면 그 단계 글을 정리한 요약이 나오고, 칸에서 바로 고칠 수 있습니다.</li>
-            <li>단계 오른쪽 <b>적용</b> 스위치: 켜면 AI 요약, 끄면 선생님 원문이 공개 사이트 문구가 됩니다. AI 요약을 만들면 자동으로 켜집니다.</li>
-            <li>방특으로 낸 과목은 담을 방학 특강(시기)을 확인합니다.</li>
+            <li>제출 커리큘럼은 단계마다 이미지 왼쪽, 선생님 글 오른쪽입니다. 단계 오른쪽 [AI 요약]을 누르면 그 단계 글을 정리한 요약이 글 아래에 나오고, 칸에서 바로 고칠 수 있습니다.</li>
+            <li>[AI 요약] 아래 <b>적용</b> 스위치: 켜면 AI 요약, 끄면 선생님 원문이 공개 사이트 문구가 됩니다. AI 요약을 만들면 자동으로 켜집니다.</li>
+            <li>방특으로 낸 과목은 담을 방학 특강(시기)을 확인하고 바로 [적용]을 누릅니다(방특은 아래 두 쪽이 없습니다).</li>
           </ul>
         </li>
         <li class="step">
-          <div class="step-head"><h3>과목 전체 승인</h3><span class="who h">학과장</span></div>
-          <p>[과목 전체 승인]을 누르면 모든 단계가 승인되고, 선생님 화면에 '승인됨'이 붙습니다. 중간에 연결이 끊기면 일부 단계만 승인될 수 있는데, 남은 단계는 목록에 그대로 있으니 다시 누르면 됩니다.</p>
+          <div class="step-head"><h3>학과 커리큘럼 보기</h3><span class="who h">학과장</span></div>
+          <p>[학과 커리큘럼 보기]를 누르면 같은 자리에 그 과목의 '과목별 커리큘럼' 줄이 나옵니다. AI가 지금 학과별 커리큘럼 요약과 이번 제출 커리큘럼을 합쳐 새 요약을 만들어 둡니다(학과 관리의 AI생성과 같은 지시). 칸에서 바로 고치거나 [AI생성]으로 다시 만들 수 있습니다.</p>
+        </li>
+        <li class="step">
+          <div class="step-head"><h3>로드맵 문구 보기</h3><span class="who h">학과장</span></div>
+          <p>[로드맵 문구 보기]를 누르면 이 과목이 든 로드맵마다 문구 칸이 나옵니다. AI가 위 학과별 커리큘럼 요약으로 문구를 만들어 두고, 칸에서 고치거나 [AI 요약]으로 다시 만들 수 있습니다. 과목 여럿이 함께 든 곳은 이 과목 줄만 바뀝니다.</p>
+        </li>
+        <li class="step">
+          <div class="step-head"><h3>적용</h3><span class="who h">학과장</span></div>
+          <p>마지막 쪽 [적용]을 누르면 모든 단계가 승인되고(선생님 화면에 '승인됨'), 바뀐 학과별 커리큘럼 요약·로드맵 문구도 함께 저장됩니다. [이전]으로 돌아가 고쳐도 고친 내용은 남아 있습니다. 중간에 연결이 끊기면 다시 누르면 남은 것만 이어서 합니다.</p>
           <div class="note"><p>커리큘럼 '수정 요청' 버튼은 아직 잠겨 있습니다. 고칠 점은 직접 다듬어 승인하거나 선생님께 따로 알려 주세요.</p></div>
         </li>
         <li class="step">
@@ -406,7 +414,7 @@
     <section class="case" data-view-panel="faq" hidden>
       <h2>자주 묻는 질문</h2>
       <table class="terms">
-        <tr><th>[과목 전체 승인]이 안 눌려요</th><td>준비물 검토를 먼저 끝내야 합니다. [준비물 검토 보기]에서 모든 항목을 정해 주세요.</td></tr>
+        <tr><th>[적용]이 안 돼요</th><td>준비물 검토를 먼저 끝내야 합니다. [준비물 검토 보기]에서 모든 항목을 정해 주세요.</td></tr>
         <tr><th>승인했는데 사이트에 안 나와요</th><td>'사이트 반영'을 눌러야 공개 사이트에 나옵니다.</td></tr>
         <tr><th>선생님이 방학 특강을 못 골라요</th><td>방학 특강 메뉴에서 이번 방학 특강을 먼저 만들어 주세요.</td></tr>
         <tr><th>선생님 화면이 비어 있어요</th><td>강사 관리 › 계정 연결 탭에서 쌤톡 회원과 강사를 연결해 주세요.</td></tr>

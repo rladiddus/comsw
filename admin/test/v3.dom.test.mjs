@@ -258,8 +258,10 @@ test("V3 승인 대기 → 재료 검토: 다 확인하기 전엔 승인으로 �
   assert.equal(c.querySelectorAll(".v3-submitted .v2-diff-cols:not(.v2-diff-head) > div:first-child button.submission-thumb img").length, 1, "이미지는 단계 줄 왼쪽");
   c.querySelector(".v2-diff button.submission-thumb").click();
   assert.ok(c.querySelector("dialog.image-zoom img"), "누르면 크게 보기");
-  button(c, "과목 전체 승인").click();
-  assert.match(decodeURIComponent(location.hash), /^#\/validation\/i1\|set1\|s1$/, "검토 전이면 재료 검토로 보냄");
+  assert.ok(!button(c, "과목 전체 승인") && !button(c, "적용"), "첫 쪽에는 승인 버튼 대신 '학과 커리큘럼 보기'");
+  assert.ok(button(c, "학과 커리큘럼 보기"));
+  button(c, "준비물 검토 보기").click();
+  assert.match(decodeURIComponent(location.hash), /^#\/validation\/i1\|set1\|s1$/, "재료 검토로 감");
 
   c = await page("validation");
   assert.match(c.textContent, /검토 0\/4/);
@@ -268,7 +270,7 @@ test("V3 승인 대기 → 재료 검토: 다 확인하기 전엔 승인으로 �
   assert.match(c.textContent, /검토 4\/4/);
   assert.equal(v3.state.reviews.get("i1|set1|s1").get("t1"), "ai", "ChatGPT는 제안대로 AI 도구");
 
-  // 승인 대기에서 바로 승인: 적용을 켰는데 AI 요약이 비면 막고, 단계별 [AI 요약] → 적용 켜짐 → 그 요약 저장, 끄면 선생님 원문 저장
+  // 한 화면 세 쪽: ① 단계별 [AI 요약]·적용(켰는데 비면 다음으로 못 감) → ② 과목별 커리큘럼(AI가 지금 요약 + 제출본 합침) → ③ 로드맵 문구 → [적용]
   globalThis.confirm = () => true;
   location.hash = "#/inbox";
   const db = sb();
@@ -284,25 +286,50 @@ test("V3 승인 대기 → 재료 검토: 다 확인하기 전엔 승인으로 �
   assert.equal(on.checked, false, "요약이 없으면 꺼짐");
   assert.ok(summary.hidden, "요약 칸은 만들기 전엔 숨김");
   on.checked = true;
-  button(c, "과목 전체 승인").click();
+  button(c, "학과 커리큘럼 보기").click();
   await flush();
   assert.match(c.textContent, /1단계: 사이트에 보일 글이 없습니다/);
-  assert.equal(approvals.length, 0);
-  let asked = null;
+  assert.ok(c.querySelector(".v3-submitted"), "비어 있으면 첫 쪽에 머묾");
+  const asked = [];
   const { configureServices } = await import("../../admin/js/services.mjs");
-  configureServices({ summarize: async (kind, text) => { asked = [kind, text]; return { text: "포토샵 기초" }; } });
+  const answer = { week: "포토샵 기초", department: "01 합친 요약", roadmap: "포토샵 로드맵\n둘째 줄" };
+  configureServices({ summarize: async (kind, text) => { asked.push([kind, text]); return { text: answer[kind] }; } });
   on.checked = false;
-  button(c.querySelector(".v3-submitted"), "AI 요약").click();
+  const right = c.querySelector(".v3-stepright");
+  assert.equal(right.firstElementChild.textContent, "AI 요약", "AI 요약 버튼은 적용 스위치 위");
+  button(right, "AI 요약").click();
   await flush();
-  configureServices({});
-  assert.deepEqual(asked, ["week", "새 원문"], "기존 단계 요약 프롬프트(week)");
+  assert.deepEqual(asked[0], ["week", "새 원문"], "기존 단계 요약 프롬프트(week)");
   assert.equal(summary.value, "포토샵 기초");
   assert.ok(!summary.hidden && on.checked, "만들면 칸이 보이고 적용이 켜짐");
-  button(c, "과목 전체 승인").click();
+
+  button(c, "학과 커리큘럼 보기").click();
+  await flush();
+  assert.match(c.textContent, /과목별 커리큘럼[\s\S]*학과별 커리큘럼 요약/);
+  assert.equal(asked[1][0], "department", "학과 커리큘럼 프롬프트");
+  assert.match(asked[1][1], /지금 학과별 커리큘럼 요약\]\n문구[\s\S]*김 선생님 새 커리큘럼\]\n\[1단계\]\n- 포토샵 기초/, "지금 요약 + 새 제출본을 합침");
+  const dept = c.querySelector('[aria-label="학과별 커리큘럼 요약"]');
+  assert.equal(dept.value, "01 합친 요약");
+  dept.value = "01 고친 요약";
+  button(c, "로드맵 문구 보기").click();
+  await flush();
+  assert.doesNotMatch(c.textContent, /STEP|스텝 삭제|과목 삭제/);
+  assert.deepEqual(asked[2], ["roadmap", "[과목] 포토샵\n01 고친 요약"], "고친 학과 문구로 로드맵 문구");
+  const road = c.querySelector('[aria-label="디자인 로드맵 문구"]');
+  assert.equal(road.value, "포토샵 로드맵", "과목 둘이 든 곳은 첫 줄만");
+  button(c, "이전").click();
+  assert.equal(c.querySelector('[aria-label="학과별 커리큘럼 요약"]').value, "01 고친 요약", "이전으로 가도 고친 것 그대로");
+  button(c, "로드맵 문구 보기").click();
+  await flush();
+  assert.equal(asked.length, 3, "AI는 처음 들어올 때 한 번만");
+  configureServices({});
+  button(c, "적용").click();
   await flush();
   assert.deepEqual(approvals, [["comsw_approve_curriculum", { p_id: "c1" }]]);
   assert.ok(db.calls.some(([k, t, , patch]) => k === "update" && t === "instructor_curricula" && patch.summary === "포토샵 기초"));
-  assert.match(c.textContent, /승인했습니다/);
+  assert.ok(db.calls.some(([k, t, , patch]) => k === "update" && t === "subjects" && patch.dept_curriculum === "01 고친 요약"));
+  assert.ok(db.calls.some(([k, t, , patch]) => k === "update" && t === "roadmap_steps" && patch.summary === "포토샵 로드맵\n"), "다른 과목 줄은 그대로");
+  assert.match(c.textContent, /승인했습니다\(학과별 커리큘럼 요약·로드맵 문구 함께 적용\)/);
 });
 
 test("V3 승인 대기 방특: 기수를 골라야 승인, 고른 기수로 옮겨 승인", async () => {
@@ -318,12 +345,13 @@ test("V3 승인 대기 방특: 기수를 골라야 승인, 고른 기수로 옮�
   v3.state.reviews.set("i1|set1|s4", new Map([["none", "none"]]));
   location.hash = "#/inbox";
   const c = await page("inbox", { supabase: db });
-  button(c, "과목 전체 승인").click();
+  assert.ok(!button(c, "학과 커리큘럼 보기"), "방특은 한 쪽뿐");
+  button(c, "적용").click();
   await flush();
   assert.match(c.textContent, /담을 방특 시기를 골라주세요/);
   const pickCohort = [...c.querySelectorAll("select")].at(-1);
   pickCohort.value = "v2";
-  button(c, "과목 전체 승인").click();
+  button(c, "적용").click();
   await flush();
   assert.ok(db.calls.some(([k, , , patch]) => k === "update" && patch.set_id === "v2"));
   assert.deepEqual(approvals, [["comsw_approve_curriculum", { p_id: "c9" }]]);

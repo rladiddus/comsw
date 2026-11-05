@@ -180,7 +180,10 @@
 /* 적용 on/off 스위치 */
 .v3-step2 { grid-template-columns:minmax(160px,1fr) minmax(0,2fr); }
 .v3-check { display:flex; align-items:center; gap:6px; margin-top:6px; font-size:13px; white-space:nowrap; cursor:pointer; }
-.v3-deptrow .v3-onoff-label { margin-top:6px; }
+.v3-deptrow .v3-onoff-label, .v3-deptrow .v3-check { align-self:flex-start; margin-top:2px; }
+/* 표 칸의 입력칸 공통 규칙(.dept-cell input: 너비 100%·테두리·여백)이 스위치·체크박스까지 늘리지 않게 */
+.dept-cell .v3-onoff { width:36px; height:20px; padding:0; border:0; border-radius:10px; }
+.dept-cell .v3-check input { width:16px; height:16px; padding:0; margin:0; accent-color:var(--accent); flex:none; }
 .v3-deptrow input[type=text], .v3-deptrow select, .v3-deptrow .v2-textarea { width:100%; box-sizing:border-box; }
 .v3-deptrow { grid-template-columns:24px 110px 80px minmax(0,1.6fr) minmax(0,.8fr) minmax(0,.8fr) 100px; }
 .v3-deptrow .dept-cell { white-space:pre-line; font-size:13px; }

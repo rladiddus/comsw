@@ -6,7 +6,7 @@ import { state, deptSubjects, contextBar, splitGrid, modal, sortable } from "../
 // 스텝에 과목 넣기 = 왼쪽 과목을 끌어 스텝 박스에 놓기(다른 스텝에 있던 과목이면 옮김). 맨 아래 '+ 스텝 추가'.
 // 스텝 안 과목(위아래)과 스텝 자체도 끌어서 순서를 바꾼다. 스텝 안 과목 순서 = 사이트 로드맵에 나오는 순서(roadmap_step_subjects.sort_order).
 // 스텝 박스 = 넣은 과목 | 요약 문구 | [과목 삭제][스텝 삭제][AI 요약]. AI 요약은 과목을 넣고 빼거나 새 스텝이라 문구가 필요할 때만 켜진다. 문구는 과목마다 하나(모든 학과 공용, 2026-10-29 결정)이고,
-// 과목을 여럿 넣은 스텝은 그 과목들의 문구를 요약한 것. 지금 DB에는 과목별 문구 칸이 없어 그 과목 하나만 든 로드맵 단계의 문구를 과목 문구로 본다.
+// 과목을 여럿 넣은 스텝은 그 과목들의 문구를 요약한 것. 과목 문구 = 과목 칸(subjects.roadmap_summary, 승인 대기에서 만듦), 없으면 그 과목 하나만 든 로드맵 단계의 문구.
 // 스텝 구성은 이 화면에서만 기억한다(state.roadmap, 저장 안 됨). 처음 = 지금 로드맵(roadmap_steps·roadmap_step_subjects).
 export async function render(container, ctx) {
   const { supabase } = ctx;
@@ -18,14 +18,17 @@ export async function render(container, ctx) {
     pick(supabase, "roadmap_steps", "id, track_id, position, summary"),
     pick(supabase, "roadmap_step_subjects", "step_id, subject_id"),
   ]);
+  // 과목 로드맵 문구 칸(20261105010000)은 운영 SQL 실행 전이면 없어서 따로 읽는다.
+  (await pick(supabase, "subjects", "id, roadmap_summary").catch(() => []))
+    .forEach((r) => { const s = subjects.find((x) => x.id === r.id); if (s) s.roadmap_summary = r.roadmap_summary; });
   headActions(ctx);
   state.mode = "regular"; // 로드맵은 정규만
   const data = { subjects, links };
   const body = el("div");
   const nameOfS = (id) => subjects.find((s) => s.id === id)?.name ?? "?";
   const subsOf = (stepId) => stepSubjects.filter((x) => x.step_id === stepId).map((x) => x.subject_id);
-  // 과목 문구: 그 과목 하나만 든 로드맵 단계(어느 학과든)의 문구
-  const own = (id) => steps.find((st) => { const xs = subsOf(st.id); return xs.length === 1 && xs[0] === id; })?.summary?.trim() ?? "";
+  // 과목 문구: 과목에 저장한 로드맵 문구(승인 대기에서 만듦), 없으면 그 과목 하나만 든 로드맵 단계(어느 학과든)의 문구
+  const own = (id) => subjects.find((s) => s.id === id)?.roadmap_summary?.trim() || steps.find((st) => { const xs = subsOf(st.id); return xs.length === 1 && xs[0] === id; })?.summary?.trim() || "";
   let dragged = null;
 
   // 처음 스텝 = 이 학과 로드맵의 단계(위치 순서)

@@ -7,6 +7,7 @@ import { driveThumbnail } from "../../../admin/js/drive.mjs";
 import { applyCrop, stripCrop } from "../../../admin/js/image-crop.mjs";
 import { state, CAT, materialsOf, typeChip } from "../v3.mjs";
 import { aiRequest } from "./aggregate.mjs";
+import { LEVELS } from "../../../admin/js/pages/department-curriculum.mjs";
 
 // 승인 대기(V3 시안 '통합 승인함'): 승인 단위 = 한 강사 × 한 과목 × 전체 단계(정책 1A). 프로필은 따로.
 // 준비물은 '준비물 검토'에서 학과장이 전부 확인해야 승인 버튼이 열린다(정책 9D). 검토 결과는 아직 DB에 칸이 없어 이 화면에만 남는다.
@@ -16,6 +17,14 @@ import { aiRequest } from "./aggregate.mjs";
 // ponytail: 단계별로 따로 승인해서 중간에 끊기면 일부만 승인됨(남은 단계는 목록에 남아 다시 누르면 됨). 한 번에 묶으려면 DB 함수 추가.
 // 준비물 검토 결과(최종 분류)는 아직 DB에 칸이 없어 저장되지 않고, 승인 함수는 선생님이 적은 칸 그대로 과목 값에 합친다.
 const CURR = "id, instructor_id, set_id, subject_id, step_label, written, summary, media_url, status, vacation, sort_order, updated_at";
+// 승인 함수의 comsw_private.merge_items와 같은 규칙: 쉼표·줄바꿈으로 나눠 (띄어쓰기·대소문자 무시) 없는 것만 새 줄에 붙인다.
+export function mergeItems(old, add) {
+  const key = (x) => x.replace(/\s/g, "").toLowerCase();
+  const had = new Set(String(old ?? "").split(/[,\n\r]+/).map(key));
+  const added = [...new Set(String(add ?? "").split(/[,\n\r]+/).map((x) => x.trim()).filter((x) => x && !had.has(key(x))))];
+  if (!added.length) return old ?? "";
+  return String(old ?? "").trim() ? `${old}\n${added.join(", ")}` : added.join(", ");
+}
 const short = (s, n = 90) => { const t = String(s || "").trim(); return t.length > n ? `${t.slice(0, n)}…` : t; };
 
 export const reviewedCount = (key, mats) => mats.filter((m) => state.reviews.get(key)?.has(m.id)).length;
@@ -70,6 +79,10 @@ export async function render(container, ctx) {
     pick(supabase, "roadmap_steps", "id, track_id, position, summary"),
     pick(supabase, "roadmap_step_subjects", "step_id, subject_id, sort_order"),
   ]);
+  // 과목 로드맵 문구 칸(subjects.roadmap_summary, 20261105010000)은 운영 SQL 실행 전이면 없어서 따로 읽는다. 없으면 로드맵 단계에만 반영.
+  const rmap = await pick(supabase, "subjects", "id, roadmap_summary").catch(() => null);
+  const hasRoad = rmap !== null;
+  rmap?.forEach((r) => { const s = subjects.find((x) => x.id === r.id); if (s) s.roadmap_summary = r.roadmap_summary; });
   const cohorts = sets.filter((s) => s.is_vacation);
   headActions(ctx);
 
@@ -134,11 +147,27 @@ export async function render(container, ctx) {
     return blank.length > 0;
   };
 
-  // ② 과목별 커리큘럼: 학과별 커리큘럼 요약 칸(지금 문구로 시작, AI로 지금 문구 + 이번 제출본을 합쳐 다시 쓰고, 직접 고칠 수 있음)
-  function deptText(it) {
-    it.dept ??= el("textarea", { className: "v2-textarea", rows: 4, value: it.subject?.dept_curriculum ?? "", placeholder: "학과별 커리큘럼 요약", maxLength: 2000 });
-    it.dept.setAttribute("aria-label", "학과별 커리큘럼 요약");
-    return it.dept;
+  // ② 과목별 커리큘럼 한 줄: 기간·학과별 커리큘럼 요약·프로그램·준비물(없음 체크)·학습 수준을 고친다.
+  // 프로그램·준비물은 승인 함수가 선생님이 적은 칸을 과목 값에 합치므로(merge_items), 합친 모습을 미리 채우고 적용 때 이 칸 그대로 저장한다.
+  function fields(it) {
+    if (it.f) return it.f;
+    const s = it.subject ?? {};
+    const mat = materials.find((m) => m.instructor_id === it.g.instructor_id && m.subject_id === it.g.subject_id) ?? {};
+    const area = (k, value, label) => { const x = el("textarea", { className: "v2-textarea", rows: k === "dept" ? 4 : 3, value: value ?? "", placeholder: label, maxLength: 2000 }); x.setAttribute("aria-label", label); return x; };
+    const f = {
+      duration: el("input", { type: "text", value: s.duration ?? "", placeholder: "기간" }),
+      dept: area("dept", s.dept_curriculum, "학과별 커리큘럼 요약"),
+      tools: area("tools", mergeItems(s.tools, mat.tools), "프로그램"),
+      supplies: area("supplies", mergeItems(s.supplies, mat.supplies), "준비물"),
+      none: el("input", { type: "checkbox" }),
+      level: el("select", {}, [el("option", { value: "", textContent: "선택 안 함" }), ...[...new Set([...LEVELS, ...(s.level ? [s.level] : [])])].map((v) => el("option", { value: v, textContent: v }))]),
+    };
+    f.level.value = s.level ?? "";
+    f.duration.setAttribute("aria-label", "기간");
+    f.level.setAttribute("aria-label", "학습 수준");
+    f.none.setAttribute("aria-label", "준비물 없음");
+    f.none.addEventListener("change", () => { if (f.none.checked) f.supplies.value = ""; f.supplies.disabled = f.none.checked; });
+    return (it.f = f);
   }
   // 학과 관리 '과목별 커리큘럼'의 AI생성과 같은 프롬프트(department, 줄 수 지시). 지금 요약이 있으면 그것과 이번 제출본을 합친다.
   async function aiDept(it, b) {
@@ -150,42 +179,41 @@ export async function render(container, ctx) {
     b.disabled = true;
     try {
       say("AI가 과목별 커리큘럼을 만드는 중…");
-      deptText(it).value = (await fn("department", ask)).text;
+      fields(it).dept.value = (await fn("department", ask)).text;
       say(`${state.aiLines}줄로 만들었습니다. 고칠 곳이 있으면 칸에서 바로 고쳐주세요.`);
     } catch (e) { say(e.message, true); }
     b.disabled = false;
   }
 
-  // ③ 로드맵 문구: 이 과목이 든 로드맵 단계마다 한 칸. 과목이 여럿 든 단계는 이 과목 줄만 바꾸고 다른 줄은 그대로(기존 '신청 과목'과 같음).
-  function roadViews(it) {
-    it.road ??= rsteps.filter((st) => rsubs.some((x) => x.step_id === st.id && x.subject_id === it.g.subject_id)).map((st) => {
+  // ③ 로드맵 문구: 과목마다 하나(subjects.roadmap_summary, 모든 학과 공용). 로드맵에 아직 안 넣은 과목도 만들어 둔다.
+  // 이 과목이 든 로드맵 단계도 함께 바꾼다: 과목 하나뿐인 단계는 문구 전체, 여럿이 든 단계는 이 과목 줄만(기존 '신청 과목'과 같음).
+  function road(it) {
+    if (it.road) return it.road;
+    const sid = it.g.subject_id;
+    const steps = rsteps.filter((st) => rsubs.some((x) => x.step_id === st.id && x.subject_id === sid)).map((st) => {
       const members = rsubs.filter((x) => x.step_id === st.id).sort((x, y) => (x.sort_order ?? 0) - (y.sort_order ?? 0));
-      const shared = members.length > 1;
-      const at = members.findIndex((x) => x.subject_id === it.g.subject_id);
-      const lines = () => String(st.summary ?? "").split("\n");
-      const mine = () => (shared ? lines()[at] ?? "" : st.summary ?? "").trim();
-      const text = el("textarea", { className: "v2-textarea", rows: shared ? 2 : 3, value: mine(), placeholder: "로드맵 문구", maxLength: 2000 });
-      text.setAttribute("aria-label", `${nameOf(tracks, st.track_id)} 로드맵 문구`);
-      const merged = () => {
-        const t = text.value.trim();
-        if (!shared) return t;
-        const all = lines();
+      const at = members.findIndex((x) => x.subject_id === sid);
+      const lines = String(st.summary ?? "").split("\n");
+      const merged = (t) => {
+        if (members.length < 2) return t;
+        const all = [...lines];
         while (all.length < members.length) all.push("");
         all[at] = t.replace(/\n+/g, " ");
         return all.join("\n");
       };
-      return { st, members, shared, text, changed: () => Boolean(text.value.trim()) && text.value.trim() !== mine(), merged };
+      return { st, members, merged, line: (members.length > 1 ? lines[at] ?? "" : st.summary ?? "").trim() };
     });
-    return it.road;
+    const text = el("textarea", { className: "v2-textarea", rows: 3, value: it.subject?.roadmap_summary ?? steps.find((x) => x.members.length === 1)?.line ?? "", placeholder: "로드맵 문구", maxLength: 2000 });
+    text.setAttribute("aria-label", "로드맵 문구");
+    return (it.road = { text, steps });
   }
-  async function aiRoad(it, v, b) {
+  async function aiRoad(it, b) {
     const fn = getServices().summarize;
     if (!fn) return say("AI 연결을 준비 중입니다", true);
     b.disabled = true;
     try {
       say("AI가 로드맵 문구를 만드는 중…");
-      const text = (await fn("roadmap", `[과목] ${it.subject?.name ?? ""}\n${deptText(it).value.trim()}`)).text;
-      v.text.value = v.shared ? text.split("\n").map((x) => x.trim()).find(Boolean) ?? "" : text;
+      road(it).text.value = (await fn("roadmap", `[과목] ${it.subject?.name ?? ""}\n${fields(it).dept.value.trim()}`)).text;
       say("로드맵 문구를 만들었습니다. 고칠 곳이 있으면 칸에서 바로 고쳐주세요.");
     } catch (e) { say(e.message, true); }
     b.disabled = false;
@@ -198,11 +226,8 @@ export async function render(container, ctx) {
     const setId = it.g.vacation ? it.cohort.value : null;
     if (it.g.vacation && !setId) return say("담을 방특 시기를 골라주세요", true);
     const where = it.g.vacation ? `'${nameOf(cohorts, setId)}' 방특` : it.scope;
-    const dept = it.g.vacation ? "" : deptText(it).value.trim();
-    const newDept = dept && dept !== String(it.subject?.dept_curriculum ?? "").trim();
-    const roads = it.g.vacation ? [] : roadViews(it).filter((v) => v.changed());
-    const also = [...(newDept ? ["학과별 커리큘럼 요약"] : []), ...(roads.length ? ["로드맵 문구"] : [])];
-    if (!confirm(`${it.who} 선생님의 ${it.subject?.name ?? ""} 전체 ${it.g.rows.length}단계를 ${where}에 승인${also.length ? `하고 ${also.join("·")}을 적용` : ""}할까요?`)) return;
+    const also = it.g.vacation ? "" : "하고 과목별 커리큘럼·로드맵 문구를 적용";
+    if (!confirm(`${it.who} 선생님의 ${it.subject?.name ?? ""} 전체 ${it.g.rows.length}단계를 ${where}에 승인${also}할까요?`)) return;
     if (b) b.disabled = true;
     it.ok ??= new Set(); // 이미 승인한 단계(중간에 끊겨 다시 누를 때 건너뜀)
     try {
@@ -212,18 +237,23 @@ export async function render(container, ctx) {
         await rpc(supabase, "comsw_approve_curriculum", { p_id: r.id });
         it.ok.add(r.id);
       }
-      if (newDept) {
-        const { error } = await supabase.from("subjects").update({ dept_curriculum: dept }).eq("id", it.g.subject_id);
+      if (!it.g.vacation) {
+        // 승인 함수가 합친 프로그램·준비물 위에 ② 칸 그대로 덮어쓴다(칸에 합친 모습을 미리 채워 둠).
+        const f = fields(it), rd = road(it), t = rd.text.value.trim();
+        const val = (x) => x.value.trim() || null;
+        const patch = { duration: val(f.duration), dept_curriculum: val(f.dept), tools: val(f.tools), supplies: f.none.checked ? null : val(f.supplies), level: f.level.value || null, ...(hasRoad ? { roadmap_summary: t || null } : {}) };
+        const { error } = await supabase.from("subjects").update(patch).eq("id", it.g.subject_id);
         if (error) throw new Error(dbErrorMessage(error));
-        it.subject.dept_curriculum = dept;
+        Object.assign(it.subject, patch);
+        for (const x of t ? rd.steps : []) {
+          const summary = x.merged(t);
+          if (summary === (x.st.summary ?? "")) continue;
+          const { error: e2 } = await supabase.from("roadmap_steps").update({ summary }).eq("id", x.st.id);
+          if (e2) throw new Error(dbErrorMessage(e2));
+          x.st.summary = summary;
+        }
       }
-      for (const v of roads) {
-        const summary = v.merged();
-        const { error } = await supabase.from("roadmap_steps").update({ summary }).eq("id", v.st.id);
-        if (error) throw new Error(dbErrorMessage(error));
-        v.st.summary = summary;
-      }
-      say(`승인했습니다${also.length ? `(${also.join("·")} 함께 적용)` : ""}. 공개 사이트에는 '사이트 반영' 후 보입니다.`);
+      say(`승인했습니다${it.g.vacation ? "" : "(과목별 커리큘럼·로드맵 문구 함께 적용)"}. 공개 사이트에는 '사이트 반영' 후 보입니다.`);
       items.splice(items.indexOf(it), 1);
       selected = items[0];
       setTimeout(draw, 1200);
@@ -286,39 +316,43 @@ export async function render(container, ctx) {
 
   // ② 과목별 커리큘럼(학과 관리 표 모양, 이 과목 한 줄). 처음 들어오면 AI가 한 번 만들어 둔다.
   function deptPage(it) {
-    const s = it.subject ?? {};
+    const f = fields(it);
     const ai = btn("AI생성", () => aiDept(it, ai));
     if (!it.deptAi) { it.deptAi = true; aiDept(it, ai); }
-    const show = (k, v) => el("div", { className: `dept-cell cell-${k}`, textContent: String(v ?? "").trim() || "—" });
+    const cell = (k, kids) => el("div", { className: `dept-cell cell-${k}` }, kids);
     return [
       el("h4", { textContent: "과목별 커리큘럼" }),
       el("div", { className: "dept-curriculum-row v3-headrow v3-deptrow" }, ["", "과목명", "기간", "학과별 커리큘럼 요약", "프로그램", "준비물", "학습 수준"].map((t) => el("b", { textContent: t }))),
       el("div", { className: "dept-curriculum-row v3-deptrow" }, [
         el("span", { className: "v2-num", textContent: "1" }),
-        show("name", s.name), show("duration", s.duration),
-        el("div", { className: "dept-cell cell-dept_curriculum" }, [el("div", { className: "v2-actions" }, [ai]), deptText(it)]),
-        show("tools", s.tools), show("supplies", s.supplies), show("level", s.level),
+        cell("name", [el("b", { textContent: it.subject?.name ?? "" })]),
+        cell("duration", [f.duration]),
+        cell("dept_curriculum", [el("div", { className: "v2-actions" }, [ai]), f.dept]),
+        cell("tools", [f.tools]),
+        cell("supplies", [el("label", { className: "consent supplies-none" }, [f.none, el("span", { textContent: "없음" })]), f.supplies]),
+        cell("level", [f.level]),
       ]),
-      el("small", { className: "muted", textContent: "AI가 지금 학과별 커리큘럼 요약과 이번 제출 커리큘럼을 합쳐 만듭니다. 칸에서 바로 고칠 수 있고, 그대로 두면 지금 문구가 유지됩니다. 프로그램·준비물은 승인할 때 선생님이 적은 칸이 합쳐집니다." }),
+      el("small", { className: "muted", textContent: "AI가 지금 학과별 커리큘럼 요약과 이번 제출 커리큘럼을 합쳐 만듭니다. 모든 칸을 바로 고칠 수 있습니다. 프로그램·준비물은 선생님이 적은 것을 합친 모습이고, [적용]하면 이 칸 그대로 저장됩니다(이 과목을 쓰는 모든 학과 공통)." }),
     ];
   }
 
-  // ③ 로드맵 문구(로드맵 화면의 박스 모양, 과목 삭제·스텝 삭제 없음). 처음 들어오면 AI가 한 번 만들어 둔다.
+  // ③ 로드맵 문구(로드맵 화면의 박스 모양, 스텝·삭제 버튼 없음). 처음 들어오면 AI가 한 번 만들어 둔다.
   function roadPage(it) {
-    const views = roadViews(it);
-    const boxes = views.map((v) => {
-      const ai = btn("AI 요약", () => aiRoad(it, v, ai), true);
-      if (!it.roadAi) setTimeout(() => aiRoad(it, v, ai));
-      return el("div", { className: "v3-step" }, [
-        el("div", { className: "v3-stepsubs" }, [el("b", { textContent: nameOf(tracks, v.st.track_id) || "로드맵" }),
-          ...v.members.map((x) => el("span", { className: `v3-tchip v3-stepsub${x.subject_id === it.g.subject_id ? " active" : ""}`, textContent: nameOf(subjects, x.subject_id) }))]),
-        el("div", { className: "v3-steptext" }, [el("b", { textContent: "로드맵 문구" }), v.text,
-          ...(v.shared ? [el("small", { className: "muted", textContent: `과목 ${v.members.length}개가 함께 든 곳이라 ${it.subject?.name ?? ""} 줄만 바뀝니다.` })] : [])]),
+    const rd = road(it);
+    const ai = btn("AI 요약", () => aiRoad(it, ai), true);
+    if (!it.roadAi) { it.roadAi = true; aiRoad(it, ai); }
+    const where = rd.steps.map((x) => `${nameOf(tracks, x.st.track_id) || "로드맵"}${x.members.length > 1 ? `(${x.members.map((m) => nameOf(subjects, m.subject_id)).join("·")} 함께)` : ""}`);
+    return [
+      el("h4", { textContent: "로드맵 문구" }),
+      el("div", { className: "v3-step" }, [
+        el("div", { className: "v3-stepsubs" }, [el("span", { className: "v3-tchip v3-stepsub active", textContent: it.subject?.name ?? "" }),
+          el("small", { className: "muted", textContent: where.length ? `${where.join(", ")} 로드맵에 들어 있음` : "아직 로드맵에 넣지 않았습니다. 문구는 과목에 저장해 두고, 로드맵에 넣으면 쓰입니다." })]),
+        el("div", { className: "v3-steptext" }, [el("b", { textContent: "로드맵 문구" }), rd.text,
+          ...(rd.steps.some((x) => x.members.length > 1) ? [el("small", { className: "muted", textContent: `과목 여럿이 함께 든 로드맵은 ${it.subject?.name ?? ""} 줄만 바뀝니다.` })] : [])]),
         el("div", { className: "v3-stepbtns" }, [ai]),
-      ]);
-    });
-    it.roadAi = true;
-    return [el("h4", { textContent: "로드맵 문구" }), ...(boxes.length ? boxes : [empty("이 과목이 들어간 로드맵이 없습니다. 로드맵 메뉴에서 넣을 수 있습니다.")])];
+      ]),
+      ...(hasRoad ? [] : [hint("과목 로드맵 문구 칸이 아직 DB에 없습니다(운영 SQL 실행 전). 지금은 로드맵에 들어 있는 곳에만 반영됩니다.")]),
+    ];
   }
 
   function profile(it) {

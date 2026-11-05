@@ -311,12 +311,20 @@ test("V3 승인 대기 → 재료 검토: 다 확인하기 전엔 승인으로 �
   const dept = c.querySelector('[aria-label="학과별 커리큘럼 요약"]');
   assert.equal(dept.value, "01 합친 요약");
   dept.value = "01 고친 요약";
+  const field = (name) => c.querySelector(`[aria-label="${name}"]`);
+  assert.equal(field("프로그램").value, "포토샵\nChatGPT", "선생님이 적은 프로그램을 승인 함수처럼 합쳐 미리 채움");
+  assert.deepEqual([...field("학습 수준").options].map((o) => o.value).slice(1), ["★☆☆☆☆", "★★☆☆☆", "★★★☆☆", "★★★★☆", "★★★★★"]);
+  field("기간").value = "2개월";
+  field("학습 수준").value = "★★★☆☆";
+  field("준비물 없음").checked = true;
+  field("준비물 없음").dispatchEvent(new dom.window.Event("change"));
+  assert.ok(field("준비물").disabled && field("준비물").value === "", "없음이면 칸을 비우고 막음");
   button(c, "로드맵 문구 보기").click();
   await flush();
   assert.doesNotMatch(c.textContent, /STEP|스텝 삭제|과목 삭제/);
   assert.deepEqual(asked[2], ["roadmap", "[과목] 포토샵\n01 고친 요약"], "고친 학과 문구로 로드맵 문구");
-  const road = c.querySelector('[aria-label="디자인 로드맵 문구"]');
-  assert.equal(road.value, "포토샵 로드맵", "과목 둘이 든 곳은 첫 줄만");
+  assert.match(c.textContent, /디자인\(포토샵·웹1 함께\) 로드맵에 들어 있음/);
+  assert.equal(c.querySelector('[aria-label="로드맵 문구"]').value, "포토샵 로드맵\n둘째 줄");
   button(c, "이전").click();
   assert.equal(c.querySelector('[aria-label="학과별 커리큘럼 요약"]').value, "01 고친 요약", "이전으로 가도 고친 것 그대로");
   button(c, "로드맵 문구 보기").click();
@@ -327,9 +335,18 @@ test("V3 승인 대기 → 재료 검토: 다 확인하기 전엔 승인으로 �
   await flush();
   assert.deepEqual(approvals, [["comsw_approve_curriculum", { p_id: "c1" }]]);
   assert.ok(db.calls.some(([k, t, , patch]) => k === "update" && t === "instructor_curricula" && patch.summary === "포토샵 기초"));
-  assert.ok(db.calls.some(([k, t, , patch]) => k === "update" && t === "subjects" && patch.dept_curriculum === "01 고친 요약"));
-  assert.ok(db.calls.some(([k, t, , patch]) => k === "update" && t === "roadmap_steps" && patch.summary === "포토샵 로드맵\n"), "다른 과목 줄은 그대로");
-  assert.match(c.textContent, /승인했습니다\(학과별 커리큘럼 요약·로드맵 문구 함께 적용\)/);
+  const subj = db.calls.find(([k, t]) => k === "update" && t === "subjects")?.[3];
+  assert.deepEqual(subj, { duration: "2개월", dept_curriculum: "01 고친 요약", tools: "포토샵\nChatGPT", supplies: null, level: "★★★☆☆", roadmap_summary: "포토샵 로드맵\n둘째 줄" });
+  assert.ok(db.calls.some(([k, t, , patch]) => k === "update" && t === "roadmap_steps" && patch.summary === "포토샵 로드맵 둘째 줄\n"), "과목 둘이 든 곳은 이 과목 줄만, 다른 줄은 그대로");
+  assert.match(c.textContent, /승인했습니다\(과목별 커리큘럼·로드맵 문구 함께 적용\)/);
+});
+
+test("V3 승인 대기: 프로그램·준비물 합치기는 승인 함수(merge_items)와 같은 규칙", async () => {
+  const { mergeItems } = await import("../../admin-v3/js/pages/inbox.mjs");
+  assert.equal(mergeItems("포토샵", "포 토샵, ChatGPT\nChatGPT"), "포토샵\nChatGPT");
+  assert.equal(mergeItems("", "노트북, 펜"), "노트북, 펜");
+  assert.equal(mergeItems("노트북", ""), "노트북");
+  assert.equal(mergeItems(null, null), "");
 });
 
 test("V3 승인 대기 방특: 기수를 골라야 승인, 고른 기수로 옮겨 승인", async () => {

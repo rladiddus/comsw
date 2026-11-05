@@ -47,7 +47,7 @@ export async function render(container, ctx) {
   const { supabase } = ctx;
   const pending = await pick(supabase, "instructor_curricula", CURR, (q) => q.eq("status", "pending"));
   const who = [...new Set(pending.map((r) => r.instructor_id))];
-  const [approved, drafts, instructors, subjects, sets, depts, materials, nowCohort, links] = await Promise.all([
+  const [approved, drafts, instructors, subjects, sets, depts, materials, nowCohort] = await Promise.all([
     who.length ? pick(supabase, "instructor_curricula", CURR, (q) => q.eq("status", "approved").in("instructor_id", who)) : [],
     pick(supabase, "instructor_profile_drafts", "*", (q) => q.eq("status", "pending")),
     pick(supabase, "instructors", "id, name, career, message, photo_url"),
@@ -56,7 +56,6 @@ export async function render(container, ctx) {
     pick(supabase, "departments", "id, name"),
     pick(supabase, "instructor_subject_materials", "instructor_id, subject_id, tools, supplies"),
     pick(supabase, "site_settings", "key, value", (q) => q.eq("key", "vacation_set_id")),
-    pick(supabase, "subject_departments", "subject_id, department_id"),
   ]);
   const cohorts = sets.filter((s) => s.is_vacation);
   headActions(ctx, btn("과목 전체 승인", () => selected?.g && approve(selected), true));
@@ -77,7 +76,6 @@ export async function render(container, ctx) {
   let selected = items.find((it) => it.key === want) ?? items[0];
   const listBox = el("div", { className: "v2-boxlist" });
   const mid = el("div", { className: "v2-stack" });
-  const side = el("div", { className: "v2-stack" });
   const status = el("p", { className: "save-state" });
   const { zoom, thumb } = imageZoom();
 
@@ -144,7 +142,6 @@ export async function render(container, ctx) {
       el("div", {}, [it.g ? chip(reviewDone(it.key, it.mats) ? "준비물 검토 완료" : "승인 대기", reviewDone(it.key, it.mats) ? "good" : "warn") : chip("별도 승인 대기", "warn")]),
     ]), { onclick: () => { selected = it; say(""); draw(); } })) : [empty("승인 대기 중인 제출이 없습니다.")]));
     mid.replaceChildren(...(selected ? (selected.g ? curriculum(selected) : profile(selected)) : []));
-    side.replaceChildren(...(selected?.g ? impact(selected) : []));
   }
 
   function curriculum(it) {
@@ -175,20 +172,6 @@ export async function render(container, ctx) {
     ], formatSeoul(it.at), [typeChip(it.subject)])];
   }
 
-  function impact(it) {
-    const done = reviewDone(it.key, it.mats);
-    const row = (text, c) => el("div", { className: "v3-impact" }, [el("div", { textContent: text }), c]);
-    return [panel("과목 승인 영향", [
-      row("강사 개인 원문·이미지 + 확정 준비물", chip(done ? "승인 가능" : "준비물 검토 대기", done ? "good" : "warn")),
-      row(`학과 관리 · ${it.subject?.name ?? ""}`, chip("재직 승인 강사 모두 포함 → 다시 만들기", "vacation")),
-      ...(it.g.vacation ? [] : [row(`이 과목을 쓰는 학과 ${links.filter((l) => l.subject_id === it.g.subject_id).length}곳`,
-        el("small", { className: "muted", textContent: links.filter((l) => l.subject_id === it.g.subject_id).map((l) => nameOf(depts, l.department_id)).join(", ") + "에 같이 반영" }))]),
-      row("로드맵 문구", chip("과목 통합본으로 다시 요약 · 학과장 확정", "vacation")),
-      row("공개 사이트", chip("별도 반영", "")),
-      (it.g.vacation ? btn("방학 특강 보기", () => { location.hash = "#/vacation"; }) : btn("이 과목의 학과 관리 보기", () => { location.hash = `#/aggregate/${it.g.subject_id}`; })),
-    ])];
-  }
-
   function profile(it) {
     const now = instructors.find((i) => i.id === it.d.instructor_id) ?? {};
     const note = el("textarea", { className: "v2-textarea", placeholder: "수정 요청 내용", maxLength: 2000 });
@@ -215,11 +198,9 @@ export async function render(container, ctx) {
   }
 
   container.append(
-    el("div", { className: "v3-callout" }, [chip("1A", "vacation"), document.createTextNode(" 한 강사 × 한 과목 × 전체 단계가 승인 단위입니다. "),
-      chip("9D", "vacation"), document.createTextNode(" 준비물은 선생님 분류 → 검사 제안 → 학과장 확인 후 승인합니다. 공개는 따로 반영합니다(2A).")]),
-    el("div", { className: "v3-grid363" }, [
+    el("div", { className: "v3-dash" }, [
       el("section", { className: "v2-panel" }, [el("div", { className: "v2-panel-head" }, [el("h3", { textContent: "제출 목록" }), chip(`${items.length}건`, "warn")]), listBox]),
-      mid, side,
+      mid,
     ]),
     zoom,
   );

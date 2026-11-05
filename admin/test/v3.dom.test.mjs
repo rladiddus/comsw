@@ -252,6 +252,7 @@ test("V3 승인 대기 → 재료 검토: 다 확인하기 전엔 승인으로 �
   const items = [...c.querySelectorAll(".v2-listitem b")].map((b) => b.textContent);
   assert.deepEqual(items, ["김 · 포토샵", "이 · 프로필"]);
   assert.match(c.textContent, /제출된 커리큘럼[\s\S]*새 원문/);
+  assert.doesNotMatch(c.textContent, /과목 승인 영향|승인 단위입니다|학과장 확인 후 승인합니다/, "1A·9D 안내와 영향 박스 없음");
   assert.doesNotMatch(c.textContent, /이전 승인본|옛 원문/, "이전 승인본은 안 보임");
   assert.match(c.textContent, /검토 0\/4/);
   assert.equal(c.querySelectorAll(".v3-submitted .v2-diff-cols:not(.v2-diff-head) > div:last-child button.submission-thumb img").length, 1, "이미지는 단계 줄 오른쪽");

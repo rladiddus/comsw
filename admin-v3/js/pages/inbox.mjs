@@ -18,6 +18,31 @@ const short = (s, n = 90) => { const t = String(s || "").trim(); return t.length
 export const reviewedCount = (key, mats) => mats.filter((m) => state.reviews.get(key)?.has(m.id)).length;
 export const reviewDone = (key, mats) => mats.length ? reviewedCount(key, mats) === mats.length : state.reviews.get(key)?.has("none") === true;
 
+// 커리큘럼 이미지: 작게 보여 주고 누르면 크게(선생님 '내 커리큘럼'과 같은 방식). 대시보드도 같이 쓴다.
+export function imageZoom() {
+  const zoom = el("dialog", { className: "image-zoom" });
+  zoom.addEventListener("click", () => zoom.close?.());
+  const thumb = (url, alt) => {
+    if (!url) return el("div", { className: "submission-thumb empty", textContent: "이미지 없음" });
+    const b = el("button", { type: "button", className: "submission-thumb", title: "크게 보기" }, [applyCrop(el("img", { src: driveThumbnail(url), alt }), url)]);
+    b.addEventListener("click", () => {
+      zoom.replaceChildren(el("img", { src: driveThumbnail(stripCrop(url)), alt }));
+      if (zoom.showModal) zoom.showModal(); else zoom.setAttribute("open", "");
+    });
+    return b;
+  };
+  return { zoom, thumb };
+}
+export const sortSteps = (rows) => [...rows].sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0) || String(a.step_label).localeCompare(String(b.step_label)));
+// 제출된 커리큘럼: 단계마다 글은 왼쪽, 이미지는 오른쪽
+export const submittedSteps = (steps, thumb) => el("div", { className: "v2-diff v3-submitted" }, [
+  el("div", { className: "v2-diff-cols v2-diff-head" }, [el("div", { textContent: "제출된 커리큘럼" })]),
+  ...steps.map((r) => el("div", { className: "v2-diff-cols" }, [
+    el("div", {}, [el("b", { textContent: r.step_label }), el("div", { textContent: String(r.written || "").trim() || "(원문 없음)" })]),
+    el("div", {}, [thumb(r.media_url, `${r.step_label} 이미지`)]),
+  ])),
+]);
+
 export async function render(container, ctx) {
   const { supabase } = ctx;
   const pending = await pick(supabase, "instructor_curricula", CURR, (q) => q.eq("status", "pending"));
@@ -54,18 +79,7 @@ export async function render(container, ctx) {
   const mid = el("div", { className: "v2-stack" });
   const side = el("div", { className: "v2-stack" });
   const status = el("p", { className: "save-state" });
-  // 커리큘럼 이미지: 작게 보여 주고 누르면 크게(선생님 '내 커리큘럼'과 같은 방식)
-  const zoom = el("dialog", { className: "image-zoom" });
-  zoom.addEventListener("click", () => zoom.close?.());
-  const thumb = (url, alt) => {
-    if (!url) return el("div", { className: "submission-thumb empty", textContent: "이미지 없음" });
-    const b = el("button", { type: "button", className: "submission-thumb", title: "크게 보기" }, [applyCrop(el("img", { src: driveThumbnail(url), alt }), url)]);
-    b.addEventListener("click", () => {
-      zoom.replaceChildren(el("img", { src: driveThumbnail(stripCrop(url)), alt }));
-      if (zoom.showModal) zoom.showModal(); else zoom.setAttribute("open", "");
-    });
-    return b;
-  };
+  const { zoom, thumb } = imageZoom();
 
   const say = (text, err = false) => { status.textContent = text; status.className = `save-state${err ? " err" : ""}`; };
 
@@ -134,7 +148,7 @@ export async function render(container, ctx) {
   }
 
   function curriculum(it) {
-    const steps = [...it.g.rows].sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0) || String(a.step_label).localeCompare(String(b.step_label)));
+    const steps = sortSteps(it.g.rows);
     const n = reviewedCount(it.key, it.mats);
     const done = reviewDone(it.key, it.mats);
     inputs(it);
@@ -142,15 +156,7 @@ export async function render(container, ctx) {
     const go = btn("과목 전체 승인", () => approve(it, go), done);
     return [panel(`${it.who}의 ${it.subject?.name ?? ""} 전체 승인 범위`, [
       el("div", { className: "v3-callout" }, [el("b", { textContent: "대상  " }), document.createTextNode(`${it.scope} / ${it.g.vacation ? "방특" : "정규"} / ${it.subject?.name ?? ""} / ${it.who} · 전체 ${steps.length}단계`)]),
-      el("div", { className: "v2-diff" }, [
-        el("div", { className: "v2-diff-cols v2-diff-head" }, [el("div", { textContent: "이전 승인본" }), el("div", { textContent: "새 제출본" })]),
-        ...steps.map((r) => {
-          const a = it.before.find((b) => b.step_label === r.step_label);
-          const side2 = (x) => x ? [el("b", { textContent: x.step_label }), el("div", { textContent: short(x.written) || "(원문 없음)" }),
-            thumb(x.media_url, `${x.step_label} 이미지`)] : [el("span", { className: "muted", textContent: `${r.step_label} — 없음(새 단계)` })];
-          return el("div", { className: "v2-diff-cols" }, [el("div", {}, side2(a)), el("div", {}, side2(r))]);
-        }),
-      ]),
+      submittedSteps(steps, thumb),
       el("h4", { textContent: "사이트 문구 (단계마다 공개 사이트에 보이는 글)" }),
       ...steps.map((r) => el("label", { className: "v3-block" }, [el("b", { textContent: r.step_label }), it.texts.get(r.id)])),
       el("div", { className: "v2-actions" }, [ai]),

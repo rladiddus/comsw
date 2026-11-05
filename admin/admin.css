@@ -557,7 +557,7 @@ dialog.roadmap-source::backdrop { background:rgba(0,0,0,.45); }
 .page-title-row .ghost-btn { padding:6px 12px; font-size:13px; }
 /* 내 커리큘럼 > 등록하기: 학과장·관리자 '타강사 커리큘럼' */
 .proxy-title input[type=search], .proxy-title select { padding:8px 10px; border:1px solid #d9dde4; border-radius:8px; background:#fff; }
-.proxy-title .proxy-toggle { margin-left:auto; display:inline-flex; align-items:center; gap:6px; font-weight:600; }
+.proxy-title .proxy-toggle { display:inline-flex; align-items:center; gap:6px; font-weight:600; }
 .step-add-row { display:flex; gap:8px; flex-wrap:wrap; }
 
 /* 학과 관리 › 과목 관리 */
@@ -574,3 +574,4 @@ dialog.roadmap-source::backdrop { background:rgba(0,0,0,.45); }
 .dash-num { font-size:32px; line-height:1.2; }
 .dash-card.alert .dash-num { color:var(--accent); }
 .dash-note { color:var(--muted); font-size:12px; }
+.supplies-none { display:inline-flex; align-items:center; gap:4px; margin-left:8px; font-weight:400; }

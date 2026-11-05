@@ -138,6 +138,9 @@ export function teacherPicker({ v3, depts, teachers, links, current = "", onPick
       ...shown.map((i) => el("option", { value: i.id, textContent: v3 ? i.name : `${i.name} 선생님` })),
     );
     pick.value = shown.some((i) => i.id === current) ? current : "";
+    // 이름 검색으로 한 명만 남거나 이름이 딱 맞으면 바로 그 강사를 고른다.
+    const hit = word && (shown.length === 1 ? shown[0] : shown.find((i) => i.name === word));
+    if (hit && hit.id !== current) { pick.value = hit.id; onPick(hit.id); }
   };
   deptPick.addEventListener("change", () => { pickedDept = deptPick.value; fill(); });
   find.addEventListener("input", fill);

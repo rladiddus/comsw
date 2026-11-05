@@ -492,11 +492,7 @@ test("타강사 커리큘럼: 선생님에겐 없고, 학과장은 체크하면 
   toggle.dispatchEvent(new dom.window.Event("change"));
   const find = c.querySelector('[aria-label="강사 검색"]');
   find.value = "민주";
-  find.dispatchEvent(new dom.window.Event("input"));
-  const pick = c.querySelector('[aria-label="강사 선택"]');
-  assert.deepEqual([...pick.options].map((o) => o.textContent), ["강사 고르기", "김민주 선생님"]);
-  pick.value = "other";
-  pick.dispatchEvent(new dom.window.Event("change"));
+  find.dispatchEvent(new dom.window.Event("input")); // 한 명만 남으면 바로 그 강사로
   await flush();
   tabButton(c, "write").click();
   assert.equal(c.querySelector('[aria-label="강사 선택"]').value, "other");
@@ -566,6 +562,34 @@ test("V3 타강사 커리큘럼: [학과][강사][이름 검색], 학과를 고�
   dept.value = "d2"; dept.dispatchEvent(new dom.window.Event("change"));
   assert.deepEqual([...pick.options].map((o) => o.textContent), ["강사 고르기", "조해리"]);
   dept.value = ""; dept.dispatchEvent(new dom.window.Event("change"));
+});
+
+test("V3 타강사 커리큘럼: 이름을 검색해 한 명만 남으면 바로 그 강사로, 체크 칸은 검색 칸 바로 다음", async () => {
+  const data = twoSubjects();
+  data.instructors.push({ id: "other", name: "김민주" }, { id: "x", name: "조해리" });
+  const { c } = await setup("mine", data, { v3: true, role: "head" });
+  tabButton(c, "write").click();
+  const toggle = c.querySelector('[aria-label="타강사 커리큘럼"]');
+  toggle.checked = true; toggle.dispatchEvent(new dom.window.Event("change"));
+  const find = c.querySelector('[aria-label="강사 검색"]');
+  assert.equal(find.nextElementSibling, toggle.closest("label"));
+  find.value = "조해"; find.dispatchEvent(new dom.window.Event("input"));
+  await flush();
+  assert.equal(c.querySelector('[aria-label="강사 선택"]').value, "x", "드롭다운을 안 눌러도 조해리가 골라짐");
+  assert.match(c.querySelector("[name=department]").closest(".form-field").textContent, /선택한 강사 학과/);
+});
+
+test("내 커리큘럼: 준비물 '없음'에 체크하면 준비물 칸이 비고 입력이 막힌다", async () => {
+  const { c } = await setup("mine", tables());
+  tabButton(c, "write").click();
+  const none = c.querySelector('.subject-panel:not([hidden]) [aria-label="준비물 없음"]');
+  const supplies = c.querySelector(".subject-panel:not([hidden]) [name=supplies]");
+  supplies.value = "이어폰";
+  none.checked = true; none.dispatchEvent(new dom.window.Event("change"));
+  assert.equal(supplies.value, "");
+  assert.ok(supplies.disabled);
+  none.checked = false; none.dispatchEvent(new dom.window.Event("change"));
+  assert.ok(!supplies.disabled);
 });
 
 test("V3 타강사: 수업 설정의 '타 강사 수업 설정'으로 그 강사 학과·과목을 저장하면, 내 커리큘럼에서 '선택한 강사 학과'와 그 학과 과목 탭이 나온다", async () => {

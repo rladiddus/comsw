@@ -276,9 +276,18 @@ export async function render(container, ctx, { tab, as } = {}) {
         name: "supplies", rows: 2, maxLength: 2000, value: saved?.supplies ?? "",
         placeholder: "예: 멘토시리즈 포토샵, 이어폰",
       });
+      // 준비물 '없음'에 체크하면 칸을 비우고 막는다(저장은 빈 값. 공개 사이트에 '없음'이 준비물로 나가지 않게).
+      const none = el("input", { type: "checkbox", checked: Boolean(saved) && !saved.supplies });
+      none.setAttribute("aria-label", "준비물 없음");
+      const noSupplies = () => { if (none.checked) supplies.value = ""; supplies.disabled = none.checked; };
+      none.addEventListener("change", noSupplies);
+      noSupplies();
       panel.append(el("div", { className: "form-row materials-row" }, [
         el("label", { className: "form-field" }, [el("span", { textContent: "사용 프로그램" }), tools]),
-        el("label", { className: "form-field" }, [el("span", { textContent: "준비물" }), supplies]),
+        el("div", { className: "form-field" }, [
+          el("span", {}, [document.createTextNode("준비물 "), el("label", { className: "consent supplies-none" }, [none, el("span", { textContent: "없음" })])]),
+          supplies,
+        ]),
       ]));
       const entry = { panel, steps, list, tools, supplies, saved };
       function addStep(label) {

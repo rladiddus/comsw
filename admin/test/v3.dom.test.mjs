@@ -251,10 +251,10 @@ test("V3 승인 대기 → 재료 검토: 다 확인하기 전엔 승인으로 �
   let c = await page("inbox");
   const items = [...c.querySelectorAll(".v2-listitem b")].map((b) => b.textContent);
   assert.deepEqual(items, ["김 · 포토샵", "이 · 프로필"]);
-  assert.match(c.textContent, /옛 원문[\s\S]*새 원문/);
+  assert.match(c.textContent, /제출된 커리큘럼[\s\S]*새 원문/);
+  assert.doesNotMatch(c.textContent, /이전 승인본|옛 원문/, "이전 승인본은 안 보임");
   assert.match(c.textContent, /검토 0\/4/);
-  assert.equal(c.querySelectorAll(".v2-diff button.submission-thumb img").length, 1, "새 제출본 이미지 미리보기");
-  assert.equal(c.querySelectorAll(".v2-diff .submission-thumb.empty").length, 1, "이전 승인본은 이미지 없음");
+  assert.equal(c.querySelectorAll(".v3-submitted .v2-diff-cols:not(.v2-diff-head) > div:last-child button.submission-thumb img").length, 1, "이미지는 단계 줄 오른쪽");
   c.querySelector(".v2-diff button.submission-thumb").click();
   assert.ok(c.querySelector("dialog.image-zoom img"), "누르면 크게 보기");
   button(c, "과목 전체 승인").click();
@@ -567,6 +567,19 @@ test("V3 모든 화면이 오류 없이 그려진다", async () => {
   }
   const c = await page("dashboard");
   assert.match(c.textContent, /데이터 검증 경고2/);
+});
+
+test("V3 대시보드: 자동 연계 상태·최근 AI 작업 없음, 할 일에서 커리큘럼을 누르면 오른쪽에 제출된 커리큘럼", async () => {
+  location.hash = "#/dashboard";
+  const c = await page("dashboard");
+  assert.doesNotMatch(c.textContent, /자동 연계 상태|최근 AI 작업|검토하러 가기/);
+  const row = [...c.querySelectorAll(".v3-dash .v2-listitem")].find((r) => /김 · 포토샵/.test(r.textContent));
+  row.click();
+  assert.ok(row.classList.contains("active"));
+  const right = c.querySelector(".v3-dash > .v2-stack");
+  assert.match(right.textContent, /김의 포토샵 전체 승인 범위[\s\S]*제출된 커리큘럼[\s\S]*새 원문/);
+  button(right, "승인 대기에서 승인하기").click();
+  assert.match(decodeURIComponent(location.hash), /^#\/inbox\/i1\|set1\|s1$/);
 });
 
 test("V3 방특 과목 목록: 정규 과목으로 낸 방특 커리큘럼도 방특에 나온다", () => {

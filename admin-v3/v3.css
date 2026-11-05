@@ -171,3 +171,10 @@
 .v3-navtoggle:hover { color:#555; }
 .side-nav a[hidden] { display:none; }
 @media (max-width:900px) { .side-nav a[hidden] { display:block; } } /* 좁은 화면은 묶음 이름이 숨겨져 접을 수 없으니 다 보이게 */
+/* 제출된 커리큘럼(승인 대기·대시보드): 단계마다 글 왼쪽, 이미지 오른쪽 */
+.v3-submitted .v2-diff-cols { grid-template-columns:minmax(0,1fr) auto; }
+.v3-submitted .v2-diff-cols > div { border-right:0; background:#fff; }
+.v3-submitted .v2-diff-cols > div:last-child:not(:first-child) { padding-left:0; }
+/* 대시보드: 왼쪽 할 일 목록(좁게), 오른쪽 검토 */
+.v3-dash { display:grid; grid-template-columns:minmax(260px,340px) minmax(0,1fr); gap:16px; align-items:start; }
+@media (max-width:900px) { .v3-dash { grid-template-columns:1fr; } }

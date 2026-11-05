@@ -538,7 +538,7 @@ test("수업 설정: 학과 과목은 연결한 순서가 아니라 학과 관�
   assert.deepEqual([...box.querySelectorAll(".subject-check")].map((l) => l.textContent), ["웹2", "웹1"]);
 });
 
-test("V3 내 커리큘럼: '+ 개월 추가'·'과목명 동일' 없음, 수업 설정에서 안 고른 학과 과목도 탭으로", async () => {
+test("V3 내 커리큘럼: '+ 개월 추가'·'과목명 동일' 없음, 수업 설정에서 고른 과목만 탭으로", async () => {
   const data = tables();
   data.subjects = [{ id: "w1", name: "웹툰1" }, { id: "w2", name: "웹툰2" }];
   data.subject_departments = [{ subject_id: "w1", department_id: "dept" }, { subject_id: "w2", department_id: "dept" }];
@@ -547,7 +547,7 @@ test("V3 내 커리큘럼: '+ 개월 추가'·'과목명 동일' 없음, 수업 
   tabButton(c, "write").click();
   assert.ok(!findButton(c, "+ 개월 추가"));
   assert.ok(!/과목명 동일/.test(c.textContent));
-  assert.deepEqual([...c.querySelectorAll(".subject-tabs button")].map((b) => b.textContent), ["웹툰1", "웹툰2"]);
+  assert.deepEqual([...c.querySelectorAll(".subject-tabs button")].map((b) => b.textContent), ["웹툰1"], "안 고른 웹툰2는 안 나옴");
 });
 
 test("V3 타강사 커리큘럼: [학과][강사][이름 검색], 학과를 고르면 그 학과 강사만, 이름만 보인다", async () => {

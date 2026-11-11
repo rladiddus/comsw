@@ -91,7 +91,7 @@ export function joinPicker(gx, s, say, onSaved) {
   return [list, el("div", {}, [save])];
 }
 
-// 그룹 연결(라디오 하나만): ⓐ 새 그룹 만들기(first = 이 과목) ⓑ 기존 그룹에 넣기. 과목 정리 [연결]과 승인 대기 [그룹 설정]이 같이 쓴다.
+// 그룹 연결(라디오 하나만): ⓐ 새 그룹 만들기(first = 이 과목) ⓑ 기존 그룹에 넣기. 과목 정리 [연결]과 승인 관리 [그룹 설정]이 같이 쓴다.
 export function groupChooser(gx, s, say, onSaved) {
   const mode = (value, text, off) => {
     const r = el("input", { type: "radio", name: "v3-linkmode", value, disabled: Boolean(off) });

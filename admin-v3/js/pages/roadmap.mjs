@@ -7,7 +7,7 @@ import { state, deptSubjects, contextBar, splitGrid, modal, sortable } from "../
 // 스텝에 과목 넣기 = 왼쪽 과목을 끌어 스텝 박스에 놓기(다른 스텝에 있던 과목이면 옮김). 맨 아래 '+ 스텝 추가'.
 // 스텝 안 과목(위아래)과 스텝 자체도 끌어서 순서를 바꾼다. 스텝 안 과목 순서 = 사이트 로드맵에 나오는 순서(roadmap_step_subjects.sort_order).
 // 스텝 박스 = 넣은 과목(옆 '−'로 빼기) | 요약 문구 | [스텝 삭제][AI 요약]. AI 요약은 과목을 넣고 빼거나 새 스텝이라 문구가 필요할 때만 켜진다. 문구는 과목마다 하나(모든 학과 공용, 2026-10-29 결정)이고,
-// 과목을 여럿 넣은 스텝은 그 과목들의 문구를 요약한 것. 과목 문구 = 과목 칸(subjects.roadmap_summary, 승인 대기에서 만듦), 없으면 그 과목 하나만 든 로드맵 단계의 문구.
+// 과목을 여럿 넣은 스텝은 그 과목들의 문구를 요약한 것. 과목 문구 = 과목 칸(subjects.roadmap_summary, 승인 관리에서 만듦), 없으면 그 과목 하나만 든 로드맵 단계의 문구.
 // 스텝 구성은 [저장]을 누르기 전까지 이 화면에서만 기억한다(state.roadmap). 처음 = 지금 로드맵(roadmap_steps·roadmap_step_subjects).
 // [저장](2026-11-11): 학과의 로드맵 줄(roadmap_tracks, 학과마다 한 줄)에 스텝을 position 1..n, 스텝 안 과목을 sort_order 0..로 저장. 줄이 없으면 학과 이름으로 만든다.
 // 공개 사이트에는 '사이트 반영' 후 보인다.
@@ -30,7 +30,7 @@ export async function render(container, ctx) {
   const body = el("div");
   const nameOfS = (id) => subjects.find((s) => s.id === id)?.name ?? "?";
   const subsOf = (stepId) => stepSubjects.filter((x) => x.step_id === stepId).sort((a, b) => (a.sort_order ?? 1e9) - (b.sort_order ?? 1e9)).map((x) => x.subject_id);
-  // 과목 문구: 과목에 저장한 로드맵 문구(승인 대기에서 만듦), 없으면 그 과목 하나만 든 로드맵 단계(어느 학과든)의 문구
+  // 과목 문구: 과목에 저장한 로드맵 문구(승인 관리에서 만듦), 없으면 그 과목 하나만 든 로드맵 단계(어느 학과든)의 문구
   const own = (id) => subjects.find((s) => s.id === id)?.roadmap_summary?.trim() || steps.find((st) => { const xs = subsOf(st.id); return xs.length === 1 && xs[0] === id; })?.summary?.trim() || "";
   let dragged = null;
 

@@ -64,8 +64,8 @@ const button = (c, text) => [...c.querySelectorAll("button")].find((b) => b.text
 test("V3 메뉴: 13메뉴(과목 관리는 학과 관리 위, 특강·세미나 메뉴로)", async () => {
   const src = (await import("node:fs")).readFileSync(new URL("../../admin-v3/js/app.mjs", import.meta.url), "utf8");
   const labels = [...src.matchAll(/\["([a-z-]+)", "[^"]+", "([^"]+)",/g)].map((m) => m[2]);
-  assert.deepEqual(labels, ["기본 설정 등", "강사 관리", "커리큘럼 관리", "과목 관리", "학과 관리", "특강·세미나", "방학 특강", "로드맵", "수업별 준비물",
-    "내 프로필", "내 커리큘럼", "승인 대기", "사이트 반영"]);
+  assert.deepEqual(labels, ["기본 설정 등", "승인 관리", "강사 관리", "커리큘럼 관리", "과목 관리", "학과 관리", "특강·세미나", "방학 특강", "로드맵", "수업별 준비물",
+    "내 프로필", "내 커리큘럼", "사이트 반영"]);
 });
 
 test("V3 과목 관리: [과목 생성] 학과·이름으로 생성, [과목 정리] 커리큘럼 미입력·학과·방특 미포함 과목 삭제", async () => {
@@ -284,7 +284,7 @@ test("V3 전환 점검: 같은 과목을 여러 학과에 따로 낸 강사(7)·
   ]);
 });
 
-test("V3 승인 대기: 준비물 검토 없이 적용(② 칸이 검토), 프로필은 따로", async () => {
+test("V3 승인 관리: 준비물 검토 없이 적용(② 칸이 검토), 프로필은 따로", async () => {
   location.hash = "#/inbox";
   let c = await page("inbox");
   const items = [...c.querySelectorAll(".v2-listitem b")].map((b) => b.textContent);
@@ -391,7 +391,7 @@ test("V3 승인 대기: 준비물 검토 없이 적용(② 칸이 검토), 프�
   assert.match(c.textContent, /승인했습니다\(과목별 커리큘럼·로드맵 문구 함께 적용\)/);
 });
 
-test("V3 승인 대기 [준비물 작성]: 교재·물품·사용 프로그램·AI 도구(이름+링크), 제목 옆 '준비물 없음', 그룹 없으면 적용 막음", async () => {
+test("V3 승인 관리 [준비물 작성]: 교재·물품·사용 프로그램·AI 도구(이름+링크), 제목 옆 '준비물 없음', 그룹 없으면 적용 막음", async () => {
   globalThis.confirm = () => true;
   location.hash = "#/inbox";
   const d = data();
@@ -446,7 +446,7 @@ test("V3 승인 대기 [준비물 작성]: 교재·물품·사용 프로그램·
     "선생님 칸 = 작성한 분류대로(승인 함수가 이것을 수업별 준비물에 분류대로, AI 도구는 링크까지)");
 });
 
-test("V3 승인 대기 [준비물 작성] '준비물 없음'으로 저장하면 선생님 칸을 비우고 적용", async () => {
+test("V3 승인 관리 [준비물 작성] '준비물 없음'으로 저장하면 선생님 칸을 비우고 적용", async () => {
   globalThis.confirm = () => true;
   location.hash = "#/inbox";
   const db = fakeSupabase(data());
@@ -467,7 +467,7 @@ test("V3 승인 대기 [준비물 작성] '준비물 없음'으로 저장하면 
     { instructor_id: "i1", subject_id: "s1", tools: null, supplies: null, textbook: null, ai: null });
 });
 
-test("V3 승인 대기 [적용]: 과목·로드맵을 단계 승인보다 먼저 저장(승인 뒤 실패해도 다시 할 수 있게)", async () => {
+test("V3 승인 관리 [적용]: 과목·로드맵을 단계 승인보다 먼저 저장(승인 뒤 실패해도 다시 할 수 있게)", async () => {
   globalThis.confirm = () => true;
   location.hash = "#/inbox";
   const d = data(); d.subject_groups = [{ id: "g1", name: "포토샵 과정" }]; d.subjects[0].group_id = "g1";
@@ -492,7 +492,7 @@ test("준비물 링크는 http(s)만, 형식 없으면 https://", async () => {
   assert.equal(safeLink(""), "");
 });
 
-test("V3 승인 대기: 선생님 몫 계산(남긴 것 + 과목에 없던 새 것)", async () => {
+test("V3 승인 관리: 선생님 몫 계산(남긴 것 + 과목에 없던 새 것)", async () => {
   const { teacherPart } = await import("../../admin-v3/js/pages/inbox.mjs");
   assert.equal(teacherPart("노트북\n포토샵 교재", "포토샵 교재, 마우스", ""), "포토샵 교재, 마우스");
   assert.equal(teacherPart("포토샵, ChatGPT", "포토샵\nChatGPT", "포토샵"), "포토샵, ChatGPT");
@@ -500,7 +500,7 @@ test("V3 승인 대기: 선생님 몫 계산(남긴 것 + 과목에 없던 새 �
   assert.equal(teacherPart(null, "", null), null);
 });
 
-test("V3 승인 대기: 프로그램·준비물 합치기는 승인 함수(merge_items)와 같은 규칙", async () => {
+test("V3 승인 관리: 프로그램·준비물 합치기는 승인 함수(merge_items)와 같은 규칙", async () => {
   const { mergeItems } = await import("../../admin-v3/js/pages/inbox.mjs");
   assert.equal(mergeItems("포토샵", "포 토샵, ChatGPT\nChatGPT"), "포토샵\nChatGPT");
   assert.equal(mergeItems("", "노트북, 펜"), "노트북, 펜");
@@ -508,7 +508,7 @@ test("V3 승인 대기: 프로그램·준비물 합치기는 승인 함수(merge
   assert.equal(mergeItems(null, null), "");
 });
 
-test("V3 승인 대기 방특: 기수를 골라야 승인, 고른 기수로 옮겨 승인", async () => {
+test("V3 승인 관리 방특: 기수를 골라야 승인, 고른 기수로 옮겨 승인", async () => {
   const d = data();
   d.instructor_curricula = [{ id: "c9", instructor_id: "i1", set_id: "set1", subject_id: "s4", step_label: "1단계", written: "방특 원문", summary: "요약", status: "pending", vacation: true, updated_at: "2026-10-28T00:00:00Z" }];
   d.instructor_subject_materials = [];

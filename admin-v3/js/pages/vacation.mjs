@@ -4,7 +4,7 @@ import { thumb } from "./aggregate.mjs";
 import { dbErrorMessage } from "../../../admin/js/fields.mjs";
 
 // 방학 특강(V3): 커리큘럼 관리와 같은 모양. 제목 오른쪽 박스 = [시기 ▾][방학특강 추가][강사별 과목 | 과목별 강사] 탭,
-// 아래 왼쪽 강사(또는 과목) · 오른쪽 과목(또는 강사) → 단계별 이미지·커리큘럼(승인본). 선생님 방특 신청 승인은 '승인 대기'에서.
+// 아래 왼쪽 강사(또는 과목) · 오른쪽 과목(또는 강사) → 단계별 이미지·커리큘럼(승인본). 선생님 방특 신청 승인은 '승인 관리'에서.
 let tab = "teacher"; // teacher 강사별 과목 | subject 과목별 강사 (이 화면만 기억)
 
 export async function render(container, ctx) {
@@ -56,7 +56,7 @@ export async function render(container, ctx) {
     [...tabs.children].forEach((b, i) => b.classList.toggle("active", (i === 0) === teacherTab));
     if (!groupPick.value) return body.replaceChildren(panel("방학 특강", [empty("방학 특강이 없습니다. '방학특강 추가'로 만들어주세요.")]));
     const all = groupRequests(curricula.filter((c) => c.set_id === groupPick.value));
-    if (!all.length) return body.replaceChildren(panel("방학 특강", [empty("이 방학 특강에 담긴 강사 커리큘럼이 없습니다. 선생님 방특 신청은 '승인 대기'에서 승인하면 여기에 들어옵니다.")]));
+    if (!all.length) return body.replaceChildren(panel("방학 특강", [empty("이 방학 특강에 담긴 강사 커리큘럼이 없습니다. 선생님 방특 신청은 '승인 관리'에서 승인하면 여기에 들어옵니다.")]));
     const [mine, other, mineList, otherList] = teacherTab ? ["instructor_id", "subject_id", instructors, subjects] : ["subject_id", "instructor_id", subjects, instructors];
     const lefts = [...new Set(all.map((g) => g[mine]))].sort(byOrder(mineList));
     if (!lefts.includes(left)) left = lefts[0];

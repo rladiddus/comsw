@@ -11,7 +11,7 @@ import { groupPicker, groupChooser } from "./subjects.mjs";
 import { LEVELS } from "../../../admin/js/pages/department-curriculum.mjs";
 import { splitPrep, aiTools, aiText, safeLink } from "../../../admin/js/prep-items.mjs";
 
-// 승인 대기(V3 시안 '통합 승인함'): 승인 단위 = 한 강사 × 한 과목 × 전체 단계(정책 1A). 프로필은 따로.
+// 승인 관리(옛 '승인 대기', V3 시안 '통합 승인함'): 승인 단위 = 한 강사 × 한 과목 × 전체 단계(정책 1A). 프로필은 따로.
 // 준비물(2026-11-11): 학과장·부원장이 ① [준비물 작성] 팝업(교재·물품·사용 프로그램·AI 도구 이름+링크, 제목 옆 '준비물 없음')으로 확인·수정한다.
 // 따로 검토를 먼저 할 필요는 없다(안 열면 선생님이 적은 그대로). 이 선생님 몫(선생님 칸)을 [적용] 때 바꾸고, 승인 함수가 수업별 준비물에 분류대로 넣는다.
 // 정규는 한 화면에서 [이전]/[다음]으로 세 쪽을 넘긴다: ① 제출된 커리큘럼(단계별 AI 요약·적용) → ② 과목별 커리큘럼(학과별 커리큘럼 요약 AI) → ③ 로드맵 문구 → [적용].
@@ -56,7 +56,7 @@ export function imageZoom() {
 }
 export const sortSteps = (rows) => [...rows].sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0) || String(a.step_label).localeCompare(String(b.step_label)));
 export const submittedTitle = (who, subject) => `${who} 선생님의 ${subject?.name ?? ""} 제출 커리큘럼`;
-// 제출된 커리큘럼: 단계마다 이미지 왼쪽, 글 오른쪽. extra(r) = { below: 글 아래, right: 맨 오른쪽 }(승인 대기의 AI 요약·적용 스위치)
+// 제출된 커리큘럼: 단계마다 이미지 왼쪽, 글 오른쪽. extra(r) = { below: 글 아래, right: 맨 오른쪽 }(승인 관리의 AI 요약·적용 스위치)
 export const submittedSteps = (steps, thumb, extra) => el("div", { className: "v2-diff v3-submitted" }, [
   el("div", { className: "v2-diff-cols v2-diff-head" }, [el("div", { textContent: "제출된 커리큘럼" })]),
   ...steps.map((r) => {

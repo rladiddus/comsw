@@ -442,7 +442,10 @@ test("내 커리큘럼: 과목 탭마다 사용 프로그램·준비물을 쓰�
   const { c, calls } = await setup("mine", data);
   const form = c.querySelector("form.curriculum-form");
   assert.equal(form.querySelector("[name=tools]").value, "VS Code", "저장해 둔 값");
-  form.querySelector("[name=supplies]").value = "멘토시리즈 웹";
+  const none = form.querySelector('[aria-label="준비물 없음"]');
+  assert.ok(none.checked, "프로그램만 있고 준비물이 비어 있으면 '없음'");
+  none.checked = false; none.dispatchEvent(new dom.window.Event("change"));
+  form.querySelector('[aria-label="준비물 내용"]').value = "멘토시리즈 웹"; // [추가]를 안 눌러도 값에 들어감
   form.querySelector("[name=written]").value = "HTML 기초";
   form.dispatchEvent(new dom.window.Event("submit", { cancelable: true }));
   await flush();
@@ -462,7 +465,7 @@ test("내 커리큘럼: 프로그램·준비물만 바꿔도 저장되고, 안 �
   form.dispatchEvent(new dom.window.Event("submit", { cancelable: true }));
   await flush();
   assert.deepEqual(calls.map((x) => x[0]), ["comsw_submit_curriculum"]);
-  assert.deepEqual(calls[0][1].p_subjects, [{ subject_id: "subject", tools: "Figma", supplies: "", steps: [] }]);
+  assert.deepEqual(calls[0][1].p_subjects, [{ subject_id: "subject", tools: "Figma", supplies: "", textbook: "", ai: "", steps: [] }]);
   assert.match(c.textContent, /승인될 때 함께 반영/);
 });
 
@@ -579,17 +582,33 @@ test("V3 타강사 커리큘럼: 이름을 검색해 한 명만 남으면 바로
   assert.match(c.querySelector("[name=department]").closest(".form-field").textContent, /선택한 강사 학과/);
 });
 
-test("내 커리큘럼: 준비물 '없음'에 체크하면 준비물 칸이 비고 입력이 막힌다", async () => {
-  const { c } = await setup("mine", tables());
+test("내 커리큘럼: 준비물은 분류(물품·교재·AI 도구)를 골라 [추가], '없음'에 체크하면 비고 입력이 막힌다", async () => {
+  const data = tables();
+  data.instructor_subject_materials = [{ instructor_id: "me", subject_id: "subject", tools: "VS Code", supplies: "이어폰", textbook: null, ai: null }];
+  const { c, calls } = await setup("mine", data);
   tabButton(c, "write").click();
-  const none = c.querySelector('.subject-panel:not([hidden]) [aria-label="준비물 없음"]');
-  const supplies = c.querySelector(".subject-panel:not([hidden]) [name=supplies]");
-  supplies.value = "이어폰";
+  const panel = c.querySelector(".subject-panel:not([hidden])");
+  const q = (l) => panel.querySelector(`[aria-label="${l}"]`);
+  const chips = () => [...panel.querySelectorAll(".prep-chip")].map((x) => x.textContent.replace("−", ""));
+  assert.deepEqual(chips(), ["물품이어폰"], "저장해 둔 물품");
+  assert.deepEqual([...q("준비물 분류").options].map((o) => o.textContent), ["물품", "교재", "AI 도구"]);
+  q("준비물 분류").value = "textbook"; q("준비물 내용").value = "웹 교재, 이어폰";
+  [...panel.querySelectorAll(".prep-add button")].find((b) => b.textContent === "추가").click();
+  assert.deepEqual(chips(), ["물품이어폰", "교재웹 교재"], "이미 있는 항목은 건너뜀");
+  q("준비물 분류").value = "ai"; q("준비물 내용").value = "ChatGPT";
+  q("준비물 내용").dispatchEvent(new dom.window.KeyboardEvent("keydown", { key: "Enter", cancelable: true }));
+  assert.deepEqual(chips(), ["물품이어폰", "교재웹 교재", "AI 도구ChatGPT"], "Enter도 추가");
+  const form = c.querySelector("form.curriculum-form");
+  form.dispatchEvent(new dom.window.Event("submit", { cancelable: true }));
+  await flush();
+  const [{ tools, supplies, textbook, ai }] = calls[0][1].p_subjects;
+  assert.deepEqual({ tools, supplies, textbook, ai }, { tools: "VS Code", supplies: "이어폰", textbook: "웹 교재", ai: "ChatGPT" });
+  const none = q("준비물 없음");
   none.checked = true; none.dispatchEvent(new dom.window.Event("change"));
-  assert.equal(supplies.value, "");
-  assert.ok(supplies.disabled);
+  assert.deepEqual(chips(), []);
+  assert.ok(q("준비물 내용").disabled && q("준비물 분류").disabled);
   none.checked = false; none.dispatchEvent(new dom.window.Event("change"));
-  assert.ok(!supplies.disabled);
+  assert.ok(!q("준비물 내용").disabled);
 });
 
 test("V3 타강사: 수업 설정의 '타 강사 수업 설정'으로 그 강사 학과·과목을 저장하면, 내 커리큘럼에서 '선택한 강사 학과'와 그 학과 과목 탭이 나온다", async () => {

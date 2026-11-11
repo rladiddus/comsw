@@ -189,7 +189,13 @@
 .dept-cell .v3-onoff { width:36px; height:20px; padding:0; border:0; border-radius:10px; }
 .dept-cell .v3-check input { width:16px; height:16px; padding:0; margin:0; accent-color:var(--accent); flex:none; }
 .v3-deptrow input[type=text], .v3-deptrow select, .v3-deptrow .v2-textarea { width:100%; box-sizing:border-box; }
-.v3-deptrow { grid-template-columns:24px 110px 80px minmax(0,1.6fr) minmax(0,.8fr) minmax(0,.8fr) 100px; }
+.v3-deptrow { grid-template-columns:24px 110px 80px minmax(0,1.4fr) minmax(0,.7fr) minmax(0,1.2fr) 100px; }
+/* 준비물 칸(prep-items): 분류·내용·추가가 한 줄에 들어가게 공통 너비 100% 규칙을 풀고, 없음 체크는 작게 */
+.v3-deptrow .prep-add { flex-wrap:wrap; }
+.v3-deptrow .prep-add select, .v3-deptrow .prep-add input[type=text] { width:auto; }
+.v3-deptrow .prep-add input[type=text] { flex:1 1 90px; }
+.dept-cell .prep-none input { width:16px; height:16px; padding:0; margin:0; accent-color:var(--accent); flex:none; }
+.v3-deptrow .cell-supplies { white-space:normal; }
 .v3-deptrow .dept-cell { white-space:pre-line; font-size:13px; }
 .v3-stepsub.active { border-color:var(--accent); font-weight:700; }
 .v3-steptext .v2-textarea { width:100%; box-sizing:border-box; }
@@ -202,3 +208,4 @@
 /* 대시보드: 왼쪽 할 일 목록(좁게), 오른쪽 검토 */
 .v3-dash { display:grid; grid-template-columns:minmax(260px,340px) minmax(0,1fr); gap:16px; align-items:start; }
 @media (max-width:900px) { .v3-dash { grid-template-columns:1fr; } }
+.v3-deptrow .prep-head > span:first-child { display:none; } /* 표 머리에 이미 "준비물" */

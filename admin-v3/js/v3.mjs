@@ -20,7 +20,6 @@ export const state = {
   aggLeft: 0, // 학과 관리 왼쪽 과목 칸 너비(px, 0 = 기본)
   aggRight: 0, // 특강·세미나 오른쪽 신청자 명단 칸 너비(px, 0 = 기본 330)
   employed: new Map(), // 강사id → false(퇴사 처리 시험)
-  reviews: new Map(), // 제출 묶음 key → Map(준비물id → 최종 분류)
 };
 
 // 화면마다 학과·정규/방특·시기를 따로 기억한다(한 화면에서 고른 것이 다른 화면에 옮겨 가지 않게).
@@ -51,32 +50,12 @@ export function splitItems(text) {
   return String(text || "").split(/[\n,·]+/).map((s) => s.replace(/^\s*(?:[-•*]|\d+[.)])\s*/, "").trim()).filter(Boolean);
 }
 
-// 규칙 검사(AI 미연결): 이름으로 분류를 짐작해 '제안'만 한다. 선생님 분류는 바꾸지 않는다.
-const WORDS = [
-  ["ai", /chat\s*gpt|gpt|gemini|제미나이|claude|클로드|midjourney|미드저니|copilot|코파일럿|뤼튼|wrtn|생성형|(^|[^a-z])ai([^a-z]|$)|stable\s*diffusion|dall|달리|suno|runway|런웨이|perplexity|퍼플렉시티|노트북lm|notebooklm/i],
-  ["textbook", /교재|도서|워크북|문제집|책$/],
-  ["software", /포토샵|photoshop|일러스트|illustrator|피그마|figma|프리미어|premiere|애프터\s*이펙트|after\s*effects|캐드|autocad|스케치업|sketchup|블렌더|blender|엑셀|excel|파워포인트|powerpoint|vs\s*code|유니티|unity|캔바|canva|인디자인|indesign|라이트룸|lightroom|3ds\s*max|마야|maya|cinema\s*4d|zbrush|지브러시/i],
-];
-export const guessCategory = (label) => WORDS.find(([, re]) => re.test(label))?.[0] ?? null;
-
-// items: [{ id, label, teacher }], others: 같은 과목의 다른 출처(다른 강사·준비물 카드) 이름(norm)
-export function checkMaterials(items, others = []) {
-  return items.map((m) => {
-    const issues = [];
-    const guess = guessCategory(m.label);
-    if (guess && guess !== m.teacher) issues.push(["분류 확인", `${CAT[guess]}(으)로 보입니다`]);
-    if (/http:\/\//i.test(m.label)) issues.push(["링크 확인", "https가 아닌 링크입니다"]);
-    if (norm(m.label).length < 2) issues.push(["내용 부족", "항목명이 너무 짧습니다"]);
-    if (items.some((x) => x !== m && norm(x.label) === norm(m.label))) issues.push(["중복 후보", "같은 제출 안에 같은 항목이 있습니다"]);
-    else if (others.includes(norm(m.label))) issues.push(["중복 후보", "이 과목의 다른 강사·준비물 카드에 같은 항목이 있습니다"]);
-    return { ...m, suggested: guess && guess !== m.teacher ? guess : m.teacher, issues };
-  });
-}
-
-// 지금 DB는 선생님이 '사용 프로그램'과 '준비물' 두 칸에 적는다 → 칸 이름을 선생님 분류로 본다(4분류 입력은 DB 추가 후).
+// 선생님 칸 = 분류: 사용 프로그램(tools)·물품(supplies)·교재(textbook)·AI 도구(ai). 교재·AI 도구 칸은 20261111010000부터.
 export const materialsOf = (row) => row ? [
   ...splitItems(row.tools).map((label, i) => ({ id: `t${i}`, label, teacher: "software" })),
+  ...splitItems(row.textbook).map((label, i) => ({ id: `b${i}`, label, teacher: "textbook" })),
   ...splitItems(row.supplies).map((label, i) => ({ id: `s${i}`, label, teacher: "supply" })),
+  ...splitItems(row.ai).map((label, i) => ({ id: `a${i}`, label, teacher: "ai" })),
 ] : [];
 
 // 학과·유형의 과목 순서. 저장된 학과별 순서 칸이 없어 지금은 전체 공통 순서(subjects.sort_order)를 쓴다.

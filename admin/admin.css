@@ -574,4 +574,16 @@ dialog.roadmap-source::backdrop { background:rgba(0,0,0,.45); }
 .dash-num { font-size:32px; line-height:1.2; }
 .dash-card.alert .dash-num { color:var(--accent); }
 .dash-note { color:var(--muted); font-size:12px; }
-.supplies-none { display:inline-flex; align-items:center; gap:4px; margin-left:8px; font-weight:400; }
+/* 준비물 입력(prep-items.mjs): [분류][내용][추가] + 분류·내용 목록, '없음'은 제목 옆 한 줄 */
+.prep-items { display:flex; flex-direction:column; gap:8px; min-width:0; }
+.prep-head { display:flex; align-items:center; gap:10px; font-weight:700; }
+.prep-none { display:inline-flex; align-items:center; gap:4px; font-weight:400; white-space:nowrap; cursor:pointer; }
+.prep-none input { width:auto; margin:0; }
+.prep-add { display:flex; gap:6px; align-items:center; }
+.prep-add select { flex:0 0 auto; width:auto; padding:8px; border:1px solid #d9dde4; border-radius:8px; background:#fff; }
+.prep-add input { flex:1 1 auto; min-width:0; width:auto; padding:8px 10px; border:1px solid #d9dde4; border-radius:8px; }
+.prep-add button { flex:0 0 auto; white-space:nowrap; }
+.prep-list { display:flex; flex-wrap:wrap; gap:6px; min-height:24px; }
+.prep-chip { display:inline-flex; align-items:center; gap:6px; padding:4px 6px 4px 10px; border:1px solid var(--line); border-radius:999px; background:#fff; font-size:13px; }
+.prep-chip b { color:var(--accent); font-size:12px; }
+.prep-x { width:20px; height:20px; padding:0; border:0; border-radius:50%; background:#f1f1f1; line-height:20px; cursor:pointer; }

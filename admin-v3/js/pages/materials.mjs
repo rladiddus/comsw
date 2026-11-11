@@ -1,4 +1,4 @@
-import { el, btn, pick, tabBox, headActions } from "../../../admin-v2/js/ui.mjs";
+import { el, pick, tabBox, headActions } from "../../../admin-v2/js/ui.mjs";
 import { CAT } from "../v3.mjs";
 
 // 수업별 준비물(V3 시안 '준비물·교재·AI 도구'): 4분류 탭(교재·물품·사용 프로그램·AI 도구), 탭마다 모든 학과를 학과별로 묶어 한 번에 보여 준다.
@@ -8,7 +8,7 @@ import { CAT } from "../v3.mjs";
 let tab = 0; // 다른 화면에 갔다 와도 보던 탭
 
 export async function render(container, ctx) {
-  headActions(ctx, btn("준비물 검토 화면", () => { location.hash = "#/validation"; }));
+  headActions(ctx);
   const [subs, groups] = await Promise.all([
     pick(ctx.supabase, "subjects", "id, group_id").catch(() => []),
     pick(ctx.supabase, "subject_groups", "id, name").catch(() => []),

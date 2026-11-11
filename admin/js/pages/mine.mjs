@@ -8,6 +8,7 @@ import {
   teacherPicker,
 } from "../teacher-workspace.mjs";
 import { mountImageUpload } from "../image-upload.mjs";
+import { prepItems } from "../prep-items.mjs";
 import { driveThumbnail } from "../drive.mjs";
 import { applyCrop, stripCrop } from "../image-crop.mjs";
 import { nextMonthName } from "../month.mjs";
@@ -109,7 +110,7 @@ export async function render(container, ctx, { tab, as } = {}) {
     const proxy = target.id !== own.id; // 다른 강사 대신
     const loadMyMajors = ctx.loadMyMajors ??
       (await import("../ssamtalk-members.mjs")).loadMyMajors;
-    const [depts, subjects, links, sets, submitted, mySubjects, myDepts, majors, materials, vacSubjects] = await Promise.all([
+    const [depts, subjects, links, sets, submitted, mySubjects, myDepts, majors, materials, vacSubjects, catProbe] = await Promise.all([
       rows(supabase, "departments", (q) => q.order("sort_order")),
       rows(supabase, "subjects", (q) => q.order("sort_order")),
       rows(supabase, "subject_departments"),
@@ -126,7 +127,10 @@ export async function render(container, ctx, { tab, as } = {}) {
       rows(supabase, "instructor_subject_materials", (q) => q.eq("instructor_id", target.id)),
       // V3: 방학 특강에 넣어 둔 과목(20261103020000 전에는 표가 없어 빈 목록)
       ctx.v3 ? rows(supabase, "vacation_set_subjects").catch(() => []) : [],
+      // 준비물 분류 칸(교재·AI 도구, 20261111010000)이 있는지: 운영 SQL 실행 전이면 물품만
+      supabase.from("instructor_subject_materials").select("textbook").limit(1),
     ]);
+    const hasCats = !catProbe?.error;
     // 내 학과 = 쌤톡 학과(이름이 같은 컴수원 학과). 못 불러오면 컴수원에 저장된 내 학과.
     const myDeptList = majors
       ? depts.filter((d) => majors.includes(d.name))
@@ -272,24 +276,17 @@ export async function render(container, ctx, { tab, as } = {}) {
         name: "tools", rows: 2, maxLength: 2000, value: saved?.tools ?? "",
         placeholder: "예: Photoshop, Illustrator",
       });
-      const supplies = el("textarea", {
-        name: "supplies", rows: 2, maxLength: 2000, value: saved?.supplies ?? "",
-        placeholder: "예: 멘토시리즈 포토샵, 이어폰",
+      // 준비물: 분류(물품·교재·AI 도구)를 골라 [추가]. '없음'에 체크하면 비운다(저장은 빈 값. 공개 사이트에 '없음'이 준비물로 나가지 않게).
+      const prep = prepItems({
+        values: { supply: saved?.supplies, textbook: saved?.textbook, ai: saved?.ai },
+        none: Boolean(saved) && !saved.supplies && !saved.textbook && !saved.ai,
+        cats: hasCats,
       });
-      // 준비물 '없음'에 체크하면 칸을 비우고 막는다(저장은 빈 값. 공개 사이트에 '없음'이 준비물로 나가지 않게).
-      const none = el("input", { type: "checkbox", checked: Boolean(saved) && !saved.supplies });
-      none.setAttribute("aria-label", "준비물 없음");
-      const noSupplies = () => { if (none.checked) supplies.value = ""; supplies.disabled = none.checked; };
-      none.addEventListener("change", noSupplies);
-      noSupplies();
       panel.append(el("div", { className: "form-row materials-row" }, [
         el("label", { className: "form-field" }, [el("span", { textContent: "사용 프로그램" }), tools]),
-        el("div", { className: "form-field" }, [
-          el("span", {}, [document.createTextNode("준비물 "), el("label", { className: "consent supplies-none" }, [none, el("span", { textContent: "없음" })])]),
-          supplies,
-        ]),
+        el("div", { className: "form-field" }, [prep.node]),
       ]));
-      const entry = { panel, steps, list, tools, supplies, saved };
+      const entry = { panel, steps, list, tools, prep, saved };
       function addStep(label) {
         const box = el("section", { className: "step-row" });
         const stepInput = el("input", {
@@ -428,11 +425,13 @@ export async function render(container, ctx, { tab, as } = {}) {
           throw new Error("이미지 업로드가 끝난 후 제출해주세요");
         }
         // 프로그램·준비물은 바뀐 과목만 저장한다.
+        // 준비물 값: 물품 = supplies, 교재·AI 도구 = textbook·ai(분류 칸이 있을 때만 보냄)
+        const matsOf = (entry) => {
+          const p = entry.prep.value();
+          return { tools: entry.tools.value.trim(), supplies: p.supply ?? "", ...(hasCats ? { textbook: p.textbook ?? "", ai: p.ai ?? "" } : {}) };
+        };
         const changed = deptSubjects().map((s) => ({ subject: s, entry: panels.get(s.id) }))
-          .filter(({ entry }) => entry && (
-            entry.tools.value.trim() !== (entry.saved?.tools ?? "") ||
-            entry.supplies.value.trim() !== (entry.saved?.supplies ?? "")
-          ));
+          .filter(({ entry }) => entry && Object.entries(matsOf(entry)).some(([k, v]) => v !== (entry.saved?.[k] ?? "")));
         if (!set.value) throw new Error(ctx.v3 && vacation.checked ? "방학 특강을 골라주세요" : "선택 학과를 골라주세요");
         if (!filled.length && !changed.length) throw new Error("커리큘럼 내용을 입력해주세요");
         const missing = filled.find(({ st }) =>
@@ -453,7 +452,7 @@ export async function render(container, ctx, { tab, as } = {}) {
           return bySubject.get(subject.id);
         };
         for (const { subject, entry } of changed) {
-          Object.assign(entryFor(subject), { tools: entry.tools.value.trim(), supplies: entry.supplies.value.trim() });
+          Object.assign(entryFor(subject), matsOf(entry));
         }
         for (const { subject, st } of filled) {
           entryFor(subject).steps.push({
@@ -463,7 +462,7 @@ export async function render(container, ctx, { tab, as } = {}) {
           });
         }
         sent = await submitAll(set.value, vacation.checked, [...bySubject.values()]);
-        for (const { entry } of changed) entry.saved = { tools: entry.tools.value.trim(), supplies: entry.supplies.value.trim() };
+        for (const { entry } of changed) entry.saved = matsOf(entry);
         await done(
           sent
             ? `${sent}개 단계를 제출했습니다. ${vacation.checked ? "방학 특강 담당자가 확인합니다." : "학과장 승인 대기 중입니다."}`

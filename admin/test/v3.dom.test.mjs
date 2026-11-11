@@ -61,11 +61,11 @@ const page = async (file, ctx = {}) => {
 };
 const button = (c, text) => [...c.querySelectorAll("button")].find((b) => b.textContent === text);
 
-test("V3 메뉴: 15메뉴(과목 관리는 학과 관리 위, 특강·세미나 메뉴로)", async () => {
+test("V3 메뉴: 14메뉴(과목 관리는 학과 관리 위, 특강·세미나 메뉴로)", async () => {
   const src = (await import("node:fs")).readFileSync(new URL("../../admin-v3/js/app.mjs", import.meta.url), "utf8");
   const labels = [...src.matchAll(/\["([a-z-]+)", "[^"]+", "([^"]+)",/g)].map((m) => m[2]);
   assert.deepEqual(labels, ["기본 설정 등", "강사 관리", "커리큘럼 관리", "과목 관리", "학과 관리", "특강·세미나", "방학 특강", "로드맵", "수업별 준비물",
-    "내 프로필", "내 커리큘럼", "대시보드", "승인 대기", "준비물 검토", "사이트 반영"]);
+    "내 프로필", "내 커리큘럼", "대시보드", "승인 대기", "사이트 반영"]);
 });
 
 test("V3 과목 관리: [과목 생성] 학과·이름으로 생성, [과목 정리] 커리큘럼 미입력·학과·방특 미포함 과목 삭제", async () => {
@@ -271,14 +271,10 @@ test("V3 과목 관리 [과목 삭제] 탭: 학과(전체 학과)·과목명 검
   assert.match(c.textContent, /과목 2개를 삭제했습니다/);
 });
 
-test("V3 재료 검사: 칸 나누기·분류 제안·같은 과목 안 중복만", () => {
+test("V3 준비물 칸 나누기·선생님 분류", () => {
   assert.deepEqual(v3.splitItems("포토샵, ChatGPT\n- 노트북 · 1) 펜"), ["포토샵", "ChatGPT", "노트북", "펜"]);
-  assert.equal(v3.guessCategory("ChatGPT"), "ai");
-  assert.equal(v3.guessCategory("포토샵 교재"), "textbook");
-  assert.equal(v3.guessCategory("노트북"), null);
-  const out = v3.checkMaterials(v3.materialsOf(data().instructor_subject_materials[0]), ["노트북"]);
-  assert.deepEqual(out.map((m) => `${m.label}:${m.teacher}>${m.suggested}:${m.issues.map((i) => i[0]).join("+")}`),
-    ["포토샵:software>software:", "ChatGPT:software>ai:분류 확인", "노트북:supply>supply:중복 후보", "포토샵 교재:supply>textbook:분류 확인"]);
+  assert.deepEqual(v3.materialsOf({ tools: "포토샵", supplies: "노트북", textbook: "교재", ai: "ChatGPT" }).map((m) => `${m.label}:${m.teacher}`),
+    ["포토샵:software", "교재:textbook", "노트북:supply", "ChatGPT:ai"]);
 });
 
 test("V3 전환 점검: 같은 과목을 여러 학과에 따로 낸 강사(7)·여러 기수 방특(6B), 공용 과목·여러 과목 로드맵 단계는 정상", async () => {
@@ -289,7 +285,6 @@ test("V3 전환 점검: 같은 과목을 여러 학과에 따로 낸 강사(7)·
 });
 
 test("V3 승인 대기: 준비물 검토 없이 적용(② 칸이 검토), 프로필은 따로", async () => {
-  v3.state.reviews.clear();
   location.hash = "#/inbox";
   let c = await page("inbox");
   const items = [...c.querySelectorAll(".v2-listitem b")].map((b) => b.textContent);
@@ -305,14 +300,6 @@ test("V3 승인 대기: 준비물 검토 없이 적용(② 칸이 검토), 프�
   assert.ok(!button(c, "과목 전체 승인") && !button(c, "적용"), "첫 쪽에는 승인 버튼 대신 '학과 커리큘럼 보기'");
   assert.ok(button(c, "학과 커리큘럼 보기"));
   assert.ok(!button(c, "준비물 검토 보기") && !button(c, "준비물 작성") && button(c, "그룹 설정"), "준비물 작성 없음, 그룹 설정만");
-  location.hash = "#/validation/i1%7Cset1%7Cs1";
-
-  c = await page("validation");
-  assert.match(c.textContent, /검토 0\/4/);
-  button(c, "제안 수용").click();
-  button(c, "전체 원본 유지로 검토 확정").click();
-  assert.match(c.textContent, /검토 4\/4/);
-  assert.equal(v3.state.reviews.get("i1|set1|s1").get("t1"), "ai", "ChatGPT는 제안대로 AI 도구");
 
   // 한 화면 세 쪽, AI는 모두 토글(기본 꺼짐, 켜면 AI로 채움, 끄면 되돌림): ① 단계별 AI 요약 → ② 과목별 커리큘럼 AI생성 → ③ 로드맵 문구 AI 요약 → [적용]
   globalThis.confirm = () => true;
@@ -374,9 +361,10 @@ test("V3 승인 대기: 준비물 검토 없이 적용(② 칸이 검토), 프�
   assert.deepEqual([...field("학습 수준").options].map((o) => o.value).slice(1), ["★☆☆☆☆", "★★☆☆☆", "★★★☆☆", "★★★★☆", "★★★★★"]);
   field("기간").value = "2개월";
   field("학습 수준").value = "★★★☆☆";
-  assert.equal(field("준비물").nextElementSibling, field("준비물 없음").parentElement, "없음 체크는 준비물 상자 아래");
+  assert.deepEqual([...c.querySelectorAll(".cell-supplies .prep-chip")].map((x) => x.textContent.replace("−", "")), ["물품노트북", "물품포토샵 교재"], "선생님이 적은 준비물");
+  assert.deepEqual([...field("준비물 분류").options].map((o) => o.textContent), ["물품", "교재", "AI 도구"]);
   toggle("준비물 없음");
-  assert.ok(field("준비물").disabled && field("준비물").value === "", "없음이면 칸을 비우고 막음");
+  assert.ok(field("준비물 내용").disabled && !c.querySelector(".cell-supplies .prep-chip"), "없음이면 비우고 막음");
   button(c, "로드맵 문구 보기").click();
   await flush();
   assert.doesNotMatch(c.textContent, /STEP|스텝 삭제|과목 삭제/);
@@ -399,14 +387,14 @@ test("V3 승인 대기: 준비물 검토 없이 적용(② 칸이 검토), 프�
   assert.deepEqual(approvals, [["comsw_approve_curriculum", { p_id: "c1" }]]);
   assert.ok(db.calls.some(([k, t, , patch]) => k === "update" && t === "instructor_curricula" && patch.summary === "포토샵 기초"));
   const subj = db.calls.find(([k, t]) => k === "update" && t === "subjects")?.[3];
-  assert.deepEqual(subj, { duration: "2개월", dept_curriculum: "01 고친 요약", tools: "포토샵\nChatGPT", supplies: null, level: "★★★☆☆", roadmap_summary: "포토샵 로드맵\n둘째 줄" });
-  assert.deepEqual(db.calls.find(([k, t]) => k === "upsert" && t === "instructor_subject_materials")?.[2], { instructor_id: "i1", subject_id: "s1", tools: "포토샵, ChatGPT", supplies: null },
+  assert.deepEqual(subj, { duration: "2개월", dept_curriculum: "01 고친 요약", tools: "포토샵\nChatGPT", level: "★★★☆☆", roadmap_summary: "포토샵 로드맵\n둘째 줄" }, "준비물 칸은 승인 함수가 합친 그대로");
+  assert.deepEqual(db.calls.find(([k, t]) => k === "upsert" && t === "instructor_subject_materials")?.[2], { instructor_id: "i1", subject_id: "s1", tools: "포토샵, ChatGPT", supplies: null, textbook: null, ai: null },
     "없음 체크 → 선생님 준비물 칸도 비움(승인 함수가 수업별 준비물에 넣지 않게)");
   assert.ok(db.calls.some(([k, t, , patch]) => k === "update" && t === "roadmap_steps" && patch.summary === "포토샵 로드맵 둘째 줄\n"), "과목 둘이 든 곳은 이 과목 줄만, 다른 줄은 그대로");
   assert.match(c.textContent, /승인했습니다\(과목별 커리큘럼·로드맵 문구 함께 적용\)/);
 });
 
-test("V3 승인 대기 [그룹 설정]: ② 준비물 칸을 고치면 선생님 칸에 반영, 준비물이 있는데 그룹 없으면 적용 막음", async () => {
+test("V3 승인 대기 [그룹 설정]: ② 준비물을 분류 골라 고치면 선생님 칸에 반영, 준비물이 있는데 그룹 없으면 적용 막음", async () => {
   globalThis.confirm = () => true;
   location.hash = "#/inbox";
   const d = data();
@@ -418,9 +406,13 @@ test("V3 승인 대기 [그룹 설정]: ② 준비물 칸을 고치면 선생님
   assert.match(c.textContent, /그룹 없음/);
   button(c, "학과 커리큘럼 보기").click();
   await flush();
-  const sup = c.querySelector('[aria-label="준비물"]');
-  assert.equal(sup.value, "노트북, 포토샵 교재", "선생님이 적은 준비물을 미리 채움");
-  sup.value = "포토샵 교재, 마우스"; // 노트북 빼고 마우스 더함
+  const chips = () => [...c.querySelectorAll(".cell-supplies .prep-chip")].map((x) => x.textContent.replace("−", ""));
+  assert.deepEqual(chips(), ["물품노트북", "물품포토샵 교재"], "선생님이 적은 준비물");
+  c.querySelector('.prep-x[title="노트북 빼기"]').click();
+  c.querySelector('[aria-label="준비물 분류"]').value = "textbook";
+  c.querySelector('[aria-label="준비물 내용"]').value = "웹 교재";
+  button(c.querySelector(".cell-supplies"), "추가").click();
+  assert.deepEqual(chips(), ["물품포토샵 교재", "교재웹 교재"]);
   button(c, "로드맵 문구 보기").click();
   button(c, "적용").click();
   await flush();
@@ -437,14 +429,13 @@ test("V3 승인 대기 [그룹 설정]: ② 준비물 칸을 고치면 선생님
   assert.ok(db.calls.some(([k, t, id, patch]) => k === "update" && t === "subjects" && id === "s1" && patch.group_id === "g1"));
   assert.match(c.textContent, /그룹: 포토샵 과정/);
   button(c, "학과 커리큘럼 보기").click();
-  assert.equal(c.querySelector('[aria-label="준비물"]').value, "포토샵 교재, 마우스", "고친 것 그대로");
+  assert.deepEqual(chips(), ["물품포토샵 교재", "교재웹 교재"], "고친 것 그대로");
   button(c, "로드맵 문구 보기").click();
   button(c, "적용").click();
   await flush();
   assert.deepEqual(approvals, [["comsw_approve_curriculum", { p_id: "c1" }]]);
-  assert.deepEqual(db.calls.find(([k, t]) => k === "upsert" && t === "instructor_subject_materials")?.[2], { instructor_id: "i1", subject_id: "s1", tools: "포토샵, ChatGPT", supplies: "포토샵 교재, 마우스" },
-    "선생님 칸 = 남긴 것 + 더한 것(승인 함수가 이것을 수업별 준비물에 넣음)");
-  assert.equal(db.calls.find(([k, t, , p]) => k === "update" && t === "subjects" && "supplies" in p)?.[3].supplies, "포토샵 교재, 마우스");
+  assert.deepEqual(db.calls.find(([k, t]) => k === "upsert" && t === "instructor_subject_materials")?.[2], { instructor_id: "i1", subject_id: "s1", tools: "포토샵, ChatGPT", supplies: "포토샵 교재", textbook: "웹 교재", ai: null },
+    "선생님 칸 = ②에서 고친 분류대로(승인 함수가 이것을 수업별 준비물에 분류대로 넣음)");
 });
 
 test("V3 승인 대기: 선생님 몫 계산(남긴 것 + 과목에 없던 새 것)", async () => {
@@ -472,8 +463,6 @@ test("V3 승인 대기 방특: 기수를 골라야 승인, 고른 기수로 옮�
   const db = fakeSupabase(d);
   const approvals = [];
   db.rpc = async (name, args) => { approvals.push([name, args]); return { data: null, error: null }; };
-  v3.state.reviews.clear();
-  v3.state.reviews.set("i1|set1|s4", new Map([["none", "none"]]));
   location.hash = "#/inbox";
   const c = await page("inbox", { supabase: db });
   assert.ok(!button(c, "학과 커리큘럼 보기"), "방특은 한 쪽뿐");
@@ -780,7 +769,7 @@ test("V3 준비물: 학과·정규/방특 없이 4분류 탭, 탭마다 학과�
 });
 
 test("V3 모든 화면이 오류 없이 그려진다", async () => {
-  for (const f of ["dashboard", "inbox", "validation", "subjects", "instructors", "teachers", "aggregate", "roadmap", "materials", "vacation", "seminars", "release", "legacy"]) { // mine·profile은 기존 화면이 Firebase(CDN)를 불러 테스트에서 못 염(V2 테스트와 같음)
+  for (const f of ["dashboard", "inbox", "subjects", "instructors", "teachers", "aggregate", "roadmap", "materials", "vacation", "seminars", "release", "legacy"]) { // mine·profile은 기존 화면이 Firebase(CDN)를 불러 테스트에서 못 염(V2 테스트와 같음)
     location.hash = `#/${f}`;
     const c = await page(f);
     assert.ok(!c.querySelector(".save-state.err"), `${f}: ${c.querySelector(".save-state.err")?.textContent}`);

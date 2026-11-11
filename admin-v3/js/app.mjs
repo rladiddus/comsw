@@ -8,7 +8,7 @@ import { mountPage, clearApp } from "../../admin/js/mount.mjs";
 import { auth } from "../../admin/js/firebase.mjs";
 import { SITE_PAGES, previewUrl, openPreview } from "../../admin/js/preview.mjs";
 import { configureServices, createServices } from "../../admin/js/services.mjs";
-import { usePage } from "./v3.mjs";
+import { usePage, sortable, savedOrder } from "./v3.mjs";
 
 const page = (file) => () => import(`./pages/${file}.mjs`);
 
@@ -103,18 +103,14 @@ function pageHead(label, desc) {
 
 let session = null;
 const foldedGroups = new Set((() => { try { return JSON.parse(localStorage.getItem("v3.navFolded")) ?? []; } catch { return []; } })());
+// 메뉴 순서(2026-11-11): 묶음 안에서 끌어서 바꾼다(경계에 주황 점선). 이 브라우저에만 기억(v3.navOrder = { 묶음: [메뉴 id] }).
+const navOrder = (() => { try { return JSON.parse(localStorage.getItem("v3.navOrder")) ?? {}; } catch { return {}; } })();
+const ordered = (g, items) => savedOrder(items, navOrder[g], ([id]) => id);
 
-async function route() {
-  const groups = menusFor(session.role);
-  const all = groups.flatMap(([, items]) => items);
-  const want = location.hash.replace(/^#\/?/, "").split("/")[0];
-  const found = all.find(([id]) => id === want) ?? all[0];
-  if (!found) { $("#content").replaceChildren(); return; }
-  // 없는 메뉴 주소(예: 지운 #/dashboard)면 보여 주는 화면 주소로 바꿔 둔다(Codex ⑥, hashchange 없이)
-  if (want && want !== found[0]) history.replaceState(null, "", `#/${found[0]}`);
-  const [id, , label, desc, load] = found;
-  // 묶음 이름을 누르면 그 아래 메뉴가 접히고 펼쳐진다(접은 묶음은 이 브라우저에 기억).
-  $("#sideNav").replaceChildren(...groups.flatMap(([g, items]) => {
+// 왼쪽 메뉴: 묶음 이름을 누르면 그 아래 메뉴가 접히고 펼쳐진다(접은 묶음은 이 브라우저에 기억). 메뉴는 묶음 안에서 끌어서 순서를 바꾼다.
+function drawNav(groups, id) {
+  $("#sideNav").replaceChildren(...groups.flatMap(([g, all]) => {
+    const items = ordered(g, all);
     const links = items.map(([mid, icon, mlabel]) => {
       const a = Object.assign(document.createElement("a"), { href: `#/${mid}`, className: mid === id ? "active" : "" });
       a.append(Object.assign(document.createElement("span"), { className: "v2-nav-icon", textContent: icon }), mlabel);
@@ -132,8 +128,25 @@ async function route() {
       try { localStorage.setItem("v3.navFolded", JSON.stringify([...foldedGroups])); } catch { /* 저장소 막힘 */ }
       fold(foldedGroups.has(g));
     });
+    sortable(links.map((a, i) => [a, items[i][0]]), items.map(([mid]) => mid), (ids) => {
+      navOrder[g] = ids;
+      try { localStorage.setItem("v3.navOrder", JSON.stringify(navOrder)); } catch { /* 저장소 막힘: 이번에만 */ }
+      drawNav(groups, id);
+    });
     return [head, ...links];
   }));
+}
+
+async function route() {
+  const groups = menusFor(session.role);
+  const all = groups.flatMap(([g, items]) => ordered(g, items)); // 주소가 없으면 끌어서 바꾼 순서의 첫 메뉴
+  const want = location.hash.replace(/^#\/?/, "").split("/")[0];
+  const found = all.find(([id]) => id === want) ?? all[0];
+  if (!found) { $("#content").replaceChildren(); return; }
+  // 없는 메뉴 주소(예: 지운 #/dashboard)면 보여 주는 화면 주소로 바꿔 둔다(Codex ⑥, hashchange 없이)
+  if (want && want !== found[0]) history.replaceState(null, "", `#/${found[0]}`);
+  const [id, , label, desc, load] = found;
+  drawNav(groups, id);
   usePage(id);
   try {
     await mountPage($("#content"), async () => ({

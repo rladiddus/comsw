@@ -31,7 +31,8 @@
 
 - (11-11 다섯 번째 배포 `0bfb65f`: 과목 관리 [과목 삭제] 탭·학과 관리 [제외]만·과목 생성 '전체 학과', 공개 사이트 반영 확인)
 - (11-11 여섯 번째 배포: 로그인·첫 화면 빨리 열기, Codex 검토 ②③ 고침·①은 그대로 두기로. 실제 로그인 속도는 사용자 확인 필요)
-- 지금 답을 기다리는 질문 없음. (11-11 아홉 번째 배포 `9491f30`: 메뉴 '승인 관리', 공개 사이트 반영 확인)
+1. **배포할지**: 메뉴 끌어서 순서 바꾸기·AI 한도 문구 삭제(11-11)는 `redesign`에만 있다(테스트 361개 통과).
+- (11-11 아홉 번째 배포 `9491f30`: 메뉴 '승인 관리')
 - **운영 SQL 실행함(2026-11-11, 사용자)**: `20261111010000_material_categories.sql`(선생님 준비물 교재·AI 도구 칸, 제출·승인 함수). 이제 교재·AI 도구(링크) 고르기가 열림. 남은 운영 SQL 없음.
 - (11-11 여덟 번째 배포: Codex ①③⑤⑥ 고침, ②④ 보류)
 - (11-11 일곱 번째 배포 `2a54f70`: 준비물 분류·[준비물 작성] 팝업·준비물 검토/대시보드 삭제, 공개 사이트 반영 확인)
@@ -64,7 +65,7 @@
 - 메뉴 정의: `admin-v3/js/app.mjs`의 `GROUPS`(묶음: 운영 메뉴 / 선생님 / 업무 / 사이트 운영). 선생님은 `TEACHER` 목록만.
 - 공통 기능: `admin-v3/js/v3.mjs` — `state`, `usePage`, `contextBar(depts, onChange, extra, cohorts)`, `deptSubjects`(정규는 DB 순서만, 브라우저 순서는 방특만), `cohortSubjects`, `cohortsOf`, `addableSubjects`, `sortable`, `splitGrid`, `modal`, `deleteSubject`, `saveLocal`, `audit`.
 - 과목 그룹 팝업: `admin-v3/js/pages/subjects.mjs`의 `groupPicker`·`joinPicker`·`groupChooser`(승인 대기도 같이 씀).
-- 브라우저 저장(localStorage): `v3.orders`(방특 기수 과목 순서), `v3.picks`(학과 관리 강사 명단), `v3.made`(마지막 AI생성 때 강사 명단, '다시 만들기 필요' 판단), `v3.navFolded`(접은 메뉴 묶음).
+- 브라우저 저장(localStorage): `v3.navOrder`(묶음별 메뉴 순서), `v3.orders`(방특 기수 과목 순서), `v3.picks`(학과 관리 강사 명단), `v3.made`(마지막 AI생성 때 강사 명단, '다시 만들기 필요' 판단), `v3.navFolded`(접은 메뉴 묶음).
 - `card-list.mjs`의 `onSaved(row)`: 카드 저장(사용 체크·수정)마다 불림. V3 강사 관리가 뒤 목록 갱신에 씀(운영 화면은 안 씀).
 - 테스트 가짜 DB `fake-supabase.mjs`: `insert().select()`는 넣은 줄 배열, `.select().single()`은 첫 줄. delete의 cascade는 흉내 안 냄.
 - `admin/js/pages/prep.mjs`는 운영 화면과 같이 쓴다. 옵션 `prepCategory`, `prepLabel`, `prepSubjects`, `prepGroupOf`. "software" 탭은 `subjects.tools`를 다루는 `toolsDb` 연결부다. `seminars.mjs`(`seminarCard`·`drawRoster`), `teacher-workspace.mjs`(`teacherPicker`)도 공용.

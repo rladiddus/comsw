@@ -22,7 +22,7 @@ export async function render(container, ctx) {
   const thisMonth = jobs.filter((j) => j.month === month);
   container.append(
     stats([
-      ["AI 이번 달 예약액", budget ? `₩${budget.used.toLocaleString()}` : "—", budget ? `한도 ₩${budget.limit.toLocaleString()} · 남음 ₩${budget.remaining.toLocaleString()}` : "확인 실패"],
+      ["AI 이번 달 예약액", budget ? `₩${budget.used.toLocaleString()}` : "—", budget ? "" : "확인 실패"], // 한도·남은 금액 문구는 안 보임(2026-11-11 사용자 요청)
       ["AI 작업", `${thisMonth.length}`, `${month} 요청 수`],
       ["올린 파일", `${media.length >= 500 ? "500+" : media.length}`, "이미지·프로필 사진"],
       ["실패한 작업", `${thisMonth.filter((j) => j.status === "failed").length}`, "이번 달 AI 실패", thisMonth.some((j) => j.status === "failed")],

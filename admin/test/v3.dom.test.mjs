@@ -890,6 +890,12 @@ test("V3 커리큘럼 관리·학과 관리는 정규만(정규·방특 버튼 �
   }
 });
 
+test("V3 메뉴 순서: 기억한 순서대로, 새 메뉴는 뒤에 원래 순서대로", () => {
+  const items = [["a"], ["b"], ["c"], ["d"]];
+  assert.deepEqual(v3.savedOrder(items, ["c", "a"], ([x]) => x).map(([x]) => x), ["c", "a", "b", "d"]);
+  assert.deepEqual(v3.savedOrder(items, undefined, ([x]) => x).map(([x]) => x), ["a", "b", "c", "d"], "기억 없으면 그대로");
+});
+
 test("V3 화면마다 학과·정규/방특을 따로 기억", () => {
   v3.usePage("aggregate"); v3.state.mode = "vacation";
   v3.usePage("teachers");

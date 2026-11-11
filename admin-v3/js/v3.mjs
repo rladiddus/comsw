@@ -127,6 +127,12 @@ export function modal(title, body, actions, cancel = "취소") {
   return d;
 }
 
+// 기억한 순서(id 목록)대로 늘어놓기. 기억에 없는 것(새 메뉴 등)은 뒤에 원래 순서대로.
+export function savedOrder(items, saved = [], key = (x) => x) {
+  const at = (x) => { const i = saved.indexOf(key(x)); return i < 0 ? saved.length : i; };
+  return items.map((x, i) => [x, i]).sort((a, b) => at(a[0]) - at(b[0]) || a[1] - b[1]).map(([x]) => x);
+}
+
 // 끌어서 순서 바꾸기: pairs = [[줄, id]], ids = 지금 순서. 줄의 위쪽 절반이면 그 앞, 아래쪽 절반이면 뒤(경계에 점선).
 export function sortable(pairs, ids, onDrop) {
   let dragged = null;

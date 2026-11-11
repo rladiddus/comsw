@@ -134,7 +134,17 @@ function drawNav(groups, id) {
       drawNav(groups, id);
     });
     return [head, ...links];
-  }));
+  }), manualLink());
+}
+
+// 맨 아래 '사용 매뉴얼'(2026-11-11): 새 창으로. 학과장·관리자 = 학과장용, 선생님 = 일반 강사용. 끌어서 옮기지 않는다.
+function manualLink() {
+  const a = Object.assign(document.createElement("a"), {
+    href: canManage(session?.role) ? "../manual/v3-head.html" : "../manual/v3-teacher.html",
+    target: "_blank", rel: "noopener", className: "v3-navmanual", title: "새 창으로 열기",
+  });
+  a.append(Object.assign(document.createElement("span"), { className: "v2-nav-icon", textContent: "?" }), "사용 매뉴얼");
+  return a;
 }
 
 async function route() {

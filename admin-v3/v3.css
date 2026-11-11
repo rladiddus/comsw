@@ -173,6 +173,7 @@
 .v3-navtoggle.folded::after { transform:rotate(-90deg); }
 .v3-navtoggle:hover { color:#555; }
 .side-nav a[hidden] { display:none; }
+.side-nav .v3-navmanual { margin-top:18px; border-top:1px solid var(--line); border-radius:0 0 8px 8px; padding-top:14px; color:var(--muted); } /* 맨 아래 사용 매뉴얼 */
 @media (max-width:900px) { .side-nav a[hidden] { display:block; } } /* 좁은 화면은 묶음 이름이 숨겨져 접을 수 없으니 다 보이게 */
 /* 제출된 커리큘럼(승인 대기·대시보드): 단계마다 글 왼쪽, 이미지 오른쪽 */
 .v3-submitted .v2-diff-cols { grid-template-columns:auto minmax(0,1fr); }

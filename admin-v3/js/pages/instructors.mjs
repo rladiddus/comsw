@@ -1,8 +1,8 @@
-import { el, pick, chip, btn, stats, panel, table, select, headActions, nameOf } from "../../../admin-v2/js/ui.mjs";
+import { el, pick, chip, btn, panel, table, select, headActions, nameOf } from "../../../admin-v2/js/ui.mjs";
 import { dbErrorMessage } from "../../../admin/js/fields.mjs";
 import { mountCardList } from "../../../admin/js/card-list.mjs";
 import { instructorCard } from "../../../admin/js/pages/instructors.mjs";
-import { isEmployed, modal } from "../v3.mjs";
+import { modal } from "../v3.mjs";
 
 // 강사 관리(V3 시안 '강사·재직 관리'): 재직 상태는 사이트 공개(is_listed)와 다르다(재직 칸은 DB 추가 전).
 // 강사 목록 오른쪽 위 [학과 ▾][강사 ▾] + (전체)(공개)(비공개)(계정 연결) 탭. 줄을 누르면 그 강사 카드(기존 강사 화면과 같은 카드)를 팝업으로 연다.
@@ -71,18 +71,10 @@ export async function render(container, ctx) {
     Object.assign(el("button", { type: "button", className: "v2-tab", textContent: t }), { onclick: () => { tab = k; draw(); } })));
   const pickers = el("div", { className: "v2-row v2-gap" }, [deptPick, namePick]);
   let accounts = null; // 계정 연결 화면은 처음 열 때 한 번만 그린다
-  const statBox = el("div");
   const listBox = el("div");
   function draw() {
     [...tabBar.children].forEach((b, i) => b.classList.toggle("active", TABS[i][0] === tab));
     pickers.hidden = tab === "accounts";
-    const out = instructors.filter((i) => !isEmployed(i.id)).length;
-    statBox.replaceChildren(stats([
-      ["재직(확인 전)", `${instructors.length - out}`, "재직 상태는 아직 DB에 없음"],
-      ["퇴사 처리(시험)", `${out}`, "학과 관리 출처에서 빠짐", out > 0],
-      ["사이트 공개", `${instructors.filter((i) => i.is_listed).length}`, "재직과 별개인 '사이트에 보이기'"],
-      ["계정 연결", `${instructors.filter((i) => i.account_uid).length}`, "쌤톡 계정과 연결됨"],
-    ]));
     const head = [el("div", { className: "v2-row v2-gap" }, [pickers, tabBar])];
     if (tab === "accounts") {
       if (!accounts) { accounts = el("div", { className: "v3-instaccounts" }); old("accounts")().then((m) => m.render(accounts, ctx)).catch((e) => accounts.append(el("p", { className: "save-state err", textContent: e.message }))); }
@@ -113,6 +105,6 @@ export async function render(container, ctx) {
     t.node.classList.add("v3-instable");
     listBox.replaceChildren(panel("강사 목록", [t.node], "", head));
   }
-  container.append(statBox, listBox);
+  container.append(listBox); // 위쪽 숫자 카드(재직·퇴사·공개·계정 연결)는 2026-11-11 삭제
   draw();
 }

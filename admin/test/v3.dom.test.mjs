@@ -496,9 +496,9 @@ test("V3 과목 통합 순서 → 로드맵·학과 커리큘럼이 같은 순�
   assert.match(boxesOf()[1].textContent, /로드맵 요약/);
   assert.equal(button(boxesOf()[1], "AI 요약").disabled, true);
   cfg();
-  // 과목 삭제 → − 로 빼기, 스텝 삭제
-  assert.equal(boxesOf()[0].querySelectorAll(".v3-x").length, 0);
-  button(boxesOf()[0], "과목 삭제").click();
+  // − 는 늘 보이고(과목 삭제 버튼 없음) 바로 빼기, 스텝 삭제
+  assert.ok(!button(boxesOf()[0], "과목 삭제"), "과목 삭제 버튼 없음");
+  assert.equal(boxesOf()[0].querySelectorAll(".v3-x").length, 1);
   boxesOf()[0].querySelector('.v3-x[title="포토샵 빼기"]').click();
   assert.deepEqual(stepSubs(), [[], ["웹1"]]);
   button(boxesOf()[0], "스텝 삭제").click();
@@ -508,6 +508,23 @@ test("V3 과목 통합 순서 → 로드맵·학과 커리큘럼이 같은 순�
   button(del, "삭제").click();
   assert.ok(c.querySelector(".v3-steplist"), "스텝 박스만 스크롤되는 칸");
   assert.deepEqual(stepSubs(), [["웹1"]]);
+  // [저장]: 새 스텝을 임시 위치에 넣고 과목 연결 → 옛 스텝 삭제 → 위치 1..n
+  button(c, "+ 스텝 추가").click();
+  drag(c.querySelectorAll(".v3-dragsrc")[1], "dragstart"); drag(boxesOf()[1], "dragover"); drag(boxesOf()[1], "drop");
+  odb.calls.length = 0;
+  const save = button(c, "저장");
+  assert.equal(save.disabled, false, "바뀐 것이 있으면 저장 켜짐");
+  save.click();
+  await flush();
+  const ins = odb.calls.filter(([k, t]) => k === "insert" && t === "roadmap_steps")[0][2];
+  assert.deepEqual(ins.map((r) => [r.track_id, r.position, r.summary]), [["t1", 1000, "로드맵 요약"], ["t1", 1001, null]], "AI 문구, 새로 넣은 과목은 문구 없음");
+  const subs = odb.calls.filter(([k, t]) => k === "insert" && t === "roadmap_step_subjects")[0][2];
+  assert.deepEqual(subs.map((r) => [r.subject_id, r.sort_order]), [["s2", 0], ["s1", 0]]);
+  assert.ok(odb.calls.some(([k, t]) => k === "delete" && t === "roadmap_steps"), "옛 스텝 삭제");
+  assert.deepEqual(odb.calls.filter(([k, t]) => k === "update" && t === "roadmap_steps").map((x) => x[3].position), [1, 2]);
+  assert.match(c.textContent, /저장했습니다/);
+  assert.deepEqual(stepSubs(), [["웹1"], ["포토샵"]], "저장한 로드맵으로 다시 그림");
+  assert.equal(button(c, "저장").disabled, true, "저장 뒤에는 꺼짐");
 
   location.hash = "#/aggregate/s1";
   c = await page("aggregate");
@@ -650,6 +667,18 @@ test("V3 과목 통합 순서 → 로드맵·학과 커리큘럼이 같은 순�
   assert.match(c.querySelector(".v2-listitem.active").textContent, /통합 강사 1명/);
   [...c.querySelectorAll(".v3-aggtabs button")][1].click();
   assert.match(c.textContent, /다시 만들기 필요/);
+  // AI생성하면 '다시 만들기 필요'가 사라지고, 다시 열어도 같은 명단이면 안 나옴
+  configureServices({ summarize: async () => ({ text: "01 새 요약" }) });
+  const row0 = c.querySelector(".dept-curriculum-row:not(.v3-headrow)");
+  button(row0, "수정").click();
+  button(row0, "AI생성").click();
+  await flush();
+  assert.ok(!/다시 만들기 필요/.test(row0.textContent));
+  configureServices();
+  c = await page("aggregate");
+  [...c.querySelectorAll(".v3-aggtabs button")][1].click();
+  assert.ok(!/다시 만들기 필요/.test(c.querySelector(".dept-curriculum-row:not(.v3-headrow)").textContent));
+  v3.state.made.clear();
   v3.state.aggTab = "weeks";
   v3.state.employed.clear(); v3.state.orders.clear(); v3.state.roadmap.clear();
 });
@@ -903,7 +932,7 @@ test("V3 강사 관리: 5번 안내·통합 출처·작업 없이, 학과→강�
   const c = await page("instructors");
   assert.ok(!/퇴사는 강사 원문|통합 출처|작업/.test(c.textContent));
   assert.ok(!/기존 화면/.test(c.textContent), "아래 기존 강사 화면 칸 없음");
-  assert.deepEqual([...c.querySelectorAll(".v2-table th")].map((th) => th.textContent), ["강사", "사이트", "담당 학과", "담당 과목"], "재직 상태 칸 없음");
+  assert.deepEqual([...c.querySelectorAll(".v2-table th")].map((th) => th.textContent), ["강사", "사이트", "담당 학과", "담당 과목", "공개"], "재직 상태 칸 없음, 끝에 공개 체크");
   const tabs = () => [...c.querySelectorAll(".v3-insttabs button")];
   assert.deepEqual(tabs().map((b) => b.textContent), ["전체", "공개", "비공개", "계정 연결"]);
   tabs()[1].click();
@@ -928,7 +957,28 @@ test("V3 강사 관리: 5번 안내·통합 출처·작업 없이, 학과→강�
   assert.ok([...card.querySelectorAll(".consent span")].some((x) => x.textContent === "공개"), "사이트 표시 → 공개");
   assert.equal(d.querySelectorAll(".card-item").length, 1);
   assert.ok(!/성별/.test(d.textContent), "성별 없음");
+  // 팝업에서 공개 체크를 바꾸면 뒤 목록이 바로 바뀜(새로고침 없이)
+  const pub = [...card.querySelectorAll(".consent")].find((x) => x.textContent === "공개").querySelector("input");
+  pub.checked = true; pub.dispatchEvent(new dom.window.Event("change"));
+  await flush(); await flush();
+  assert.match(c.querySelector(".v2-table tbody tr").textContent, /공개/);
+  assert.ok(!/비공개/.test(c.querySelector(".v2-table tbody tr").textContent));
   d.remove();
+});
+
+test("V3 강사 관리: 줄 끝 공개 체크로 바로 저장(팝업 안 열림), 전체 탭은 공개 위·비공개 아래", async () => {
+  const db = fakeSupabase(data());
+  const c = await page("instructors", { supabase: db });
+  const names = () => [...c.querySelectorAll(".v2-table tbody tr td:first-child")].map((td) => td.textContent);
+  const box = (name) => [...c.querySelectorAll(".v2-table tbody tr")].find((tr) => tr.firstChild.textContent === name).querySelector(".v3-listed input");
+  assert.deepEqual(names(), ["김", "이"]);
+  box("김").click(); // 김 비공개
+  await flush();
+  assert.ok(db.calls.some(([k, t, id, p]) => k === "update" && t === "instructors" && id === "i1" && p.is_listed === false));
+  assert.ok(!document.querySelector("dialog.v3-tpop"), "체크는 팝업을 열지 않음");
+  box("이").click(); // 이 공개
+  await flush();
+  assert.deepEqual(names(), ["이", "김"], "공개 강사가 위로");
 });
 
 test("V3 특강·세미나: 오른쪽 상세·아래 기존 화면 없이, 줄의 [신청자 명단]은 그 줄 아래, 줄을 누르면 특강 팝업, [특강 만들기]는 빈 칸 팝업", async () => {

@@ -78,6 +78,7 @@ export async function mountCardList(container, {
   preview = (values) => [mediaPreview(values[imageKey])],
   itemName = (row, index) => `${index + 1}번`,
   onRows = () => {}, // 불러올 때마다 지금 줄 목록(예: 다 지우면 과목 목록에서 빼기)
+  onSaved = () => {}, // 카드 하나를 저장할 때마다(사용 체크·수정). 예: 뒤의 목록을 바로 새로 그리기
   actions = [], // 카드마다 더 붙일 버튼 [{ label, onClick(row) }] (예: 특강 신청자 명단)
   toolbar = true, // false면 '+ 추가'·'모두 펼치기'를 숨긴다(여러 목록을 위에서 한 번에 다룰 때, 반환값 setFold 사용)
 }) {
@@ -161,6 +162,7 @@ export async function mountCardList(container, {
     }
     Object.assign(row, patch);
     setState("저장됨");
+    onSaved(row);
     return true;
   }
   // 검색: 보이는 줄만 거른다(불러온 줄은 그대로).
@@ -383,7 +385,7 @@ export async function mountCardList(container, {
           ok = false;
         }
       }
-      if (ok) editing(false);
+      if (ok) { editing(false); onSaved(row); } // 연결 칸(학과·과목)까지 저장한 뒤 한 번 더
       edit.disabled = false;
     });
     remove.addEventListener("click", async () => {

@@ -13,6 +13,7 @@ export const state = {
   orders: load("v3.orders"), // "학과id:mode" → [과목id] (학과별 순서)
   roadmap: new Map(), // 학과id → [{ ids: [과목id], from: 처음 로드맵 단계id }] (로드맵 스텝, 저장 안 됨)
   picks: load("v3.picks"), // "과목id|mode" → [강사id] (과목 통합에 넣을 강사)
+  made: load("v3.made"), // "과목id|mode" → 마지막으로 AI생성한 때의 강사 명단("id,id"). 지금 명단과 같으면 '다시 만들기 필요'를 숨긴다.
   aggTab: "weeks", // 학과 관리(정규): weeks 주차별 | subjects 과목별
   aiLines: 2, // 과목 통합 AI 요약 줄 수(2~4)
   teacherTab: "teacher", // 커리큘럼 관리: teacher 강사별 과목 | subject 과목별 강사
@@ -36,6 +37,7 @@ export function saveLocal() {
   try {
     localStorage.setItem("v3.orders", JSON.stringify([...state.orders]));
     localStorage.setItem("v3.picks", JSON.stringify([...state.picks]));
+    localStorage.setItem("v3.made", JSON.stringify([...state.made]));
   } catch { /* 저장소를 못 쓰면 화면에서만 기억 */ }
 }
 

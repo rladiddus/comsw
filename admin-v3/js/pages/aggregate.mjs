@@ -93,14 +93,16 @@ export async function render(container, ctx) {
   // 과목에 넣을 강사(순서대로). 처음 = 이 과목 승인본이 있는 재직 강사(강사 순서).
   const teachersOf = (id) => instructors.map((i) => i.id).filter((i) => srcOf(id).some((c) => c.instructor_id === i));
   const picks = (id) => dPicks.get(pk(id)) ?? state.picks.get(pk(id)) ?? teachersOf(id).filter(isEmployed);
-  const stale = (id) => dPicks.has(pk(id)) || state.picks.has(pk(id)) || teachersOf(id).some((i) => !isEmployed(i));
+  // 다시 만들기 필요: 강사 명단을 바꿨거나 퇴사 강사가 있는데, 지금 명단으로 아직 AI생성을 안 했을 때
+  const stale = (id) => (dPicks.has(pk(id)) || state.picks.has(pk(id)) || teachersOf(id).some((i) => !isEmployed(i)))
+    && state.made.get(pk(id)) !== picks(id).join(",");
   const deptsOf = (id) => links.filter((l) => l.subject_id === id).map((l) => depts.find((d) => d.id === l.department_id)?.name ?? "");
 
   const tabs = el("div", { className: "v2-tabs v3-aggtabs" }, [["weeks", "주차별 커리큘럼"], ["subjects", "과목별 커리큘럼"]].map(([k, t]) =>
     Object.assign(el("button", { type: "button", className: "v2-tab", textContent: t }), { onclick: () => { state.aggTab = k; draw(); } })));
 
   // 과목 통합 문구 AI생성 [AI생성] [2 3 4] 줄: 넣은 강사(순서대로)의 단계별 원문을 모아 n줄로 요약해 text에 넣는다.
-  function aiControls(subject, text, say) {
+  function aiControls(subject, text, say, onMade = () => {}) {
     const lineBtns = [2, 3, 4].map((n) => Object.assign(el("button", { type: "button", className: `v2-tab${state.aiLines === n ? " active" : ""}`, textContent: `${n}` }),
       { onclick: () => { state.aiLines = n; lineBtns.forEach((b, i) => b.classList.toggle("active", i + 2 === n)); } }));
     const gen = btn("AI생성", async () => {
@@ -121,6 +123,7 @@ export async function render(container, ctx) {
       say("AI 요약 중…");
       try {
         text.value = (await fn("department", ask)).text;
+        state.made.set(pk(subject.id), chosen.join(",")); saveLocal(); onMade();
         say(`${state.aiLines}줄로 만들었습니다. 확인 후 '저장'을 눌러주세요.`);
       } catch (e) { say(e.message, true); }
       gen.disabled = false;
@@ -284,7 +287,8 @@ export async function render(container, ctx) {
         level: el("select", {}, [el("option", { value: "", textContent: "선택 안 함" }), ...[...new Set([...LEVELS, ...(s.level ? [s.level] : [])])].map((v) => el("option", { value: v, textContent: v }))]),
       };
       f.level.value = s.level ?? "";
-      const ai = aiControls(s, f.dept_curriculum, say);
+      const staleChip = stale(s.id) ? chip("다시 만들기 필요", "warn") : null;
+      const ai = aiControls(s, f.dept_curriculum, say, () => staleChip?.remove());
       const lock = () => { ai.hidden = !on; Object.values(f).forEach((x) => { if (x.tagName === "SELECT") x.disabled = !on; else x.readOnly = !on; }); };
       lock();
       const toggle = btn("수정", async () => {
@@ -303,7 +307,7 @@ export async function render(container, ctx) {
       return el("div", { className: "dept-curriculum-row" }, [
         el("span", { className: "v2-num", textContent: `${i + 1}` }),
         cell("name", "과목명"), cell("duration", "기간"),
-        cell("dept_curriculum", "학과별 커리큘럼 요약", [...(stale(s.id) ? [chip("다시 만들기 필요", "warn")] : []), ai]),
+        cell("dept_curriculum", "학과별 커리큘럼 요약", [...(staleChip ? [staleChip] : []), ai]),
         cell("tools", "프로그램"), cell("supplies", "준비물"), cell("level", "학습 수준"),
         el("div", { className: "dept-cell cell-actions" }, [
           btn("제외", () => { if (!confirm(`'${s.name}'을(를) 이 학과에서 뺄까요? 과목은 남습니다.`)) return; dOrders.set(key(), ids.filter((x) => x !== s.id)); saveDraft(); }),

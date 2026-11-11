@@ -66,9 +66,11 @@ export function fakeSupabase(tables, { unique = {} } = {}) {
           calls.push(["insert", table, row]);
           const added = (Array.isArray(row) ? row : [row]).map((r, i) => ({ id: `new${rows.length + i}`, ...r }));
           for (const r of added) rows.push(r);
-          // insert(...).select().single()이면 넣은 줄을 돌려준다.
+          // insert(...).select()는 넣은 줄들, .select().single()은 첫 줄을 돌려준다.
           return Object.assign(Promise.resolve({ error: null }), {
-            select: () => ({ single: () => Promise.resolve({ data: { ...added[0] }, error: null }) }),
+            select: () => Object.assign(Promise.resolve({ data: added.map(r => ({ ...r })), error: null }), {
+              single: () => Promise.resolve({ data: { ...added[0] }, error: null }),
+            }),
           });
         },
       };

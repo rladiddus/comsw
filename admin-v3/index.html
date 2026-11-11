@@ -6,6 +6,48 @@
   <meta name="robots" content="noindex">
   <title>컴수원 관리 V3</title>
   <link rel="icon" href="data:,">
+  <!-- 빨리 열기(2026-11-11): 외부 서버와 미리 연결하고, 시작·대시보드에 필요한 모듈을 한꺼번에 받는다(import를 하나씩 따라가며 받으면 단계마다 기다림).
+       목록은 admin/test/v3-preload.test.mjs가 실제 import와 맞는지 검사한다. -->
+  <link rel="preconnect" href="https://www.gstatic.com" crossorigin>
+  <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
+  <link rel="preconnect" href="https://bpdxbqsvkvvybrtgvrnf.supabase.co" crossorigin>
+  <link rel="preconnect" href="https://asia-northeast3-ssamtalk-sbs.cloudfunctions.net" crossorigin>
+  <link rel="preconnect" href="https://securetoken.googleapis.com" crossorigin>
+  <link rel="preconnect" href="https://identitytoolkit.googleapis.com" crossorigin>
+  <link rel="modulepreload" href="https://www.gstatic.com/firebasejs/11.9.0/firebase-app.js">
+  <link rel="modulepreload" href="https://www.gstatic.com/firebasejs/11.9.0/firebase-auth.js">
+  <link rel="modulepreload" href="https://www.gstatic.com/firebasejs/11.9.0/firebase-functions.js">
+  <link rel="modulepreload" href="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.49.4/+esm">
+  <link rel="modulepreload" href="./js/main.mjs">
+  <link rel="modulepreload" href="./js/app.mjs">
+  <link rel="modulepreload" href="./js/v3.mjs">
+  <link rel="modulepreload" href="./js/pages/dashboard.mjs">
+  <link rel="modulepreload" href="./js/pages/inbox.mjs">
+  <link rel="modulepreload" href="./js/pages/aggregate.mjs">
+  <link rel="modulepreload" href="./js/pages/subjects.mjs">
+  <link rel="modulepreload" href="../admin-v2/js/ui.mjs">
+  <link rel="modulepreload" href="../admin-v2/js/pages/publishing.mjs">
+  <link rel="modulepreload" href="../admin-v2/js/pages/dashboard.mjs">
+  <link rel="modulepreload" href="../admin/js/firebase.mjs">
+  <link rel="modulepreload" href="../admin/js/session.mjs">
+  <link rel="modulepreload" href="../admin/js/roles.mjs">
+  <link rel="modulepreload" href="../admin/js/messages.mjs">
+  <link rel="modulepreload" href="../admin/js/format.mjs">
+  <link rel="modulepreload" href="../admin/js/fields.mjs">
+  <link rel="modulepreload" href="../admin/js/mount.mjs">
+  <link rel="modulepreload" href="../admin/js/preview.mjs">
+  <link rel="modulepreload" href="../admin/js/services.mjs">
+  <link rel="modulepreload" href="../admin/js/teacher-workspace.mjs">
+  <link rel="modulepreload" href="../admin/js/idle-logout.mjs">
+  <link rel="modulepreload" href="../admin/js/drive.mjs">
+  <link rel="modulepreload" href="../admin/js/image-crop.mjs">
+  <link rel="modulepreload" href="../admin/js/order.mjs">
+  <link rel="modulepreload" href="../admin/js/card-list.mjs">
+  <link rel="modulepreload" href="../admin/js/image-upload.mjs">
+  <link rel="modulepreload" href="../admin/js/media-preview.mjs">
+  <link rel="modulepreload" href="../admin/js/subject-weeks.mjs">
+  <link rel="modulepreload" href="../admin/js/pages/subject-manage.mjs">
+  <link rel="modulepreload" href="../admin/js/pages/department-curriculum.mjs">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable.min.css">
   <link rel="stylesheet" href="../admin/admin.css">
   <link rel="stylesheet" href="../admin-v2/v2.css">

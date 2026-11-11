@@ -4,7 +4,7 @@
 > 용도: **V3의 지금 모습(정책·메뉴별 상태·남은 일·배포/SQL 이력)**. 작업이 하나 끝날 때마다 해당 칸을 고친다.
 > 대화를 이어 가기 위한 메모는 `claude-mem.md`, 작업 하나하나의 자세한 일지는 `record.md`.
 
-마지막 갱신: 2026-11-11 · 브랜치 `redesign` · **2026-11-11 세 번 배포함**(마지막 `0bfb65f`) · 남은 운영 SQL 없음
+마지막 갱신: 2026-11-11 · 브랜치 `redesign` · **2026-11-11 세 번 배포함**(마지막 `0bfb65f`) · 그 뒤 로그인·첫 화면 빨리 열기는 **배포 전(로컬)** · 남은 운영 SQL 없음
 
 ---
 
@@ -67,6 +67,10 @@
   - 함께 쓰는 것: `admin-v2/js/ui.mjs` 조각과 `admin/js/*` 기존 모듈. `admin/js/pages/prep.mjs`·`seminars.mjs`·`teacher-workspace.mjs`는 운영 화면과 같이 쓰므로 기존 동작을 유지해야 한다.
 - 테스트: `node --test --test-concurrency=1 "admin/test/*.test.mjs" "tools/test/*.test.mjs"` (352개, 약 7분). V3 화면 테스트는 `admin/test/v3.dom.test.mjs`, SQL 테스트는 `tools/test/*.test.mjs`(pglite).
   - 문법 검사: `node scripts/check-syntax.js`. `admin/` 파일을 고치면 `node scripts/stamp-admin.mjs`.
+- 빨리 열기(11-11)
+  - 새로고침: `admin/js/session.mjs` `currentRole()`이 지금 토큰의 `comsw_role`로 바로 들어가고, 쌤톡 권한 다시 계산(`refreshMyComswClaims`)은 뒤에서. 역할이 실제로 바뀌었으면 토큰을 새로 받아 화면을 다시 연다. 토큰에 역할이 없으면 예전처럼 끝까지 확인. 로그인 버튼으로 들어올 때는 그대로(끝까지 확인). 운영·V2·V3 공용.
+  - `admin-v3/index.html`: 외부 서버 preconnect + 시작·대시보드 모듈 modulepreload(34개). 목록은 `admin/test/v3-preload.test.mjs`가 실제 import와 같은지 검사 → **import를 바꾸면 목록도 고친다**.
+  - 잰 시간: 쌤톡 함수 0.25~0.75초(잠들어 있으면 더), 토큰 새로 받기 약 0.3초, DB 요청 0.15~0.2초, GitHub Pages 파일 하나 약 0.3초(10분 캐시). 시작 모듈 6단계·화면 5~8단계.
 
 ## 5. 메뉴별 지금 상태 (2026-11-11)
 

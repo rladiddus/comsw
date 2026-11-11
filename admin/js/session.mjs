@@ -45,11 +45,12 @@ export async function currentRole() {
 
 async function recheckRole(user, role) {
   try {
+    const same = () => auth.currentUser?.uid === user.uid; // 그 사이 로그아웃·다른 사람 로그인이면 결과를 버린다
     const { data } = await httpsCallable(functions, "refreshMyComswClaims")();
-    if ((data?.role ?? null) === role) return;
+    if (!same() || (data?.role ?? null) === role) return;
     // 새 토큰의 역할이 실제로 바뀌었을 때만 다시 연다(같으면 다시 열어도 또 같아서 되풀이하지 않음).
     const fresh = (await user.getIdTokenResult(true)).claims.comsw_role || null;
-    if (fresh !== role) location.reload();
+    if (same() && fresh !== role) location.reload();
   } catch (err) {
     console.warn("권한 다시 확인 실패(다음 새로고침 때 다시 확인)", err);
   }

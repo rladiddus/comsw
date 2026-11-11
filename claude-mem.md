@@ -30,8 +30,8 @@
 ## 답을 기다리는 질문 (다음 대화에서 먼저 확인)
 
 - (11-11 다섯 번째 배포 `0bfb65f`: 과목 관리 [과목 삭제] 탭·학과 관리 [제외]만·과목 생성 '전체 학과', 공개 사이트 반영 확인)
-1. **배포할지 + Codex 검토 제안**: 로그인·첫 화면 빨리 열기(session.mjs `currentRole` 빠른 길, V3 index.html modulepreload)는 `redesign`에만 있다(테스트 355개 통과, 브라우저 확인 못 함). 로그인·권한 코드라 Codex 검토를 제안해 둠.
-2. 다른 메뉴(학과 관리·로드맵·커리큘럼 관리 등)의 학과 드롭다운에도 '전체'를 넣을지: 사용자 말 "모든 학과 드롭다운 메뉴에서 전체를 추가"를 과목 관리 안 두 곳으로 해석했다. 다른 화면은 한 학과씩 보는 화면이라 넣지 않았다 — 확인 필요.
+- (11-11 여섯 번째 배포: 로그인·첫 화면 빨리 열기, Codex 검토 ②③ 고침·①은 그대로 두기로. 실제 로그인 속도는 사용자 확인 필요)
+1. 다른 메뉴(학과 관리·로드맵·커리큘럼 관리 등)의 학과 드롭다운에도 '전체'를 넣을지: 사용자 말 "모든 학과 드롭다운 메뉴에서 전체를 추가"를 과목 관리 안 두 곳으로 해석했다. 다른 화면은 한 학과씩 보는 화면이라 넣지 않았다 — 확인 필요.
 - (정리됨 11-11) 로드맵 [저장] 만듦. 스텝 삭제 팝업 버튼 순서는 바꾸지 않기로.
 
 ## 사용자가 정한 것 (시간 순 요약)
@@ -62,5 +62,5 @@
 - `admin/js/pages/prep.mjs`는 운영 화면과 같이 쓴다. 옵션 `prepCategory`, `prepLabel`, `prepSubjects`, `prepGroupOf`. "software" 탭은 `subjects.tools`를 다루는 `toolsDb` 연결부다. `seminars.mjs`(`seminarCard`·`drawRoster`), `teacher-workspace.mjs`(`teacherPicker`)도 공용.
 - 승인 대기 [적용]의 프로그램·준비물 미리 채우기는 승인 함수 `merge_items`와 같은 규칙.
 - AI: `getServices().summarize(kind, text)`이고 kind는 week, department, roadmap이다. 서버 지시는 `supabase/functions/comsw-tools/policy.mjs`.
-- 빨리 열기: `currentRole()`은 토큰 `comsw_role`이 있으면 바로 돌려주고 `recheckRole`을 뒤에서 돈다(바뀌면 `location.reload()`, 새 토큰도 같으면 되풀이 안 함). V3 `index.html` modulepreload 목록은 `admin/test/v3-preload.test.mjs`가 검사 — 시작·대시보드 import를 바꾸면 목록도 고친다.
+- 빨리 열기: `currentRole()`은 토큰 `comsw_role`이 있으면 바로 돌려주고 `recheckRole`을 뒤에서 돈다(바뀌면 `location.reload()`, 새 토큰도 같으면 되풀이 안 함). V3 `index.html` modulepreload 목록은 `admin/test/v3-preload.test.mjs`가 검사 — 시작·첫 화면(legacy→site, profile→admin 내 프로필) import나 첫 메뉴를 바꾸면 목록도 고친다.
 - 방특 판단: `instructor_curricula.vacation`은 믿지 않고 **기수 그룹(`curriculum_sets.is_vacation`)**으로 판단한다.

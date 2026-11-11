@@ -382,9 +382,7 @@ export async function render(container, ctx, { tab, as } = {}) {
         ? (ctx.v3 && proxy ? "이 강사의 학과가 없습니다. 내 프로필 > 수업 설정 > 타 강사 수업 설정에서 학과를 저장해주세요." : "내 학과가 없습니다. 수업 설정에서 학과를 추가해주세요.")
         : mine.length
         ? ""
-        : ctx.v3
-        ? "이 학과에 과목이 없습니다. 학과장에게 과목을 만들어 달라고 요청해주세요."
-        : "이 학과에서 고른 과목이 없습니다. 수업 설정에서 수업하는 과목을 체크해주세요.";
+        : "이 학과에서 고른 과목이 없습니다. 수업 설정에서 수업하는 과목을 체크해주세요(과목이 아예 없으면 학과장에게 요청).";
       if (vacationPick && !set.options.length) subjectHint.textContent = "방학 특강이 아직 없습니다. 관리자가 '방학 특강' 메뉴에서 먼저 추가해야 합니다.";
       subjectTabs.replaceChildren(...mine.map((s) => {
         panelFor(s);

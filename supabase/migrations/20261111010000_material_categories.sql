@@ -1,7 +1,7 @@
 -- 선생님 준비물을 분류(물품·교재·AI 도구)로 받기(2026-11-11 사용자 요청). 이 파일은 사용자가 운영 DB에 직접 실행한다.
 -- ① instructor_subject_materials에 교재(textbook)·AI 도구(ai) 칸. 기존 supplies는 '물품'.
 -- ② 제출(comsw_submit_curriculum): textbook·ai도 저장. 나머지는 20261103020000 그대로.
--- ③ 승인(comsw_approve_curriculum): 수업별 준비물에 분류대로(교재 → textbook, 물품 → supply, AI 도구 → ai) 넣고,
+-- ③ 승인(comsw_approve_curriculum): 수업별 준비물에 분류대로(교재 → textbook, 물품 → supply, AI 도구 → ai, 'AI 이름 | 링크'면 링크 칸까지) 넣고,
 --    과목 '준비물' 칸(subjects.supplies, 사이트 학과 커리큘럼)에는 교재·물품을 합친다(AI 도구는 넣지 않음). 나머지는 20261027060000 그대로.
 -- 실행 전에는 관리 화면에서 교재·AI 도구 고르기만 잠긴다(물품만).
 
@@ -89,17 +89,20 @@ begin
       set tools = comsw_private.merge_items(tools, m.tools),
           supplies = comsw_private.merge_items(comsw_private.merge_items(supplies, m.textbook), m.supplies)
       where id = c.subject_id;
-    insert into public.course_prep_items(subject_id, category, content, sort_order)
-      select c.subject_id, a.cat, a.item,
+    -- 교재·물품은 쉼표·줄바꿈으로 나누고, AI 도구는 한 줄에 하나 '이름 | 링크'(링크는 수업별 준비물의 link_url).
+    insert into public.course_prep_items(subject_id, category, content, link_url, sort_order)
+      select c.subject_id, a.cat, a.item, a.link,
              (select coalesce(max(sort_order), -1) from public.course_prep_items where subject_id = c.subject_id)
                + row_number() over (order by a.ord, a.n)
       from (
         -- 같은 항목이 여러 분류에 있으면 앞 분류(교재 → 물품 → AI 도구) 하나만
-        select distinct on (lower(regexp_replace(btrim(t.x), '\s', '', 'g'))) v.cat, btrim(t.x) item, v.ord, t.n
-        from (values ('textbook', m.textbook, 1), ('supply', m.supplies, 2), ('ai', m.ai, 3)) v(cat, txt, ord)
-        cross join lateral regexp_split_to_table(coalesce(v.txt, ''), '[,\n\r]+') with ordinality t(x, n)
-        where btrim(t.x) <> ''
-        order by lower(regexp_replace(btrim(t.x), '\s', '', 'g')), v.ord, t.n
+        select distinct on (lower(regexp_replace(p.item, '\s', '', 'g'))) v.cat, p.item, p.link, v.ord, t.n
+        from (values ('textbook', m.textbook, 1, '[,\n\r]+'), ('supply', m.supplies, 2, '[,\n\r]+'), ('ai', m.ai, 3, '[\n\r]+')) v(cat, txt, ord, sep)
+        cross join lateral regexp_split_to_table(coalesce(v.txt, ''), v.sep) with ordinality t(x, n)
+        cross join lateral (select case when v.cat = 'ai' then btrim(split_part(t.x, '|', 1)) else btrim(t.x) end item,
+          case when v.cat = 'ai' then nullif(btrim(substr(t.x, length(split_part(t.x, '|', 1)) + 2)), '') end link) p
+        where p.item <> ''
+        order by lower(regexp_replace(p.item, '\s', '', 'g')), v.ord, t.n
       ) a
       where lower(regexp_replace(a.item, '\s', '', 'g')) not in (
         select lower(regexp_replace(coalesce(p.content, ''), '\s', '', 'g'))

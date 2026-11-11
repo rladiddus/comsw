@@ -19,21 +19,21 @@ test("교재·물품·AI 도구로 내면 승인 때 수업별 준비물에 분�
   await db.query(`insert into course_prep_items(subject_id, category, content) values ($1, 'textbook', '이미 있는 교재')`, [s.id]);
 
   await as(db, "authenticated", TEACHER);
-  const list = [{ subject_id: s.id, tools: "Illustrator", supplies: "노트북, 마우스", textbook: "포토샵 교재\n이미 있는 교재", ai: "ChatGPT, 노트북",
+  const list = [{ subject_id: s.id, tools: "Illustrator", supplies: "노트북, 마우스", textbook: "포토샵 교재\n이미 있는 교재", ai: "ChatGPT | https://chatgpt.com\n노트북",
     steps: [{ step_label: "1단계", written: "원문", media_url: "" }] }];
   assert.equal((await db.query(`select comsw_submit_curriculum($1, false, $2::jsonb, null) n`, [set.id, JSON.stringify(list)])).rows[0].n, 1);
   await as(db, null);
   assert.deepEqual((await db.query(`select tools, supplies, textbook, ai from instructor_subject_materials`)).rows,
-    [{ tools: "Illustrator", supplies: "노트북, 마우스", textbook: "포토샵 교재\n이미 있는 교재", ai: "ChatGPT, 노트북" }]);
+    [{ tools: "Illustrator", supplies: "노트북, 마우스", textbook: "포토샵 교재\n이미 있는 교재", ai: "ChatGPT | https://chatgpt.com\n노트북" }]);
 
   const { rows: [{ id }] } = await db.query(`select id from instructor_curricula where status = 'pending'`);
   await as(db, "authenticated", ADMIN);
   await db.query(`select comsw_approve_curriculum($1)`, [id]);
   await as(db, null);
-  const items = (await db.query(`select category, content from course_prep_items where subject_id = $1 order by sort_order nulls first, content`, [s.id])).rows
-    .map((r) => `${r.category}:${r.content}`);
-  assert.deepEqual(items, ["textbook:이미 있는 교재", "textbook:포토샵 교재", "supply:노트북", "supply:마우스", "ai:ChatGPT"],
-    "이미 있는 것은 건너뛰고, 여러 분류에 있으면 앞 분류(물품) 하나만");
+  const items = (await db.query(`select category, content, link_url from course_prep_items where subject_id = $1 order by sort_order nulls first, content`, [s.id])).rows
+    .map((r) => `${r.category}:${r.content}${r.link_url ? `>${r.link_url}` : ""}`);
+  assert.deepEqual(items, ["textbook:이미 있는 교재", "textbook:포토샵 교재", "supply:노트북", "supply:마우스", "ai:ChatGPT>https://chatgpt.com"],
+    "이미 있는 것은 건너뛰고, 여러 분류에 있으면 앞 분류(물품) 하나만, AI 도구는 이름 | 링크");
   assert.deepEqual((await db.query(`select tools, supplies from subjects where id = $1`, [s.id])).rows[0],
     { tools: "Photoshop\nIllustrator", supplies: "포토샵 교재, 이미 있는 교재\n노트북, 마우스" }, "준비물 칸 = 교재 + 물품(AI 도구는 안 넣음)");
 });

@@ -31,7 +31,6 @@ export const GROUPS = [
     ["mine", "✎", "내 커리큘럼", "담당 학과·정규/방특·과목을 고른 뒤 수업 내용을 제출합니다.", page("mine")], // 내 수업·제출
   ]],
   ["업무", [
-    ["dashboard", "▦", "대시보드", "승인과 통합·로드맵 연계, 사이트 반영 상태를 한 화면에서 봅니다.", page("dashboard")], // 업무 대시보드
     ["inbox", "☷", "승인 대기", "한 강사·한 과목의 전체 단계와 준비물을 함께 승인합니다. 프로필 승인은 따로입니다.", page("inbox")], // 통합 승인함
   ]],
   ["사이트 운영", [
@@ -39,8 +38,8 @@ export const GROUPS = [
   ]],
 ];
 
-// 선생님은 대시보드와 '선생님' 묶음만. 관리자·학과장은 지금처럼 전체(본인 커리큘럼·프로필 포함).
-const TEACHER = ["dashboard", "mine", "profile"];
+// 선생님은 '선생님' 묶음만(대시보드는 2026-11-11 삭제). 관리자·학과장은 지금처럼 전체(본인 커리큘럼·프로필 포함).
+const TEACHER = ["mine", "profile"];
 const menusFor = (role) => GROUPS
   .map(([g, items]) => [g, items.filter(([id]) => canManage(role) || (role === "teacher" && TEACHER.includes(id)))])
   .filter(([, items]) => items.length);

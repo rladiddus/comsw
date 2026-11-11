@@ -27,7 +27,7 @@ test("V3 미리 받기 목록이 시작·첫 화면 import와 같다", () => {
   const src = (f) => fs.readFileSync(path.join(v3, f), "utf8");
   assert.match(src("js/app.mjs"), /export const GROUPS = \[\s*(\/\/.*\s*)*\["운영 메뉴", \[\s*\["legacy"/, "관리자 첫 메뉴 = 기본 설정 등");
   assert.match(src("js/pages/legacy.mjs"), /const TABS = \[\["기본 설정", "\.\/site\.mjs"\]/, "기본 설정 등 첫 탭 = site.mjs");
-  assert.match(src("js/app.mjs"), /const TEACHER = \["dashboard", "mine", "profile"\]/);
+  assert.match(src("js/app.mjs"), /const TEACHER = \["mine", "profile"\]/);
   assert.match(src("js/pages/profile.mjs"), /import\("\.\.\/\.\.\/\.\.\/admin\/js\/pages\/profile\.mjs"\)/);
   const html = fs.readFileSync(path.join(v3, "index.html"), "utf8");
   const listed = new Set([...html.matchAll(/<link rel="modulepreload" href="([^"]+)">/g)]

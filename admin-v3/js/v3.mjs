@@ -103,12 +103,16 @@ export const addableSubjects = (subjects, ids, mode) => subjects
   .sort((a, b) => a.name.localeCompare(b.name));
 
 // 과목 지우기(기존 '과목 관리'와 같음): 쓰이는 곳 개수를 보여 확인받고, DB가 그 사이 바뀌었는지 다시 세어 지운다. 지웠으면 true.
+// s는 과목 하나 또는 여러 개(과목 관리 › 과목 삭제 탭). 여러 개면 쓰이는 곳을 모두 더해 한 번에 묻고 지운다.
 export async function deleteSubject(supabase, s) {
+  const list = [].concat(s);
   const { data, error } = await supabase.rpc("comsw_subject_usage", {});
   if (error) throw new Error(dbErrorMessage(error));
-  const u = { ...Object.fromEntries(USES.map(([k]) => [k, 0])), ...(data || []).find((x) => x.subject_id === s.id) };
-  if (!confirm(cascadeMessage("과목", s.name, USES.map(([k, label]) => [label, u[k]])))) return false;
-  const { error: err } = await supabase.rpc("comsw_delete_subjects", { p_ids: [s.id], p_seen: seen(u) });
+  const u = Object.fromEntries(USES.map(([k]) => [k, 0]));
+  for (const x of data || []) if (list.some((t) => t.id === x.subject_id)) USES.forEach(([k]) => { u[k] += x[k] ?? 0; });
+  const name = list.length > 1 ? `${list[0].name} 외 ${list.length - 1}개` : list[0].name;
+  if (!confirm(cascadeMessage("과목", name, USES.map(([k, label]) => [label, u[k]])))) return false;
+  const { error: err } = await supabase.rpc("comsw_delete_subjects", { p_ids: list.map((t) => t.id), p_seen: seen(u) });
   if (err) throw new Error(dbErrorMessage(err));
   return true;
 }

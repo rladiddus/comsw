@@ -3,7 +3,8 @@ import { dbErrorMessage } from "../../../admin/js/fields.mjs";
 import { deleteSubject, modal } from "../v3.mjs";
 
 // 과목 관리(V3, 2026-11-03 사용자와 합의)
-// [과목 생성] 학과를 고르고 과목명을 적어 그 학과 맨 뒤에 만든다(comsw_create_subject).
+// [과목 생성] 학과를 고르고 과목명을 적어 그 학과 맨 뒤에 만든다(comsw_create_subject). '전체 학과'면 모든 학과에 넣는다.
+// [과목 삭제](2026-11-11) [학과 ▾(전체 학과)] + 과목명 검색 → 과목 / 강사(커리큘럼을 냈거나 담당인 강사) / 체크, 체크한 과목을 [삭제]로 한 번에 지운다.
 // [과목 정리] 그룹에 넣지 않았고 ① 강사 커리큘럼(승인·대기·방특)이 하나도 없거나 ② 어느 학과·방학 특강에도 없는 과목(방특 전용 과목은 포함으로 봄).
 //   줄마다 [삭제] [연결]:
 //   연결 ① 그룹 연결(라디오 하나만): ⓐ 새 그룹 만들기(이름은 이 과목 이름, 이름이 이 과목으로 시작하는 과목 미리 체크) ⓑ 기존 그룹에 넣기
@@ -11,7 +12,7 @@ import { deleteSubject, modal } from "../v3.mjs";
 // [그룹 만들기] 그룹(subject_groups, 과목이 아닌 이름만 있는 묶음, 관리 화면 정리용)과 그 과목, '−'로 빼기, [그룹 만들기], 줄마다 [과목 고르기]·[그룹 삭제].
 //   그룹 이름은 과목 이름과 겹쳐도 된다(예: 그룹 '포토샵' ← 포토샵·포토샵1·포토샵2).
 // 그룹 표는 20261103030000, 방학 특강 과목 표는 20261103020000 실행 전에는 없어서 그 기능만 잠긴다.
-const TABS = ["과목 생성", "과목 정리", "그룹 만들기"];
+const TABS = ["과목 생성", "과목 삭제", "과목 정리", "그룹 만들기"];
 const norm = (t) => String(t ?? "").replace(/\s+/g, "").toLowerCase();
 const fail = (say, text) => { say.textContent = text; say.className = "save-state err"; };
 const done = (say, text) => { say.textContent = text; say.className = "save-state"; };
@@ -110,14 +111,16 @@ export function groupChooser(gx, s, say, onSaved) {
 export async function render(container, ctx) {
   const { supabase } = ctx;
   headActions(ctx);
-  const [depts, subjects, links, curricula, sets, vacTable, groupTable] = await Promise.all([
+  const [depts, subjects, links, curricula, sets, vacTable, groupTable, instructors, isubjects] = await Promise.all([
     pick(supabase, "departments", "id, name, sort_order", (q) => q.order("sort_order")),
     pick(supabase, "subjects", "*", (q) => q.order("sort_order", { nullsFirst: false })),
     pick(supabase, "subject_departments", "subject_id, department_id"),
-    pick(supabase, "instructor_curricula", "subject_id, vacation"),
+    pick(supabase, "instructor_curricula", "subject_id, vacation, instructor_id"),
     pick(supabase, "curriculum_sets", "id, name, is_vacation, sort_order", (q) => q.order("sort_order", { nullsFirst: false })),
     pick(supabase, "vacation_set_subjects", "set_id, subject_id").catch(() => null),
     pick(supabase, "subject_groups", "id, name", (q) => q.order("name")).catch(() => null),
+    pick(supabase, "instructors", "id, name, sort_order", (q) => q.order("sort_order", { nullsFirst: false })),
+    pick(supabase, "instructor_subjects", "instructor_id, subject_id"),
   ]);
   const vacSets = sets.filter((x) => x.is_vacation);
   const vacLinks = vacTable ?? [];
@@ -132,21 +135,23 @@ export async function render(container, ctx) {
     && !curricula.some((c) => c.subject_id === s.id && c.vacation) && !vacLinks.some((v) => v.subject_id === s.id);
 
   function createView() {
-    const deptSel = select("학과", depts.map((d) => [d.id, d.name]));
+    const deptSel = select("학과", [...depts.map((d) => [d.id, d.name]), ["", "전체 학과"]]);
     const name = el("input", { type: "text", className: "v2-field", maxLength: 80, placeholder: "과목 이름" });
     name.setAttribute("aria-label", "과목 이름");
     const say = el("p", { className: "save-state" });
     const make = btn("생성", async () => {
       const n = name.value.trim();
       if (!n) return fail(say, "과목 이름을 입력해주세요");
+      const ids = deptSel.value ? [deptSel.value] : depts.map((d) => d.id);
+      if (!deptSel.value && !confirm(`'${n}' 과목을 모든 학과(${ids.length}개)에 넣을까요?`)) return;
       make.disabled = true;
-      const { data: id, error } = await supabase.rpc("comsw_create_subject", { p_name: n, p_department_ids: [deptSel.value] });
+      const { data: id, error } = await supabase.rpc("comsw_create_subject", { p_name: n, p_department_ids: ids });
       make.disabled = false;
       if (error) return fail(say, dbErrorMessage(error));
       subjects.push({ id, name: n, is_vacation: false, sort_order: 1e9, ...(hasGroup ? { group_id: null } : {}) });
-      links.push({ subject_id: id, department_id: deptSel.value });
+      ids.forEach((d) => links.push({ subject_id: id, department_id: d }));
       name.value = "";
-      done(say, `'${n}' 과목을 ${nameOf(depts, deptSel.value)} 맨 뒤에 만들었습니다. 그 학과 선생님은 바로 커리큘럼을 낼 수 있고, 공개 사이트에는 '사이트 반영' 후 보입니다.`);
+      done(say, `'${n}' 과목을 ${deptSel.value ? nameOf(depts, deptSel.value) : "모든 학과"} 맨 뒤에 만들었습니다. 그 학과 선생님은 바로 커리큘럼을 낼 수 있고, 공개 사이트에는 '사이트 반영' 후 보입니다.`);
     }, true);
     return [el("div", { className: "v3-newsubject" }, [
       el("label", { className: "form-field" }, [el("span", { textContent: "학과" }), deptSel]),
@@ -154,6 +159,51 @@ export async function render(container, ctx) {
       el("div", {}, [make]),
       say,
     ])];
+  }
+
+  // 과목의 강사: 커리큘럼을 냈거나(승인·대기·방특) 담당 과목으로 고른 강사(강사 순서)
+  const teachersOf = (id) => instructors.filter((i) => curricula.some((c) => c.subject_id === id && c.instructor_id === i.id)
+    || isubjects.some((x) => x.subject_id === id && x.instructor_id === i.id)).map((i) => i.name);
+
+  function deleteView() {
+    const deptSel = select("학과", [["", "전체 학과"], ...depts.map((d) => [d.id, d.name])]);
+    const q = el("input", { type: "search", className: "v2-field", placeholder: "과목명 검색" });
+    q.setAttribute("aria-label", "과목명 검색");
+    const chosen = new Set();
+    const say = el("p", { className: "save-state" });
+    const box = el("div");
+    const del = btn("삭제", async () => {
+      const list = subjects.filter((s) => chosen.has(s.id));
+      del.disabled = true;
+      let ok = false;
+      try { ok = await deleteSubject(supabase, list); } catch (err) { fail(say, err.message); }
+      if (ok) {
+        for (const s of list) subjects.splice(subjects.indexOf(s), 1);
+        for (let i = links.length - 1; i >= 0; i--) if (chosen.has(links[i].subject_id)) links.splice(i, 1);
+        chosen.clear();
+        done(say, `과목 ${list.length}개를 삭제했습니다. 공개 사이트에서는 '사이트 반영' 후 빠집니다.`);
+      }
+      draw();
+    }, true);
+    const draw = () => {
+      const list = subjects.filter((s) => (!deptSel.value || links.some((l) => l.subject_id === s.id && l.department_id === deptSel.value))
+        && norm(s.name).includes(norm(q.value)));
+      del.disabled = !chosen.size;
+      del.textContent = chosen.size ? `삭제 (${chosen.size})` : "삭제";
+      if (!list.length) return box.replaceChildren(empty("과목이 없습니다."));
+      const t = table(["과목", "강사", "선택"], list, (s) => {
+        const c = el("input", { type: "checkbox", checked: chosen.has(s.id), title: `${s.name} 선택` });
+        c.addEventListener("change", () => { if (c.checked) chosen.add(s.id); else chosen.delete(s.id); del.disabled = !chosen.size; del.textContent = chosen.size ? `삭제 (${chosen.size})` : "삭제"; });
+        return [s.name, teachersOf(s.id).join(", ") || "—", c];
+      });
+      t.node.classList.add("v3-deltable");
+      box.replaceChildren(t.node);
+    };
+    deptSel.addEventListener("change", draw);
+    q.addEventListener("input", draw);
+    draw();
+    return [el("div", { className: "v2-row v2-gap v3-delbar" }, [deptSel, q, el("span", { className: "v2-grow" }), del]), box, say,
+      el("p", { className: "muted", textContent: "체크한 과목을 [삭제]로 한 번에 지웁니다. 지우기 전에 쓰이는 곳(커리큘럼·로드맵·준비물 등) 개수를 보여 주고 확인을 받으며, 그것들도 함께 지워집니다. 다른 학과에서 쓰던 과목이면 그 학과에서도 빠집니다." })];
   }
 
   // [연결] 팝업: ① 그룹 연결(ⓐ/ⓑ 라디오) ② 학과·방학 특강 지정
@@ -289,5 +339,5 @@ export async function render(container, ctx) {
     return [box];
   }
 
-  container.append(el("section", { className: "v2-panel" }, tabBox(TABS, (i) => [createView, cleanupView, groupsView][i]())));
+  container.append(el("section", { className: "v2-panel" }, tabBox(TABS, (i) => [createView, deleteView, cleanupView, groupsView][i]())));
 }

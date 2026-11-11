@@ -123,6 +123,9 @@
 /* 강사 관리: 담당 과목이 다 보이게, 줄을 누르면 강사 카드 팝업(강사마다 같은 크기) */
 .v3-instable td:nth-child(4) { white-space:normal; min-width:320px; }
 .v3-instable tbody tr { cursor:pointer; }
+.v3-delbar { align-items:center; margin-bottom:12px; }
+.v3-delbar .v2-field { max-width:240px; }
+.v3-deltable td:last-child, .v3-deltable th:last-child { width:60px; text-align:center; }
 .v3-listed { display:inline-flex; align-items:center; gap:4px; white-space:nowrap; cursor:pointer; }
 .v3-modal.v3-tpop { width:min(1180px,94vw); height:min(640px,90vh); }
 .v3-modal.v3-tpop[open] { display:flex; flex-direction:column; }

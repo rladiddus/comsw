@@ -4,7 +4,7 @@ import { getServices } from "../../../admin/js/services.mjs";
 import { driveThumbnail } from "../../../admin/js/drive.mjs";
 import { applyCrop } from "../../../admin/js/image-crop.mjs";
 import { LEVELS } from "../../../admin/js/pages/department-curriculum.mjs";
-import { state, deptSubjects, contextBar, isEmployed, modal, sortable, addableSubjects, saveLocal, splitGrid, deleteSubject } from "../v3.mjs";
+import { state, deptSubjects, contextBar, isEmployed, modal, sortable, addableSubjects, saveLocal, splitGrid } from "../v3.mjs";
 
 // 학과 관리(V3 시안 '학과 통합 커리큘럼', 정책 3·4·5·7): 과목 하나를 모든 학과가 같이 쓴다(2026-10-29 결정).
 // 정규는 두 탭: [주차별 커리큘럼] 고른 과목의 단계별 문구(AI생성·직접 입력·저장)와 대표 이미지(그 단계 강사 이미지 중 고르기), 실제 저장
@@ -258,19 +258,6 @@ export async function render(container, ctx) {
       ] : [empty("과목을 고르세요.")], "사이트 '전체 수업'의 단계"));
   }
 
-  // 과목 삭제: 쓰이는 곳 개수를 확인받고 지운다(과목 관리 › 과목 정리와 같음).
-  async function removeSubject(s, button, say) {
-    button.disabled = true;
-    try {
-      if (!(await deleteSubject(supabase, s))) return;
-    } catch (e) { return say(e.message, true); } finally { button.disabled = false; }
-    subjects.splice(subjects.indexOf(s), 1);
-    for (let i = links.length - 1; i >= 0; i--) if (links[i].subject_id === s.id) links.splice(i, 1);
-    dOrders.forEach((v, k) => dOrders.set(k, v.filter((id) => id !== s.id)));
-    say(`'${s.name}' 과목을 삭제했습니다. 공개 사이트에서는 '사이트 반영' 후 빠집니다.`);
-    draw();
-  }
-
   // 과목별 커리큘럼: 기존 '학과 커리큘럼' 표 모양. 수정 → 저장(실제), 제외 → 학과 순서에서 바로 뺌(이 브라우저에 저장)
   function subjectsView(list) {
     const ids = list.map((s) => s.id);
@@ -311,7 +298,6 @@ export async function render(container, ctx) {
         cell("tools", "프로그램"), cell("supplies", "준비물"), cell("level", "학습 수준"),
         el("div", { className: "dept-cell cell-actions" }, [
           btn("제외", () => { if (!confirm(`'${s.name}'을(를) 이 학과에서 뺄까요? 과목은 남습니다.`)) return; dOrders.set(key(), ids.filter((x) => x !== s.id)); saveDraft(); }),
-          btn("과목 삭제", (e) => removeSubject(s, e.currentTarget, say)),
           toggle,
         ]),
       ]);
@@ -320,7 +306,7 @@ export async function render(container, ctx) {
       el("div", { className: "dept-curriculum-row v3-headrow" }, ["", "과목명", "기간", "학과별 커리큘럼 요약", "프로그램", "준비물", "학습 수준", ""].map((t) => el("b", { textContent: t }))),
       ...(list.length ? list.map(rowOf) : [empty("이 학과에 과목이 없습니다.")]),
       msg,
-      hint("순서는 '주차별 커리큘럼' 왼쪽 과목 목록에서 정한 순서입니다. '수정' 후 '저장'은 실제 저장(과목 공통이라 쓰는 모든 학과에 같이 반영). '수정' 중에는 요약을 AI생성(2~4줄)할 수 있습니다. 강사 명단·순서는 '주차별 커리큘럼' 왼쪽 '강사'에서 정합니다. '제외'는 이 학과에서 바로 빠지고(과목은 남음), '과목 삭제'는 과목 자체를 지웁니다."),
+      hint("순서는 '주차별 커리큘럼' 왼쪽 과목 목록에서 정한 순서입니다. '수정' 후 '저장'은 실제 저장(과목 공통이라 쓰는 모든 학과에 같이 반영). '수정' 중에는 요약을 AI생성(2~4줄)할 수 있습니다. 강사 명단·순서는 '주차별 커리큘럼' 왼쪽 '강사'에서 정합니다. '제외'는 이 학과에서 바로 빠집니다(과목은 남음). 과목 자체를 지우려면 과목 관리 › 과목 삭제에서 합니다."),
     ], "왼쪽 과목 순서대로");
   }
 

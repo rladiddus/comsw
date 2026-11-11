@@ -85,6 +85,14 @@ test("V3 과목 관리: [과목 생성] 학과·이름으로 생성, [과목 정
   await flush();
   assert.deepEqual(calls.at(-1), ["comsw_create_subject", { p_name: "새과목", p_department_ids: ["d2"] }]);
   assert.match(c.textContent, /'새과목' 과목을 건축학과 맨 뒤에 만들었습니다/);
+  // 전체 학과: 모든 학과에 넣는다(확인 후)
+  globalThis.confirm = () => true;
+  c.querySelector('[aria-label="학과"]').value = "";
+  c.querySelector('[aria-label="과목 이름"]').value = "공통과목";
+  button(c, "생성").click();
+  await flush();
+  assert.deepEqual(calls.at(-1)[1].p_department_ids, tables.departments.map((d) => d.id));
+  assert.match(c.textContent, /모든 학과 맨 뒤에 만들었습니다/);
   button(c, "과목 정리").click();
   const rowsOf = () => [...c.querySelectorAll("tbody tr")].map((r) => [...r.cells].slice(0, 3).map((td) => td.textContent));
   const names = rowsOf().map((r) => r[0]);
@@ -113,7 +121,7 @@ test("V3 과목 관리: [연결] 새 그룹 만들기(같은 이름 그룹, 비�
     subject_groups: [],
   };
   const c = await page("subjects", { supabase: fakeSupabase(tables) });
-  assert.deepEqual([...c.querySelectorAll(".v2-panel > .v2-tabs button")].map((b) => b.textContent), ["과목 생성", "과목 정리", "그룹 만들기"]);
+  assert.deepEqual([...c.querySelectorAll(".v2-panel > .v2-tabs button")].map((b) => b.textContent), ["과목 생성", "과목 삭제", "과목 정리", "그룹 만들기"]);
   button(c, "과목 정리").click();
   const names = () => [...c.querySelectorAll("tbody tr")].map((r) => r.cells[0].textContent);
   assert.deepEqual(names(), ["캐드", "AI에이전트"], "커리큘럼·학과가 있는 캐드1·캐드 2는 안 나옴");
@@ -211,21 +219,53 @@ test("V3 과목 관리 [그룹 만들기] 탭: 그룹 만들기, 과목 고르�
   assert.match(c.textContent, /'포토샵 과정' 그룹을 삭제했습니다/);
 });
 
-test("V3 학과 관리: 과목 생성 버튼 없음, 과목별 커리큘럼 [과목 삭제]", async () => {
+test("V3 학과 관리: 과목 생성 버튼 없음, 과목별 커리큘럼은 [제외]만([과목 삭제] 없음)", async () => {
+  const headBar = document.createElement("div");
+  v3.state.aggTab = "subjects";
+  const c = await page("aggregate", { supabase: sb(), headBar });
+  assert.ok(![...headBar.querySelectorAll("button")].some((b) => b.textContent === "과목 생성"));
+  const row = c.querySelector(".dept-curriculum-row:not(.v3-headrow)");
+  assert.ok(button(row, "제외"));
+  assert.ok(!button(row, "과목 삭제"));
+  v3.state.aggTab = "weeks";
+});
+
+test("V3 과목 관리 [과목 삭제] 탭: 학과(전체 학과)·과목명 검색으로 거르고, 과목·강사, 체크한 과목을 한 번에 삭제", async () => {
   const db = sb();
   const calls = [];
-  db.rpc = async (name, args) => { calls.push([name, args]); return { data: [], error: null }; };
-  const headBar = document.createElement("div");
-  globalThis.confirm = () => true;
-  v3.state.aggTab = "subjects";
-  const c = await page("aggregate", { supabase: db, headBar });
-  assert.ok(![...headBar.querySelectorAll("button")].some((b) => b.textContent === "과목 생성"));
-  const row = [...c.querySelectorAll(".dept-curriculum-row:not(.v3-headrow)")].find((r) => r.querySelector("input").value === "웹1");
-  button(row, "과목 삭제").click();
+  db.rpc = async (name, args) => {
+    calls.push([name, args]);
+    return { data: name === "comsw_subject_usage" ? [{ subject_id: "s1", approved: 2, roadmap: 1 }, { subject_id: "s2", approved: 1 }] : [], error: null };
+  };
+  let asked = "";
+  globalThis.confirm = (m) => { asked = m; return true; };
+  const c = await page("subjects", { supabase: db });
+  assert.deepEqual([...c.querySelectorAll(".v2-panel > .v2-tabs button")].map((b) => b.textContent).slice(0, 2), ["과목 생성", "과목 삭제"], "과목 생성 바로 오른쪽");
+  button(c, "과목 삭제").click();
+  const names = () => [...c.querySelectorAll(".v3-deltable tbody tr")].map((r) => r.cells[0].textContent);
+  const dept = c.querySelector('.v3-delbar [aria-label="학과"]');
+  assert.equal(dept.options[0].textContent, "전체 학과");
+  assert.ok(names().includes("포토샵") && names().includes("웹1"));
+  dept.value = "d2"; dept.dispatchEvent(new dom.window.Event("change"));
+  assert.ok(names().includes("포토샵") && !names().includes("웹1"), "건축학과 과목만(포토샵은 공용)");
+  dept.value = ""; dept.dispatchEvent(new dom.window.Event("change"));
+  const q = c.querySelector('[aria-label="과목명 검색"]');
+  q.value = "포토"; q.dispatchEvent(new dom.window.Event("input"));
+  assert.deepEqual(names(), ["포토샵"]);
+  assert.match(c.querySelector(".v3-deltable tbody tr").cells[1].textContent, /김/, "강사명");
+  const del = button(c, "삭제");
+  assert.equal(del.disabled, true, "고르기 전엔 꺼짐");
+  const tick = (n) => { const b = [...c.querySelectorAll(".v3-deltable tbody tr")].find((r) => r.cells[0].textContent === n).querySelector("input"); b.checked = true; b.dispatchEvent(new dom.window.Event("change")); };
+  tick("포토샵");
+  q.value = ""; q.dispatchEvent(new dom.window.Event("input"));
+  tick("웹1");
+  assert.equal(button(c, "삭제 (2)").disabled, false);
+  button(c, "삭제 (2)").click();
   await flush();
-  assert.deepEqual(calls.map(([n, a]) => [n, a.p_ids]), [["comsw_subject_usage", undefined], ["comsw_delete_subjects", ["s2"]]]);
-  assert.ok(![...c.querySelectorAll(".dept-curriculum-row input")].some((i) => i.value === "웹1"), "지운 과목은 표에서 빠짐");
-  v3.state.aggTab = "weeks";
+  assert.match(asked, /포토샵 외 1개.*승인된 강사 커리큘럼 3개.*로드맵 연결 1개/);
+  assert.deepEqual(calls.find(([n]) => n === "comsw_delete_subjects")[1], { p_ids: ["s1", "s2"], p_seen: 4 });
+  assert.ok(!names().includes("포토샵") && !names().includes("웹1"), "지운 과목은 목록에서 빠짐");
+  assert.match(c.textContent, /과목 2개를 삭제했습니다/);
 });
 
 test("V3 재료 검사: 칸 나누기·분류 제안·같은 과목 안 중복만", () => {

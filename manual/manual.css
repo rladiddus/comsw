@@ -51,7 +51,7 @@ a { color: var(--accent); }
 header.top { grid-column: 1 / -1; display: grid; gap: 10px; }
 .eyebrow { font-size: 12px; letter-spacing: .08em; color: var(--accent); font-weight: 700; }
 header.top h1 { font-size: clamp(26px, 4vw, 36px); }
-header.top p { margin: 0; color: var(--muted); max-width: 70ch; }
+header.top p { margin: 0; color: var(--muted); }
 .legend { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 4px; }
 
 .who { display: inline-flex; align-items: center; gap: 4px; padding: 2px 9px; border-radius: 999px; font-size: 12px; font-weight: 700; white-space: nowrap; }
@@ -69,7 +69,7 @@ nav.toc button:focus-visible, .shot:focus-visible, .chips button:focus-visible {
 main { min-width: 0; }
 section.case { display: grid; gap: 22px; }
 section.case > h2 { font-size: 26px; }
-.lead { margin: 0; color: var(--muted); max-width: 72ch; }
+.lead { margin: 0; color: var(--muted); }
 
 ol.steps { list-style: none; margin: 0; padding: 0; display: grid; gap: 18px; counter-reset: step; }
 ol.steps > li { counter-increment: step; background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 18px 20px; display: grid; gap: 10px; }
@@ -78,15 +78,15 @@ ol.steps > li { counter-increment: step; background: var(--surface); border: 1px
 .step-head h3 { font-size: 17px; }
 .path { font-size: 13px; color: var(--muted); }
 .path b { color: var(--fg); font-weight: 500; }
-.step p { margin: 0; max-width: 75ch; }
-.step ul { margin: 0; padding-left: 20px; display: grid; gap: 3px; max-width: 75ch; }
+.step p { margin: 0; }
+.step ul { margin: 0; padding-left: 20px; display: grid; gap: 3px; }
 .where { font-size: 13px; display: flex; flex-wrap: wrap; gap: 6px; align-items: center; color: var(--muted); }
 
 .shot { display: block; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; cursor: zoom-in; background: var(--bg); padding: 0; }
 .shot img { display: block; width: 100%; height: auto; }
 .shots { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 10px; }
 
-.note { border-left: 3px solid var(--accent); background: var(--accent-soft); padding: 12px 16px; border-radius: 0 8px 8px 0; max-width: 80ch; }
+.note { border-left: 3px solid var(--accent); background: var(--accent-soft); padding: 12px 16px; border-radius: 0 8px 8px 0; }
 .note p { margin: 0; }
 .note strong { color: var(--fg); }
 

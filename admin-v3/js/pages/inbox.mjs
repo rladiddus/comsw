@@ -5,18 +5,18 @@ import { dbErrorMessage } from "../../../admin/js/fields.mjs";
 import { getServices } from "../../../admin/js/services.mjs";
 import { driveThumbnail } from "../../../admin/js/drive.mjs";
 import { applyCrop, stripCrop } from "../../../admin/js/image-crop.mjs";
-import { state, CAT, norm, splitItems, materialsOf, checkMaterials, typeChip, modal } from "../v3.mjs";
+import { state, CAT, materialsOf, typeChip, modal } from "../v3.mjs";
 import { aiRequest } from "./aggregate.mjs";
 import { groupPicker, groupChooser } from "./subjects.mjs";
 import { LEVELS } from "../../../admin/js/pages/department-curriculum.mjs";
 
 // 승인 대기(V3 시안 '통합 승인함'): 승인 단위 = 한 강사 × 한 과목 × 전체 단계(정책 1A). 프로필은 따로.
-// 준비물은 '준비물 검토'에서 학과장이 전부 확인해야 승인 버튼이 열린다(정책 9D). 검토 결과는 아직 DB에 칸이 없어 이 화면에만 남는다.
+// 준비물(2026-11-11): 학과장·부원장이 ② 과목별 커리큘럼의 프로그램·준비물 칸을 확인·수정(또는 '없음' 체크)하면 그것이 검토다.
+// 따로 [준비물 작성]·준비물 검토를 먼저 할 필요 없이 [적용]할 수 있다.
 // 정규는 한 화면에서 [이전]/[다음]으로 세 쪽을 넘긴다: ① 제출된 커리큘럼(단계별 AI 요약·적용) → ② 과목별 커리큘럼(학과별 커리큘럼 요약 AI) → ③ 로드맵 문구 → [적용].
 // 적용 = 단계마다 사이트 문구 저장 + 기존 단계 승인 함수(comsw_approve_curriculum)를 전체 단계에 차례로, 그다음 바뀐 학과별 커리큘럼 요약·로드맵 문구 저장(기존 '신청 과목' 승인과 같음).
 // 방특은 ①만 있고 고른 시기로 옮긴 뒤 승인(기존 '방학 특강'과 같음). 방특은 과목별 표·로드맵이 없다.
 // ponytail: 단계별로 따로 승인해서 중간에 끊기면 일부만 승인됨(남은 단계는 목록에 남아 다시 누르면 됨). 한 번에 묶으려면 DB 함수 추가.
-// 준비물 검토 결과(최종 분류)는 아직 DB에 칸이 없어 저장되지 않고, 승인 함수는 선생님이 적은 칸 그대로 과목 값에 합친다.
 const CURR = "id, instructor_id, set_id, subject_id, step_label, written, summary, media_url, status, vacation, sort_order, updated_at";
 // 승인 함수의 comsw_private.merge_items와 같은 규칙: 쉼표·줄바꿈으로 나눠 (띄어쓰기·대소문자 무시) 없는 것만 새 줄에 붙인다.
 export function mergeItems(old, add) {
@@ -27,9 +27,18 @@ export function mergeItems(old, add) {
   return String(old ?? "").trim() ? `${old}\n${added.join(", ")}` : added.join(", ");
 }
 const short = (s, n = 90) => { const t = String(s || "").trim(); return t.length > n ? `${t.slice(0, n)}…` : t; };
+// ② 칸을 고친 뒤 이 선생님 몫(선생님 칸에 남길 것): 선생님이 적은 것 중 칸에 남은 것 + 칸에 새로 넣었고 과목에 원래 없던 것.
+// 승인 함수가 선생님 칸을 과목 값·수업별 준비물(물품)에 넣으므로, 학과장이 지운 것은 빼고 더한 것은 넣게 한다.
+export function teacherPart(teacher, field, old) {
+  const items = (s) => String(s ?? "").split(/[,\n\r]+/).map((x) => x.trim()).filter(Boolean);
+  const key = (x) => x.replace(/\s/g, "").toLowerCase();
+  const inField = new Set(items(field).map(key)), mine = new Set(items(teacher).map(key)), had = new Set(items(old).map(key));
+  const out = [...items(teacher).filter((x) => inField.has(key(x))), ...items(field).filter((x) => !mine.has(key(x)) && !had.has(key(x)))];
+  return [...new Map(out.map((x) => [key(x), x])).values()].join(", ") || null;
+}
 
 export const reviewedCount = (key, mats) => mats.filter((m) => state.reviews.get(key)?.has(m.id)).length;
-// 학과장이 [준비물 작성]으로 직접 쓰면("written") 검토도 끝난 것으로 본다.
+// 준비물 검토 화면(시험) 표시용. 승인 대기는 이 값으로 막지 않는다(2026-11-11).
 export const reviewDone = (key, mats) => state.reviews.get(key)?.has("written") === true || (mats.length ? reviewedCount(key, mats) === mats.length : state.reviews.get(key)?.has("none") === true);
 
 // 커리큘럼 이미지: 작게 보여 주고 누르면 크게(선생님 '내 커리큘럼'과 같은 방식). 대시보드도 같이 쓴다.
@@ -159,37 +168,8 @@ export async function render(container, ctx) {
     return blank.length > 0;
   };
 
-  // 프로그램·준비물 칸에 합칠 것: 학과장이 [준비물 작성]으로 썼으면 그것(사용 프로그램 / 교재·물품), 아니면 선생님이 적은 칸
-  const colsOf = (it) => it.prep ? { tools: it.prep.software, supplies: [it.prep.textbook, it.prep.supply].filter(Boolean).join(", ") }
-    : materials.find((m) => m.instructor_id === it.g.instructor_id && m.subject_id === it.g.subject_id) ?? {};
-
-  // [준비물 작성] 학과장·부원장이 선생님 대신 네 분류(교재·물품·사용 프로그램·AI 도구)로 쓴다. 처음엔 선생님이 적은 항목을
-  // 준비물 검토 결과(없으면 검사 제안) 분류로 나눠 채운다. 저장하면 검토 끝, ② 프로그램·준비물 칸에 들어가고 [적용] 때 수업별 준비물에 넣는다.
-  function prepPopup(it) {
-    const now = it.prep ?? Object.fromEntries(Object.keys(CAT).map((k) => [k, checkMaterials(it.mats, [])
-      .filter((m) => (state.reviews.get(it.key)?.get(m.id) ?? m.suggested) === k).map((m) => m.label).join(", ")]));
-    const boxes = Object.entries(CAT).map(([k, label]) => {
-      const x = el("textarea", { className: "v2-textarea", rows: 2, value: now[k] ?? "", placeholder: "쉼표나 줄바꿈으로 나눠 적기", maxLength: 2000 });
-      x.setAttribute("aria-label", label);
-      return [k, label, x];
-    });
-    modal(`${it.who} · ${it.subject?.name ?? ""} 준비물 작성`, [
-      ...boxes.map(([, label, x]) => el("label", { className: "form-field" }, [el("span", { textContent: label }), x])),
-      el("small", { className: "muted", textContent: "저장하면 다음 쪽 프로그램(사용 프로그램)·준비물(교재·물품) 칸에 들어가고, [적용]하면 수업별 준비물에도 들어갑니다." }),
-    ], [["저장", () => {
-      it.prep = Object.fromEntries(boxes.map(([k, , x]) => [k, x.value.trim()]));
-      const r = state.reviews.get(it.key) ?? new Map();
-      state.reviews.set(it.key, r.set("written", "written"));
-      if (it.f) {
-        const c = colsOf(it);
-        it.f.tools.value = mergeItems(it.subject?.tools, c.tools);
-        it.f.supplies.value = mergeItems(it.subject?.supplies, c.supplies);
-        it.f.none.checked = it.f.supplies.disabled = false;
-      }
-      say("준비물을 작성했습니다.");
-      draw();
-    }]]).classList.add("v3-narrow");
-  }
+  // 프로그램·준비물 칸에 합칠 것: 선생님이 적은 칸
+  const colsOf = (it) => materials.find((m) => m.instructor_id === it.g.instructor_id && m.subject_id === it.g.subject_id) ?? {};
 
   // [그룹 설정] 과목 관리의 그룹 팝업과 같음: 그룹이 있으면 그 그룹 고치기, 없으면 새 그룹 만들기·기존 그룹에 넣기
   function groupPopup(it) {
@@ -201,32 +181,6 @@ export async function render(container, ctx) {
     const saved = () => { d.close?.(); d.remove(); say(`'${nameOf(groups, s.group_id)}' 그룹으로 정했습니다.`); draw(); };
     d = modal("그룹 설정", [el("div", { className: "v3-linkbody" }, [...(g ? groupPicker(gx, g, psay, saved) : groupChooser(gx, s, psay, saved)), psay])], [], "닫기");
     d.classList.add("v3-narrow", "v3-linkpop");
-  }
-
-  // [적용] 때 학과장이 작성한 준비물 넣기(승인 전에, 한 번만): 선생님 칸(instructor_subject_materials)을 작성한 것으로 바꾸고
-  // 교재·물품·AI 도구를 수업별 준비물(course_prep_items)에 분류대로 넣는다(같은 내용이 이미 있으면 건너뜀).
-  // 승인 함수는 선생님 준비물 칸을 '물품'으로 넣는데, 같은 내용이 이미 있으면 건너뛰므로 먼저 넣은 분류가 남는다.
-  // 사용 프로그램은 과목 '프로그램' 칸(②)으로 저장된다. AI 도구는 선생님 칸에 넣지 않는다(승인 함수가 프로그램 칸에 합치지 않게).
-  async function savePrep(it) {
-    const p = it.prep, sid = it.g.subject_id;
-    const { error } = await supabase.from("instructor_subject_materials").upsert({ instructor_id: it.g.instructor_id, subject_id: sid, tools: p.software || null,
-      supplies: [p.textbook, p.supply].filter(Boolean).join(", ") || null }, { onConflict: "instructor_id,subject_id" });
-    if (error) throw new Error(dbErrorMessage(error));
-    const { data: have, error: e1 } = await supabase.from("course_prep_items").select("category, content, sort_order").eq("subject_id", sid);
-    if (e1) throw new Error(dbErrorMessage(e1));
-    const seen = new Set((have ?? []).map((x) => norm(x.content)));
-    const department_id = sets.find((x) => x.id === it.g.set_id)?.department_id ?? null;
-    const add = [];
-    for (const category of ["textbook", "supply", "ai"]) {
-      let n = Math.max(-1, ...(have ?? []).filter((x) => x.category === category).map((x) => x.sort_order ?? -1));
-      for (const content of splitItems(p[category])) {
-        if (seen.has(norm(content))) continue;
-        seen.add(norm(content));
-        add.push({ subject_id: sid, department_id, category, content, sort_order: ++n });
-      }
-    }
-    if (add.length) { const { error: e2 } = await supabase.from("course_prep_items").insert(add); if (e2) throw new Error(dbErrorMessage(e2)); }
-    it.prepDone = true;
   }
 
   // ② 과목별 커리큘럼 한 줄: 기간·학과별 커리큘럼 요약·프로그램·준비물(없음 체크)·학습 수준을 고친다.
@@ -284,10 +238,15 @@ export async function render(container, ctx) {
   }
 
   async function approve(it, b) {
-    if (!reviewDone(it.key, it.mats)) return say("[준비물 작성]으로 준비물을 먼저 확인·저장해주세요(또는 준비물 검토 화면에서 검토).", true);
     inputs(it);
     if (blankSteps(it)) return;
-    const hasPrep = it.prep ? Object.values(it.prep).some(Boolean) : it.mats.length > 0;
+    // 정규: ② 칸에서 정한 이 선생님 몫(없음 체크면 준비물 없음). 방특은 ②가 없어 선생님이 적은 그대로.
+    const mine = colsOf(it);
+    const part = it.g.vacation ? null : (() => {
+      const f = fields(it);
+      return { tools: teacherPart(mine.tools, f.tools.value, it.subject?.tools), supplies: f.none.checked ? null : teacherPart(mine.supplies, f.supplies.value, it.subject?.supplies) };
+    })();
+    const hasPrep = part ? Boolean(part.tools || part.supplies) : it.mats.length > 0;
     if (groupTable && hasPrep && !it.subject?.group_id) return say("준비물을 적용하려면 먼저 [그룹 설정]으로 이 과목의 그룹을 정해주세요. 수업별 준비물에는 그룹 이름으로 나옵니다.", true);
     const setId = it.g.vacation ? it.cohort.value : null;
     if (it.g.vacation && !setId) return say("담을 방특 시기를 골라주세요", true);
@@ -297,7 +256,13 @@ export async function render(container, ctx) {
     if (b) b.disabled = true;
     it.ok ??= new Set(); // 이미 승인한 단계(중간에 끊겨 다시 누를 때 건너뜀)
     try {
-      if (it.prep && !it.prepDone) await savePrep(it);
+      // 선생님 칸을 ②에서 정한 몫으로(바뀐 때만): 승인 함수가 이 칸을 과목 값·수업별 준비물(물품)에 넣는다.
+      const same = (x, y) => String(x ?? "").replace(/\s/g, "") === String(y ?? "").replace(/\s/g, "");
+      if (part && !it.partSaved && !(same(part.tools, mine.tools) && same(part.supplies, mine.supplies))) {
+        const { error } = await supabase.from("instructor_subject_materials").upsert({ instructor_id: it.g.instructor_id, subject_id: it.g.subject_id, ...part }, { onConflict: "instructor_id,subject_id" });
+        if (error) throw new Error(dbErrorMessage(error));
+        it.partSaved = true;
+      }
       for (const r of it.g.rows.filter((x) => !it.ok.has(x.id))) {
         const { error } = await supabase.from("instructor_curricula").update({ summary: siteText(it, r), ...(setId ? { set_id: setId } : {}) }).eq("id", r.id);
         if (error) throw new Error(dbErrorMessage(error));
@@ -334,7 +299,7 @@ export async function render(container, ctx) {
     listBox.replaceChildren(...(items.length ? items.map((it) => Object.assign(el("div", { className: `v2-listitem${it === selected ? " active" : ""}` }, [
       el("div", { className: "v2-row" }, [el("b", { textContent: it.g ? `${it.who} · ${it.subject?.name ?? ""}` : `${it.who} · 프로필` }), it.g ? typeChip(it.subject) : chip("프로필", "profiles")]),
       el("small", { textContent: it.g ? `${it.scope} · ${it.g.rows.length}단계${it.before.length ? " · 재제출" : ""}` : "개별 검토 및 승인" }),
-      el("div", {}, [it.g ? chip(reviewDone(it.key, it.mats) ? "준비물 검토 완료" : "승인 대기", reviewDone(it.key, it.mats) ? "good" : "warn") : chip("별도 승인 대기", "warn")]),
+      el("div", {}, [chip(it.g ? "승인 대기" : "별도 승인 대기", "warn")]),
     ]), { onclick: () => { selected = it; say(""); draw(); } })) : [empty("승인 대기 중인 제출이 없습니다.")]));
     mid.replaceChildren(...(selected ? (selected.g ? curriculum(selected) : profile(selected)) : []));
   }
@@ -346,26 +311,24 @@ export async function render(container, ctx) {
     it.page ??= 1;
     const pages = it.g.vacation ? 1 : 3;
     const body = it.page === 2 ? deptPage(it) : it.page === 3 ? roadPage(it) : stepsPage(it);
-    const go = btn("적용", () => approve(it, go), reviewDone(it.key, it.mats));
+    const go = btn("적용", () => approve(it, go), true);
     const next = it.page === 1 ? btn("학과 커리큘럼 보기", () => !blankSteps(it) && turn(it, 2), true) : btn("로드맵 문구 보기", () => turn(it, 3), true);
     return [panel(submittedTitle(it.who, it.subject), [
       el("div", { className: "v3-callout" }, [el("b", { textContent: "대상  " }), document.createTextNode(`${it.scope} / ${it.g.vacation ? "방특" : "정규"} / ${it.subject?.name ?? ""} / ${it.who} · 전체 ${it.g.rows.length}단계`)]),
       ...body,
       el("div", { className: "v2-actions v2-end" }, [
-        ...(it.page === 1 ? [locked("수정 요청", "커리큘럼 수정 요청은 DB 추가가 필요합니다"), btn("그룹 설정", () => groupPopup(it)), btn("준비물 작성", () => prepPopup(it))] : [btn("이전", () => turn(it, it.page - 1))]),
+        ...(it.page === 1 ? [locked("수정 요청", "커리큘럼 수정 요청은 DB 추가가 필요합니다"), btn("그룹 설정", () => groupPopup(it))] : [btn("이전", () => turn(it, it.page - 1))]),
         it.page === pages ? go : next,
       ]),
       status,
-      hint(it.g.vacation ? "준비물은 [준비물 작성]으로 확인·저장하고, 준비물이 있으면 [그룹 설정]으로 그룹을 정해야 승인됩니다. 승인해도 공개 사이트는 '사이트 반영' 전까지 바뀌지 않습니다."
-        : "제출된 커리큘럼 → 과목별 커리큘럼 → 로드맵 문구를 차례로 확인하고 마지막 쪽 [적용]을 누르면 함께 저장됩니다. 준비물은 [준비물 작성]으로 확인·저장하고, 준비물이 있으면 [그룹 설정]으로 그룹을 정해야 적용됩니다. 공개 사이트는 '사이트 반영' 전까지 바뀌지 않습니다."),
+      hint(it.g.vacation ? "준비물이 있으면 [그룹 설정]으로 그룹을 정해야 승인됩니다. 승인해도 공개 사이트는 '사이트 반영' 전까지 바뀌지 않습니다."
+        : "제출된 커리큘럼 → 과목별 커리큘럼 → 로드맵 문구를 차례로 확인하고 마지막 쪽 [적용]을 누르면 함께 저장됩니다. 준비물은 과목별 커리큘럼의 프로그램·준비물 칸에서 확인·수정(없으면 '없음' 체크)하면 되고, 준비물이 있으면 [그룹 설정]으로 그룹을 정해야 적용됩니다. 공개 사이트는 '사이트 반영' 전까지 바뀌지 않습니다."),
     ], `${formatSeoul(it.at)}${pages > 1 ? ` · ${it.page}/${pages}쪽` : ""}`, [typeChip(it.subject)])];
   }
 
   // ① 제출된 커리큘럼
   function stepsPage(it) {
     const steps = sortSteps(it.g.rows);
-    const n = reviewedCount(it.key, it.mats);
-    const done = reviewDone(it.key, it.mats);
     const extra = (r) => {
       const s = it.steps.get(r.id);
       return { below: [s.text], right: [s.toggle] };
@@ -373,13 +336,9 @@ export async function render(container, ctx) {
     return [
       submittedSteps(steps, thumb, extra),
       ...(it.g.vacation ? [el("h4", { textContent: "담을 방특 시기" }), it.cohort] : []),
-      el("h4", {}, [document.createTextNode("준비물 "), chip(it.prep ? "학과장 작성 완료" : done ? "모두 학과장 검토 완료" : "작성·검토 대기", done ? "good" : "warn"),
-        document.createTextNode(" "), it.subject?.group_id ? chip(`그룹: ${nameOf(groups, it.subject.group_id)}`, "vacation") : chip("그룹 없음", "warn")]),
-      ...(it.prep ? Object.entries(CAT).map(([k, label]) => el("div", { className: "v3-line" }, [el("b", { textContent: `${label} ` }), document.createTextNode(it.prep[k] || "—")])) : [
-      el("small", { className: "muted", textContent: it.mats.length ? `교재·물품·사용 프로그램·AI 도구 ${it.mats.length}개 · 검토 ${n}/${it.mats.length}` : "선생님이 적은 준비물(교재·물품·프로그램·AI 도구)이 없습니다(‘준비물 없음 확인’ 필요)" }),
-      ...it.mats.map((m) => el("div", { className: "v3-line" }, [chip(state.reviews.get(it.key)?.has(m.id) ? "확정" : "대기", state.reviews.get(it.key)?.has(m.id) ? "good" : "warn"),
-        document.createTextNode(` ${m.label} — ${CAT[state.reviews.get(it.key)?.get(m.id) ?? m.teacher]}`)])),
-      ]),
+      el("h4", {}, [document.createTextNode("준비물 "), it.subject?.group_id ? chip(`그룹: ${nameOf(groups, it.subject.group_id)}`, "vacation") : chip("그룹 없음", "warn")]),
+      el("small", { className: "muted", textContent: `${it.mats.length ? `선생님이 적은 것 ${it.mats.length}개.` : "선생님이 적은 준비물이 없습니다."}${it.g.vacation ? "" : " 다음 쪽 과목별 커리큘럼의 프로그램·준비물 칸에서 확인·수정합니다(없으면 '없음' 체크)."}` }),
+      ...it.mats.map((m) => el("div", { className: "v3-line" }, [document.createTextNode(`${m.label} — ${CAT[m.teacher]}`)])),
     ];
   }
 

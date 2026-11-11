@@ -3,7 +3,7 @@ import { dbErrorMessage } from "../../../admin/js/fields.mjs";
 import { deleteSubject, modal } from "../v3.mjs";
 
 // 과목 관리(V3, 2026-11-03 사용자와 합의)
-// [과목 생성] 학과를 고르고 과목명을 적어 그 학과 맨 뒤에 만든다(comsw_create_subject). '전체 학과'면 모든 학과에 넣는다.
+// [과목 생성] 학과를 고르고 과목명을 적어 그 학과 맨 뒤에 만든다(comsw_create_subject). 처음 고른 값은 '전체 학과'(모든 학과에 넣음, 만들 때 확인).
 // [과목 삭제](2026-11-11) [학과 ▾(전체 학과)] + 과목명 검색 → 과목 / 강사(커리큘럼을 냈거나 담당인 강사) / 체크, 체크한 과목을 [삭제]로 한 번에 지운다.
 // [과목 정리] 그룹에 넣지 않았고 ① 강사 커리큘럼(승인·대기·방특)이 하나도 없거나 ② 어느 학과·방학 특강에도 없는 과목(방특 전용 과목은 포함으로 봄).
 //   줄마다 [삭제] [연결]:
@@ -135,7 +135,7 @@ export async function render(container, ctx) {
     && !curricula.some((c) => c.subject_id === s.id && c.vacation) && !vacLinks.some((v) => v.subject_id === s.id);
 
   function createView() {
-    const deptSel = select("학과", [...depts.map((d) => [d.id, d.name]), ["", "전체 학과"]]);
+    const deptSel = select("학과", [["", "전체 학과"], ...depts.map((d) => [d.id, d.name])]); // 처음 = 전체 학과(만들 때 한 번 더 확인)
     const name = el("input", { type: "text", className: "v2-field", maxLength: 80, placeholder: "과목 이름" });
     name.setAttribute("aria-label", "과목 이름");
     const say = el("p", { className: "save-state" });

@@ -76,6 +76,9 @@ test("V3 과목 관리: [과목 생성] 학과·이름으로 생성, [과목 정
   const calls = [];
   db.rpc = async (name, args) => { calls.push([name, args]); return { data: name === "comsw_create_subject" ? "new1" : [], error: null }; };
   const c = await page("subjects", { supabase: db });
+  const createDept = c.querySelector('[aria-label="학과"]');
+  assert.equal(createDept.options[0].textContent, "전체 학과", "전체 학과가 맨 위");
+  assert.equal(createDept.value, "", "처음엔 전체 학과");
   button(c, "생성").click();
   await flush();
   assert.match(c.textContent, /과목 이름을 입력해주세요/);

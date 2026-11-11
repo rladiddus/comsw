@@ -1,25 +1,30 @@
 # Claude 대화 이어가기 메모 (V3 작업)
 
 > **새 대화를 시작하면 Claude는 이 파일과 `record_v3.md`를 먼저 읽고 이어서 작업한다.**
-> 비밀 키·개인정보는 적지 않는다. 마지막 갱신: 2026-10-30.
+> 비밀 키·개인정보는 적지 않는다. 마지막 갱신: 2026-11-11.
+> 용도: **다음 대화의 Claude가 바로 이어 일할 수 있게** 하는 메모(일하는 방식·지금 상태·답을 기다리는 질문·기술 메모). V3 화면의 자세한 상태는 `record_v3.md`, 작업 일지는 `record.md`.
 
 ## 사용자와 일하는 방식 (꼭 지킬 것)
 
 - **모든 글은 한국어로 쓴다.** 작업 중간에 보내는 메시지도 한국어로 쓴다. 사용자는 영어를 모른다. 쉬운 말과 익숙한 메뉴 이름을 쓴다.
-- **브랜치 `redesign`에서만, 로컬에서만 작업한다.** push, main 합치기, 배포는 사용자가 "끝났다/배포해" 할 때까지 하지 않는다.
-- 작업이 하나 끝날 때마다 **`record.md` 맨 위에 기록**하고 커밋한다. 이 메모와 `record_v3.md`도 큰 변화가 있으면 갱신한다.
+- **브랜치 `redesign`에서 작업한다.** main 합치기·push(=배포)는 **사용자가 "배포해"라고 할 때만** 한다. 배포는 테스트 전부 통과 → `main`에 fast-forward → `git push origin main redesign` → 공개 사이트 확인 순서.
+- **작업이 하나 끝날 때마다 기록 세 곳을 갱신하고 커밋한다**(사용자 지시 2026-11-11):
+  - `record.md`: 맨 아래 목록에 그 작업 한 줄(무엇을·왜·SQL·매뉴얼).
+  - `record_v3.md`: 바뀐 메뉴의 "5. 메뉴별 지금 상태", 정책이 바뀌면 3, SQL은 6, 남은 일은 7, 배포하면 2와 맨 위 줄.
+  - `claude-mem.md`(이 파일): "지금 상태", "답을 기다리는 질문", 새로 정한 것, 다음에 필요한 기술 메모.
 - 커밋 메시지 끝에는 `Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>`를 붙인다.
-- **DB 구조 변경과 운영 SQL은 사용자가 직접 실행한다.** 운영 DB를 읽는 SQL은 자동 권한에서 막혀 있다. V3 설계 원칙은 "SQL 실행·데이터 구조 변경 금지"다.
+- **DB 구조 변경과 운영 SQL은 사용자가 직접 실행한다.** SQL 파일과 pglite 테스트만 만든다. 운영 DB를 읽는 SQL은 자동 권한에서 막혀 있다. SQL 실행 전에도 화면이 열리게(그 기능만 잠김) 만든다.
 - 사용자가 "코딩은 말고 의견만"이라고 하면 코드를 고치지 말고 설명만 한다.
 - Codex 검토는 DB·권한·핵심 기능을 바꿨을 때 **제안만** 한다. 실행 전에 승인을 받고, read-only로 돌리며, 명령 끝에 `< /dev/null`을 붙인다. 단순 UI 수정에는 제안하지 않는다.
-- 주황 색은 그대로 둔다.
+- 주황 색은 그대로 둔다. V3 화면을 바꾸면 매뉴얼(`manual/v3-head.html`, `v3-teacher.html`)도 고친다.
 - 보고할 때: 무엇이 **실제 저장**되고 무엇이 **화면/브라우저에만** 남는지, 브라우저에서 확인했는지, 배포했는지를 꼭 밝힌다.
 
-## 지금 상태 (2026-10-30, 마지막 커밋 `17d3046`)
+## 지금 상태 (2026-11-11)
 
-- V3 시험판 `admin-v3/` (주소 `http://localhost:8787/admin-v3/`, 운영 DB 연결)이 있다. 자세한 상태는 `record_v3.md`의 5번에 있다.
-- 테스트 190개와 문법 검사가 통과한다. 브라우저 확인은 대부분 못 했고, 사용자가 화면을 보며 스크린샷으로 피드백을 준다.
-- 로컬 서버: `로컬실행.bat` 또는 `node scripts/preview-server.mjs` (포트 8787).
+- V3 시험판 `admin-v3/` (로컬 `http://localhost:8787/admin-v3/`, 운영 DB 연결 · 배포본 `https://rladiddus.github.io/comsw/admin-v3/`).
+- **2026-11-11 세 번째 배포**: 11-05 작업(승인 대기 한 화면 세 쪽, 과목 로드맵 문구, 준비물 작성·그룹 설정 등)을 main에 합쳐 올렸다. 테스트 352개·문법 검사 통과.
+- 운영 SQL은 `20261105010000_subject_roadmap_summary.sql`까지 모두 사용자가 실행했다. 남은 SQL 없음.
+- 메뉴별 상태는 `record_v3.md` 5번.
 
 ## 답을 기다리는 질문 (다음 대화에서 먼저 확인)
 
@@ -28,45 +33,27 @@
    - 공개 사이트는 DB(`roadmap_steps.position`, `roadmap_step_subjects.sort_order`)를 읽는다. 그래서 V3 화면 상태를 DB에 저장해야 하고, 그 뒤 "사이트에 반영"을 눌러야 한다.
    - 정할 것: 한 학과에 트랙(`roadmap_tracks`)이 여러 개일 수 있는데, **학과마다 한 줄로 합쳐 저장**해도 되는지.
 2. 스텝 삭제 팝업 버튼 순서: 지금은 [취소][삭제]이고, 사용자 말은 "삭제 / 취소"였다. 바꿀지 물어 두었다.
-3. (정리됨 10-30) 강사 커리큘럼·과목 통합에서 방특 삭제, 방특은 방학 특강·승인 대기에서. 학과별 과목 순서의 정규/방특은 남아 있음.
-4. **운영 SQL 실행함(2026-11-02, 사용자)**: `supabase/migrations/20261030010000_teacher_new_subject.sql`(내 커리큘럼 '과목명 동일' 끄고 새 과목명 제출). Codex 검토는 하지 않음.
-5. **운영 SQL 실행함(2026-11-02, 사용자)**: `supabase/migrations/20261030020000_seminar_listed.sql`(특강 공개 체크). 이제 V3 특강 화면의 공개 체크를 바꿀 수 있다.
-6. **운영 SQL 실행함(2026-11-03, 사용자)**: `supabase/migrations/20261103010000_teacher_dept_subjects.sql`(내 학과 과목이면 수업 설정에서 안 골라도 선생님 제출 허용). 실행 전에는 V3 내 커리큘럼에서 안 고른 과목 제출이 오류.
-7. **운영 SQL 실행함(2026-11-03, 사용자)**: `supabase/migrations/20261103020000_subject_groups.sql`(6번 다음에. 대표 과목 칸·방학 특강 과목 표·방특 제출 허용). 실행 전에는 과목 관리의 하위 과목 연결·과목 묶음·방학 특강 지정이 잠김.
-8. **운영 SQL 실행함(2026-11-03, 사용자)**: `supabase/migrations/20261103030000_subject_group_table.sql`(7번 다음에. 대표 과목 → 과목 그룹 표, parent_id 삭제). 실행 전에는 과목 관리의 그룹 연결·그룹 만들기가 잠김.
-   - 사용자 요청(10-30): 운영 SQL은 사용자가 "배포한다"고 할 때 한 번 더 정리해서 알려 준다(파일·실행 순서·하는 일·실행 전후 차이·테스트).
 
-## 사용자가 이번 대화에서 정한 것 (시간 순 요약)
+## 사용자가 정한 것 (시간 순 요약)
 
-- 로드맵 한 단계에 과목 여러 개를 넣을 수 있다(8A 변경).
-- "재료"는 "준비물"로, 4분류 중 "준비물"은 "물품"으로 바꾼다.
-- 승인 대기에서 바로 승인한다. 기존 승인 화면 통로는 지운다.
-- **정책 7**: 과목 하나를 모든 학과가 공용으로 쓴다. 과목 아래는 강사별 커리큘럼이다. 학과마다 다른 것은 과목 순서뿐이다.
-- 방특은 기수마다 새 과목 ID를 쓴다(6B 유지).
-- 선생님은 과목만 고른다(쌤톡에서 고른 학과의 과목 중에서).
-- 로드맵 문구는 과목마다 하나이고, 묶은 단계는 그 과목 문구들을 요약한다.
-- 과목 통합 커리큘럼은 여러 번 고쳤다.
-  - 화면 구성: 주차별/과목별 탭, 강사 팝업, 대표 이미지, 단계 문구 AI.
-  - 왼쪽 과목 목록: 끌기, 추가, 삭제, 저장. 기본 너비 330px이고 경계를 끌어 조절한다.
-- 방특을 고르면 학과 대신 **기수**를 고른다. 방특 주차별은 그 기수에 담긴 강사 커리큘럼 단계를 보여 준다(추천안 채택).
-- 메뉴마다 고른 것(학과·정규/방특·기수)을 따로 기억한다. 서로 연동하지 않는다.
-- 강사 커리큘럼: 강사별 과목 / 과목별 강사 탭. 과목 순서는 과목 통합 커리큘럼과 같다.
-- 로드맵
-  - 정규만 다룬다. 왼쪽 과목, 오른쪽 스텝 박스.
-  - 끌어 넣기, 스텝 추가(점선), 과목 삭제(−), 스텝 삭제(확인), AI 요약(필요할 때만).
-  - 스텝 박스만 스크롤된다. 스텝 안 과목과 스텝 자체를 끌어서 순서를 바꾼다.
-- 수업별 준비물: 학과·정규/방특 선택을 없앴다. 탭마다 모든 학과를 학과별로 보여 준다. 사용 프로그램도 같은 카드 UI이고, 9D 설명은 지웠다.
-- 각 화면 아래의 "기존 화면 고치기" 영역은 요청이 오는 대로 지우고 있다. 지금까지 과목 통합, 강사 커리큘럼, 로드맵에서 지웠다.
+- 10-29~30: 로드맵 한 단계에 과목 여러 개(8A 변경). "재료"→"준비물", 4분류 "준비물"→"물품". 승인 대기에서 바로 승인. **정책 7**: 과목 하나를 모든 학과가 공용, 과목 아래는 강사별 커리큘럼, 학과마다 다른 것은 과목 목록·순서뿐. 방특은 기수마다 새 과목 ID(6B). 로드맵 문구는 과목마다 하나. 메뉴마다 고른 것 따로 기억. 강사 커리큘럼·과목 통합에서 방특 삭제(방특은 방학 특강·승인 대기에서).
+- 10-30: 특강·세미나를 운영 메뉴로, 공개 체크. 강사 관리 새 화면. "학과 관리"·"학과별 과목 순서" 메뉴 삭제(옛 것). 각 화면 아래 "기존 화면" 칸은 요청이 오는 대로 지운다.
+- 11-02: 첫 배포, V3 매뉴얼 두 개.
+- 11-03: "과목 통합 커리큘럼"→**"학과 관리"**(과목 순서 DB 저장), "강사 커리큘럼"→**"커리큘럼 관리"**. 과목 관리 탭 [과목 생성][과목 정리][그룹 만들기]. **과목 그룹은 이름만 있는 묶음**(대표 과목 방식 버림). 타 강사 수업 설정. 두 번째 배포.
+- 11-05: 내 커리큘럼 과목 탭은 수업 설정에서 고른 과목만(본인·타강사). 승인 대기 **한 화면 세 쪽**(제출 커리큘럼 → 과목별 커리큘럼 → 로드맵 문구 → [적용]). AI는 세 쪽 모두 스위치(처음 꺼짐). 학과장이 [준비물 작성]으로 대신 작성, 준비물이 있으면 그룹 필수. 수업별 준비물은 그룹 이름으로 묶음.
+- 11-11: 11-05 작업 배포. **이후 모든 작업마다 `record_v3.md`·`claude-mem.md`도 용도에 맞게 갱신**.
 
 ## 기술 메모 (다음 작업 때 필요한 것)
 
-- 테스트: `node --test --test-concurrency=1 "admin/test/*.test.mjs"`. 따옴표 친 glob을 써야 한다. 동시에 돌리면 메모리가 부족하다.
-  - V3 테스트는 `admin/test/v3.dom.test.mjs`(jsdom과 `fake-supabase.mjs`)다.
+- 테스트: `node --test --test-concurrency=1 "admin/test/*.test.mjs" "tools/test/*.test.mjs"`(352개, 약 7분). 따옴표 친 glob을 써야 한다. 동시에 돌리면 메모리가 부족하다.
+  - V3 화면 테스트는 `admin/test/v3.dom.test.mjs`(jsdom과 `fake-supabase.mjs`). SQL 테스트는 `tools/test/*.test.mjs`(pglite, `pg.mjs`의 `freshDb(before)`·`runMigration`).
   - 문법 검사는 `node scripts/check-syntax.js`. `admin/` 파일을 고치면 `node scripts/stamp-admin.mjs`를 돌린다.
-- 주의: bash heredoc 안의 python 문자열에 `\n`을 쓰면 실제 줄바꿈으로 바뀌어 JS가 깨진다. 이런 경우 Edit 도구나 scratchpad의 python 파일을 쓴다. 테스트 파일은 줄 끝이 CRLF다.
-- 공통 기능 위치: `admin-v3/js/v3.mjs`.
-  - `state`, `usePage`, `contextBar(depts, onChange, extra, cohorts)`, `deptSubjects`, `cohortSubjects`, `cohortsOf`, `addableSubjects`, `sortable`, `splitGrid`, `modal`, `saveLocal`, `audit`.
-- 브라우저 저장(localStorage)은 `v3.orders`(학과/기수 과목 순서)와 `v3.picks`(과목 통합 강사 명단)다. 그 밖의 V3 상태는 메모리에만 있다.
-- `admin/js/pages/prep.mjs`는 운영 관리 화면과 같이 쓴다. 옵션 `prepCategory`, `prepLabel`, `prepSubjects`가 있다. "software" 탭은 `subjects.tools`를 다루는 `toolsDb` 연결부다.
-- AI: `getServices().summarize(kind, text)`이고 kind는 week, department, roadmap이다. 서버 지시는 `supabase/functions/comsw-tools/policy.mjs`에 있다.
-- 방특 판단: 커리큘럼의 "방특 체크"(`instructor_curricula.vacation`)는 10-26에 생긴 칸이고 처음 값이 false다. 그래서 믿지 않고 **기수 그룹(`curriculum_sets.is_vacation`)**으로 판단한다.
+- 주의: bash heredoc 안의 python 문자열에 `\n`을 쓰면 실제 줄바꿈으로 바뀌어 JS가 깨진다. Edit 도구나 scratchpad의 python 파일을 쓴다. 테스트 파일은 줄 끝이 CRLF다.
+- 메뉴 정의: `admin-v3/js/app.mjs`의 `GROUPS`(묶음: 운영 메뉴 / 선생님 / 업무 / 사이트 운영). 선생님은 `TEACHER` 목록만.
+- 공통 기능: `admin-v3/js/v3.mjs` — `state`, `usePage`, `contextBar(depts, onChange, extra, cohorts)`, `deptSubjects`(정규는 DB 순서만, 브라우저 순서는 방특만), `cohortSubjects`, `cohortsOf`, `addableSubjects`, `sortable`, `splitGrid`, `modal`, `deleteSubject`, `saveLocal`, `audit`.
+- 과목 그룹 팝업: `admin-v3/js/pages/subjects.mjs`의 `groupPicker`·`joinPicker`·`groupChooser`(승인 대기도 같이 씀).
+- 브라우저 저장(localStorage): `v3.orders`(방특 기수 과목 순서), `v3.picks`(학과 관리 강사 명단), `v3.navFolded`(접은 메뉴 묶음).
+- `admin/js/pages/prep.mjs`는 운영 화면과 같이 쓴다. 옵션 `prepCategory`, `prepLabel`, `prepSubjects`, `prepGroupOf`. "software" 탭은 `subjects.tools`를 다루는 `toolsDb` 연결부다. `seminars.mjs`(`seminarCard`·`drawRoster`), `teacher-workspace.mjs`(`teacherPicker`)도 공용.
+- 승인 대기 [적용]의 프로그램·준비물 미리 채우기는 승인 함수 `merge_items`와 같은 규칙.
+- AI: `getServices().summarize(kind, text)`이고 kind는 week, department, roadmap이다. 서버 지시는 `supabase/functions/comsw-tools/policy.mjs`.
+- 방특 판단: `instructor_curricula.vacation`은 믿지 않고 **기수 그룹(`curriculum_sets.is_vacation`)**으로 판단한다.

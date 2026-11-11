@@ -831,7 +831,7 @@
           subject: curSubject,
           category: cat,
           content: cellC,
-          link: cellD,
+          link: (function(u) { u = String(u || '').trim(); return /^https?:\/\//i.test(u) ? u : /^[a-z][a-z0-9+.-]*:/i.test(u) ? '' : (u ? 'https://' + u : ''); })(cellD), // http(s)만, 형식 없으면 https://(javascript: 등 막기, 2026-11-11)
           image: cellE ? convertDriveUrl(cellE) : '',
           pill: cellF
         });

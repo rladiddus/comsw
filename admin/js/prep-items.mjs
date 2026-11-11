@@ -15,7 +15,8 @@ export const aiTools = (s) => String(s ?? "").split(/[\n\r]+/).map((line) => {
   return { name: name.trim(), link: rest.join("|").trim() };
 }).filter((x) => x.name);
 export const aiText = (list) => list.map((x) => (x.link ? `${x.name} | ${x.link}` : x.name)).join("\n") || null;
-export const safeLink = (link) => (!link || /^https?:\/\//i.test(link) ? link : `https://${link}`);
+// 링크는 http(s)만: 다른 형식(javascript: 등)은 버리고, 형식이 없으면 https://를 붙인다(승인 SQL·공개 사이트와 같은 규칙).
+export const safeLink = (link) => { const u = String(link ?? "").trim(); return /^https?:\/\//i.test(u) ? u : /^[a-z][a-z0-9+.-]*:/i.test(u) ? "" : u ? `https://${u}` : ""; };
 
 // values = { supply, textbook, ai } (글), none = 처음 '없음' 체크
 export function prepItems({ values = {}, none = false, cats = true, label = "준비물" } = {}) {
@@ -48,13 +49,13 @@ export function prepItems({ values = {}, none = false, cats = true, label = "준
     box.replaceChildren(...(noneBox.checked ? [el("small", { className: "muted", textContent: "준비물 없음" })]
       : list.length ? list.map((it) => el("span", { className: "prep-chip" }, [
         el("b", { textContent: PREP_CATS.find(([k]) => k === it.cat)[1] }), el("span", { textContent: it.text }),
-        ...(it.link ? [el("a", { href: safeLink(it.link), target: "_blank", rel: "noopener", textContent: "링크" })] : []),
+        ...(safeLink(it.link) ? [el("a", { href: safeLink(it.link), target: "_blank", rel: "noopener", textContent: "링크" })] : []),
         Object.assign(el("button", { type: "button", className: "prep-x", textContent: "−", title: `${it.text} 빼기` }), { onclick: () => { list = list.filter((x) => x !== it); draw(); } }),
       ])) : [el("small", { className: "muted", textContent: "분류를 고르고 내용을 적은 뒤 [추가]를 누르세요." })]));
   };
   // 적어 둔 것: 물품·교재는 쉼표로 여러 개, AI 도구는 이름 하나 + 링크. 이미 있는 항목(띄어쓰기·대소문자 무시)은 건너뜀.
   const pending = () => (isAi()
-    ? (text.value.trim() ? [{ cat: "ai", text: text.value.trim(), link: link.value.trim() }] : [])
+    ? (text.value.trim() ? [{ cat: "ai", text: text.value.trim(), link: safeLink(link.value) }] : [])
     : splitPrep(text.value).map((t) => ({ cat: cat.value, text: t })))
     .filter((x, i, all) => !list.some((y) => key(y.text) === key(x.text)) && all.findIndex((y) => key(y.text) === key(x.text)) === i);
   const push = () => {

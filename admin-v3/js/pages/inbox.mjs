@@ -183,7 +183,7 @@ export async function render(container, ctx) {
   const prepView = (p) => p.none ? [el("div", { className: "v3-line" }, [chip("준비물 없음", "")])]
     : PREP_ROWS.filter(([k]) => p[k]).map(([k, label]) => el("div", { className: "v3-line" }, [el("b", { textContent: `${label} ` }),
       ...(k === "ai" ? aiTools(p.ai).flatMap((x, i) => [...(i ? [document.createTextNode(", ")] : []), document.createTextNode(x.name),
-        ...(x.link ? [document.createTextNode(" "), el("a", { href: safeLink(x.link), target: "_blank", rel: "noopener", textContent: "(링크)" })] : [])])
+        ...(safeLink(x.link) ? [document.createTextNode(" "), el("a", { href: safeLink(x.link), target: "_blank", rel: "noopener", textContent: "(링크)" })] : [])])
         : [document.createTextNode(splitPrep(p[k]).join(", "))])]));
 
   // [준비물 작성] 학과장·부원장이 선생님 대신 교재·물품·사용 프로그램·AI 도구(이름 + 링크를 한 줄씩 추가)를 고친다. 처음엔 선생님이 적은 것.
@@ -204,10 +204,10 @@ export async function render(container, ctx) {
     none.setAttribute("aria-label", "준비물 없음");
     const drawAi = () => {
       aiList.replaceChildren(...tools.map((x) => el("span", { className: "prep-chip" }, [el("span", { textContent: x.name }),
-        ...(x.link ? [el("a", { href: safeLink(x.link), target: "_blank", rel: "noopener", textContent: "링크" })] : []),
+        ...(safeLink(x.link) ? [el("a", { href: safeLink(x.link), target: "_blank", rel: "noopener", textContent: "링크" })] : []),
         Object.assign(el("button", { type: "button", className: "prep-x", textContent: "−", title: `${x.name} 빼기`, disabled: none.checked }), { onclick: () => { tools = tools.filter((y) => y !== x); drawAi(); } })])));
     };
-    const pendingAi = () => (aiName.value.trim() && !tools.some((x) => x.name.toLowerCase() === aiName.value.trim().toLowerCase()) ? [{ name: aiName.value.trim(), link: aiLink.value.trim() }] : []);
+    const pendingAi = () => (aiName.value.trim() && !tools.some((x) => x.name.toLowerCase() === aiName.value.trim().toLowerCase()) ? [{ name: aiName.value.trim(), link: safeLink(aiLink.value) }] : []);
     const pushAi = () => { tools.push(...pendingAi()); aiName.value = ""; aiLink.value = ""; drawAi(); aiName.focus?.(); };
     aiAdd.addEventListener("click", pushAi);
     [aiName, aiLink].forEach((x) => x.addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); pushAi(); } }));
@@ -321,14 +321,9 @@ export async function render(container, ctx) {
         if (error) throw new Error(dbErrorMessage(error));
         it.partSaved = true;
       }
-      for (const r of it.g.rows.filter((x) => !it.ok.has(x.id))) {
-        const { error } = await supabase.from("instructor_curricula").update({ summary: siteText(it, r), ...(setId ? { set_id: setId } : {}) }).eq("id", r.id);
-        if (error) throw new Error(dbErrorMessage(error));
-        await rpc(supabase, "comsw_approve_curriculum", { p_id: r.id });
-        it.ok.add(r.id);
-      }
       if (!it.g.vacation) {
-        // 승인 함수가 합친 프로그램 위에 ② 칸 그대로 덮어쓴다(칸에 합친 모습을 미리 채워 둠). 준비물 칸(교재+물품)은 승인 함수가 합친 그대로.
+        // 과목·로드맵을 단계 승인보다 먼저 저장한다(Codex ③): 승인이 끝난 뒤 저장이 실패하면 목록에서 빠져 다시 못 하므로.
+        // 승인 함수는 그 뒤 선생님 프로그램을 merge_items로 합치는데, ② 칸에 이미 들어 있어 결과는 같다. 준비물 칸(교재+물품)은 승인 함수가 합친다.
         const f = fields(it), rd = road(it), t = rd.text.value.trim();
         const val = (x) => x.value.trim() || null;
         const patch = { duration: val(f.duration), dept_curriculum: val(f.dept), tools: val(f.tools), level: f.level.value || null, ...(hasRoad ? { roadmap_summary: t || null } : {}) };
@@ -342,6 +337,12 @@ export async function render(container, ctx) {
           if (e2) throw new Error(dbErrorMessage(e2));
           x.st.summary = summary;
         }
+      }
+      for (const r of it.g.rows.filter((x) => !it.ok.has(x.id))) {
+        const { error } = await supabase.from("instructor_curricula").update({ summary: siteText(it, r), ...(setId ? { set_id: setId } : {}) }).eq("id", r.id);
+        if (error) throw new Error(dbErrorMessage(error));
+        await rpc(supabase, "comsw_approve_curriculum", { p_id: r.id });
+        it.ok.add(r.id);
       }
       say(`승인했습니다${it.g.vacation ? "" : "(과목별 커리큘럼·로드맵 문구 함께 적용)"}. 공개 사이트에는 '사이트 반영' 후 보입니다.`);
       items.splice(items.indexOf(it), 1);

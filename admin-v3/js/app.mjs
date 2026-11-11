@@ -112,6 +112,8 @@ async function route() {
   const want = location.hash.replace(/^#\/?/, "").split("/")[0];
   const found = all.find(([id]) => id === want) ?? all[0];
   if (!found) { $("#content").replaceChildren(); return; }
+  // 없는 메뉴 주소(예: 지운 #/dashboard)면 보여 주는 화면 주소로 바꿔 둔다(Codex ⑥, hashchange 없이)
+  if (want && want !== found[0]) history.replaceState(null, "", `#/${found[0]}`);
   const [id, , label, desc, load] = found;
   // 묶음 이름을 누르면 그 아래 메뉴가 접히고 펼쳐진다(접은 묶음은 이 브라우저에 기억).
   $("#sideNav").replaceChildren(...groups.flatMap(([g, items]) => {

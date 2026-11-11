@@ -100,7 +100,9 @@ begin
         from (values ('textbook', m.textbook, 1, '[,\n\r]+'), ('supply', m.supplies, 2, '[,\n\r]+'), ('ai', m.ai, 3, '[\n\r]+')) v(cat, txt, ord, sep)
         cross join lateral regexp_split_to_table(coalesce(v.txt, ''), v.sep) with ordinality t(x, n)
         cross join lateral (select case when v.cat = 'ai' then btrim(split_part(t.x, '|', 1)) else btrim(t.x) end item,
-          case when v.cat = 'ai' then nullif(btrim(substr(t.x, length(split_part(t.x, '|', 1)) + 2)), '') end link) p
+          -- 링크는 http(s)만(javascript: 같은 다른 형식은 버림, 형식이 없으면 https:// 붙임). 공개 사이트도 한 번 더 거른다.
+          (select case when l ~* '^https?://' then l when l ~* '^[a-z][a-z0-9+.-]*:' then null else 'https://' || l end
+             from (select case when v.cat = 'ai' then nullif(btrim(substr(t.x, length(split_part(t.x, '|', 1)) + 2)), '') end l) z) link) p
         where p.item <> ''
         order by lower(regexp_replace(p.item, '\s', '', 'g')), v.ord, t.n
       ) a

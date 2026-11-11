@@ -467,6 +467,31 @@ test("V3 승인 대기 [준비물 작성] '준비물 없음'으로 저장하면 
     { instructor_id: "i1", subject_id: "s1", tools: null, supplies: null, textbook: null, ai: null });
 });
 
+test("V3 승인 대기 [적용]: 과목·로드맵을 단계 승인보다 먼저 저장(승인 뒤 실패해도 다시 할 수 있게)", async () => {
+  globalThis.confirm = () => true;
+  location.hash = "#/inbox";
+  const d = data(); d.subject_groups = [{ id: "g1", name: "포토샵 과정" }]; d.subjects[0].group_id = "g1";
+  const db = fakeSupabase(d); // rpc도 calls에 순서대로 남는다
+  const c = await page("inbox", { supabase: db });
+  button(c, "학과 커리큘럼 보기").click();
+  button(c, "로드맵 문구 보기").click();
+  button(c, "적용").click();
+  await flush();
+  const at = (f) => db.calls.findIndex(f);
+  const subj = at(([k, t]) => k === "update" && t === "subjects");
+  const approve = at(([k, n]) => k === "rpc" && n === "comsw_approve_curriculum");
+  assert.ok(subj >= 0 && approve > subj, `과목 저장(${subj}) → 단계 승인(${approve})`);
+});
+
+test("준비물 링크는 http(s)만, 형식 없으면 https://", async () => {
+  const { safeLink } = await import("../../admin/js/prep-items.mjs");
+  assert.equal(safeLink("https://a.com"), "https://a.com");
+  assert.equal(safeLink("chatgpt.com"), "https://chatgpt.com");
+  assert.equal(safeLink("javascript:alert(1)"), "");
+  assert.equal(safeLink(" data:text/html,x"), "");
+  assert.equal(safeLink(""), "");
+});
+
 test("V3 승인 대기: 선생님 몫 계산(남긴 것 + 과목에 없던 새 것)", async () => {
   const { teacherPart } = await import("../../admin-v3/js/pages/inbox.mjs");
   assert.equal(teacherPart("노트북\n포토샵 교재", "포토샵 교재, 마우스", ""), "포토샵 교재, 마우스");

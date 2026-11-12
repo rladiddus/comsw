@@ -7,6 +7,7 @@ import { mountPage, clearApp } from "./mount.mjs";
 import { auth } from "./firebase.mjs";
 import { SITE_PAGES, previewUrl, openPreview } from "./preview.mjs";
 import { configureServices, createServices } from './services.mjs';
+import { keepScroll } from './keep-scroll.mjs';
 
 const $ = sel => document.querySelector(sel);
 const PAGES = {
@@ -103,6 +104,7 @@ async function route() {
 }
 
 export function startApp({ role, email, uid, displayName }) {
+  keepScroll(); // 스크롤은 사용자가 움직일 때만(다시 그려져도 위치 유지)
   session = { role, email, uid, displayName };
   const cfg = window.COMSW_SUPABASE_CONFIG;
   configureServices(createServices({ ...cfg, getToken: () => auth.currentUser?.getIdToken() }));

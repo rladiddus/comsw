@@ -2197,6 +2197,34 @@
     visibility: hidden;
   }
 
+  /* 🎯 5단계 이상: 3단계씩 넘기기 (‹ 1 / 2 ›) */
+  .instructor-curriculum-pager {
+    position: absolute;
+    left: 50%;
+    bottom: 2.4vh;
+    transform: translateX(-50%);
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    font-size: 18px;
+    font-weight: 700;
+    color: #888;
+  }
+  .instructor-curriculum-pager button {
+    width: 40px;
+    height: 40px;
+    border: 1px solid #ddd;
+    border-radius: 50%;
+    background: #fff;
+    color: #222;
+    font-size: 24px;
+    line-height: 1;
+    cursor: pointer;
+  }
+  .instructor-curriculum-pager button:disabled {
+    opacity: 0.3;
+    cursor: default;
+  }
   .week-card-mini {
     display: flex;
     flex-direction: column;
@@ -2841,8 +2869,12 @@
     const instructorName = inst ? inst.name : '';
     const subjectName = (inst && ctx.subjectIdx >= 0 && inst.subjects) ? inst.subjects[ctx.subjectIdx] : '';
 
-    // 🎯 최대 4개까지 표시 (4개 이상이어도 일단 첫 4개만 - 향후 페이지 분할 가능)
-    const display = weeks.slice(0, 4);
+    // 🎯 4단계까지는 한 화면, 5단계 이상은 학과 커리큘럼처럼 3단계씩 나눠 ‹ › 로 넘긴다(2026-11-12).
+    const pages = weeks.length <= 4 ? [weeks] : chunkWeeks(weeks, 3);
+    let pageIdx = 0;
+
+    function drawPage() {
+    const display = pages[pageIdx];
     const cnt = display.length;
     const countClass = ' cols-' + Math.min(cnt, 3);
 
@@ -2870,12 +2902,24 @@
       html += '<div class="week-card-mini"></div>';
     }
     html += '</div>';
+    if (pages.length > 1) {
+      html += '<div class="instructor-curriculum-pager">'
+        + '<button type="button" class="pager-prev" aria-label="이전 단계"' + (pageIdx === 0 ? ' disabled' : '') + '>‹</button>'
+        + '<span>' + (pageIdx + 1) + ' / ' + pages.length + '</span>'
+        + '<button type="button" class="pager-next" aria-label="다음 단계"' + (pageIdx === pages.length - 1 ? ' disabled' : '') + '>›</button>'
+        + '</div>';
+    }
 
     box.innerHTML = html;
 
-    if (dept && instructorName) {
-      loadInstructorFlatWeeks(dept, instructorName);
-    }
+    box.querySelectorAll('.instructor-curriculum-pager button').forEach(btn => {
+      btn.addEventListener('click', function(e) {
+        e.stopPropagation();
+        pageIdx += this.classList.contains('pager-next') ? 1 : -1;
+        pageIdx = Math.max(0, Math.min(pages.length - 1, pageIdx));
+        drawPage();
+      });
+    });
 
     // 🎯 카드 클릭 → 큰 라이트박스 (강사의 모든 과목·단계 평탄화 데이터 기반)
     box.querySelectorAll('.img-box-mini[data-week]').forEach(card => {
@@ -2889,6 +2933,13 @@
         openInstructorWeekLightbox(d, inst, subj, wk);
       });
     });
+    }
+
+    drawPage();
+
+    if (dept && instructorName) {
+      loadInstructorFlatWeeks(dept, instructorName);
+    }
   }
 
   /* ============================================== */

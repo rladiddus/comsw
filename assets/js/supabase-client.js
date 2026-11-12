@@ -76,12 +76,13 @@
   }
 
   // 전체수업 25번째 칸(인덱스 24) = 그 단계 강사 커리큘럼 이미지 후보. 방문마다 하나를 골라 H(대표 이미지)에 넣는다.
+  // 2026-11-12: 관리 화면(학과 관리)에서 대표 이미지를 정한 단계(H가 있음)는 그대로 둔다. 빈 단계만 후보에서 고른다.
   function pickWeekImages(rows) {
     rows.forEach(function(row) {
       const vals = row && row.data && row.data.values;
       if (!Array.isArray(vals)) return;
       const candidates = normalizeText(vals[24]).split(/[\n\r,]+/).map(normalizeText).filter(Boolean);
-      if (candidates.length) vals[7] = candidates[Math.floor(api._random() * candidates.length)];
+      if (candidates.length && !normalizeText(vals[7])) vals[7] = candidates[Math.floor(api._random() * candidates.length)];
     });
     return rows;
   }

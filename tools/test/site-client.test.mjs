@@ -43,15 +43,17 @@ test("fetchSheetRows는 comsw_site_rows RPC를 부른다", async () => {
   assert.equal(calls.length, 1, "같은 시트는 캐시");
 });
 
-test("전체수업 시트는 이미지 후보 중 하나를 H에 넣는다", async () => {
+test("전체수업 시트: 대표 이미지(H)가 빈 단계만 이미지 후보 중 하나를 넣는다", async () => {
   const v = Array(25).fill("");
-  v[7] = "img1"; v[24] = "cand-a\ncand-b";
+  v[24] = "cand-a\ncand-b";
   const plain = Array(25).fill(""); plain[7] = "img2";
-  const { window } = site({ reply: () => [row(2, v), row(3, plain)] });
+  const chosen = Array(25).fill(""); chosen[7] = "img1"; chosen[24] = "cand-a\ncand-b";
+  const { window } = site({ reply: () => [row(2, v), row(3, plain), row(4, chosen)] });
   window.ComswSupabase._random = () => 0.99;
   const rows = await window.ComswSupabase.fetchSheetRows("컴수원_전체수업");
   assert.equal(rows[0].data.values[7], "cand-b");
   assert.equal(rows[1].data.values[7], "img2", "후보가 없으면 그대로");
+  assert.equal(rows[2].data.values[7], "img1", "학과 관리에서 정한 대표 이미지는 그대로");
 });
 
 test("특강 신청·신청 수 RPC", async () => {

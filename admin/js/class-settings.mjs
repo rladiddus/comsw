@@ -73,16 +73,18 @@ async function mountOne(
       className: "desc",
       textContent: other
         // 2026-11-12: 학과장·관리자가 타 강사(주로 다른 학과장)의 메인 학과도 정한다.
-        ? "이 강사가 여러 학과를 관리만 하는 학과장이면 실제 수업하는 학과(메인 학과)를 골라주세요. 공개 사이트 강사소개에는 메인 학과에만 프로필이 나옵니다('사이트에 반영' 후 반영). 고르지 않으면 고른 모든 학과에 나옵니다."
-        : "수업 설정에서 고른 학과 중 본인 학과(메인 학과)를 골라주세요. 공개 사이트 강사소개에는 메인 학과에만 프로필이 나오고, 나머지는 관리 학과로 프로필이 나오지 않습니다('사이트에 반영' 후 반영). 메인 학과를 고르면 아래 수업 설정에는 메인 학과만 보입니다(관리 학과는 쌤톡 학과에 그대로 남음).",
+        ? "이 강사가 여러 학과를 관리만 하는 학과장이면 실제 수업하는 학과(메인 학과)를 체크해주세요(여러 개 가능). 공개 사이트 강사소개에는 메인 학과에만 프로필이 나옵니다('사이트에 반영' 후 반영). 하나도 체크하지 않으면 고른 모든 학과에 나옵니다."
+        : "수업 설정에서 고른 학과 중 본인 학과(메인 학과)를 체크해주세요(여러 개 가능). 공개 사이트 강사소개에는 메인 학과에만 프로필이 나오고, 나머지는 관리 학과로 프로필이 나오지 않습니다('사이트에 반영' 후 반영). 메인 학과를 고르면 아래 수업 설정에는 메인 학과만 보입니다(관리 학과는 쌤톡 학과에 그대로 남음).",
     }),
   ]);
-  const mainPick = el("select", {});
+  // 메인 학과는 여러 개(2026-11-12, main_department_ids). 학과마다 체크.
+  const mainPick = el("div", { className: "subject-checks" });
   mainPick.setAttribute("aria-label", "메인 학과");
   const mainSave = el("button", { type: "button", className: "publish-btn", textContent: "저장" });
-  mainBox.append(el("div", { className: "form-actions" }, [mainPick, mainSave]));
+  mainBox.append(mainPick, el("div", { className: "form-actions" }, [mainSave]));
   const mainState = stateLine(mainBox);
-  let mainId = own.main_department_id ?? null;
+  let mainIds = new Set(own.main_department_ids ?? (own.main_department_id ? [own.main_department_id] : []));
+  const pickedMain = () => [...mainPick.querySelectorAll("input:checked")].map((x) => x.value);
   if (isHead || other) container.append(mainBox);
   container.append(box);
   const setState = stateLine(box);
@@ -131,30 +133,33 @@ async function mountOne(
   box.append(summary, editor);
   let saved = { depts: new Set(selected), subjects: new Set(checked) };
   // 메인 학과를 고른 학과장은 저장된 관리 학과를 수업 설정에서 숨긴다(저장할 때는 그대로 함께 보내 쌤톡 학과에 남김).
-  const shown = (d) => !isHead || !mainId || d.id === mainId || !saved.depts.has(d.id);
-  // 메인 학과 고르기: 저장된 내 학과만. 메인 학과를 수업 설정에서 빼면 '고르기 전'으로(사이트도 모든 학과에 표시).
+  const shown = (d) => !isHead || !mainIds.size || mainIds.has(d.id) || !saved.depts.has(d.id);
+  // 메인 학과 고르기: 저장된 내 학과만. 수업 설정에서 뺀 학과는 메인에서도 빠진다(다 빠지면 사이트도 모든 학과에 표시).
   function drawMain() {
     const mine = depts.filter((d) => saved.depts.has(d.id));
-    if (!mine.some((d) => d.id === mainId)) mainId = null;
-    mainPick.replaceChildren(
-      el("option", { value: "", textContent: mine.length ? "메인 학과 고르기" : "수업 설정에서 학과를 먼저 골라주세요" }),
-      ...mine.map((d) => el("option", { value: d.id, textContent: d.name, selected: d.id === mainId })),
-    );
-    mainPick.disabled = mainSave.disabled = !mine.length;
+    mainIds = new Set([...mainIds].filter((id) => mine.some((d) => d.id === id)));
+    mainPick.replaceChildren(...(mine.length
+      ? mine.map((d) => el("label", { className: "subject-check" }, [
+        el("input", { type: "checkbox", value: d.id, checked: mainIds.has(d.id) }),
+        el("span", { textContent: d.name }),
+      ]))
+      : [el("p", { className: "muted", textContent: "수업 설정에서 학과를 먼저 골라주세요" })]));
+    mainSave.disabled = !mine.length;
   }
   mainSave.addEventListener("click", async () => {
     mainSave.disabled = true;
     try {
+      const ids = pickedMain();
       if (other) {
         // 타 강사: 학과장·관리자는 강사 표를 바로 고칠 수 있다(staff_all). 사이트 반영은 그 강사의 학과일 때만 메인 학과로.
-        const { error } = await supabase.from("instructors").update({ main_department_id: mainPick.value || null }).eq("id", own.id);
+        const { error } = await supabase.from("instructors").update({ main_department_ids: ids, main_department_id: null }).eq("id", own.id);
         if (error) throw new Error(dbErrorMessage(error));
-        own.main_department_id = mainPick.value || null;
+        own.main_department_ids = ids;
       } else {
-        await rpc(supabase, "comsw_set_my_main_department", { p_department_id: mainPick.value || null });
+        await rpc(supabase, "comsw_set_my_main_departments", { p_department_ids: ids });
       }
-      mainId = mainPick.value || null;
-      mainState(mainId ? "저장했습니다. '사이트에 반영' 후 사이트 강사소개에 메인 학과만 나옵니다." : "메인 학과를 지웠습니다. 고른 모든 학과에 나옵니다.");
+      mainIds = new Set(ids);
+      mainState(ids.length ? "저장했습니다. '사이트에 반영' 후 사이트 강사소개에 메인 학과만 나옵니다." : "메인 학과를 지웠습니다. 고른 모든 학과에 나옵니다.");
       if (editor.hidden) showSummary();
       else draw();
     } catch (e) {

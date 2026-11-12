@@ -42,3 +42,31 @@ test("고른 학과가 아닌 학과는 메인으로 못 고르고, 선생님은
   await as(db, "authenticated", TEACHER);
   await assert.rejects(db.query(`select comsw_set_my_main_department($1)`, [depts[0].id]), /권한/);
 });
+
+// 2026-11-12: 메인 학과 여러 개(20261112010000)
+test("메인 학과를 여러 개 고르면 적용 행의 학과 칸이 그 학과들(학과 순서), 빈 배열이면 다시 모든 학과", async () => {
+  const { db, depts, head } = await setup();
+  await db.query(`insert into instructor_departments values ($1, $2)`, [head, depts[2].id]);
+  await as(db, "authenticated", HEAD);
+  await db.query(`select comsw_set_my_main_departments($1)`, [[depts[2].id, depts[0].id]]);
+  assert.equal(await deptCell(db, "박학과장"), `${depts[0].name}, ${depts[2].name}`);
+  await as(db, null);
+  await db.query(`delete from instructor_departments where instructor_id = $1 and department_id = $2`, [head, depts[2].id]);
+  assert.equal(await deptCell(db, "박학과장"), depts[0].name, "수업 설정에서 뺀 메인 학과는 빠짐");
+  await as(db, "authenticated", HEAD);
+  await db.query(`select comsw_set_my_main_departments('{}')`);
+  const all = await deptCell(db, "박학과장");
+  assert.ok(all.includes(depts[0].name) && all.includes(depts[1].name), "고르지 않으면 모든 학과");
+  await as(db, "authenticated", HEAD);
+  await assert.rejects(db.query(`select comsw_set_my_main_departments($1)`, [[depts[0].id, depts[2].id]]), /고른 학과 중/);
+});
+
+test("학과장·관리자는 다른 강사의 메인 학과들을 강사 표에 바로 저장한다(타 강사 수업 설정)", async () => {
+  const { db, depts, head } = await setup();
+  await as(db, "authenticated", { sub: "uid-x", role: "authenticated", comsw_role: "admin" });
+  await db.query(`update instructors set main_department_ids = $1 where id = $2`, [[depts[1].id], head]);
+  assert.equal(await deptCell(db, "박학과장"), depts[1].name);
+  await as(db, "authenticated", TEACHER);
+  const { rows } = await db.query(`update instructors set main_department_ids = '{}' where id = $1 returning id`, [head]);
+  assert.equal(rows.length, 0, "선생님은 못 고침");
+});

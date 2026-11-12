@@ -186,26 +186,32 @@ test("내 프로필: 내 소개·수업 설정 탭, 수업 설정은 쌤톡 학�
   assert.deepEqual(checks, { "웹1": true, "웹2": false });
 });
 
-test("수업 설정: 학과장은 위에 메인 학과 박스가 있고, 고른 학과 중 하나를 메인으로 저장한다(선생님에겐 없음)", async () => {
+test("수업 설정: 학과장은 위에 메인 학과 박스가 있고, 고른 학과 중 메인 학과(여러 개 가능)를 체크해 저장한다(선생님에겐 없음)", async () => {
   const teacher = await setup("profile", withAi());
   assert.equal(teacher.c.querySelector(".main-dept"), null, "선생님에겐 없음");
   const data = withAi();
   data.instructor_departments.push({ instructor_id: "me", department_id: "ai" });
-  data.instructors[0].main_department_id = "ai";
+  data.instructors[0].main_department_ids = ["ai"];
   const { c, calls } = await setup("profile", data, { role: "head", loadMyMajors: async () => ["웹학과", "AI학과"] });
   findButton(c, "수업 설정").click();
   const main = c.querySelector(".main-dept");
   assert.ok(main.nextElementSibling.classList.contains("class-settings"), "수업 설정 박스 위");
-  const pick = main.querySelector("select");
-  assert.deepEqual([...pick.options].map((o) => o.textContent), ["메인 학과 고르기", "웹학과", "AI학과"]);
-  assert.equal(pick.value, "ai", "저장된 메인 학과");
+  const box = (name) => [...main.querySelectorAll(".subject-check")].find((l) => l.textContent === name).querySelector("input");
+  assert.deepEqual([...main.querySelectorAll(".subject-check")].map((l) => l.textContent), ["웹학과", "AI학과"]);
+  assert.equal(box("AI학과").checked, true, "저장된 메인 학과");
+  assert.equal(box("웹학과").checked, false);
   const shownDepts = () => [...c.querySelectorAll(".class-summary .field-label, .class-dept h4")].filter((x) => !x.closest("[hidden]")).map((x) => x.textContent);
   assert.deepEqual(shownDepts(), ["AI학과"], "메인 학과를 고르면 수업 설정엔 메인 학과만");
-  pick.value = "dept";
+  box("웹학과").checked = true;
   findButton(main, "저장").click();
   await flush();
-  assert.deepEqual(calls.at(-1), ["comsw_set_my_main_department", { p_department_id: "dept" }]);
+  assert.deepEqual(calls.at(-1), ["comsw_set_my_main_departments", { p_department_ids: ["dept", "ai"] }], "여러 개");
   assert.match(main.textContent, /저장했습니다/);
+  assert.deepEqual(shownDepts(), ["웹학과", "AI학과"]);
+  box("AI학과").checked = false;
+  findButton(main, "저장").click();
+  await flush();
+  assert.deepEqual(calls.at(-1), ["comsw_set_my_main_departments", { p_department_ids: ["dept"] }]);
   assert.deepEqual(shownDepts(), ["웹학과"]);
   findButton(c.querySelector(".class-settings"), "수정").click();
   assert.deepEqual(shownDepts(), ["웹학과"], "고치는 화면도 메인 학과만");
@@ -641,13 +647,13 @@ test("V3 타강사: 수업 설정의 '타 강사 수업 설정'으로 그 강사
   assert.deepEqual(data.instructor_subjects.filter((x) => x.instructor_id === "other").map((x) => x.subject_id), ["m2"]);
   assert.equal(majors.saved, null, "쌤톡 학과는 건드리지 않음");
   // 메인 학과: 저장한 학과 중에서 골라 그 강사 표에 바로 저장
-  const mainPick = c.querySelector('.main-dept [aria-label="메인 학과"]');
-  assert.deepEqual([...mainPick.options].map((o) => o.textContent), ["메인 학과 고르기", "모션학과"]);
-  mainPick.value = "d2";
+  const mainChecks = [...c.querySelectorAll(".main-dept .subject-check")];
+  assert.deepEqual(mainChecks.map((l) => l.textContent), ["모션학과"]);
+  mainChecks[0].querySelector("input").checked = true;
   findButton(c.querySelector(".main-dept"), "저장").click();
   await flush();
-  assert.equal(data.instructors.find((i) => i.id === "other").main_department_id, "d2");
-  assert.equal(data.instructors[0].main_department_id ?? null, null, "내 메인 학과는 그대로");
+  assert.deepEqual(data.instructors.find((i) => i.id === "other").main_department_ids, ["d2"]);
+  assert.equal(data.instructors[0].main_department_ids ?? null, null, "내 메인 학과는 그대로");
 
   // 내 커리큘럼: 타강사로 김민주를 고르면 '선택한 강사 학과' = 모션학과, 그 강사가 고른 과목 탭만
   const m = document.createElement("div");

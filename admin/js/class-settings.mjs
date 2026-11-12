@@ -71,8 +71,10 @@ async function mountOne(
     el("div", { className: "box-title" }, [el("h3", { textContent: "메인 학과" })]),
     el("p", {
       className: "desc",
-      textContent:
-        "수업 설정에서 고른 학과 중 본인 학과(메인 학과)를 골라주세요. 공개 사이트 강사소개에는 메인 학과에만 프로필이 나오고, 나머지는 관리 학과로 프로필이 나오지 않습니다('사이트에 반영' 후 반영). 메인 학과를 고르면 아래 수업 설정에는 메인 학과만 보입니다(관리 학과는 쌤톡 학과에 그대로 남음).",
+      textContent: other
+        // 2026-11-12: 학과장·관리자가 타 강사(주로 다른 학과장)의 메인 학과도 정한다.
+        ? "이 강사가 여러 학과를 관리만 하는 학과장이면 실제 수업하는 학과(메인 학과)를 골라주세요. 공개 사이트 강사소개에는 메인 학과에만 프로필이 나옵니다('사이트에 반영' 후 반영). 고르지 않으면 고른 모든 학과에 나옵니다."
+        : "수업 설정에서 고른 학과 중 본인 학과(메인 학과)를 골라주세요. 공개 사이트 강사소개에는 메인 학과에만 프로필이 나오고, 나머지는 관리 학과로 프로필이 나오지 않습니다('사이트에 반영' 후 반영). 메인 학과를 고르면 아래 수업 설정에는 메인 학과만 보입니다(관리 학과는 쌤톡 학과에 그대로 남음).",
     }),
   ]);
   const mainPick = el("select", {});
@@ -81,7 +83,7 @@ async function mountOne(
   mainBox.append(el("div", { className: "form-actions" }, [mainPick, mainSave]));
   const mainState = stateLine(mainBox);
   let mainId = own.main_department_id ?? null;
-  if (isHead) container.append(mainBox);
+  if (isHead || other) container.append(mainBox);
   container.append(box);
   const setState = stateLine(box);
   const [depts, subjects, links, myDepts, mySubjects, majors] = await Promise
@@ -143,7 +145,14 @@ async function mountOne(
   mainSave.addEventListener("click", async () => {
     mainSave.disabled = true;
     try {
-      await rpc(supabase, "comsw_set_my_main_department", { p_department_id: mainPick.value || null });
+      if (other) {
+        // 타 강사: 학과장·관리자는 강사 표를 바로 고칠 수 있다(staff_all). 사이트 반영은 그 강사의 학과일 때만 메인 학과로.
+        const { error } = await supabase.from("instructors").update({ main_department_id: mainPick.value || null }).eq("id", own.id);
+        if (error) throw new Error(dbErrorMessage(error));
+        own.main_department_id = mainPick.value || null;
+      } else {
+        await rpc(supabase, "comsw_set_my_main_department", { p_department_id: mainPick.value || null });
+      }
       mainId = mainPick.value || null;
       mainState(mainId ? "저장했습니다. '사이트에 반영' 후 사이트 강사소개에 메인 학과만 나옵니다." : "메인 학과를 지웠습니다. 고른 모든 학과에 나옵니다.");
       if (editor.hidden) showSummary();
@@ -263,6 +272,7 @@ async function mountOne(
         await saveOther(supabase, own.id, deptIds, [...checked].filter((id) => allowed.has(id)), myDepts, mySubjects);
         setState("저장했습니다. 내 커리큘럼 '타강사 커리큘럼'에서 이 학과·과목이 나옵니다.");
         saved = { depts: new Set(selected), subjects: new Set(checked) };
+        drawMain();
         showSummary();
         return;
       }

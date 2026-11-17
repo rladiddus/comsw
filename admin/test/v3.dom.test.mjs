@@ -1101,3 +1101,66 @@ test("V3 특강·세미나: 오른쪽 상세·아래 기존 화면 없이, 줄�
   await flush();
   assert.ok(db.calls.some(([k, t, row]) => k === "insert" && t === "seminars" && row.title === "새 특강" && row.capacity === 20 && row.is_listed === true));
 });
+
+// 2026-11-17: 학과 관리 [+ 학과추가], 기본 설정 › 학과 커리큘럼 [페이지 편집] = 학과 탭 두 줄 편집
+test("V3 학과 관리 [+ 학과추가]: 학과 칸과 탭 사이, 추가하면 학과 표에 넣고 드롭다운에서 바로 고름", async () => {
+  const headBar = document.createElement("div");
+  const db = sb();
+  await page("aggregate", { supabase: db, headBar });
+  const bar = headBar.firstElementChild;
+  const add = button(bar, "+ 학과추가");
+  const kids = [...bar.children];
+  assert.ok(kids.indexOf(add) > kids.findIndex((x) => x.querySelector("select")) && kids.indexOf(add) < kids.findIndex((x) => x.classList.contains("v3-aggtabs")), "학과 칸 오른쪽, 탭 왼쪽");
+  add.click();
+  const d = document.querySelector("dialog.v3-modal");
+  button(d, "추가").click();
+  await flush();
+  assert.match(d.textContent, /학과명을 입력/);
+  d.querySelector("input").value = "게임학과";
+  button(d, "추가").click();
+  await flush();
+  const ins = db.calls.find(([k, t]) => k === "insert" && t === "departments")[2];
+  assert.deepEqual(ins, { name: "게임학과", name_en: null, is_active: true, sort_order: 2 });
+  const sel = bar.querySelector("select");
+  assert.equal(sel.selectedOptions[0].textContent, "게임학과");
+  assert.equal(v3.state.dept, sel.value);
+  assert.ok(!document.querySelector("dialog.v3-modal"), "팝업 닫힘");
+  v3.state.dept = "d1";
+});
+
+test("V3 기본 설정 › 학과 커리큘럼 [페이지 편집]: 학과 탭을 끌어 윗줄·아랫줄·순서를 바꾸고 저장", async () => {
+  const db = sb();
+  await db.from("departments").insert({ id: "d3", name: "꺼진학과", sort_order: 2, is_active: false });
+  await db.from("site_settings").insert({ key: "dept_tab_top", value: "1" });
+  const c = await page("site", { supabase: db, getToken: async () => "tok" });
+  [...c.querySelectorAll(".v2-listitem")].find((x) => x.textContent.includes("학과 커리큘럼")).click();
+  await flush();
+  button(c, "페이지 편집").click();
+  await flush();
+  const d = document.querySelector("dialog.v3-modal");
+  assert.match(d.querySelector("h3").textContent, /학과 탭 편집/);
+  assert.ok(button(d, "학과 관리로 이동"));
+  const row = (i) => [...d.querySelectorAll(".v3-tabrow")[i].children].map((x) => x.textContent);
+  assert.deepEqual([row(0), row(1)], [["시각편집학과"], ["건축학과"]], "윗줄 개수 설정대로, 꺼진 학과 없음");
+  const fire = (node, type) => node.dispatchEvent(Object.assign(new dom.window.Event(type, { bubbles: true, cancelable: true }), { clientX: 0 }));
+  const tabOf = (name) => [...d.querySelectorAll(".v3-tabitem")].find((x) => x.textContent === name);
+  const save = button(d, "저장");
+  assert.ok(save.disabled);
+  fire(tabOf("건축학과"), "dragstart");
+  fire(tabOf("시각편집학과"), "dragover");
+  assert.ok(tabOf("시각편집학과").classList.contains("drop-before"), "놓을 자리 점선");
+  fire(tabOf("시각편집학과"), "drop");
+  assert.deepEqual([row(0), row(1)], [["건축학과", "시각편집학과"], []]);
+  // 윗줄을 비우면 저장 막힘
+  fire(tabOf("건축학과"), "dragstart"); fire(d.querySelectorAll(".v3-tabrow")[1], "drop");
+  fire(tabOf("시각편집학과"), "dragstart"); fire(d.querySelectorAll(".v3-tabrow")[1], "drop");
+  assert.ok(save.disabled);
+  fire(tabOf("건축학과"), "dragstart"); fire(d.querySelectorAll(".v3-tabrow")[0], "drop");
+  assert.deepEqual([row(0), row(1)], [["건축학과"], ["시각편집학과"]]);
+  save.click();
+  await flush();
+  const up = (id) => db.calls.find(([k, t, i]) => k === "update" && t === "departments" && i === id)?.[3];
+  assert.deepEqual([up("d2"), up("d1"), up("d3")], [{ sort_order: 0 }, { sort_order: 1 }, undefined], "바뀐 것만, 꺼진 학과는 뒤 그대로");
+  assert.deepEqual(db.calls.find(([k, t]) => k === "upsert" && t === "site_settings")[2], { key: "dept_tab_top", value: "1" });
+  d.remove();
+});

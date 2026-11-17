@@ -1,7 +1,7 @@
 import { el, btn, hint, panel, tabBox, headActions } from "../../../admin-v2/js/ui.mjs";
 import { SITE_PAGES } from "../../../admin/js/preview.mjs";
 import { modal } from "../v3.mjs";
-import { menuEditor } from "./site-menu.mjs";
+import { menuEditor, deptTabsEditor } from "./site-menu.mjs";
 
 // 기본 설정(V3): 왼쪽 사이트 페이지, 오른쪽 사이트 화면(PC·태블릿 비율). [페이지 편집]은 그 페이지 내용을 팝업으로 고친다.
 // '메뉴'는 화면 자리에 알약 메뉴 편집을 바로 보여 준다. 화면이 없는 페이지 편집은 해당 V3 메뉴로 간다.
@@ -11,7 +11,7 @@ const PAGES = [
   { name: "메뉴", menu: true },
   { ...page("전체 수업"), go: "#/roadmap" },
   { ...page("학과별 자료"), edit: "depts" },
-  { ...page("학과 커리큘럼"), go: "#/aggregate" },
+  { ...page("학과 커리큘럼"), edit: "tabs" },
   { ...page("특강/세미나"), go: "#/seminars" },
   { ...page("수업별 준비물"), go: "#/materials" },
   { ...page("방학 특강"), edit: "vacation" },
@@ -34,9 +34,11 @@ function editPopup(kind, ctx, onClose) {
   // 탭을 오갈 때 다시 불러오면 내용이 비었다 차면서 창 크기가 바뀌어 깜빡인다 → 탭 내용은 한 번만 그리고, 두 탭 높이를 같게.
   const panes = [];
   if (kind === "main") body = tabBox(["메인 화면", "로딩 화면"], (i) => (panes[i] ??= scroll(i ? loading : main, "v3-popfixed")));
+  else if (kind === "tabs") body = [scroll((b) => deptTabsEditor(b, ctx))];
   else body = [scroll(kind === "depts" ? depts : setting(kind), kind === "depts" ? "v3-deptpop" : "")];
-  const title = { main: "메인·로딩화면 편집", depts: "학과 소개", vacation: "방학 특강 편집", logo: "로고 이미지" }[kind];
-  const d = modal(title, body, [], "닫기");
+  const title = { main: "메인·로딩화면 편집", depts: "학과 소개", vacation: "방학 특강 편집", logo: "로고 이미지", tabs: "학과 탭 편집" }[kind];
+  // 학과 탭: 과목·커리큘럼은 학과 관리에서 고치므로 그리로 가는 버튼도 둔다.
+  const d = modal(title, body, kind === "tabs" ? [["학과 관리로 이동", () => { location.hash = "#/aggregate"; }]] : [], "닫기");
   d.classList.add("v3-wide");
   d.addEventListener("close", onClose);
 }

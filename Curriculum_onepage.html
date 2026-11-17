@@ -1084,6 +1084,10 @@
         seen[name] = true;
         list.push({ name: name, engName: eng });
       });
+      // 학과 탭 윗줄 개수(관리 화면 기본 설정 › 학과 커리큘럼 › 페이지 편집). 시트가 없거나 비면 예전처럼 5개.
+      const tabRows = await window.ComswSupabase.fetchSheetRows('학과 탭').catch(function() { return []; });
+      const top = parseInt(_curNorm(_curRaw(tabRows[0])[0]), 10);
+      list.topCount = top > 0 ? top : 5;
       return list;
     }
 
@@ -1315,9 +1319,10 @@
     function renderDeptTabs() {
       const tabsEl = document.getElementById('dept-tabs');
       
-      // 9개 학과를 2줄로 분할 (위 5개, 아래 4개)
-      const firstRow = departmentsList.slice(0, 5);
-      const secondRow = departmentsList.slice(5);
+      // 학과를 2줄로 분할: 위 topCount개(기본 5), 나머지 아래
+      const topCount = departmentsList.topCount || 5;
+      const firstRow = departmentsList.slice(0, topCount);
+      const secondRow = departmentsList.slice(topCount);
       
       function rowHTML(row) {
         return '<div class="dept-tab-row">'

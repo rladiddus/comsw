@@ -101,6 +101,15 @@
 .v3-pill.drop-before::before, .v3-pill.drop-after::after { top:2px; bottom:2px; right:auto; border-top:0; border-left:3px dashed #fff; }
 .v3-pill.drop-before::before { left:-8px; }
 .v3-pill.drop-after::after { left:auto; right:-8px; }
+/* 학과 커리큘럼 학과 탭 두 줄 편집(사이트 탭 모양): 끌어 놓을 자리는 탭 경계 세로 점선, 줄 끝은 줄 테두리 점선 */
+.v3-tabstage { display:grid; grid-template-columns:max-content minmax(0,1fr); align-items:center; gap:10px 12px; padding:20px; border-radius:12px; background:#f4f4f4; }
+.v3-tablabel { font-weight:700; color:#666; }
+.v3-tabrow { display:flex; gap:8px; min-height:58px; padding:6px; border:2px dashed transparent; border-radius:10px; background:#fff; }
+.v3-tabrow.drop-end { border-color:var(--accent); }
+.v3-tabitem { flex:1 1 0; min-width:0; display:flex; align-items:center; justify-content:center; padding:12px 8px; background:#d9d9d9; color:#555; font-weight:700; text-align:center; cursor:grab; user-select:none; }
+.v3-tabitem.drop-before::before, .v3-tabitem.drop-after::after { top:0; bottom:0; right:auto; border-top:0; border-left:3px dashed var(--accent); }
+.v3-tabitem.drop-before::before { left:-6px; }
+.v3-tabitem.drop-after::after { left:auto; right:-6px; }
 /* 내 커리큘럼(V3): 학과 드롭다운 폭 줄이고 '방특' 체크를 같은 줄 높이로 */
 .form-row.curriculum-head-row { grid-template-columns:minmax(0,320px) minmax(0,320px) auto; justify-content:start; align-items:start; }
 .form-row.curriculum-head-row .form-field select, .vacation-check .consent { height:42px; box-sizing:border-box; }

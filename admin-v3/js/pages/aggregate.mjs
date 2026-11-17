@@ -316,7 +316,38 @@ export async function render(container, ctx) {
     body.replaceChildren(state.aggTab === "subjects" ? subjectsView(list) : weeksView(list));
   }
   // 학과 칸과 주차별/과목별 탭은 제목 오른쪽에(머리 자리가 없으면 화면 맨 위). 정규·방특 버튼 없음.
-  const filter = contextBar(depts, draw, [tabs]);
+  // [+ 학과추가](2026-11-17): 학과 칸 오른쪽. 새 학과는 사용 체크·맨 뒤 순서로 만들어 바로 고른다
+  // (같은 departments 표라 기본 설정 › 학과별 자료·사이트 학과 탭에도 나온다).
+  function addDept() {
+    const name = el("input", { type: "text", placeholder: "예: 게임학과" });
+    const en = el("input", { type: "text", placeholder: "예: Game Design (커리큘럼 제목)" });
+    const msg = el("p", { className: "save-state" });
+    const ok = btn("추가", async () => {
+      const n = name.value.trim();
+      if (!n) { msg.textContent = "학과명을 입력해주세요."; msg.classList.add("err"); return; }
+      ok.disabled = true;
+      const sort_order = Math.max(-1, ...depts.map((x) => x.sort_order ?? -1)) + 1;
+      const { data: row, error } = await supabase.from("departments")
+        .insert({ name: n, name_en: en.value.trim() || null, is_active: true, sort_order }).select().single();
+      if (error) { ok.disabled = false; msg.textContent = dbErrorMessage(error); msg.classList.add("err"); return; }
+      depts.push(row);
+      const sel = filter.querySelector("select");
+      sel.append(Object.assign(document.createElement("option"), { value: row.id, textContent: row.name }));
+      sel.value = state.dept = row.id;
+      state.aggTab = "weeks"; // 과목 넣기는 주차별 왼쪽 목록에서
+      d.close?.(); d.remove();
+      draw();
+      saveSay(`'${row.name}'을(를) 추가했습니다. [+ 과목 추가]로 과목을 넣고 저장하세요.`);
+    }, true);
+    const d = modal("학과 추가", [
+      el("label", { className: "form-field" }, [el("span", { textContent: "학과명" }), name]),
+      el("label", { className: "form-field" }, [el("span", { textContent: "영문 (선택)" }), en]),
+      msg,
+    ], [ok]);
+    d.classList.add("v3-narrow");
+    name.focus();
+  }
+  const filter = contextBar(depts, draw, [btn("+ 학과추가", addDept), tabs]);
   filter.querySelector(".v3-switch")?.remove();
   if (ctx.headBar) ctx.headBar.replaceChildren(filter); else container.append(filter);
   container.append(body);

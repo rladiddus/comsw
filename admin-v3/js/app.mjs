@@ -11,6 +11,7 @@ import { configureServices, createServices } from "../../admin/js/services.mjs";
 import { usePage, sortable, savedOrder } from "./v3.mjs";
 import { keepScroll } from "../../admin/js/keep-scroll.mjs";
 import { siteNames } from "../../admin/js/site-names.mjs";
+import { drafts, stopDrafts } from "../../admin/js/drafts.mjs";
 
 const page = (file) => () => import(`./pages/${file}.mjs`);
 
@@ -178,6 +179,7 @@ export function startApp({ role, email, uid, displayName }) {
   session = { role, email, uid, displayName };
   keepScroll(); // 스크롤은 사용자가 움직일 때만(다시 그려져도 위치 유지)
   siteNames(supabase).catch(() => {}); // 안내 문구 속 사이트 메뉴 이름 = 고친 메뉴 이름
+  drafts({ uid }); // 입력칸이 있는 화면마다 [임시 저장]
   const cfg = window.COMSW_SUPABASE_CONFIG;
   configureServices(createServices({ ...cfg, getToken: () => auth.currentUser?.getIdToken() }));
   $("#loginWrap").hidden = true;
@@ -195,6 +197,7 @@ export function startApp({ role, email, uid, displayName }) {
 }
 
 export function stopApp() {
+  stopDrafts();
   window.removeEventListener("hashchange", route);
   session = null;
   configureServices();

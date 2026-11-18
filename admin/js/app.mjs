@@ -9,6 +9,7 @@ import { SITE_PAGES, previewUrl, openPreview } from "./preview.mjs";
 import { configureServices, createServices } from './services.mjs';
 import { keepScroll } from './keep-scroll.mjs';
 import { siteNames } from './site-names.mjs';
+import { drafts, stopDrafts } from './drafts.mjs';
 
 const $ = sel => document.querySelector(sel);
 const PAGES = {
@@ -107,6 +108,7 @@ async function route() {
 export function startApp({ role, email, uid, displayName }) {
   keepScroll(); // 스크롤은 사용자가 움직일 때만(다시 그려져도 위치 유지)
   siteNames(supabase).catch(() => {}); // 안내 문구 속 사이트 메뉴 이름 = 고친 메뉴 이름
+  drafts({ uid }); // 입력칸이 있는 화면마다 [임시 저장]
   session = { role, email, uid, displayName };
   const cfg = window.COMSW_SUPABASE_CONFIG;
   configureServices(createServices({ ...cfg, getToken: () => auth.currentUser?.getIdToken() }));
@@ -125,6 +127,7 @@ export function startApp({ role, email, uid, displayName }) {
 }
 
 export function stopApp() {
+  stopDrafts();
   window.removeEventListener("hashchange", route);
   session = null;
   configureServices();

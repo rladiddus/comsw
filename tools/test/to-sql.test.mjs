@@ -7,7 +7,7 @@ import { transform } from "../migrate/transform.mjs";
 import { SAMPLE_ROWS } from "./fixtures.mjs";
 
 test("문자열의 작은따옴표·줄바꿈·$$·이모지를 그대로 보존한다", async () => {
-  const db = await freshDb();
+  const db = await freshDb("20261118020000"); // 빈 menus(그 뒤 SQL이 메뉴 한 줄을 넣음)
   const text = "it's\n$$ drop table x; $$ 😀 \\n";
   await db.query(`insert into menus(name) values (${sqlLiteral(text)})`);
   assert.equal((await db.query(`select name from menus`)).rows[0].name, text);
@@ -17,7 +17,7 @@ test("줄바꿈·탭·역슬래시는 SQL 파일에 그대로 쓰지 않고 이�
   const text = "첫 줄\r\n둘째\n셋째\t탭 \\ 역슬래시 it's";
   const lit = sqlLiteral(text);
   assert.ok(!/[\r\n\t]/.test(lit), lit);
-  const db = await freshDb();
+  const db = await freshDb("20261118020000"); // 빈 menus(그 뒤 SQL이 메뉴 한 줄을 넣음)
   await db.query(`insert into menus(name) values (${lit})`);
   assert.equal((await db.query(`select name from menus`)).rows[0].name, text);
 });
@@ -30,7 +30,7 @@ test("null·불리언·숫자", () => {
 });
 
 test("변환 결과를 넣고 다시 넣어도 같은 개수다", async () => {
-  const db = await freshDb();
+  const db = await freshDb("20261118020000"); // 빈 menus(그 뒤 SQL이 메뉴 한 줄을 넣음)
   const model = transform(SAMPLE_ROWS);
   const sql = toSql(model);
   await db.exec(sql);
@@ -49,7 +49,7 @@ test("변환 결과를 넣고 다시 넣어도 같은 개수다", async () => {
 });
 
 test("재실행해도 적용 기록(스냅샷)은 지우지 않는다", async () => {
-  const db = await freshDb();
+  const db = await freshDb("20261118020000"); // 빈 menus(그 뒤 SQL이 메뉴 한 줄을 넣음)
   await db.exec(`insert into site_snapshots(rows) values ('[]')`);
   await db.exec(toSql(transform(SAMPLE_ROWS)));
   assert.equal((await db.query(`select count(*)::int c from site_snapshots`)).rows[0].c, 1);
@@ -61,7 +61,7 @@ test("SQL Editor에 붙여넣을 수 있게 조각마다 글자 수 한도 이�
   assert.ok(chunks.length > 2);
   for (const c of chunks) assert.ok(c.length <= 1500, `조각 길이 ${c.length}`);
   assert.match(chunks[0], /truncate/);
-  const db = await freshDb();
+  const db = await freshDb("20261118020000"); // 빈 menus(그 뒤 SQL이 메뉴 한 줄을 넣음)
   for (let round = 0; round < 2; round++) for (const c of chunks) await db.exec(c);
   const count = async t => (await db.query(`select count(*)::int c from ${t}`)).rows[0].c;
   assert.equal(await count("subjects"), model.subjects.length);

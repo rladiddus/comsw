@@ -3,6 +3,7 @@ export const SITE_PAGES = [
   { name: "메인", file: "index" },
   { name: "전체 수업", file: "roadmap" },
   { name: "학과별 자료", file: "Curriculum_full" },
+  { name: "강사별 커리큘럼", file: "Curriculum_full", view: "instructors" }, // 2026-11-18: 강사 소개만(학과별 자료에서 뺌)
   { name: "학과 커리큘럼", file: "Curriculum_onepage" },
   { name: "특강/세미나", file: "seminar" },
   { name: "수업별 준비물", file: "item" },
@@ -11,9 +12,15 @@ export const SITE_PAGES = [
 
 const key = s => String(s ?? "").replace(/\s+/g, "");
 
+// 사이트 페이지 주소(view가 있으면 ?view=…, 미리보기면 preview=1).
+export function sitePageUrl(page, tablet, preview) {
+  const q = [page.view && `view=${page.view}`, preview && "preview=1"].filter(Boolean).join("&");
+  return `../${page.file}${tablet ? "_tablet" : ""}.html${q ? `?${q}` : ""}`;
+}
+
 export function previewUrl(name, tablet) {
   const page = SITE_PAGES.find(p => key(p.name) === key(name));
-  return page ? `../${page.file}${tablet ? "_tablet" : ""}.html?preview=1` : null;
+  return page ? sitePageUrl(page, tablet, true) : null;
 }
 
 // 토큰(관리자 로그인, 1시간 유효)을 같은 사이트 저장소에 남기면 공개 페이지가 '사이트에 반영' 전 내용을 읽는다.

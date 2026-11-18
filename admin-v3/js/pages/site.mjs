@@ -1,5 +1,5 @@
 import { el, btn, hint, panel, tabBox, headActions } from "../../../admin-v2/js/ui.mjs";
-import { SITE_PAGES } from "../../../admin/js/preview.mjs";
+import { SITE_PAGES, sitePageUrl } from "../../../admin/js/preview.mjs";
 import { modal } from "../v3.mjs";
 import { menuEditor, deptTabsEditor } from "./site-menu.mjs";
 
@@ -11,6 +11,7 @@ const PAGES = [
   { name: "메뉴", menu: true },
   { ...page("전체 수업"), go: "#/roadmap" },
   { ...page("학과별 자료"), edit: "depts" },
+  { ...page("강사별 커리큘럼"), go: "#/instructors" },
   { ...page("학과 커리큘럼"), edit: "tabs" },
   { ...page("특강/세미나"), go: "#/seminars" },
   { ...page("수업별 준비물"), go: "#/materials" },
@@ -100,7 +101,7 @@ export async function render(container, ctx) {
     // 미리보기 표시는 이 탭 저장소에 남아 다음 페이지에도 이어지므로, 공개본을 볼 때는 지운다.
     else try { sessionStorage.removeItem("comsw_preview"); } catch { /* 저장소 막힘 */ }
     frame.classList.toggle("tablet", tablet);
-    frame.src = `../${sel.file}${tablet ? "_tablet" : ""}.html${preview ? "?preview=1" : ""}`;
+    frame.src = sitePageUrl(sel, tablet, preview);
     stage.replaceChildren(...(hidden && preview ? [hint("사이트에 숨겨 둔 페이지라 공개본에는 '준비 중입니다'만 보입니다. 지금 설정된 모습을 미리보기로 보여 줍니다.", "warn")] : []), frame);
   }
   container.append(el("div", { className: "v3-sitegrid" }, [

@@ -4,10 +4,10 @@ import { canManage } from "./roles.mjs";
 export const NAV = [
   { id: "dashboard", label: "대시보드", manage: true, ready: true },
   { id: "settings", label: "기본 설정", manage: true, ready: true, site: "메인" },
-  { id: "instructors", label: "강사 관리", manage: true, ready: true, site: "학과별 자료" },
+  { id: "instructors", label: "강사 관리", manage: true, ready: true, site: "강사별 커리큘럼" },
   { id: "departments", label: "학과 관리", manage: true, ready: true, site: "학과별 자료" },
   { id: "curriculum-admin", label: "커리큘럼 관리", manage: true, ready: true, site: "학과 커리큘럼" },
-  { id: "curricula", label: "강사 커리큘럼", manage: true, ready: true, site: "학과별 자료" },
+  { id: "curricula", label: "강사 커리큘럼", manage: true, ready: true, site: "강사별 커리큘럼" },
   { id: "roadmap", label: "로드맵", manage: true, ready: true, site: "전체 수업" },
   { id: "prep", label: "수업별 준비물", manage: true, ready: true, site: "수업별 준비물" },
   { id: "seminars", label: "특강·세미나", manage: true, ready: true, site: "특강/세미나" },

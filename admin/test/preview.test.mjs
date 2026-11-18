@@ -7,8 +7,9 @@ test("메뉴 이름·기기로 미리보기 주소를 만든다", () => {
   assert.equal(previewUrl("특강/세미나", true), "../seminar_tablet.html?preview=1");
   assert.equal(previewUrl(" 방학특강 ", false), "../vacation.html?preview=1", "띄어쓰기 달라도");
   assert.equal(previewUrl("새 메뉴", false), null);
+  assert.equal(previewUrl("강사별 커리큘럼", true), "../Curriculum_full_tablet.html?view=instructors&preview=1");
   assert.deepEqual(SITE_PAGES.map(p => p.name),
-    ["메인", "전체 수업", "학과별 자료", "학과 커리큘럼", "특강/세미나", "수업별 준비물", "방학 특강"]);
+    ["메인", "전체 수업", "학과별 자료", "강사별 커리큘럼", "학과 커리큘럼", "특강/세미나", "수업별 준비물", "방학 특강"]);
 });
 
 test("새 탭을 먼저 열고(팝업 차단 방지) 토큰을 남긴 뒤 주소로 보낸다", async () => {

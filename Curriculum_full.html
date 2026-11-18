@@ -2857,7 +2857,7 @@
 
     const weeks = data.weeks || [];
     if (weeks.length === 0) {
-      box.innerHTML = '<div class="curriculum-box-empty">등록된 커리큘럼이 없습니다.</div>';
+      box.innerHTML = '<div class="curriculum-box-empty">준비 중입니다.</div>';
       return;
     }
 
@@ -4614,26 +4614,8 @@
       return records;
     }
 
-    function buildInstructorSubjectMap(records) {
-      const map = {};
-      (records || []).forEach(function(record) {
-        const instKey = curriculumMatchKey(record.instructor);
-        if (!instKey || !record.subjectName) return;
-        if (!map[instKey]) map[instKey] = [];
-        map[instKey] = mergeSubjectLists(map[instKey], [record.subjectName]);
-      });
-      return map;
-    }
-
     async function getInstructorListFromSupabase(deptName) {
       const rows = await fetchSupabaseRowsForSheet(INSTRUCTOR_SHEET_NAME);
-      let subjectsByInstructor = {};
-      try {
-        const curriculumRows = await fetchSupabaseRowsForSheet(deptName, getSupabaseSourceId('instructorCurriculum'));
-        subjectsByInstructor = buildInstructorSubjectMap(buildInstructorCurriculumRecords(curriculumRows));
-      } catch (err) {
-        console.warn('강사별 커리큘럼 과목 목록 로드 실패:', err);
-      }
       const targetDeptKey = normalizeText(deptName).replace(/\s+/g, '');
       const instructors = [];
 
@@ -4641,7 +4623,7 @@
         const values = getRawValues(row);
         const name = normalizeText(values[0]);      // A열
         const depts = splitMultiValue(values[1]);   // B열
-        const subjects = splitMultiValue(values[2]); // C열, 정적 테스트에서는 이 값을 사용
+        const subjects = splitMultiValue(values[2]); // C열 = 담당 과목
         const career = normalizeText(values[3]);    // D열
         const message = normalizeText(values[4]);   // E열
         const img = normalizeText(values[5]);       // F열
@@ -4652,12 +4634,10 @@
         });
         if (!matched) return;
 
-        const externalSubjects = subjectsByInstructor[curriculumMatchKey(name)] || [];
-
         instructors.push({
           name: name,
           depts: depts,
-          subjects: externalSubjects.length ? externalSubjects : subjects,
+          subjects: subjects, // 2026-11-18: 담당 과목(수업 설정)과 같게. 커리큘럼이 없는 과목은 누르면 '준비 중입니다'
           career: career,
           message: message,
           img: img ? convertDriveUrl(img) : ''
@@ -5170,6 +5150,12 @@
       currentSlideIndex = 0;
       
       const engHeader = curriculumData.engHeader || '';
+
+      // 🎯 2026-11-18: 강사 소개는 따로 메뉴('강사별 커리큘럼' = 이 페이지 ?view=instructors). 학과별 자료에서는 뺀다.
+      const instructorsView = new URLSearchParams(location.search).get('view') === 'instructors';
+      categoryList = instructorsView
+        ? [{ name: '학과 강사소개' }]
+        : categoryList.filter(function(c) { return c.name !== '학과 강사소개'; });
       
       // W열 순서대로 카테고리 처리
       categoryList.forEach(category => {

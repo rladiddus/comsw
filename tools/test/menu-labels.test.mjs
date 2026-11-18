@@ -1,7 +1,7 @@
 // 메뉴 이름 고치기(20261118010000): '메인 페이지' 메뉴 행 K열(10) = menus.label, 없으면 빈 칸. E열(원래 이름)은 그대로.
 import test from "node:test";
 import assert from "node:assert/strict";
-import { seeded, as } from "./pg.mjs";
+import { seeded, as, freshDb, runMigration } from "./pg.mjs";
 
 const menuRows = async (db) => {
   await as(db, null);
@@ -24,4 +24,13 @@ test("직접 실행 막힘", async () => {
   const db = await seeded();
   await as(db, "anon");
   await assert.rejects(db.query(`select comsw_build_rows_before_menu_labels()`), /permission/);
+});
+
+test("강사별 커리큘럼 메뉴(20261118020000): 켜진 채 오른쪽 맨 끝, 다시 실행해도 한 줄", async () => {
+  const db = await freshDb("20261118020000");
+  await db.query(`insert into menus (name, side, sort_order) values ('전체 수업', 'left', 1), ('특강/세미나', 'right', 2)`);
+  await runMigration(db, "20261118020000_instructor_menu.sql");
+  await runMigration(db, "20261118020000_instructor_menu.sql");
+  const { rows } = await db.query(`select is_active, side, sort_order from menus where name = '강사별 커리큘럼'`);
+  assert.deepEqual(rows, [{ is_active: true, side: "right", sort_order: 3 }]);
 });

@@ -32,7 +32,7 @@ export async function render(container, { supabase, categories = true }) {
     supabase,
     table: "site_categories",
     title: "카테고리",
-    description: "학과별 자료 화면의 순서입니다. 사이트는 이 이름으로 화면을 고릅니다: 커리큘럼, 학과 강사소개, 채용정보, 취업 프로세스",
+    description: "학과별 자료 화면의 순서입니다. 사이트는 이 이름으로 화면을 고릅니다: 커리큘럼, 채용정보, 취업 프로세스(학과 강사소개는 2026-11-18부터 '강사별 커리큘럼' 메뉴 페이지로 옮겨 여기서는 나오지 않습니다)",
     columns: [
       { key: "name", label: "이름", type: "text", required: true },
       { key: "is_active", label: "사용", type: "checkbox" },

@@ -5,15 +5,24 @@ export function validateImage(file) {
   if (!file || !["image/png", "image/jpeg", "image/webp"].includes(file.type)) {
     throw new Error("PNG·JPG·WEBP 이미지를 선택해주세요");
   }
-  if (file.size <= 0 || file.size > 10 * 1024 * 1024) {
-    throw new Error("이미지는 10MB 이하로 올려주세요");
+  // 2026-11-18: 20MB까지(사용자 요청). 브라우저에서 줄여 서버(10MB 제한)에는 작은 WebP로 보낸다.
+  if (file.size <= 0 || file.size > 20 * 1024 * 1024) {
+    throw new Error("이미지는 20MB 이하로 올려주세요");
   }
 }
 
 // 올리기 전에 브라우저에서 긴 변을 줄이고 WebP로 바꾼다. 서버 함수는 CPU 약 2초 제한이라
 // 휴대폰 사진(1200만 화소)을 서버에서 바꾸면 중간에 끊겨 '요청에 실패했습니다'가 났다(서버는 WebP면 그대로 저장).
 // 썸네일 영역('#crop=')은 비율이라 줄여도 그대로 맞는다. 브라우저가 못 하면 원본을 보낸다.
-const MAX_SIDE = { image: 1920, curriculum: 2560 };
+// 2026-11-18: 커리큘럼은 긴 변 대신 화소 수(800만)로 줄인다 — 웹툰처럼 아주 긴 세로 이미지(2000×9144)가 긴 변 기준이면
+// 폭 560px로 뭉개진다. WebP는 한 변 16383px까지라 그것도 넘지 않게.
+// (11-18 고침) toBlob은 값을 돌려주지 않아 예전 `toBlob?.(…) ?? done(null)`은 늘 바로 null → 줄이지 못하고 원본을 보냈고,
+// 큰 이미지는 서버가 바꾸다 CPU 한도에 걸려 '요청에 실패했습니다'가 났다.
+const MAX_SIDE = { image: 1920, curriculum: 16383 };
+const MAX_PIXELS = { curriculum: 8_000_000 };
+const toBlob = (canvas, type, quality) => new Promise((done) => {
+  if (typeof canvas.toBlob === "function") canvas.toBlob(done, type, quality); else done(null);
+});
 export async function shrinkImage(file, kind) {
   const max = MAX_SIDE[kind];
   if (!max || typeof createImageBitmap !== "function") return file;
@@ -23,17 +32,17 @@ export async function shrinkImage(file, kind) {
   } catch {
     return file;
   }
-  const scale = Math.min(1, max / Math.max(bitmap.width, bitmap.height));
+  const scale = Math.min(1, max / Math.max(bitmap.width, bitmap.height),
+    Math.sqrt((MAX_PIXELS[kind] ?? Infinity) / (bitmap.width * bitmap.height)));
   if (scale === 1 && file.type === "image/webp") return file;
   const canvas = document.createElement("canvas");
   canvas.width = Math.round(bitmap.width * scale);
   canvas.height = Math.round(bitmap.height * scale);
   canvas.getContext("2d")?.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
   bitmap.close?.();
-  const blob = await new Promise((done) => canvas.toBlob?.(done, "image/webp", 0.85) ?? done(null));
+  const blob = await toBlob(canvas, "image/webp", 0.85);
   // WebP로 못 바꾸는 브라우저면(예전 Safari) 줄인 것만이라도 JPG로.
-  const out = blob?.type === "image/webp" ? blob
-    : await new Promise((done) => canvas.toBlob?.(done, "image/jpeg", 0.9) ?? done(null));
+  const out = blob?.type === "image/webp" ? blob : await toBlob(canvas, "image/jpeg", 0.9);
   if (!out || (scale === 1 && out.size >= file.size)) return file;
   const ext = out.type === "image/webp" ? "webp" : "jpg";
   return new File([out], String(file.name || "image").replace(/\.[^.]*$/, "") + "." + ext, { type: out.type });
@@ -62,7 +71,7 @@ export function mountImageUpload(
   button.textContent = label;
   const hint = document.createElement("span");
   hint.className = "muted";
-  hint.textContent = "또는 여기에 끌어다 놓기 · 최대 10MB";
+  hint.textContent = "또는 여기에 끌어다 놓기 · 최대 20MB";
   const state = document.createElement("p");
   state.className = "save-state";
   state.setAttribute("role", "status");

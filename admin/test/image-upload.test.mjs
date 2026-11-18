@@ -5,11 +5,11 @@ import { mountImageUpload, validateImage } from "../js/image-upload.mjs";
 const dom = new JSDOM("<body></body>");
 globalThis.document = dom.window.document;
 const flush = () => new Promise((r) => setTimeout(r, 10));
-test("이미지 형식과 10MB 제한", () => {
+test("이미지 형식과 20MB 제한", () => {
   assert.throws(() => validateImage({ type: "text/html", size: 100 }), /PNG/);
   assert.throws(
-    () => validateImage({ type: "image/png", size: 11 * 1024 * 1024 }),
-    /10MB/,
+    () => validateImage({ type: "image/png", size: 21 * 1024 * 1024 }),
+    /20MB/,
   );
   assert.doesNotThrow(() => validateImage({ type: "image/png", size: 500 }));
 });
@@ -82,7 +82,7 @@ test("커리큘럼은 썸네일 영역을 고르면 원본을 올리고 주소 �
   assert.equal(sent, null);
 });
 
-test("올리기 전에 브라우저에서 줄이고 WebP로: 커리큘럼은 긴 변 2560px, 일반 이미지는 1920px, 원본 이름은 .webp로", async () => {
+test("올리기 전에 브라우저에서 줄이고 WebP로: 커리큘럼은 800만 화소, 일반 이미지는 긴 변 1920px, 원본 이름은 .webp로", async () => {
   const { shrinkImage } = await import("../js/image-upload.mjs");
   const drawn = [];
   globalThis.createImageBitmap = async (f) => ({ width: f.w, height: f.h, close() {} });
@@ -90,13 +90,17 @@ test("올리기 전에 브라우저에서 줄이고 WebP로: 커리큘럼은 긴
   document.createElement = (tag) => {
     if (tag !== "canvas") return real(tag);
     const c = { getContext: () => ({ drawImage: (_b, _x, _y, w, h) => drawn.push([w, h]) }),
-      toBlob: (done, type) => done(new Blob(["x"], { type })) };
+      // 실제 브라우저처럼 나중에 부른다(바로 부르는 가짜 때문에 '늘 원본을 보냄' 버그를 놓쳤었다).
+      toBlob(done, type) { setTimeout(() => done(new Blob(["x"], { type })), 0); } };
     return c;
   };
   try {
     const photo = Object.assign(new File(["y".repeat(100)], "사진.JPG", { type: "image/jpeg" }), { w: 3024, h: 4032 });
     const out = await shrinkImage(photo, "curriculum");
-    assert.deepEqual(drawn.at(-1), [1920, 2560]);
+    assert.deepEqual(drawn.at(-1), [2449, 3266], "3024×4032(1219만) → 800만 화소");
+    const strip = Object.assign(new File(["y"], "웹툰.jpg", { type: "image/jpeg" }), { w: 2000, h: 9144 });
+    await shrinkImage(strip, "curriculum");
+    assert.deepEqual(drawn.at(-1), [1323, 6048], "긴 세로 웹툰도 폭이 너무 줄지 않게");
     assert.equal(out.type, "image/webp");
     assert.equal(out.name, "사진.webp");
     await shrinkImage(photo, "image");

@@ -18,13 +18,18 @@ export const aiText = (list) => list.map((x) => (x.link ? `${x.name} | ${x.link}
 // 링크는 http(s)만: 다른 형식(javascript: 등)은 버리고, 형식이 없으면 https://를 붙인다(승인 SQL·공개 사이트와 같은 규칙).
 export const safeLink = (link) => { const u = String(link ?? "").trim(); return /^https?:\/\//i.test(u) ? u : /^[a-z][a-z0-9+.-]*:/i.test(u) ? "" : u ? `https://${u}` : ""; };
 
+// 글 → 목록
+const listOf = (values = {}) => [
+  ...splitPrep(values.supply).map((text) => ({ cat: "supply", text })),
+  ...splitPrep(values.textbook).map((text) => ({ cat: "textbook", text })),
+  ...aiTools(values.ai).map((x) => ({ cat: "ai", text: x.name, link: x.link })),
+];
+
 // values = { supply, textbook, ai } (글), none = 처음 '없음' 체크
+// 2026-11-18: 항목 옆 ◆ = 고치기(입력칸에 넣고 [추가]가 [수정]으로), set() = 다른 과목 준비물로 바꾸기('1과 같음').
 export function prepItems({ values = {}, none = false, cats = true, label = "준비물" } = {}) {
-  let list = [
-    ...splitPrep(values.supply).map((text) => ({ cat: "supply", text })),
-    ...splitPrep(values.textbook).map((text) => ({ cat: "textbook", text })),
-    ...aiTools(values.ai).map((x) => ({ cat: "ai", text: x.name, link: x.link })),
-  ];
+  let list = listOf(values);
+  let editing = null; // ◆로 고치는 중인 항목
   const noneBox = el("input", { type: "checkbox", checked: none });
   noneBox.setAttribute("aria-label", `${label} 없음`);
   const cat = el("select", {}, PREP_CATS.map(([k, t]) => el("option", { value: k, textContent: t, disabled: !cats && k !== "supply" })));
@@ -47,35 +52,56 @@ export function prepItems({ values = {}, none = false, cats = true, label = "준
     link.hidden = !isAi();
     text.placeholder = isAi() ? "AI 도구 이름(예: ChatGPT)" : "예: 멘토시리즈 포토샵, 이어폰";
     box.replaceChildren(...(noneBox.checked ? [el("small", { className: "muted", textContent: "준비물 없음" })]
-      : list.length ? list.map((it) => el("span", { className: "prep-chip" }, [
+      : list.length ? list.map((it) => el("span", { className: `prep-chip${it === editing ? " editing" : ""}` }, [
         el("b", { textContent: PREP_CATS.find(([k]) => k === it.cat)[1] }), el("span", { textContent: it.text }),
         ...(safeLink(it.link) ? [el("a", { href: safeLink(it.link), target: "_blank", rel: "noopener", textContent: "링크" })] : []),
-        Object.assign(el("button", { type: "button", className: "prep-x", textContent: "−", title: `${it.text} 빼기` }), { onclick: () => { list = list.filter((x) => x !== it); draw(); } }),
+        Object.assign(el("button", { type: "button", className: "prep-x prep-edit", textContent: "◆", title: `${it.text} 고치기` }), { onclick: () => edit(it) }),
+        Object.assign(el("button", { type: "button", className: "prep-x", textContent: "−", title: `${it.text} 빼기` }), { onclick: () => { list = list.filter((x) => x !== it); if (editing === it) stopEdit(); draw(); } }),
       ])) : [el("small", { className: "muted", textContent: "분류를 고르고 내용을 적은 뒤 [추가]를 누르세요." })]));
   };
-  // 적어 둔 것: 물품·교재는 쉼표로 여러 개, AI 도구는 이름 하나 + 링크. 이미 있는 항목(띄어쓰기·대소문자 무시)은 건너뜀.
+  // 적어 둔 것: 물품·교재는 쉼표로 여러 개, AI 도구는 이름 하나 + 링크. 이미 있는 항목(띄어쓰기·대소문자 무시)은 건너뜀(고치는 중인 항목은 빼고 비교).
   const pending = () => (isAi()
     ? (text.value.trim() ? [{ cat: "ai", text: text.value.trim(), link: safeLink(link.value) }] : [])
     : splitPrep(text.value).map((t) => ({ cat: cat.value, text: t })))
-    .filter((x, i, all) => !list.some((y) => key(y.text) === key(x.text)) && all.findIndex((y) => key(y.text) === key(x.text)) === i);
+    .filter((x, i, all) => !list.some((y) => y !== editing && key(y.text) === key(x.text)) && all.findIndex((y) => key(y.text) === key(x.text)) === i);
+  const stopEdit = () => { editing = null; add.textContent = "추가"; };
+  function edit(it) {
+    editing = it;
+    cat.value = it.cat; text.value = it.text; link.value = it.link ?? "";
+    add.textContent = "수정";
+    draw();
+    text.focus?.();
+  }
   const push = () => {
-    list.push(...pending());
+    const items = pending();
+    if (editing) {
+      // 고치기: 그 자리에 바꿔 넣는다(비우고 [수정]이면 뺀다).
+      list.splice(list.indexOf(editing), 1, ...items);
+      stopEdit();
+    } else list.push(...items);
     text.value = ""; link.value = "";
     draw();
     text.focus?.();
   };
+  const set = (next, isNone = false) => {
+    list = isNone ? [] : listOf(next);
+    noneBox.checked = isNone;
+    stopEdit(); text.value = ""; link.value = "";
+    draw();
+  };
   add.addEventListener("click", push);
   [text, link].forEach((x) => x.addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); push(); } }));
   cat.addEventListener("change", draw);
-  noneBox.addEventListener("change", () => { if (noneBox.checked) list = []; draw(); });
+  noneBox.addEventListener("change", () => { if (noneBox.checked) { list = []; stopEdit(); } draw(); });
   draw();
-  // 적었지만 [추가]를 안 누른 글도 값에 넣는다(잊고 저장해도 빠지지 않게).
+  // 적었지만 [추가]·[수정]을 안 누른 글도 값에 넣는다(잊고 저장해도 빠지지 않게).
   const value = () => {
     if (noneBox.checked) return { supply: null, textbook: null, ai: null };
-    const all = [...list, ...pending()];
+    const typed = pending();
+    const all = editing && typed.length ? list.flatMap((x) => (x === editing ? typed : [x])) : [...list, ...typed];
     const of = (k) => all.filter((x) => x.cat === k);
     return { supply: of("supply").map((x) => x.text).join(", ") || null, textbook: of("textbook").map((x) => x.text).join(", ") || null,
       ai: aiText(of("ai").map((x) => ({ name: x.text, link: x.link }))) };
   };
-  return { node, value, none: noneBox };
+  return { node, value, none: noneBox, set };
 }

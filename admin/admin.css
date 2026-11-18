@@ -587,3 +587,6 @@ dialog.roadmap-source::backdrop { background:rgba(0,0,0,.45); }
 .prep-chip { display:inline-flex; align-items:center; gap:6px; padding:4px 6px 4px 10px; border:1px solid var(--line); border-radius:999px; background:#fff; font-size:13px; }
 .prep-chip b { color:var(--accent); font-size:12px; }
 .prep-x { width:20px; height:20px; padding:0; border:0; border-radius:50%; background:#f1f1f1; line-height:20px; cursor:pointer; }
+.prep-edit { font-size:10px; color:var(--accent); }
+.prep-chip.editing { border-color:var(--accent); box-shadow:0 0 0 2px #ff6a0026; }
+.prep-head .prep-copy { margin-left:auto; padding:4px 10px; font-size:12px; font-weight:600; }

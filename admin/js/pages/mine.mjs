@@ -282,6 +282,26 @@ export async function render(container, ctx, { tab, as } = {}) {
         none: Boolean(saved) && !saved.supplies && !saved.textbook && !saved.ai,
         cats: hasCats,
       });
+      // '1과 같음'(2026-11-18): 이름 끝 숫자만 다른 과목(AI웹툰2·3… → AI웹툰1)의 준비물을 그대로 가져온다.
+      // 그 과목 탭을 열어 고친 중이면 그 내용, 아니면 저장된 준비물.
+      const numbered = subject.name.match(/^(.*?)\s*(\d+)$/);
+      const flat = (n) => n.replace(/\s+/g, "");
+      const first = numbered && numbered[2] !== "1" &&
+        [...subjects, ...months].find((x) => x.id !== subject.id && flat(x.name) === flat(`${numbered[1]}1`));
+      if (first) {
+        const copy = el("button", { type: "button", className: "ghost-btn prep-copy", textContent: `${first.name}과 같음` });
+        copy.title = `'${first.name}'의 준비물을 그대로 가져옵니다`;
+        copy.addEventListener("click", () => {
+          const open = panels.get(first.id);
+          const s = materials.find((m) => m.subject_id === first.id);
+          const none = open ? open.prep.none.checked : Boolean(s) && !s.supplies && !s.textbook && !s.ai;
+          const v = open ? open.prep.value() : { supply: s?.supplies, textbook: s?.textbook, ai: s?.ai };
+          if (!none && !v.supply && !v.textbook && !v.ai) { setState(`'${first.name}'에 적은 준비물이 없습니다`, true); return; }
+          prep.set(v, none);
+          setState(`'${first.name}'의 준비물을 가져왔습니다. 고칠 것이 있으면 고친 뒤 제출해주세요.`);
+        });
+        prep.node.querySelector(".prep-head").append(copy);
+      }
       panel.append(el("div", { className: "form-row materials-row" }, [
         el("label", { className: "form-field" }, [el("span", { textContent: "사용 프로그램" }), tools]),
         el("div", { className: "form-field" }, [prep.node]),

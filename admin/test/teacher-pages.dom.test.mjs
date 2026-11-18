@@ -532,6 +532,21 @@ test("+ 개월 추가: '웹툰1' 탭에서 누르면 '웹툰2' 탭이 열리고,
     "새 달 과목 만들기도 같은 제출 한 번에");
 });
 
+test("준비물 '웹툰1과 같음'(11-18): 웹툰2 탭에서 누르면 웹툰1 준비물(저장된 것, 열어서 고친 중이면 그 내용)을 가져온다", async () => {
+  const data = tables();
+  data.subjects = [{ id: "w1", name: "웹툰1" }, { id: "w2", name: "웹툰 2" }];
+  data.subject_departments = [{ subject_id: "w1", department_id: "dept" }, { subject_id: "w2", department_id: "dept" }];
+  data.instructor_subjects = [{ instructor_id: "me", subject_id: "w1", sort_order: 0 }, { instructor_id: "me", subject_id: "w2", sort_order: 1 }];
+  data.instructor_subject_materials = [{ instructor_id: "me", subject_id: "w1", tools: "", supplies: "타블렛", textbook: null, ai: null }];
+  const { c } = await setup("mine", data, { v3: true });
+  tabButton(c, "write").click();
+  const panel = () => c.querySelector(".subject-panel:not([hidden])");
+  assert.ok(!findButton(panel(), "웹툰1과 같음"), "1번 과목에는 없음");
+  [...c.querySelectorAll(".subject-tabs button")].find((b) => b.textContent === "웹툰 2").click();
+  findButton(panel(), "웹툰1과 같음").click();
+  assert.deepEqual([...panel().querySelectorAll(".prep-chip > span")].map((x) => x.textContent), ["타블렛"]);
+});
+
 test("수업 설정: 학과 과목은 연결한 순서가 아니라 학과 관리와 같은 전체수업 순서", async () => {
   const data = withAi();
   data.subjects.find((s) => s.id === "subject").sort_order = 5; // 웹1이 나중 순서
@@ -595,7 +610,7 @@ test("내 커리큘럼: 준비물은 분류(물품·교재·AI 도구)를 골라
   tabButton(c, "write").click();
   const panel = c.querySelector(".subject-panel:not([hidden])");
   const q = (l) => panel.querySelector(`[aria-label="${l}"]`);
-  const chips = () => [...panel.querySelectorAll(".prep-chip")].map((x) => x.textContent.replace("−", ""));
+  const chips = () => [...panel.querySelectorAll(".prep-chip")].map((x) => x.textContent.replace(/[−◆]/g, ""));
   assert.deepEqual(chips(), ["물품이어폰"], "저장해 둔 물품");
   assert.deepEqual([...q("준비물 분류").options].map((o) => o.textContent), ["물품", "교재", "AI 도구"]);
   q("준비물 분류").value = "textbook"; q("준비물 내용").value = "웹 교재, 이어폰";

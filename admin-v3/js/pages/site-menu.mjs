@@ -186,6 +186,6 @@ export async function deptTabsEditor(container, { supabase }) {
       el("span", { className: "v3-tablabel", textContent: "아랫줄" }), boxes[1],
     ]),
     el("div", { className: "v2-actions v2-end", style: "margin-top:12px" }, [say, save]),
-    el("p", { className: "muted", textContent: "학과 탭을 끌어 윗줄·아랫줄과 순서를 바꿉니다. 놓을 자리는 점선으로 보입니다. 학과 순서는 학과별 자료·학과 드롭다운 순서와 같습니다. 사용 체크를 끈 학과는 나오지 않습니다(기본 설정 › 학과별 자료)." }),
+    el("p", { className: "muted", textContent: "학과 탭을 끌어 윗줄·아랫줄과 순서를 바꿉니다. 놓을 자리는 점선으로 보입니다. 학과 순서는 '학과별 자료'·학과 드롭다운 순서와 같습니다. 사용 체크를 끈 학과는 나오지 않습니다(기본 설정 › '학과별 자료')." }),
   );
 }

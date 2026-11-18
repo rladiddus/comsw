@@ -10,6 +10,7 @@ import { SITE_PAGES, previewUrl, openPreview } from "../../admin/js/preview.mjs"
 import { configureServices, createServices } from "../../admin/js/services.mjs";
 import { usePage, sortable, savedOrder } from "./v3.mjs";
 import { keepScroll } from "../../admin/js/keep-scroll.mjs";
+import { siteNames } from "../../admin/js/site-names.mjs";
 
 const page = (file) => () => import(`./pages/${file}.mjs`);
 
@@ -176,6 +177,7 @@ async function route() {
 export function startApp({ role, email, uid, displayName }) {
   session = { role, email, uid, displayName };
   keepScroll(); // 스크롤은 사용자가 움직일 때만(다시 그려져도 위치 유지)
+  siteNames(supabase).catch(() => {}); // 안내 문구 속 사이트 메뉴 이름 = 고친 메뉴 이름
   const cfg = window.COMSW_SUPABASE_CONFIG;
   configureServices(createServices({ ...cfg, getToken: () => auth.currentUser?.getIdToken() }));
   $("#loginWrap").hidden = true;

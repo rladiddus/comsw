@@ -8,6 +8,7 @@ import { auth } from "./firebase.mjs";
 import { SITE_PAGES, previewUrl, openPreview } from "./preview.mjs";
 import { configureServices, createServices } from './services.mjs';
 import { keepScroll } from './keep-scroll.mjs';
+import { siteNames } from './site-names.mjs';
 
 const $ = sel => document.querySelector(sel);
 const PAGES = {
@@ -58,7 +59,7 @@ function addPagePreview(content, site) {
   const row = document.createElement("div");
   row.className = "page-title-row";
   title.replaceWith(row);
-  row.append(title, button(`미리보기 · ${site}`, false), button("태블릿", true));
+  row.append(title, button(`미리보기 · '${site}'`, false), button("태블릿", true));
 }
 
 async function refreshPublished() {
@@ -105,6 +106,7 @@ async function route() {
 
 export function startApp({ role, email, uid, displayName }) {
   keepScroll(); // 스크롤은 사용자가 움직일 때만(다시 그려져도 위치 유지)
+  siteNames(supabase).catch(() => {}); // 안내 문구 속 사이트 메뉴 이름 = 고친 메뉴 이름
   session = { role, email, uid, displayName };
   const cfg = window.COMSW_SUPABASE_CONFIG;
   configureServices(createServices({ ...cfg, getToken: () => auth.currentUser?.getIdToken() }));

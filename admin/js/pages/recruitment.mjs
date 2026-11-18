@@ -20,7 +20,7 @@ export async function render(container, { supabase }) {
       mountTableEditor(section, {
         supabase,
         table: "recruitment_posts",
-        description: "사이트 학과별 자료의 '채용정보' 화면에는 회사명·근무형태·자격요건·업무내용·급여가 나옵니다.",
+        description: "사이트 '학과별 자료'의 '채용정보' 화면에는 회사명·근무형태·자격요건·업무내용·급여가 나옵니다.",
         filter: q => q.eq("department_id", departmentId),
         defaults: { department_id: departmentId },
         columns: COLUMNS,

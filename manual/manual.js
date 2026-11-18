@@ -81,4 +81,20 @@
       if (zoom.close) zoom.close(); else zoom.removeAttribute('open');
     }
   });
+  // 사이트 메뉴 이름을 고쳤으면(기본 설정 › 메뉴, '사이트에 반영' 뒤) 매뉴얼 속 이름도 고친 이름으로(2026-11-18, 관리 화면과 같은 규칙).
+  var cfg = document.createElement('script');
+  cfg.src = '../assets/js/supabase-config.js';
+  cfg.onload = function () {
+    var c = window.COMSW_SUPABASE_CONFIG;
+    if (!c) return;
+    Promise.all([
+      fetch(c.url + '/rest/v1/rpc/comsw_site_rows', {
+        method: 'POST',
+        headers: { apikey: c.anonKey, Authorization: 'Bearer ' + c.anonKey, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ p_sheet: '메인 페이지', p_source: 'main' })
+      }).then(function (r) { return r.json(); }),
+      import('../admin/js/site-names.mjs')
+    ]).then(function (a) { a[1].renameTree(document.body, a[1].labelsFromRows(a[0])); }).catch(function () {});
+  };
+  document.head.appendChild(cfg);
 })();

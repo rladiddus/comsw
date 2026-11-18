@@ -125,7 +125,7 @@
         <li class="step">
           <div class="step-head"><h3>사이트에 강사 소개 보이게 하기</h3><span class="who h">학과장·관리자</span></div>
           <div class="path"><b>강사 관리</b> › <b>강사</b></div>
-          <p>강사 카드의 <strong>'사이트 표시'</strong>를 체크해야 사이트 '학과별 자료'의 강사소개에 나옵니다. 왼쪽 ⠿를 끌어 순서를 정합니다. 위에서 학과·과목·이름으로 찾을 수 있습니다.</p>
+          <p>강사 카드의 <strong>'사이트 표시'</strong>를 체크해야 사이트 '강사별 커리큘럼' 메뉴(강사 소개)에 나옵니다. 강의 과목은 수업 설정의 담당 과목 그대로이고, 커리큘럼이 아직 없는 과목은 누르면 '준비 중입니다'가 나옵니다. 왼쪽 ⠿를 끌어 순서를 정합니다. 위에서 학과·과목·이름으로 찾을 수 있습니다.</p>
           <button class="shot" type="button"><img src="img/instructors.png" alt="강사 관리 강사 화면" loading="lazy"></button>
         </li>
         <li class="step">
@@ -371,7 +371,7 @@
           <div class="path"><b>학과 관리</b> › <b>학과</b></div>
           <ul>
             <li><strong>학과 카드</strong>: 학과명·영문명(커리큘럼 제목에 쓰임)·소개 문구·대표 이미지. '사용'에 체크한 학과만 사이트 학과 목록에 나오고, ⠿로 순서를 바꿉니다. 학과를 지우면 그 학과의 채용 공고와 과목·강사 연결도 함께 지워지니 경고 문구를 꼭 확인하세요.</li>
-            <li><strong>카테고리</strong>: 학과별 자료에서 보여 줄 화면과 순서입니다(커리큘럼, 학과 강사소개, 채용정보, 취업 프로세스). 사이트가 이 이름으로 화면을 찾으므로 이름은 그대로 두고 '사용'과 순서(↑↓)만 바꿔 주세요.</li>
+            <li><strong>카테고리</strong>: 학과별 자료에서 보여 줄 화면과 순서입니다(커리큘럼, 채용정보, 취업 프로세스. 학과 강사소개는 '강사별 커리큘럼' 메뉴로 옮겨 여기서는 나오지 않습니다). 사이트가 이 이름으로 화면을 찾으므로 이름은 그대로 두고 '사용'과 순서(↑↓)만 바꿔 주세요.</li>
           </ul>
           <button class="shot" type="button"><img src="img/departments.jpg" alt="학과 관리 학과와 카테고리" loading="lazy"></button>
         </li>
@@ -403,7 +403,8 @@
           <table class="terms">
             <tr><th>사이트 페이지</th><td>나오는 내용 · 고치는 메뉴</td></tr>
             <tr><th>메인</th><td>배경 미디어·메뉴·로딩 화면 — 기본 설정</td></tr>
-            <tr><th>학과별 자료</th><td>강사소개(강사 관리), 학과 탭별 강사 커리큘럼(강사 커리큘럼·신청 과목), 과목 단계 카드(학과 커리큘럼 › 단계), 채용 공고</td></tr>
+            <tr><th>강사별 커리큘럼</th><td>학과별 강사소개(강사 관리·수업 설정 담당 과목), 강사 과목을 누르면 강사 커리큘럼(강사 커리큘럼·신청 과목)</td></tr>
+            <tr><th>학과별 자료</th><td>과목 단계 카드(학과 커리큘럼 › 단계), 채용 공고</td></tr>
             <tr><th>학과 커리큘럼</th><td>학과별 커리큘럼 요약·프로그램·준비물·학습 수준 — 커리큘럼 관리</td></tr>
             <tr><th>전체 수업</th><td>로드맵과 과목 단계 — 로드맵, 학과 커리큘럼</td></tr>
             <tr><th>수업별 준비물</th><td>교재·준비물·AI 툴 — 수업별 준비물</td></tr>
@@ -420,7 +421,7 @@
       <p class="lead">왼쪽 메뉴 순서대로 정리했습니다. 선생님에게는 '내 커리큘럼'과 '내 프로필'만 보입니다.</p>
       <div class="menus">
         <article class="menu"><div><h3>기본 설정 <span class="who h">학과장·관리자</span></h3><div class="tabs-inline"><span>메인 화면</span><span>로딩 화면</span></div><dl><dt>하는 일</dt><dd>사이트 메인 배경 미디어, 하단 메뉴 사용·순서, 로딩 화면, 방학 특강 그룹·배경, 로드맵 로고, AI 설정·이번 달 사용량</dd><dt>사이트</dt><dd>메인, 모든 페이지(메뉴·로딩), 방학 특강</dd></dl></div><button class="shot" type="button"><img src="img/settings.png" alt="기본 설정" loading="lazy"></button></article>
-        <article class="menu"><div><h3>강사 관리 <span class="who h">학과장·관리자</span></h3><div class="tabs-inline"><span>강사</span><span>승인 대기</span><span>계정 연결</span></div><dl><dt>하는 일</dt><dd>강사 카드(사이트 표시·순서·학과·담당 과목), 선생님 프로필 승인, 쌤톡 계정과 강사 정보 연결</dd><dt>사이트</dt><dd>학과별 자료 · 강사소개</dd></dl></div><button class="shot" type="button"><img src="img/instructors.png" alt="강사 관리" loading="lazy"></button></article>
+        <article class="menu"><div><h3>강사 관리 <span class="who h">학과장·관리자</span></h3><div class="tabs-inline"><span>강사</span><span>승인 대기</span><span>계정 연결</span></div><dl><dt>하는 일</dt><dd>강사 카드(사이트 표시·순서·학과·담당 과목), 선생님 프로필 승인, 쌤톡 계정과 강사 정보 연결</dd><dt>사이트</dt><dd>강사별 커리큘럼(강사 소개)</dd></dl></div><button class="shot" type="button"><img src="img/instructors.png" alt="강사 관리" loading="lazy"></button></article>
         <article class="menu"><div><h3>학과 관리 <span class="who h">학과장·관리자</span></h3><div class="tabs-inline"><span>학과</span><span>학과별 과목</span><span>과목 관리</span></div><dl><dt>하는 일</dt><dd>학과 카드(학과명·영문명·소개·이미지·사용·순서), 카테고리(학과별 자료 화면 순서), 학과에 속한 과목과 순서(저장·되돌리기), 과목 쓰임새 보기·승인 전 과목 넣기·안 쓰는 과목 삭제</dd><dt>사이트</dt><dd>메인 학과 목록, 학과별 자료, 전체 수업 순서</dd></dl></div><button class="shot" type="button"><img src="img/departments.jpg" alt="학과 관리" loading="lazy"></button></article>
         <article class="menu"><div><h3>커리큘럼 관리 <span class="who h">학과장·관리자</span></h3><div class="tabs-inline"><span>신청 과목</span><span>학과 커리큘럼</span><span>신규 과목 추가</span><span>기타 과목</span></div><dl><dt>하는 일</dt><dd>선생님 신청 승인·개월 조정, 과목 정보·순서·단계, 새 과목, 학과 없는 과목</dd><dt>사이트</dt><dd>학과 커리큘럼, 전체 수업, 학과별 자료</dd></dl></div><button class="shot" type="button"><img src="img/requests.jpg" alt="커리큘럼 관리" loading="lazy"></button></article>
         <article class="menu"><div><h3>강사 커리큘럼 <span class="who h">학과장·관리자</span></h3><dl><dt>하는 일</dt><dd>승인된 선생님 커리큘럼을 학과 탭·강사·과목으로 찾아 바로 고치기, 학과 탭(커리큘럼 세트) 관리</dd><dt>사이트</dt><dd>학과별 자료 · 강사 커리큘럼</dd></dl></div><button class="shot" type="button"><img src="img/curricula.png" alt="강사 커리큘럼" loading="lazy"></button></article>

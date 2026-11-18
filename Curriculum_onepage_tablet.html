@@ -1091,12 +1091,12 @@
     }
 
     // [getCurriculumSimpleByDept]의 Supabase 대체
-    //  - 로드맵 시트에서 학과 행을 찾아 선택된 과목 이름들 모으기
-    //  - 컴수원_전체수업 시트에서 그 과목들의 G(기간)/J(과정내용)/K(프로그램)/L(학습수준) 추출
+    //  2026-11-18: 과목 목록은 관리 화면 학과 관리 › 과목별 커리큘럼과 같게 = 컴수원_전체수업 B열(과목의 학과들)에 이 학과가 있는 과목,
+    //  시트 순서(= 관리 화면 과목 순서). 예전에는 로드맵 시트의 학과 행에서 골라, 로드맵에 없는 과목(예: 인테리어 라이노)이 빠졌다.
+    //  과목마다 G(기간)/J(학과별 커리큘럼 요약)/K(프로그램)/L(학습 수준)은 그 과목 첫 행에서.
     async function getCurriculumSimpleByDeptFromSupabase(deptName) {
       const sheets = _curSheets();
       const fullRows = await window.ComswSupabase.fetchSheetRows(sheets.curriculum || '컴수원_전체수업');
-      const roadmapRows = await window.ComswSupabase.fetchSheetRows(sheets.roadmap || '로드맵');
 
       // 영문 학과명 추출 (O=14, U=20)
       let engName = '';
@@ -1105,86 +1105,23 @@
         if (_curNorm(vals[14]) === deptName && !engName) engName = _curNorm(vals[20]);
       });
 
-      // 로드맵에서 학과 영역 찾고 같은 행의 B열 이후 셀들에서 과목명 split
-      function splitRoadmapSubjects(value) {
-        return _curNorm(value)
-          .split(/[,\n\r]+|\s+\/\s+/g)
-          .map(_curNorm)
-          .filter(Boolean);
-      }
-      // 로드맵 A열 ↔ 탭 학과명 매칭.
-      //  1) 완전 일치를 우선 사용(기존 동작 유지 — 정상 학과는 영향 없이 1행만 채택).
-      //  2) 완전 일치 행이 하나도 없으면 "학과"를 뗀 키워드로 부분 일치 폴백.
-      //     예) 자격증학과 → 키워드 "자격증" → 로드맵의 "사무자격증","디자인자격증",
-      //         "건축/기계자격증" 행을 모두 수집해 과목을 시트 순서대로 이어붙인다.
-      //     (양방향 포함: A열이 키워드를 포함하거나 키워드가 A열을 포함. 1글자 키워드는 오매칭 방지로 제외)
-      const deptKeyword = _curNorm(deptName).replace(/학과$/, '').trim();
-      const hasExactDept = roadmapRows.some(function(row) {
-        return _curNorm(_curRaw(row)[0]) === deptName;
-      });
-      const useFuzzyDept = !hasExactDept && deptKeyword.length >= 2;
-      function roadmapRowMatches(aVal) {
-        if (!aVal) return false;
-        if (aVal === deptName) return true;
-        if (!useFuzzyDept) return false;
-        return aVal.indexOf(deptKeyword) !== -1 || deptKeyword.indexOf(aVal) !== -1;
-      }
-
-      const selectedSubjects = [];
-      const selectedSet = {};
-      for (let i = 0; i < roadmapRows.length; i++) {
-        const vals = _curRaw(roadmapRows[i]);
-        const aVal = _curNorm(vals[0]);
-        if (!roadmapRowMatches(aVal)) continue;
-        for (let c = 1; c < vals.length; c++) {
-          splitRoadmapSubjects(vals[c]).forEach(function(name) {
-            if (selectedSet[name]) return;
-            selectedSet[name] = true;
-            selectedSubjects.push(name);
-          });
-        }
-        // 완전 일치 모드는 1행만 사용(기존 동작). 폴백 모드는 여러 학과 행을 모두 모은다.
-        if (!useFuzzyDept) break;
-      }
-
-      // 컴수원_전체수업의 C열(인덱스 2)에서 과목별 행 인덱스 모음 (병합은 sync 시 forward-fill됨)
-      const subjectRanges = {};
-      for (let i = 0; i < fullRows.length; i++) {
-        const vals = _curRaw(fullRows[i]);
-        const c = _curNorm(vals[2]);
-        if (!c) continue;
-        if (!subjectRanges[c]) subjectRanges[c] = [];
-        subjectRanges[c].push(i);
-      }
-
-      // 각 선택 과목에 대해 G/J/K/L열 데이터 누적 (시트 A=0이므로 G=6, J=9, K=10, L=11)
-      //
-      // Supabase 동기화 시 fillMergedValues_()가 시트의 병합 셀을 forward-fill하기 때문에,
-      // 원본 시트에서 C/G/J/K/L 한 셀이 4행 병합되어 있으면 4행 모두 동일 값으로 저장된다.
-      // Apps Script 원본은 "빈 셀 자연 스킵" 메커니즘으로 1행만 채택했지만, Supabase에서는
-      // 그 가드가 무력화되어 4번 중복 표시되는 문제가 있다.
-      // → 같은 (name, duration, content, program, level) 키는 한 번만 push되도록 dedupe.
+      // B열은 학과명에서 '학과'를 뗀 이름들(', '로 이음)
+      const deptKey = _curNorm(deptName).replace(/학과$/, '').replace(/\s+/g, '');
       const subjects = [];
-      const seenKeys = {};
-      selectedSubjects.forEach(function(subjectName) {
-        const idxs = subjectRanges[subjectName] || [];
-        idxs.forEach(function(idx) {
-          const vals = _curRaw(fullRows[idx]);
-          const duration = _curNorm(vals[6]);   // G열
-          const content  = _curNorm(vals[9]);   // J열
-          const program  = _curNorm(vals[10]);  // K열
-          const level    = _curNorm(vals[11]);  // L열
-          if (!duration && !content && !program && !level) return;
-          const dedupeKey = subjectName + '|' + duration + '|' + content + '|' + program + '|' + level;
-          if (seenKeys[dedupeKey]) return;
-          seenKeys[dedupeKey] = true;
-          subjects.push({
-            name: subjectName,
-            duration: duration,
-            content: content,
-            program: program,
-            level: level
-          });
+      const seen = {};
+      fullRows.forEach(function(row) {
+        const vals = _curRaw(row);
+        const name = _curNorm(vals[2]);   // C열
+        if (!name || seen[name]) return;
+        const inDept = _curNorm(vals[1]).split(',').some(function(d) { return d.replace(/\s+/g, '') === deptKey; });
+        if (!inDept) return;
+        seen[name] = true;
+        subjects.push({
+          name: name,
+          duration: _curNorm(vals[6]),   // G열
+          content: _curNorm(vals[9]),    // J열
+          program: _curNorm(vals[10]),   // K열
+          level: _curNorm(vals[11])      // L열
         });
       });
 

@@ -1102,6 +1102,31 @@ test("V3 특강·세미나: 오른쪽 상세·아래 기존 화면 없이, 줄�
 });
 
 // 2026-11-17: 학과 관리 [+ 학과추가], 기본 설정 › 학과 커리큘럼 [페이지 편집] = 학과 탭 두 줄 편집
+test("V3 학과 관리 단계별 커리큘럼: 사이트 단계가 없으면 [단계별 커리큘럼 만들기] → 강사 단계를 AI로 요약해 만들고 첫 강사 이미지", async () => {
+  const d = data();
+  d.instructor_curricula.push(
+    { id: "c9", instructor_id: "i1", set_id: "set1", subject_id: "s2", step_label: "1단계", written: "웹 원문1", media_url: "https://example.com/w1.png", status: "approved", vacation: false, sort_order: 0 },
+    { id: "c10", instructor_id: "i1", set_id: "set1", subject_id: "s2", step_label: "2단계", written: "웹 원문2", status: "approved", vacation: false, sort_order: 1 },
+  );
+  const db = fakeSupabase(d);
+  const asked = [];
+  const { configureServices } = await import("../../admin/js/services.mjs");
+  configureServices({ summarize: async (kind, text) => { asked.push([kind, text]); return { text: `요약:${text}` }; } });
+  const headBar = document.createElement("div");
+  v3.state.dept = "d1";
+  const c = await page("aggregate", { supabase: db, headBar });
+  [...c.querySelectorAll(".v2-listitem")].find((x) => x.textContent.includes("웹1")).click();
+  assert.match(c.textContent, /단계별 커리큘럼 · 웹1/);
+  button(c, "단계별 커리큘럼 만들기").click();
+  await flush();
+  assert.deepEqual(asked, [["week", "웹 원문1"], ["week", "웹 원문2"]]);
+  const ins = db.calls.find(([k, t]) => k === "insert" && t === "subject_weeks")[2];
+  assert.deepEqual(ins.map((r) => [r.week_label, r.summary, r.image_url, r.sort_order]),
+    [["1단계", "요약:웹 원문1", "https://example.com/w1.png", 0], ["2단계", "요약:웹 원문2", null, 1]]);
+  assert.equal(c.querySelectorAll(".v3-week").length, 2, "만든 단계 카드");
+  configureServices({});
+});
+
 test("V3 학과 관리 [학과 설정]: 학과 칸과 탭 사이, 학과 추가·학과 수정 탭, 추가하면 드롭다운에서 바로 고름", async () => {
   const headBar = document.createElement("div");
   const db = sb();

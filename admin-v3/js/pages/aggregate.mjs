@@ -246,14 +246,50 @@ export async function render(container, ctx) {
       "끌어서 순서를 바꿉니다", [btn("+ 과목 추가", () => addPopup(ids, setOrder)), save]);
   }
 
+  // [단계별 커리큘럼 만들기](2026-11-18): 사이트 단계가 없는 과목에, 넣은 강사(왼쪽 '강사')들이 낸 단계를 모아
+  // 단계마다 AI로 요약(week 프롬프트)해 사이트 단계(subject_weeks)를 만든다. 원문은 강사 글을 이은 것.
+  // 대표 이미지는 그 단계 첫 강사 이미지로 넣어 두고, 카드의 [대표 이미지 수정]에서 강사 이미지 중 고른다.
+  // 모두 요약한 뒤 한 번에 넣는다(중간에 AI가 실패하면 아무것도 안 생김).
+  async function makeWeeks(subject, say, b) {
+    const fn = getServices().summarize;
+    if (!fn) return say("AI 연결을 준비 중입니다", true);
+    const src = srcOf(subject.id);
+    const own = (id) => src.filter((c) => c.instructor_id === id).sort((a, c) => (a.sort_order ?? 0) - (c.sort_order ?? 0));
+    const chosen = picks(subject.id).filter((id) => own(id).length);
+    const labels = [...new Set(chosen.flatMap((id) => own(id).map((c) => c.step_label)))];
+    if (!labels.length) return say("넣은 강사의 승인된 커리큘럼이 없습니다. 왼쪽 '강사'에서 이 과목 커리큘럼이 있는 강사를 넣어주세요.", true);
+    b.disabled = true;
+    try {
+      const rows = [];
+      for (const [i, label] of labels.entries()) {
+        const raw = chosen.map((id) => stepText(own(id), label, i).trim()).filter(Boolean).join("\n");
+        if (!raw) continue;
+        say(`AI 요약 중… (${i + 1}/${labels.length} ${label})`);
+        const image = chosen.flatMap((id) => stepRows(own(id), label, i)).find((c) => c.media_url)?.media_url ?? null;
+        rows.push({ subject_id: subject.id, week_label: label, written: raw, summary: (await fn("week", raw)).text, image_url: image, sort_order: rows.length });
+      }
+      if (!rows.length) throw new Error("넣은 강사의 단계 원문이 비어 있습니다.");
+      const { data: made, error } = await supabase.from("subject_weeks").insert(rows).select();
+      if (error) throw new Error(dbErrorMessage(error));
+      weeks.push(...(made ?? []));
+      draw();
+      saveSay(`'${subject.name}' 단계 ${rows.length}개를 만들었습니다. 문구를 확인·고쳐 단계마다 [저장]하고, [대표 이미지 수정]으로 이미지를 고르세요. 공개 사이트에는 '사이트 반영' 후 보입니다.`);
+    } catch (e) { say(e.message, true); b.disabled = false; }
+  }
+
   function weeksView(list) {
     if (!list.some((s) => s.id === subjectId)) subjectId = list[0]?.id ?? "";
     const subject = subjects.find((s) => s.id === subjectId);
     const myWeeks = weeks.filter((w) => w.subject_id === subjectId).sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0));
     const shared = deptsOf(subjectId);
 
-    return splitGrid(subjectList(list), panel(`주차별 커리큘럼 · ${subject?.name ?? ""}`, subject ? [
-        ...(myWeeks.length ? myWeeks.map((w, i) => weekCard(subject, w, i)) : [empty("이 과목은 사이트 단계가 없습니다. 운영 관리 화면의 '학과 커리큘럼 > 단계'에서 만듭니다.")]),
+    const makeMsg = el("p", { className: "save-state" });
+    const make = btn("단계별 커리큘럼 만들기", () => makeWeeks(subject, sayIn(makeMsg), make), true);
+    return splitGrid(subjectList(list), panel(`단계별 커리큘럼 · ${subject?.name ?? ""}`, subject ? [
+        ...(myWeeks.length ? myWeeks.map((w, i) => weekCard(subject, w, i)) : [
+          empty(`이 과목은 사이트 단계가 없습니다. [단계별 커리큘럼 만들기]를 누르면 넣은 강사 ${picks(subject.id).length}명이 낸 단계를 AI로 요약해 만듭니다(강사는 왼쪽 '강사'에서).`),
+          el("div", { className: "v2-actions v2-end" }, [makeMsg, make]),
+        ]),
         ...(shared.length > 1 ? [hint(`이 과목을 쓰는 ${shared.length}개 학과(${shared.join(", ")})에 같은 단계가 나옵니다. 고치면 모두 같이 바뀝니다.`)] : []),
       ] : [empty("과목을 고르세요.")], "사이트 '전체 수업'의 단계"));
   }

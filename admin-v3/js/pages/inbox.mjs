@@ -235,14 +235,15 @@ export async function render(container, ctx) {
   }
 
   // [그룹 설정] 과목 관리의 그룹 팝업과 같음: 그룹이 있으면 그 그룹 고치기, 없으면 새 그룹 만들기·기존 그룹에 넣기
-  function groupPopup(it) {
+  // then: 그룹을 정한 뒤 이어서 할 일(2026-11-18: 마지막 쪽 [적용]에서 그룹이 없으면 여기서 바로 만들고 이어서 적용).
+  function groupPopup(it, then = null) {
     if (!groupTable) return say("그룹은 운영 SQL(20261103030000) 실행 뒤에 쓸 수 있습니다.", true);
     const s = it.subject;
     const g = groups.find((x) => x.id === s.group_id);
     const psay = el("p", { className: "save-state" });
     let d;
-    const saved = () => { d.close?.(); d.remove(); say(`'${nameOf(groups, s.group_id)}' 그룹으로 정했습니다.`); draw(); };
-    d = modal("그룹 설정", [el("div", { className: "v3-linkbody" }, [...(g ? groupPicker(gx, g, psay, saved) : groupChooser(gx, s, psay, saved)), psay])], [], "닫기");
+    const saved = () => { d.close?.(); d.remove(); say(`'${nameOf(groups, s.group_id)}' 그룹으로 정했습니다.`); draw(); then?.(); };
+    d = modal(then ? "그룹 설정 — 준비물을 적용하려면 이 과목의 그룹이 필요합니다" : "그룹 설정", [el("div", { className: "v3-linkbody" }, [...(g ? groupPicker(gx, g, psay, saved) : groupChooser(gx, s, psay, saved)), psay])], [], "닫기");
     d.classList.add("v3-narrow", "v3-linkpop");
   }
 
@@ -305,7 +306,11 @@ export async function render(container, ctx) {
       supplies: p.supply, ...(hasCats ? { textbook: p.textbook, ai: p.ai } : {}),
     };
     const hasPrep = part ? Object.values(part).some(Boolean) : it.mats.length > 0;
-    if (groupTable && hasPrep && !it.subject?.group_id) return say("준비물을 적용하려면 먼저 [그룹 설정]으로 이 과목의 그룹을 정해주세요. 수업별 준비물에는 그룹 이름으로 나옵니다.", true);
+    if (groupTable && hasPrep && !it.subject?.group_id) {
+      // 다른 메뉴로 가지 않고 여기서 그룹을 만들거나 고르면 이어서 적용한다.
+      say("준비물을 적용하려면 이 과목의 그룹이 필요합니다. 열린 창에서 그룹을 만들거나 고르면 이어서 적용합니다. 수업별 준비물에는 그룹 이름으로 나옵니다.", true);
+      return groupPopup(it, () => approve(it, b));
+    }
     const setId = it.g.vacation ? it.cohort.value : null;
     if (it.g.vacation && !setId) return say("담을 방특 시기를 골라주세요", true);
     const where = it.g.vacation ? `'${nameOf(cohorts, setId)}' 방특` : it.scope;

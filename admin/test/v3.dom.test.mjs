@@ -424,21 +424,16 @@ test("V3 승인 관리 [준비물 작성]: 교재·물품·사용 프로그램·
   button(c, "로드맵 문구 보기").click();
   button(c, "적용").click();
   await flush();
-  assert.match(c.textContent, /먼저 \[그룹 설정\]으로 이 과목의 그룹을 정해주세요/);
+  assert.match(c.textContent, /이 과목의 그룹이 필요합니다/);
   assert.equal(approvals.length, 0);
-  // [그룹 설정] → 기존 그룹에 넣기
-  button(c, "이전").click(); button(c, "이전").click();
-  button(c, "그룹 설정").click();
+  // 11-18: 다른 쪽·메뉴로 가지 않고 바로 뜬 [그룹 설정] 팝업에서 기존 그룹에 넣으면 이어서 적용
   const gdlg = [...document.querySelectorAll("dialog.v3-modal")].at(-1);
+  assert.match(gdlg.querySelector("h3").textContent, /그룹 설정/);
   const join = gdlg.querySelector('input[value="b"]'); join.checked = true; join.dispatchEvent(new dom.window.Event("change"));
   const r = gdlg.querySelector('input[name="v3-group"]'); r.checked = true; r.dispatchEvent(new dom.window.Event("change"));
   button(gdlg, "넣기").click();
   await flush();
   assert.ok(db.calls.some(([k, t, id, patch]) => k === "update" && t === "subjects" && id === "s1" && patch.group_id === "g1"));
-  assert.match(c.textContent, /그룹: 포토샵 과정/);
-  button(c, "학과 커리큘럼 보기").click();
-  button(c, "로드맵 문구 보기").click();
-  button(c, "적용").click();
   await flush();
   assert.deepEqual(approvals, [["comsw_approve_curriculum", { p_id: "c1" }]]);
   assert.deepEqual(db.calls.find(([k, t]) => k === "upsert" && t === "instructor_subject_materials")?.[2],

@@ -97,7 +97,8 @@ async function mountOne(
       rows(supabase, "instructor_subjects", (q) => q.eq("instructor_id", own.id)),
       other ? null : loadMyMajors(uid).catch(() => null),
     ]);
-  const byName = (n) => depts.find((d) => d.name === n);
+  // 학과명을 바꾼 뒤에도 쌤톡에 남은 옛 이름을 알아본다(departments.former_names, 2026-11-18). 저장하면 쌤톡도 새 이름으로.
+  const byName = (n) => depts.find((d) => d.name === n) ?? depts.find((d) => d.former_names?.includes(n));
   // 쌤톡 학과를 기준으로 하고, 못 불러오면 컴수원에 저장된 학과를 보여 준다.
   const selected = new Set(
     majors

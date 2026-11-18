@@ -133,7 +133,7 @@ export async function render(container, ctx, { tab, as } = {}) {
     const hasCats = !catProbe?.error;
     // 내 학과 = 쌤톡 학과(이름이 같은 컴수원 학과). 못 불러오면 컴수원에 저장된 내 학과.
     const myDeptList = majors
-      ? depts.filter((d) => majors.includes(d.name))
+      ? depts.filter((d) => majors.includes(d.name) || d.former_names?.some((n) => majors.includes(n))) // 바꾸기 전 이름도(11-18)
       : depts.filter((d) => myDepts.some((x) => x.department_id === d.id));
     const myIds = new Set(mySubjects.map((x) => x.subject_id));
     const goSettings = () => {

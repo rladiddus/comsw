@@ -1,4 +1,4 @@
-import { el, rows, pick, chip, hint, btn, panel, empty, search, nameOf } from "../../../admin-v2/js/ui.mjs";
+import { el, rows, pick, chip, hint, btn, panel, empty, search, nameOf, tabBox } from "../../../admin-v2/js/ui.mjs";
 import { dbErrorMessage } from "../../../admin/js/fields.mjs";
 import { getServices } from "../../../admin/js/services.mjs";
 import { driveThumbnail } from "../../../admin/js/drive.mjs";
@@ -316,9 +316,35 @@ export async function render(container, ctx) {
     body.replaceChildren(state.aggTab === "subjects" ? subjectsView(list) : weeksView(list));
   }
   // 학과 칸과 주차별/과목별 탭은 제목 오른쪽에(머리 자리가 없으면 화면 맨 위). 정규·방특 버튼 없음.
-  // [+ 학과추가](2026-11-17): 학과 칸 오른쪽. 새 학과는 사용 체크·맨 뒤 순서로 만들어 바로 고른다
-  // (같은 departments 표라 기본 설정 › 학과별 자료·사이트 학과 탭에도 나온다).
-  function addDept() {
+  // [학과 설정](2026-11-17 학과추가 → 11-18 탭 두 개): 학과 칸 오른쪽.
+  // - 학과 추가: 새 학과는 사용 체크·맨 뒤 순서로 만들어 바로 고른다
+  // - 학과 수정: 기본 설정 › 학과별 자료와 같은 학과 소개 화면(학과명·영문·소개·이미지·사용·순서).
+  //   학과명을 바꾸면 DB가 같은 이름의 학과 탭(강사 커리큘럼)도 바꾸고 옛 이름을 기억한다(쌤톡 학과 연결, SQL 20261118030000).
+  // 같은 departments 표라 기본 설정 › 학과별 자료·사이트 학과 탭에도 나온다. 창을 닫으면 학과 목록을 다시 읽는다.
+  async function reloadDepts() {
+    const fresh = await rows(supabase, "departments", (q) => q.order("sort_order"));
+    depts.splice(0, depts.length, ...fresh);
+    if (!depts.some((x) => x.id === state.dept)) state.dept = depts[0]?.id ?? "";
+    const sel = filter.querySelector("select");
+    sel.replaceChildren(...depts.map((x) => Object.assign(document.createElement("option"), { value: x.id, textContent: x.name })));
+    sel.value = state.dept;
+    draw();
+  }
+  function deptSettings() {
+    let d;
+    const panes = [];
+    const body = tabBox(["학과 추가", "학과 수정"], (i) => (panes[i] ??= i ? editPane() : addPane(() => d)));
+    d = modal("학과 설정", body, [], "닫기");
+    d.classList.add("v3-wide");
+    d.addEventListener("close", () => { reloadDepts().catch((e) => saveSay(dbErrorMessage(e), true)); });
+  }
+  function editPane() {
+    const b = el("div", { className: "v3-popscroll v3-deptpop" });
+    import("../../../admin/js/pages/departments.mjs").then((m) => m.render(b, { ...ctx, categories: false }))
+      .catch((e) => b.append(el("p", { className: "save-state err", textContent: e.message })));
+    return b;
+  }
+  function addPane(dialog) {
     const name = el("input", { type: "text", placeholder: "예: 게임학과" });
     const en = el("input", { type: "text", placeholder: "예: Game Design (커리큘럼 제목)" });
     const msg = el("p", { className: "save-state" });
@@ -335,19 +361,19 @@ export async function render(container, ctx) {
       sel.append(Object.assign(document.createElement("option"), { value: row.id, textContent: row.name }));
       sel.value = state.dept = row.id;
       state.aggTab = "weeks"; // 과목 넣기는 주차별 왼쪽 목록에서
-      d.close?.(); d.remove();
+      dialog().close?.(); dialog().remove();
       draw();
       saveSay(`'${row.name}'을(를) 추가했습니다. [+ 과목 추가]로 과목을 넣고 저장하세요.`);
     }, true);
-    const d = modal("학과 추가", [
+    queueMicrotask(() => name.focus());
+    return el("div", { className: "v3-deptadd" }, [
       el("label", { className: "form-field" }, [el("span", { textContent: "학과명" }), name]),
       el("label", { className: "form-field" }, [el("span", { textContent: "영문 (선택)" }), en]),
       msg,
-    ], [ok]);
-    d.classList.add("v3-narrow");
-    name.focus();
+      el("div", { className: "v2-actions v2-end" }, [ok]),
+    ]);
   }
-  const filter = contextBar(depts, draw, [btn("+ 학과추가", addDept), tabs]);
+  const filter = contextBar(depts, draw, [btn("학과 설정", deptSettings), tabs]);
   filter.querySelector(".v3-switch")?.remove();
   if (ctx.headBar) ctx.headBar.replaceChildren(filter); else container.append(filter);
   container.append(body);

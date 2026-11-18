@@ -1107,16 +1107,22 @@ test("V3 특강·세미나: 오른쪽 상세·아래 기존 화면 없이, 줄�
 });
 
 // 2026-11-17: 학과 관리 [+ 학과추가], 기본 설정 › 학과 커리큘럼 [페이지 편집] = 학과 탭 두 줄 편집
-test("V3 학과 관리 [+ 학과추가]: 학과 칸과 탭 사이, 추가하면 학과 표에 넣고 드롭다운에서 바로 고름", async () => {
+test("V3 학과 관리 [학과 설정]: 학과 칸과 탭 사이, 학과 추가·학과 수정 탭, 추가하면 드롭다운에서 바로 고름", async () => {
   const headBar = document.createElement("div");
   const db = sb();
   await page("aggregate", { supabase: db, headBar });
   const bar = headBar.firstElementChild;
-  const add = button(bar, "+ 학과추가");
+  const add = button(bar, "학과 설정");
   const kids = [...bar.children];
   assert.ok(kids.indexOf(add) > kids.findIndex((x) => x.querySelector("select")) && kids.indexOf(add) < kids.findIndex((x) => x.classList.contains("v3-aggtabs")), "학과 칸 오른쪽, 탭 왼쪽");
   add.click();
   const d = document.querySelector("dialog.v3-modal");
+  assert.deepEqual([...d.querySelectorAll(".v2-tab")].map((b) => b.textContent), ["학과 추가", "학과 수정"]);
+  // 학과 수정 = 기본 설정 › 학과별 자료와 같은 학과 소개 화면
+  button(d, "학과 수정").click();
+  await flush();
+  assert.ok(d.querySelector(".v3-deptpop .card-item"), "학과 카드");
+  button(d, "학과 추가").click();
   button(d, "추가").click();
   await flush();
   assert.match(d.textContent, /학과명을 입력/);

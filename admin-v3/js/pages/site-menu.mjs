@@ -2,12 +2,18 @@ import { el } from "../../../admin-v2/js/ui.mjs";
 import { dbErrorMessage } from "../../../admin/js/fields.mjs";
 
 // 사이트 아래 알약 메뉴 편집(기존 '메뉴' 표 대신): 왼쪽 알약 · 가운데 X · 오른쪽 알약.
-// 사이트는 메뉴 이름으로 갈 페이지를 정하므로 이름 바꾸기·추가·삭제는 막고, 체크(보이기)와 ⠿ 끌어 좌우·순서 옮기기만.
-// [저장]을 눌러야 menus 표에 저장된다.
+// 사이트는 메뉴 이름(name)으로 갈 페이지를 정하므로 추가·삭제는 막고, 체크(보이기)·⠿ 끌어 좌우·순서 옮기기·글자 고치기만.
+// 글자는 보이는 이름(label, 2026-11-18)만 바뀐다: name은 그대로, 사이트·사이트 페이지 목록에 label이 나온다(비우면 원래 이름).
+// [저장]을 눌러야 menus 표에 저장된다. label 칸이 없으면(SQL 20261118010000 실행 전) 글자는 못 고친다.
 
-export async function menuEditor(container, { supabase }) {
+export async function menuEditor(container, { supabase, onSaved }) {
   const state = el("span", { className: "save-state" });
-  const { data, error } = await supabase.from("menus").select("id, name, is_active, side, sort_order").order("sort_order");
+  let labels = true;
+  let { data, error } = await supabase.from("menus").select("id, name, label, is_active, side, sort_order").order("sort_order");
+  if (error) {
+    labels = false;
+    ({ data, error } = await supabase.from("menus").select("id, name, is_active, side, sort_order").order("sort_order"));
+  }
   if (error) { container.append(el("p", { className: "save-state err", textContent: dbErrorMessage(error) })); return; }
   const items = (data ?? []).map((m) => ({ ...m }));
   let dragged = null;
@@ -16,12 +22,22 @@ export async function menuEditor(container, { supabase }) {
   const sides = { left: el("div", { className: "v3-pills left" }), right: el("div", { className: "v3-pills right" }) };
 
   function pill(m) {
+    // 글자 고치기: 칸 너비는 글자 수만큼. 비우면 원래 이름으로.
+    const name = el("input", { type: "text", className: "v3-pillname", value: m.label || m.name, title: labels ? `글자를 고치면 사이트 메뉴 이름이 바뀝니다(원래 이름: ${m.name})` : "글자 고치기는 SQL 실행 뒤에 됩니다", readOnly: !labels });
+    name.setAttribute("aria-label", `${m.name} 메뉴 이름`);
+    const fit = () => { name.size = Math.max(2, [...name.value].length + 1); };
+    fit();
+    name.addEventListener("input", () => { fit(); const v = name.value.trim(); m.label = v && v !== m.name ? v : null; dirty(); });
+    name.addEventListener("blur", () => { if (!name.value.trim()) { name.value = m.name; fit(); } });
     const use = el("input", { type: "checkbox", checked: m.is_active, title: "사이트에 보이기" });
     use.addEventListener("change", () => { m.is_active = use.checked; node.classList.toggle("off", !m.is_active); dirty(); });
     const node = el("div", { className: `v3-pill${m.is_active ? "" : " off"}` }, [
-      el("span", { className: "v3-pillgrip", textContent: "⠿", title: "끌어서 옮기기" }), use, el("span", { className: "v3-pillname", textContent: m.name }),
+      el("span", { className: "v3-pillgrip", textContent: "⠿", title: "끌어서 옮기기" }), use, name,
     ]);
     node.draggable = true;
+    name.addEventListener("mousedown", () => { node.draggable = false; });
+    name.addEventListener("mouseup", () => { node.draggable = true; });
+    name.addEventListener("blur", () => { node.draggable = true; });
     node.addEventListener("dragstart", (e) => { if (e.target !== node) return; dragged = m; e.dataTransfer?.setData("text/plain", m.name); });
     node.addEventListener("dragend", () => { dragged = null; clear(); });
     node.addEventListener("dragover", (e) => {
@@ -69,10 +85,11 @@ export async function menuEditor(container, { supabase }) {
     const ordered = [...items.filter((m) => m.side === "left"), ...items.filter((m) => m.side === "right")];
     try {
       for (const [i, m] of ordered.entries()) {
-        const { error: e } = await supabase.from("menus").update({ is_active: m.is_active, side: m.side, sort_order: i + 1 }).eq("id", m.id);
+        const { error: e } = await supabase.from("menus").update({ is_active: m.is_active, side: m.side, sort_order: i + 1, ...(labels ? { label: m.label || null } : {}) }).eq("id", m.id);
         if (e) throw e;
       }
       state.textContent = "저장됨";
+      onSaved?.();
     } catch (e) {
       state.textContent = dbErrorMessage(e); state.classList.add("err"); save.disabled = false;
     }
@@ -82,7 +99,7 @@ export async function menuEditor(container, { supabase }) {
   container.append(
     el("div", { className: "v3-menustage" }, [sides.left, el("span", { className: "v3-pillmid", textContent: "✕" }), sides.right]),
     el("div", { className: "v2-actions v2-end", style: "margin-top:12px" }, [state, save]),
-    el("p", { className: "muted", textContent: "체크를 끈 알약(흐린 것)은 사이트에 보이지 않습니다. ⠿를 끌어 좌우·순서를 바꿉니다. 메뉴 이름은 사이트 페이지와 이어져 있어 바꾸거나 더할 수 없습니다. 저장한 뒤 '사이트에 반영'을 눌러야 공개 사이트에 나옵니다." }),
+    el("p", { className: "muted", textContent: "체크를 끈 알약(흐린 것)은 사이트에 보이지 않습니다. ⠿를 끌어 좌우·순서를 바꿉니다. 알약 글자를 눌러 메뉴 이름을 고칠 수 있습니다(사이트 메뉴·사이트 페이지 목록에 같이 바뀜, 비우면 원래 이름). 메뉴를 더하거나 지울 수는 없습니다. 저장한 뒤 '사이트에 반영'을 눌러야 공개 사이트에 나옵니다." }),
   );
 }
 

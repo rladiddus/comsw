@@ -381,7 +381,7 @@
       const order = Number(vals[7]) || 999;                         // H열
       if (!name) return;
       if (!window.ComswSupabase.truthyCell(checked)) return;
-      list.push({ name: name, order: order });
+      list.push({ name: name, label: window.ComswSupabase.normalizeText(vals[10]) || name, order: order }); // K열: 고친 메뉴 이름(이동은 E로)
     });
     list.sort(function(a, b) { return a.order - b.order; });
     return list;
@@ -1131,7 +1131,7 @@
     menus.forEach(function(menu) {
       const item = document.createElement('div');
       item.className = 'comsw-menu-item';
-      item.textContent = menu.name;
+      item.textContent = menu.label || menu.name;
       if (menu.name === currentMenuName) {
         item.classList.add('active');
         item.setAttribute('aria-current', 'page');

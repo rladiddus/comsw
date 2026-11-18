@@ -477,6 +477,7 @@
 
         return {
           name: name,
+          label: normalizeText(values[10]) || name, // K열: 관리 화면에서 고친 메뉴 이름(이동은 원래 이름 E로)
           direction: dir,
           order: order
         };
@@ -817,7 +818,7 @@
     function createMenuItem(menu) {
       const div = document.createElement('div');
       div.className = 'comsw-menu-item';
-      div.textContent = menu.name;
+      div.textContent = menu.label || menu.name;
       div.onclick = function() { onMenuClick(menu.name); };
       return div;
     }

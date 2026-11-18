@@ -70,10 +70,19 @@ export async function render(container, ctx) {
   };
   nav?.addEventListener("navigate", keepInside);
 
-  async function draw() {
+  // 메뉴 알약에서 고친 글자(menus.label)를 목록에도 쓴다. 찾기는 원래 이름(name)으로.
+  const key = (v) => String(v ?? "").replace(/\s+/g, "");
+  let menus = [];
+  const loadMenus = async () => { menus = (await ctx.supabase.from("menus").select("*")).data ?? []; };
+  const shown = (p) => menus.find((m) => key(m.name) === key(p.name))?.label || p.name;
+  function drawList() {
     list.replaceChildren(...PAGES.map((p) => Object.assign(el("div", { className: `v2-listitem${p === sel ? " active" : ""}` }, [
-      el("b", { textContent: `▤  ${p.name}` }),
+      el("b", { textContent: `▤  ${shown(p)}` }),
     ]), { onclick: () => { sel = p; draw(); } })));
+  }
+  async function draw() {
+    await loadMenus();
+    drawList();
     const toggle = (text, on, fn) => Object.assign(el("button", { type: "button", className: on ? "publish-btn" : "ghost-btn", textContent: text }), { onclick: fn });
     editBtn.hidden = Boolean(sel.menu);
     editBtn.disabled = Boolean(sel.off);
@@ -82,11 +91,9 @@ export async function render(container, ctx) {
       toggle("PC", !tablet, () => { tablet = false; draw(); }), toggle("태블릿", tablet, () => { tablet = true; draw(); }),
       toggle("지금 공개본", !draft, () => { draft = false; draw(); }), toggle("반영 전 미리보기", draft, () => { draft = true; draw(); }),
     ]));
-    if (sel.menu) { stage.replaceChildren(); await menuEditor(stage, ctx); return; }
+    if (sel.menu) { stage.replaceChildren(); await menuEditor(stage, { ...ctx, onSaved: () => loadMenus().then(drawList) }); return; }
     // 사이트에서 꺼 둔 메뉴의 페이지(예: 방학 특강)는 공개본이 '준비 중'만 보이므로 미리보기로 설정된 모습을 보여 준다.
-    const { data: menus } = await ctx.supabase.from("menus").select("name, is_active");
-    const key = (v) => String(v ?? "").replace(/\s+/g, "");
-    const hidden = (menus ?? []).some((m) => key(m.name) === key(sel.name) && !m.is_active);
+    const hidden = menus.some((m) => key(m.name) === key(sel.name) && !m.is_active);
     // 반영 전 미리보기: 로그인 토큰을 같은 사이트 저장소에 두면 공개 페이지가 반영 전 내용을 읽는다.
     let preview = draft || hidden;
     if (preview) { try { localStorage.setItem("comsw_preview_token", await ctx.getToken()); } catch { preview = draft = false; } }

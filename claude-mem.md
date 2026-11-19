@@ -98,3 +98,4 @@
 - V4 확정: 강사 커리큘럼은 `comsw_v4_confirm_curriculum`(기존 comsw_approve_curriculum 쓰지 않음: 공통 준비물 자동 추가 때문). 학과 탭(set)은 department_id 또는 학과와 같은 이름으로 찾는다. 강사 [저장] = v4_teacher_drafts.
 - V4 공개 순서: 전체수업 행 인덱스 25 = {학과명-'학과': 순서} JSON, 공개 페이지 `_deptOrd`/`_sortByDeptOrd`. 공개 로드맵(roadmap_tracks)은 아직 학과 구성과 연결 안 함(결정 필요).
 - V4 로드맵: 학과 구성 순서 + [+] 묶음 → `comsw_v4_save_roadmap`. 이름 규칙은 SQL `v4_roadmap_label`과 JS `rules.roadmapLabel` 같게.
+- V4 5단계: 사이트 편집 저장 `comsw_v4_save_site(tab, p)`, 특강 `comsw_v4_save_seminar`, 방학 특강 `comsw_v4_save_vacation`. 업로드는 이미지만(영상은 주소).

@@ -227,3 +227,28 @@ test("과목 삭제·강사 노출은 DB 함수로(확인 후), 실패하면 이
   assert.match(main.textContent, /반영하지 않은 다른 변경/);
   assert.equal([...main.querySelectorAll("button")].find((b) => b.textContent === "노출")?.disabled, false, "실패하면 그대로(노출), 다시 누를 수 있음");
 });
+
+test("사이트 편집이 열리고, 방학 특강 과목 구성은 체크한 과목 그대로 저장 함수로", async () => {
+  globalThis.confirm = () => true;
+  const calls = [];
+  const base = db();
+  Object.assign(base, { rpc: async (name, args) => { calls.push([name, args]); return { data: "v-new", error: null }; } });
+  data.useDb(base);
+  const main = document.getElementById("content");
+  const site = await import("../../admin-v4/js/pages/site.mjs");
+  await site.render({ main });
+  await flush();
+  [...main.querySelectorAll(".tabs button")].find((b) => b.textContent === "하단 메뉴").click();
+  assert.match(main.textContent, /메뉴 없음/);
+  const vac = await import("../../admin-v4/js/pages/vacation.mjs");
+  await vac.render({ main });
+  await flush();
+  const box = [...main.querySelectorAll("label")].find((l) => l.textContent.includes("캐드2"));
+  box.querySelector("input").click();
+  [...main.querySelectorAll("button")].find((b) => b.textContent === "저장(바로 공개)").click();
+  await flush();
+  const [name, args] = calls.find(([n]) => n === "comsw_v4_save_vacation");
+  assert.equal(name, "comsw_v4_save_vacation");
+  assert.deepEqual([...args.p_subjects].sort(), ["s1", "s2"]);
+  assert.equal(args.p_id, "v1");
+});

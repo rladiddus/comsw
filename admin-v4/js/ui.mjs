@@ -81,14 +81,14 @@ export async function publishBanner(check) {
 }
 
 // 팝업(<dialog>). 닫으면 지워진다. Esc·바깥·[닫기]로 닫음.
-export function modal(title, body, { onClose, beforeClose } = {}) {
+export function modal(title, body, { onClose, beforeClose, actions = [] } = {}) {
   const dlg = h("dialog", { class: "modal", "aria-label": title });
   const close = () => {
     if (beforeClose && beforeClose() === false) return;
     dlg.close?.(); dlg.remove(); onClose?.();
     import("./changes.mjs").then((c) => c.check()); // 떠 있는 창을 다시 본문으로
   };
-  dlg.append(h("div", { class: "row modal-head" }, h("h3", {}, title), h("button", { type: "button", class: "btn", onclick: close }, "닫기")), body);
+  dlg.append(h("div", { class: "row modal-head" }, h("h3", {}, title), h("div", { class: "actions" }, h("button", { type: "button", class: "btn", onclick: close }, "닫기"), ...actions)), body);
   dlg.addEventListener("cancel", (e) => { e.preventDefault(); close(); });
   dlg.addEventListener("click", (e) => { if (e.target === dlg) close(); });
   document.body.append(dlg);

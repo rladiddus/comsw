@@ -6,7 +6,7 @@ import { h, head, box, table, tabs, pill, fill, note, fail, busy, publishBanner,
 import { baseName, deptOrder, stepState } from "../rules.mjs";
 import { deptLayout } from "./dept-layout.mjs";
 import { commonEditor } from "./common-editor.mjs";
-import { canSwitch, unsaved, untrack } from "../changes.mjs";
+import { canSwitch, unsaved, untrack, applyTracked } from "../changes.mjs";
 
 let state = { tab: "depts", dept: null };
 
@@ -50,11 +50,13 @@ export async function render({ main, params = [] }) {
       ];
       const editor = commonEditor(s, cat, steps.length === 4 ? steps : [], { msg: popMsg, reload: () => { pop.close(); reload(); }, extraLeft: extra });
       const st = stepState(steps.length);
+      const applyBtn = h("button", { type: "button", class: "btn primary", onclick: () => busy(applyBtn, popMsg, () => applyTracked(editor.trackId)) }, "사이트 적용");
       const pop = modal(`${s.name} · 공통 커리큘럼(일반)`, h("div", { class: "modal-body" },
         popMsg, h("div", { class: "row" }, h("span", { class: "muted" }, deptsOf(s.id).join(", ") || "학과 없음"), pill(`공개 중 ${st.label}`, st.kind)),
         h("div", { class: "modal-main", style: "margin-top:10px" }, editor)), {
         beforeClose: () => !unsaved() || confirm("임시 저장하지 않은 바뀐 설정이 있습니다. 닫으면 사라집니다. 닫을까요?"),
         onClose: () => untrack(editor.trackId),
+        actions: [applyBtn],
       });
     };
 

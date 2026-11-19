@@ -64,8 +64,9 @@ export function commonEditor(subject, cat, current, { msg, reload, set = null, e
             s.image_url ? h("button", { type: "button", onclick: () => { s.image_url = ""; draw(); } }, "빼기") : null));
         // 강사 팝업과 같은 모양: 왼쪽 = 강사(넣기·빼기), 오른쪽 = 공통 4단계(문구·대표 이미지)
         return h("div", { class: "side-list" },
-          box(`강사(${set ? set.name : "일반"} · 검수 완료만)`, pickList, h("div", { class: "actions", style: "margin-top:10px" }, aiBtn), ...extraLeft),
-          box(`${set ? `${set.name} ` : ""}공통 4단계`, h("div", { class: "steps" }, st.steps.map(stepCard))));
+          box(`강사(${set ? set.name : "일반"} · 검수 완료만)`, pickList, ...extraLeft),
+          box(null, h("div", { class: "row" }, h("h3", { style: "margin:0" }, `${set ? `${set.name} ` : ""}공통 4단계`), aiBtn),
+            h("div", { class: "steps", style: "margin-top:10px" }, st.steps.map(stepCard))));
       };
       track({
         id: `common:${target}`, slot: set ? "vacation-common" : "common", title: `${subject.name}${set ? `(${set.name})` : ""} 공통 4단계`, baseline,

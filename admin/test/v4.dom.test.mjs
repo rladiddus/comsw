@@ -326,3 +326,30 @@ test("로그아웃: 저장 안 한 변경은 조용히 임시 저장하고, 떠 
   changes.resetTracking();
   assert.equal(document.querySelector(".change-bar").hidden, true, "로그인 화면에 창이 남지 않음");
 });
+
+test("과목 팝업: [AI 공통 정리]는 '공통 4단계' 옆, [닫기] 옆 [사이트 적용]은 그 과목만 바로 반영", async () => {
+  document.querySelectorAll("dialog").forEach((d) => d.remove());
+  const fake = db();
+  const calls = [];
+  fake.rpc = async (name, args) => { calls.push([name, args]); return { data: name === "comsw_v4_unpublished" ? false : null, error: null }; };
+  const main = await open("courses", undefined, fake);
+  [...main.querySelectorAll(".tabs button")].find((b) => b.textContent === "전체 과목").click();
+  [...main.querySelectorAll("tr.pick")].find((tr) => tr.textContent.includes("캐드1")).click();
+  await flush();
+  const dlg = document.querySelector("dialog.modal");
+  const right = [...dlg.querySelectorAll(".side-list > .box")][1];
+  assert.match(right.textContent, /공통 4단계/);
+  assert.ok([...right.querySelectorAll("button")].some((b) => b.textContent === "AI 공통 정리"), "AI 버튼은 오른쪽 '공통 4단계' 옆");
+  const apply = [...dlg.querySelectorAll(".modal-head button")].find((b) => b.textContent === "사이트 적용");
+  assert.ok(apply, "[닫기] 옆 [사이트 적용]");
+  apply.click();
+  await flush();
+  assert.match(dlg.textContent, /바뀐 내용이 없습니다/);
+  dlg.querySelector(".side-list input[type=checkbox]").click();
+  dlg.querySelectorAll("textarea").forEach((t, i) => type(t, `문구${i + 1}`));
+  apply.click();
+  await flush();
+  const hit = calls.find(([n]) => n === "comsw_v4_confirm_common");
+  assert.equal(hit?.[1].p_subject, "s1");
+  assert.deepEqual(hit[1].p_steps.map((s) => s.summary), ["문구1", "문구2", "문구3", "문구4"]);
+});

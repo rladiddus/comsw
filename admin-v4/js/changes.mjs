@@ -118,8 +118,14 @@ async function revert() {
     t.write(clone(t.baseline));
   }
 }
-async function applyAll() {
-  const dirty = trackers.filter((x) => !same(x.read(), x.baseline));
+async function applyAll() { await applyList(trackers.filter((x) => !same(x.read(), x.baseline))); }
+// 팝업의 [사이트 적용]: 그 편집기 하나만 반영(바뀐 것이 없으면 알림)
+export async function applyTracked(id) {
+  const t = trackers.find((x) => x.id === id);
+  if (!t || same(t.read(), t.baseline)) throw new Error("바뀐 내용이 없습니다");
+  await applyList([t]);
+}
+async function applyList(dirty) {
   const what = dirty.map((t) => t.title).filter(Boolean).join(", ");
   if (!confirm(`${what || "바뀐 설정"}을(를) ${dirty[0].applyLabel === "사이트 적용" ? "홈페이지에 반영" : dirty[0].applyLabel}할까요?`)) return;
   for (const t of dirty) {

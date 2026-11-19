@@ -101,3 +101,4 @@
 - V4 5단계: 사이트 편집 저장 `comsw_v4_save_site(tab, p)`, 특강 `comsw_v4_save_seminar`, 방학 특강 `comsw_v4_save_vacation`. 업로드는 이미지만(영상은 주소).
 - V4 배포 주소: https://rladiddus.github.io/comsw/admin-v4/ (2026-11-19). 작업 브랜치 v4 → redesign → main ff.
 - V4 방학 특강 공통: `v4_vacation_steps`, 확정 `comsw_v4_confirm_vacation_common`, commonEditor(..., { set }) 공용.
+- admin-v4 또는 admin/js 파일을 바꾸면 커밋 전에 `node scripts/stamp-v4.mjs`(그리고 admin은 stamp-admin.mjs). 안 하면 테스트 실패·브라우저가 예전 파일을 씀.

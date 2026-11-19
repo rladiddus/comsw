@@ -310,3 +310,19 @@ test("학과 구성: 끌어서 옮기기(moveItem), [+ 학과 추가] 팝업은 
   assert.ok(!main.querySelector("button[aria-label$='위로']"), "화살표 없음(끌어서 옮김)");
   assert.ok(main.querySelector(".drag-row[draggable]"));
 });
+
+test("로그아웃: 저장 안 한 변경은 조용히 임시 저장하고, 떠 있는 창은 숨긴다", async () => {
+  changes.resetTracking();
+  const saved = [];
+  let state = { a: 1 };
+  changes.track({ id: "t1", baseline: { a: 1 }, read: () => state, write: (x) => { state = x; }, apply: async () => {},
+    store: { load: async () => null, save: async (x) => { saved.push(x); }, drop: async () => {} } });
+  state = { a: 2 };
+  changes.check();
+  await flush();
+  assert.equal(document.querySelector(".change-bar").hidden, false);
+  await changes.stashAll();
+  assert.deepEqual(saved, [{ a: 2 }]);
+  changes.resetTracking();
+  assert.equal(document.querySelector(".change-bar").hidden, true, "로그인 화면에 창이 남지 않음");
+});

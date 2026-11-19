@@ -6,6 +6,7 @@ import { canEnter } from "../../admin/js/roles.mjs";
 import { loginErrorMessage } from "../../admin/js/messages.mjs";
 import { clearActive, sessionExpired, startIdleLogout } from "../../admin/js/idle-logout.mjs";
 import { startApp, stopApp } from "./app.mjs";
+import { stashAll } from "./changes.mjs";
 
 const $ = (sel) => document.querySelector(sel);
 const form = $("#loginForm");
@@ -17,6 +18,7 @@ let idle = null;
 async function logout(message = "") {
   idle?.stop();
   idle = null;
+  await stashAll(); // 저장 안 한 변경은 로그아웃 전에 임시 저장(다시 로그인하면 이어서)
   clearActive();
   await signOutAll();
   stopApp();

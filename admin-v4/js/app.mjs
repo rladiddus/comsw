@@ -56,6 +56,9 @@ export function startApp({ role, email, uid, displayName }) {
 
 export function stopApp() {
   window.removeEventListener("hashchange", route);
+  resetTracking(); // 로그인 화면에 '바뀐 설정' 창이 남지 않게
+  document.querySelectorAll("dialog").forEach((d) => d.remove());
+  here = "";
   session = null;
   configureServices();
   $("#content").replaceChildren();

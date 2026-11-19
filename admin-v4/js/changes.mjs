@@ -11,8 +11,17 @@ let bar = null;
 let pending = false;
 let busyNow = false;
 
-// 화면 바꿀 때(app.mjs) 등록을 비운다.
-export function resetTracking() { trackers = []; check(); }
+// 화면 바꿀 때(app.mjs) 등록을 비운다. 로그아웃이면 창도 바로 숨긴다.
+export function resetTracking() { trackers = []; if (bar) { bar.hidden = true; bar.replaceChildren(); } check(); }
+
+// 로그아웃 직전: 임시 저장 안 한 변경을 조용히 임시 저장(다시 로그인하면 이어서). 실패해도 로그아웃은 막지 않는다.
+export async function stashAll() {
+  for (const t of trackers) {
+    const cur = t.read();
+    if (same(cur, t.baseline) || same(cur, t.saved)) continue;
+    try { await t.store.save(clone(cur)); } catch (err) { console.warn("로그아웃 전 임시 저장 실패", err); }
+  }
+}
 
 // 저장하지 않은 바뀐 것이 있나(임시 저장 안 한 것)
 export const unsaved = () => trackers.some((t) => !same(t.read(), t.baseline) && !same(t.read(), t.saved));

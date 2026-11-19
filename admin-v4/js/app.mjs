@@ -6,13 +6,21 @@ import { configureServices, createServices } from "../../admin/js/services.mjs";
 import { supabase } from "../../admin/js/session.mjs";
 import { useDb } from "./data.mjs";
 import { h, fail } from "./ui.mjs";
+import { resetTracking, unsaved } from "./changes.mjs";
 
 const $ = (sel) => document.querySelector(sel);
 let session = null;
 let shown = 0; // 늦게 끝난 예전 화면이 새 화면을 덮지 않게
 
+let here = "";
 function route() {
   if (!session) return;
+  // 임시 저장하지 않은 바뀐 설정이 있으면 메뉴를 옮기기 전에 묻는다
+  if (here && location.hash !== here && unsaved() && !confirm("임시 저장하지 않은 바뀐 설정이 있습니다. 이동하면 사라집니다. 이동할까요?")) {
+    history.replaceState(null, "", here);
+    return;
+  }
+  resetTracking();
   const groups = menusFor(session.role);
   const items = groups.flatMap(([, list]) => list);
   const [id, ...rest] = location.hash.replace(/^#\/?/, "").split("/");
@@ -24,6 +32,7 @@ function route() {
   ]));
   const group = groups.find(([, list]) => list.includes(hit))[0];
   $("#crumb").textContent = `${group} / ${hit[1]}`;
+  here = location.hash;
   const main = $("#content");
   const n = ++shown;
   hit[2]()
@@ -41,6 +50,7 @@ export function startApp({ role, email, uid, displayName }) {
   $("#userName").textContent = displayName || email;
   $("#userRole").textContent = roleLabel(role);
   window.addEventListener("hashchange", route);
+  window.addEventListener("beforeunload", (e) => { if (unsaved()) e.preventDefault(); });
   route();
 }
 

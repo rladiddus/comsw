@@ -1,9 +1,10 @@
 // 준비물: 기준 과목(끝 숫자 뺀 이름) 단위. '캐드' 준비물 = 캐드1·캐드2 모두에 적용(2026-11-19 사용자 결정).
-// 강사 준비물(원문)은 그대로 두고 [강사 준비물 가져오기]로 모아 학과장이 정리 → [저장](공개 안 됨) / [확정](준비물만 바로 공개).
+// 강사 준비물(원문)은 그대로 두고 [강사 준비물 가져오기]로 모아 학과장이 정리 → 떠 있는 창 [임시 저장] / [사이트 적용](준비물만 공개).
 // 학과·과목 화면의 '공통 준비물 정리'도 여기로 온다(같은 원본 course_prep_items).
 import * as data from "../data.mjs";
-import { h, head, box, fill, empty, note, busy, publishBanner } from "../ui.mjs";
+import { h, head, box, fill, empty, note, publishBanner } from "../ui.mjs";
 import { baseName } from "../rules.mjs";
+import { track, canSwitch } from "../changes.mjs";
 
 const CATS = [["textbook", "교재"], ["supply", "준비물"], ["ai", "AI 도구"]];
 let pick = null;
@@ -29,8 +30,7 @@ export async function render({ main, params = [] }) {
   const body = h("div");
   main.append(body);
   await fill(body, async () => {
-    const [cat, items, drafts, mats] = await Promise.all([data.catalog(), data.prepItems(),
-      data.all("v4_drafts", (q) => q.eq("kind", "prep")).catch(() => []), data.materials()]);
+    const [cat, items, mats] = await Promise.all([data.catalog(), data.prepItems(), data.materials()]);
     const subjects = data.live(cat.subjects);
     const bases = [...new Set(subjects.map((s) => baseName(s.name)))].sort((a, b) => a.localeCompare(b, "ko"));
     const deptName = new Map(cat.departments.map((d) => [d.id, d.name]));
@@ -41,10 +41,10 @@ export async function render({ main, params = [] }) {
       pick = bases.includes(pick) ? pick : bases[0];
       const members = subjects.filter((s) => baseName(s.name) === pick);
       const ids = new Set(members.map((s) => s.id));
-      const saved = drafts.find((d) => d.target === pick)?.payload?.items;
       const seen = new Set();
-      let list = (saved ?? items.filter((i) => ids.has(i.subject_id)).map(({ category, content, link_url, department_id }) => ({ category, content: content ?? "", link_url: link_url ?? "", department_id })))
+      const published = items.filter((i) => ids.has(i.subject_id)).map(({ category, content, link_url, department_id }) => ({ category, content: content ?? "", link_url: link_url ?? "", department_id: department_id ?? null }))
         .filter((i) => !seen.has(key(i)) && seen.add(key(i)));
+      let list = JSON.parse(JSON.stringify(published));
       const listEl = h("div");
       const drawList = () => listEl.replaceChildren(list.length ? h("div", { class: "tablewrap" }, h("table", {},
         h("thead", {}, h("tr", {}, ["분류", "내용", "링크(AI 도구)", "학과", ""].map((t) => h("th", {}, t)))),
@@ -64,28 +64,23 @@ export async function render({ main, params = [] }) {
         msg.replaceChildren(note(add.length ? `강사 준비물 ${add.length}개를 더했습니다. 정리한 뒤 [저장] 또는 [확정]을 눌러주세요.` : "더할 강사 준비물이 없습니다(이미 모두 있음)."));
       };
       const addRow = h("button", { type: "button", class: "btn", onclick: () => { list.push({ category: "supply", content: "", link_url: "" }); drawList(); } }, "+ 항목");
-      const clean = () => list.map((i) => ({ ...i, content: i.content.trim(), link_url: (i.link_url ?? "").trim() })).filter((i) => i.content);
-      const save = h("button", { type: "button", class: "btn" }, "저장");
-      save.onclick = () => busy(save, msg, async () => {
-        const { error } = await data.upsertDraft("prep", pick, { items: clean() });
-        if (error) throw new Error(error);
-        msg.replaceChildren(note(`${pick}: 저장했습니다(아직 공개 전).`));
-      });
-      const ok = h("button", { type: "button", class: "btn primary" }, "확정");
-      ok.onclick = () => busy(ok, msg, async () => {
-        const bad = clean().find((i) => i.link_url && !/^https?:\/\//i.test(i.link_url));
-        if (bad) throw new Error(`'${bad.content}' 링크는 http:// 또는 https://로 시작해야 합니다`);
-        if (!confirm(`${pick} 공통 준비물을 확정할까요? ${members.map((s) => s.name).join(", ")}에 바로 반영됩니다(단계 문구·이미지는 그대로).`)) return;
-        await data.call("comsw_v4_confirm_prep", { p_base: pick, p_items: clean() });
-        await data.dropDraft("prep", pick).catch(() => {});
-        render({ main, params: [pick] });
+      track({
+        id: `prep:${pick}`, slot: "prep", title: `${pick} 공통 준비물`, baseline: published,
+        read: () => list, write: (x) => { list = JSON.parse(JSON.stringify(x)); drawList(); },
+        apply: async (x) => {
+          const clean = x.map((i) => ({ ...i, content: i.content.trim(), link_url: (i.link_url ?? "").trim() })).filter((i) => i.content);
+          const bad = clean.find((i) => i.link_url && !/^https?:\/\//i.test(i.link_url));
+          if (bad) throw new Error(`'${bad.content}' 링크는 http:// 또는 https://로 시작해야 합니다`);
+          await data.call("comsw_v4_confirm_prep", { p_base: members.length ? pick : pick, p_items: clean });
+        },
+        onApplied: () => render({ main, params: [pick] }),
       });
       out.replaceChildren(banner, msg, h("div", { class: "two" },
         box(`기준 과목 ${bases.length}개`, h("div", { class: "chips" }, bases.map((b) =>
-          h("button", { type: "button", "aria-pressed": String(b === pick), onclick: () => { pick = b; msg.replaceChildren(); draw(); } }, b)))),
-        box(`${pick} 공통 준비물${saved ? " · 저장한 내용" : ""}`,
+          h("button", { type: "button", "aria-pressed": String(b === pick), onclick: () => { if (!canSwitch()) return; pick = b; msg.replaceChildren(); draw(); } }, b)))),
+        box(`${pick} 공통 준비물`,
           note(`적용 과목: ${members.map((s) => s.name).join(", ")}`),
-          listEl, h("div", { class: "actions", style: "margin-top:12px" }, addRow, fromTeachers, save, ok))));
+          listEl, h("div", { class: "actions", style: "margin-top:12px" }, addRow, fromTeachers))));
     };
     draw();
     return out;

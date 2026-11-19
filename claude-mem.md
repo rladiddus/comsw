@@ -102,3 +102,4 @@
 - V4 배포 주소: https://rladiddus.github.io/comsw/admin-v4/ (2026-11-19). 작업 브랜치 v4 → redesign → main ff.
 - V4 방학 특강 공통: `v4_vacation_steps`, 확정 `comsw_v4_confirm_vacation_common`, commonEditor(..., { set }) 공용.
 - admin-v4 또는 admin/js 파일을 바꾸면 커밋 전에 `node scripts/stamp-v4.mjs`(그리고 admin은 stamp-admin.mjs). 안 하면 테스트 실패·브라우저가 예전 파일을 씀.
+- V4 저장 방식: 화면은 `changes.track`으로 편집기 등록, 떠 있는 창이 임시 저장·되돌리기·사이트 적용. 새 편집 화면도 이 방식으로.

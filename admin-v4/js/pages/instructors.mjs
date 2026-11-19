@@ -2,6 +2,7 @@
 import * as data from "../data.mjs";
 import { h, head, box, table, tabs, pill, media, dl, fill, empty, note, busy, publishBanner, modal, toggleSwitch } from "../ui.mjs";
 import { curriculumUnits, stepState } from "../rules.mjs";
+import { track } from "../changes.mjs";
 
 let keep = { id: null, tab: "profile", unit: null };
 
@@ -29,7 +30,7 @@ export async function render({ main }) {
     const list = () => table([
       ["이름", (p) => p.name],
       ["학과", (p) => p.depts.join(", ") || "—"],
-      ["홈페이지 노출", (p) => toggleSwitch(p.is_listed, `${p.name} 홈페이지 노출(바로 반영, 계정 로그인과는 상관없음)`, (next, btn) => toggle(p, next, btn))],
+      ["홈페이지 노출", (p) => toggleSwitch(listed[p.id], `${p.name} 홈페이지 노출([사이트 적용] 때 반영, 계정 로그인과는 상관없음)`, (next) => { listed[p.id] = next; draw(); })],
       ["계정", (p) => (p.account_uid ? "연결" : pill("미연결", "neutral"))],
       ["이번 제출", (p) => {
         const n = p.units.filter((u) => u.pending.length).length;
@@ -52,11 +53,16 @@ export async function render({ main }) {
       pop?.close();
       pop = modal(p.name, inner, { onClose: () => { keep.id = null; pop = null; } });
     };
-    const toggle = (p, next, btn) => busy(btn, msg, async () => {
-      if (!confirm(`${p.name} 강사를 홈페이지에서 ${next ? "보이게" : "숨기게"} 할까요? 바로 반영됩니다.`)) return;
-      await data.call("comsw_v4_set_instructor_listed", { p_id: p.id, p_listed: next });
-      p.is_listed = next;
-      draw();
+    // 홈페이지 노출: 스위치는 화면에서만 바뀌고 [사이트 적용] 때 반영(사용자 요청 2026-11-19)
+    const base = Object.fromEntries(view.map((p) => [p.id, !!p.is_listed]));
+    const listed = { ...base };
+    track({
+      id: "instructors-listed", title: "홈페이지 노출", baseline: base,
+      read: () => ({ ...listed }), write: (st) => { Object.assign(listed, st); draw(); },
+      apply: async (st) => {
+        for (const p of view) if (st[p.id] !== base[p.id]) await data.call("comsw_v4_set_instructor_listed", { p_id: p.id, p_listed: st[p.id] });
+      },
+      onApplied: reload,
     });
     draw();
     const again = view.find((p) => p.id === keep.id);

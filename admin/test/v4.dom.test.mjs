@@ -11,6 +11,11 @@ const flush = async () => { for (let i = 0; i < 20; i++) await new Promise((r) =
 const rules = await import("../../admin-v4/js/rules.mjs");
 const { menusFor } = await import("../../admin-v4/js/menus.mjs");
 const data = await import("../../admin-v4/js/data.mjs");
+const changes = await import("../../admin-v4/js/changes.mjs");
+globalThis.confirm = () => true;
+// 떠 있는 창(바뀐 설정) 버튼, 입력하기
+const barBtn = (label) => [...document.querySelectorAll(".change-bar button")].find((b) => b.textContent === label);
+const type = (el, v) => { el.value = v; el.dispatchEvent(new dom.window.Event("input", { bubbles: true })); };
 
 test("기준 과목: 끝 숫자(개월)만 뗀다", () => {
   assert.equal(rules.baseName("캐드1"), "캐드");
@@ -61,8 +66,9 @@ const db = () => fakeSupabase({
   instructor_profile_drafts: [],
 });
 
-async function open(file, session = { uid: "u1", role: "head" }) {
-  data.useDb(db());
+async function open(file, session = { uid: "u1", role: "head" }, fake = db()) {
+  changes.resetTracking();
+  data.useDb(fake);
   const main = document.getElementById("content");
   const { render } = await import(`../../admin-v4/js/pages/${file}.mjs`);
   await render({ main, session, params: [] });
@@ -79,9 +85,16 @@ test("준비물: 캐드1·캐드2를 '캐드' 하나로 묶고 겹치는 것은 
   assert.match(main.textContent, /적용 과목: 캐드1, 캐드2/);
   const contents = [...main.querySelectorAll("input[aria-label='내용']")].map((i) => i.value);
   assert.deepEqual(contents, ["삼각자", "ChatGPT"], "겹치는 삼각자는 한 번");
-  [...main.querySelectorAll("button")].find((b) => b.textContent === "확정").click();
+  assert.equal(document.querySelector(".change-bar")?.hidden ?? true, true, "바꾸기 전에는 창 없음");
+  type(main.querySelector("input[aria-label='내용']"), "삼각자 2개");
   await flush();
-  assert.match(main.textContent, /http:\/\/ 또는 https:\/\/로 시작/);
+  assert.ok(barBtn("임시 저장") && barBtn("사이트 적용"), "바꾸면 [임시 저장]/[사이트 적용]");
+  barBtn("사이트 적용").click();
+  await flush();
+  assert.match(document.querySelector(".change-bar").textContent, /http:\/\/ 또는 https:\/\/로 시작/);
+  type(main.querySelector("input[aria-label='내용']"), "삼각자");
+  await flush();
+  assert.equal(document.querySelector(".change-bar").hidden, true, "원래대로 돌아가면 창이 사라짐");
 });
 
 test("강사 준비물 칸을 항목으로(교재·물품은 쉼표·줄바꿈, AI는 이름 | 링크)", async () => {
@@ -117,16 +130,13 @@ test("로드맵: [+]로 묶으면 한 단계, 이름 끝 숫자만 다르면 '�
   const fake = db();
   const calls = [];
   fake.rpc = async (name, args) => { calls.push([name, args]); return { data: false, error: null }; };
-  data.useDb(fake);
-  const main = document.getElementById("content");
-  const { render } = await import("../../admin-v4/js/pages/roadmap.mjs");
-  await render({ main, params: [] });
-  await flush();
+  const main = await open("roadmap", undefined, fake);
   assert.match(main.textContent, /과목 2개 → 로드맵 2단계/);
   [...main.querySelectorAll("button")].find((b) => b.textContent === "+").click();
   assert.match(main.textContent, /로드맵 1단계/);
   assert.ok([...main.querySelectorAll(".step b")].some((b) => b.textContent === "캐드 1~2"));
-  [...main.querySelectorAll("button")].find((b) => b.textContent === "저장(바로 공개)").click();
+  await flush();
+  barBtn("사이트 적용").click();
   await flush();
   const [name, args] = calls.find(([n]) => n === "comsw_v4_save_roadmap");
   assert.equal(name, "comsw_v4_save_roadmap");
@@ -152,28 +162,44 @@ test("내 커리큘럼: 본인 학과만, 대기 줄이 있으면 '이번 제출
   assert.match(main.textContent, /제출함 · 검수 전/);
 });
 
-test("내 커리큘럼 제출: 4단계를 다 써야 하고, 기존 제출 함수로 보낸다", async () => {
-  globalThis.confirm = () => true;
+test("내 커리큘럼: 고치면 [임시 저장]/[학과장에게 제출], 임시 저장하면 [되돌리기], 4단계를 다 써야 제출", async () => {
   const fake = db();
   const calls = [];
   fake.rpc = async (name, args) => { calls.push([name, args]); return { data: 4, error: null }; };
-  data.useDb(fake);
-  const main = document.getElementById("content");
-  const { render } = await import("../../admin-v4/js/pages/mine.mjs");
-  await render({ main, session: { uid: "u1", role: "teacher" }, params: [] });
+  const main = await open("mine", { uid: "u1", role: "teacher" }, fake);
+  const areas = () => [...main.querySelectorAll("textarea[aria-label$='수업 내용']")];
+  type(areas()[1], "내용 2");
   await flush();
-  const send = () => [...main.querySelectorAll("button")].find((b) => b.textContent === "학과장에게 제출").click();
-  send();
+  barBtn("임시 저장").click();
   await flush();
-  assert.match(main.textContent, /2단계, 3단계, 4단계 내용을 채워주세요/);
+  assert.ok(fake.calls.some(([k, t]) => k === "upsert" && t === "v4_teacher_drafts"), "본인 저장함에 보관");
+  assert.ok(barBtn("되돌리기"), "임시 저장 뒤 [되돌리기]");
+  barBtn("학과장에게 제출").click();
+  await flush();
+  assert.match(document.querySelector(".change-bar").textContent, /3단계, 4단계 내용을 채워주세요/);
   assert.equal(calls.length, 0);
-  [...main.querySelectorAll("textarea[aria-label$='수업 내용']")].forEach((a, i) => { a.value = `내용 ${i + 1}`; a.dispatchEvent(new dom.window.Event("input")); });
-  send();
+  type(areas()[2], "내용 3");
+  type(areas()[3], "내용 4");
+  await flush();
+  barBtn("학과장에게 제출").click();
   await flush();
   const [name, args] = calls[0];
   assert.equal(name, "comsw_submit_curriculum");
   assert.equal(args.p_set_id, "set1");
-  assert.deepEqual(args.p_subjects[0].steps.map((s) => [s.step_label, s.written]), [1, 2, 3, 4].map((n) => [`${n}단계`, `내용 ${n}`]));
+  assert.deepEqual(args.p_subjects[0].steps.map((x) => x.written), ["새 제출", "내용 2", "내용 3", "내용 4"]);
+});
+
+test("되돌리기: 임시 저장한 변경을 버리고 원래 설정으로, 창이 사라짐", async () => {
+  const main = await open("prep");
+  [...main.querySelectorAll(".chips button")].find((b) => b.textContent === "캐드").click();
+  type(main.querySelector("input[aria-label='내용']"), "자");
+  await flush();
+  barBtn("임시 저장").click();
+  await flush();
+  barBtn("되돌리기").click();
+  await flush();
+  assert.equal(main.querySelector("input[aria-label='내용']").value, "삼각자");
+  assert.equal(document.querySelector(".change-bar").hidden, true);
 });
 
 test("강사 검수: 강사를 누르면 팝업, 커리큘럼은 왼쪽 과목·오른쪽 내용, 4단계가 아니면 확정 잠김", async () => {
@@ -228,9 +254,12 @@ test("과목 삭제·강사 노출은 DB 함수로(확인 후), 실패하면 이
   assert.equal(btn.getAttribute("aria-checked"), "true");
   btn.click();
   await flush();
+  assert.equal(main.querySelector("button[role=switch]").getAttribute("aria-checked"), "false", "화면에서만 바뀜");
+  assert.ok(!calls.some(([n]) => n === "comsw_v4_set_instructor_listed"), "[사이트 적용] 전에는 반영 안 함");
+  barBtn("사이트 적용").click();
+  await flush();
   assert.deepEqual(calls.at(-1), ["comsw_v4_set_instructor_listed", { p_id: "i1", p_listed: false }]);
-  assert.match(main.textContent, /반영하지 않은 다른 변경/);
-  assert.equal(main.querySelector("button[role=switch]").getAttribute("aria-checked"), "true", "실패하면 그대로(노출)");
+  assert.match(document.querySelector(".change-bar").textContent, /반영하지 않은 다른 변경/, "실패하면 이유, 바꾼 것은 그대로");
 });
 
 test("사이트 편집이 열리고, 방학 특강 과목 구성은 체크한 과목 그대로 저장 함수로", async () => {
@@ -250,7 +279,8 @@ test("사이트 편집이 열리고, 방학 특강 과목 구성은 체크한 �
   await flush();
   const box = [...main.querySelectorAll("label")].find((l) => l.textContent.includes("캐드2"));
   box.querySelector("input").click();
-  [...main.querySelectorAll("button")].find((b) => b.textContent === "저장(바로 공개)").click();
+  await flush();
+  barBtn("사이트 적용").click();
   await flush();
   const [name, args] = calls.find(([n]) => n === "comsw_v4_save_vacation");
   assert.equal(name, "comsw_v4_save_vacation");

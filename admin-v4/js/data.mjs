@@ -62,3 +62,40 @@ export async function call(name, args = {}) {
 }
 // 다른 곳에서 고치고 사이트에 반영하지 않은 변경이 있나(있으면 V4 확정이 멈춤). DB 준비 전이면 null.
 export const unpublished = () => call("comsw_v4_unpublished").catch(() => null);
+
+// 이미지 올리기: 기존 규칙(PNG·JPG·WEBP, 20MB, 브라우저에서 줄여 보냄)과 서버 함수 그대로. 성공해야 주소를 돌려준다.
+export async function upload(file, kind = "curriculum") {
+  const { validateImage, shrinkImage } = await import("../../admin/js/image-upload.mjs");
+  const { getServices } = await import("../../admin/js/services.mjs");
+  validateImage(file);
+  const svc = getServices();
+  if (!svc.upload) throw new Error("다시 로그인해주세요");
+  return svc.upload(await shrinkImage(file, kind), kind); // { id, url }
+}
+export async function ai(kind, text) {
+  const { getServices } = await import("../../admin/js/services.mjs");
+  const svc = getServices();
+  if (!svc.summarize) throw new Error("다시 로그인해주세요");
+  if (text.length > 12000) throw new Error("내용이 너무 길어 한 번에 AI로 정리할 수 없습니다. 고르는 자료를 줄여 주세요");
+  const out = String((await svc.summarize(kind, text))?.text ?? "").trim();
+  if (!out) throw new Error("AI 결과가 비어 있습니다");
+  return out;
+}
+
+// 강사 작성 저장함(본인만). [저장]은 여기까지 — 검수·공개와 상관없다.
+export async function teacherDraft(instructorId, kind, target) {
+  const { data, error } = await db.from("v4_teacher_drafts").select("*")
+    .eq("instructor_id", instructorId).eq("kind", kind).eq("target", target).maybeSingle();
+  if (error) throw new Error(`저장한 내용: ${error.message}`);
+  return data;
+}
+export async function saveTeacherDraft(instructorId, kind, target, payload) {
+  const { error } = await db.from("v4_teacher_drafts")
+    .upsert({ instructor_id: instructorId, kind, target, payload, updated_at: new Date().toISOString() });
+  if (error) throw new Error(error.message);
+}
+export async function dropTeacherDraft(instructorId, kind, target) {
+  const { error } = await db.from("v4_teacher_drafts").delete()
+    .eq("instructor_id", instructorId).eq("kind", kind).eq("target", target);
+  if (error) throw new Error(error.message);
+}

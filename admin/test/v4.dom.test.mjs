@@ -89,12 +89,48 @@ test("학과·과목: 학과 구성 순서, 6단계 과목은 '4단계로 다시
   assert.match(main.textContent, /2026 겨울/);
 });
 
-test("내 커리큘럼: 본인 학과만, 대기 줄이 있으면 '이번 제출'로 보여 줌", async () => {
+test("내 커리큘럼: 본인 학과만, 대기 줄이 있으면 '이번 제출'을 불러와 4단계 칸에 채움", async () => {
   const main = await open("mine", { uid: "u1", role: "teacher" });
   assert.match(main.textContent, /건축학과/);
   assert.doesNotMatch(main.textContent, /시각학과/);
-  assert.match(main.textContent, /새 제출/);
+  const areas = [...main.querySelectorAll("textarea[aria-label$='수업 내용']")];
+  assert.equal(areas.length, 4, "언제나 4단계");
+  assert.equal(areas[0].value, "새 제출");
   assert.match(main.textContent, /제출함 · 검수 전/);
+});
+
+test("내 커리큘럼 제출: 4단계를 다 써야 하고, 기존 제출 함수로 보낸다", async () => {
+  globalThis.confirm = () => true;
+  const fake = db();
+  const calls = [];
+  fake.rpc = async (name, args) => { calls.push([name, args]); return { data: 4, error: null }; };
+  data.useDb(fake);
+  const main = document.getElementById("content");
+  const { render } = await import("../../admin-v4/js/pages/mine.mjs");
+  await render({ main, session: { uid: "u1", role: "teacher" }, params: [] });
+  await flush();
+  const send = () => [...main.querySelectorAll("button")].find((b) => b.textContent === "학과장에게 제출").click();
+  send();
+  await flush();
+  assert.match(main.textContent, /2단계, 3단계, 4단계 내용을 채워주세요/);
+  assert.equal(calls.length, 0);
+  [...main.querySelectorAll("textarea[aria-label$='수업 내용']")].forEach((a, i) => { a.value = `내용 ${i + 1}`; a.dispatchEvent(new dom.window.Event("input")); });
+  send();
+  await flush();
+  const [name, args] = calls[0];
+  assert.equal(name, "comsw_submit_curriculum");
+  assert.equal(args.p_set_id, "set1");
+  assert.deepEqual(args.p_subjects[0].steps.map((s) => [s.step_label, s.written]), [1, 2, 3, 4].map((n) => [`${n}단계`, `내용 ${n}`]));
+});
+
+test("강사 검수: 4단계가 아니면 확정 버튼이 잠기고 안내", async () => {
+  const main = await open("instructors");
+  [...main.querySelectorAll("tr.pick")][0].click();
+  await flush();
+  [...main.querySelectorAll(".tabs button")].find((b) => b.textContent === "커리큘럼").click();
+  await flush();
+  assert.match(main.textContent, /4단계가 모두 있어야 확정할 수 있습니다\(지금 1단계\)/);
+  assert.equal([...main.querySelectorAll("button")].find((b) => b.textContent === "확정").disabled, true);
 });
 
 test("읽기 실패는 '없음'이 아니라 실패로 보여 준다", async () => {

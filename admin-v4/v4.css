@@ -98,9 +98,17 @@ tr.pick:hover td, tr.pick[aria-selected="true"] td { background: var(--soft); }
 .switch .knob { position: absolute; top: 2px; left: 2px; width: 18px; height: 18px; border-radius: 50%; background: var(--paper); box-shadow: 0 1px 2px rgb(0 0 0 / .25); transition: left .15s; }
 .switch[aria-checked="true"] { background: var(--green); border-color: var(--green); }
 .switch[aria-checked="true"] .knob { left: 20px; }
-dialog.modal { width: min(1100px, calc(100vw - 32px)); max-height: calc(100vh - 48px); border: 1px solid var(--line); border-radius: 8px; padding: 20px; background: var(--bg); color: var(--text); }
+/* 강사 팝업: 프로필·커리큘럼 모두 같은 크기(가로 = 커리큘럼, 세로 = 프로필), 안쪽만 스크롤 */
+dialog.modal { width: min(1100px, calc(100vw - 32px)); height: min(640px, calc(100vh - 48px)); border: 1px solid var(--line); border-radius: 8px; padding: 20px; background: var(--bg); color: var(--text); }
 dialog.modal::backdrop { background: rgb(0 0 0 / .35); }
 .modal-head { margin-bottom: 8px; }
+dialog.modal[open] { display: flex; flex-direction: column; overflow: hidden; }
+.modal-body { display: flex; flex-direction: column; flex: 1; min-height: 0; }
+.modal-main { flex: 1; min-height: 0; overflow: auto; }
+.modal-main > .side-list { height: 100%; }
+.side-list > .box { height: 100%; overflow: auto; margin: 0; }
+.side-list .picks button { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+dialog.modal .side-list .steps { grid-template-columns: repeat(4, minmax(0, 1fr)); }
 .side-list { display: grid; grid-template-columns: minmax(180px, 240px) minmax(0, 1fr); gap: 16px; align-items: start; }
 .side-list .picks { display: grid; gap: 6px; }
 .side-list .picks button { text-align: left; border: 1px solid var(--line); background: var(--paper); border-radius: 5px; padding: 8px 10px; font-size: 13px; }
@@ -112,6 +120,8 @@ dialog.modal .change-bar { position: sticky; }
 
 @media (max-width: 900px) {
   .side-list { grid-template-columns: 1fr; }
+  .modal-main > .side-list, .side-list > .box { height: auto; }
+  dialog.modal .side-list .steps { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .two { grid-template-columns: 1fr; }
 }
 @media (max-width: 670px) {

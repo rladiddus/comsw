@@ -41,13 +41,13 @@ export async function render({ main }) {
     const draw = () => listBox.replaceChildren(h("h3", {}, `강사 ${view.length}명`), list());
     // 팝업: 다시 그려도(탭·과목 바꿈) 같은 팝업 안에서
     const openPop = (p) => {
-      const inner = h("div");
+      const inner = h("div", { class: "modal-body" });
       const popMsg = h("div");
       const again = () => {
         inner.replaceChildren(popMsg,
           h("div", { class: "row" }, h("span", { class: "muted" }, p.depts.join(", ")), pill(p.is_listed ? "홈페이지 노출" : "홈페이지 숨김", p.is_listed ? "" : "neutral")),
           tabs([["profile", "프로필"], ["curriculum", "커리큘럼"]], keep.tab, (t) => { keep.tab = t; again(); }),
-          keep.tab === "profile" ? box(null, profile(p, { msg: popMsg, reload })) : curriculum(p, cat, { msg: popMsg, reload, again }));
+          h("div", { class: "modal-main" }, keep.tab === "profile" ? box(null, profile(p, { msg: popMsg, reload })) : curriculum(p, cat, { msg: popMsg, reload, again })));
       };
       again();
       pop?.close();
@@ -107,7 +107,7 @@ function curriculum(p, cat, { msg, reload, again }) {
   const setName = new Map(cat.sets.map((s) => [s.id, s.name]));
   const unitTitle = (u) => `${subj.get(u.subject_id) ?? "(삭제된 과목)"} · ${cat.vacations.some((v) => v.id === u.set_id) ? setName.get(u.set_id) : "일반"}`;
   const sel = p.units.find((u) => u.key === keep.unit) ?? p.units.find((u) => u.pending.length) ?? p.units[0];
-  const picks = h("div", { class: "picks" }, p.units.map((u) => h("button", { type: "button", "aria-pressed": String(u === sel),
+  const picks = h("div", { class: "picks" }, p.units.map((u) => h("button", { type: "button", "aria-pressed": String(u === sel), title: unitTitle(u),
     onclick: () => { keep.unit = u.key; again(); } }, unitTitle(u), " ", u.pending.length ? pill("이번 제출") : null)));
   return h("div", { class: "side-list" }, box("과목", picks), [sel].map((u) => {
     const now = u.pending.length ? u.pending : u.approved;

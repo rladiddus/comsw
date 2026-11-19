@@ -4464,6 +4464,21 @@
       return categories;
     }
 
+    // 학과별 과목 순서(관리 화면 V4 '학과 구성', 2026-11-19): 전체수업 26번째 칸 {"건축": 0, …}. 없으면 시트 순서 그대로.
+    function _deptOrd(cell, deptName) {
+      try {
+        var m = JSON.parse(cell || '{}');
+        var key = String(deptName || '').replace(/학과$/, '').replace(/\s+/g, '');
+        for (var k in m) { if (k.replace(/\s+/g, '') === key && typeof m[k] === 'number') return m[k]; }
+      } catch (e) {}
+      return 1e9;
+    }
+    function _sortByDeptOrd(list, ordOf) {
+      return list.map(function(x, i) { return [x, i]; })
+        .sort(function(a, b) { return (ordOf(a[0]) - ordOf(b[0])) || (a[1] - b[1]); })
+        .map(function(p) { return p[0]; });
+    }
+
     async function getCurriculumByDeptFromSupabase(deptName) {
       const rows = await fetchSupabaseRowsForSheet(CURRICULUM_SHEET_NAME);
       const deptKeyword = normalizeText(deptName).replace(/학과$/, '').trim();
@@ -4492,6 +4507,7 @@
             weeks: []
           };
           subjectOrder.push(subjectName);
+          subjectMap[subjectName].ord = _deptOrd(values[25], deptName);
         }
 
         subjectMap[subjectName].weeks.push({
@@ -4504,7 +4520,7 @@
 
       return {
         engHeader: engHeader,
-        subjects: subjectOrder.map(function(name) { return subjectMap[name]; })
+        subjects: _sortByDeptOrd(subjectOrder, function(name) { return subjectMap[name].ord; }).map(function(name) { return subjectMap[name]; })
       };
     }
 

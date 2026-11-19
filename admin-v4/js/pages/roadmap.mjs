@@ -15,7 +15,7 @@ export async function render({ main }) {
       const list = deptOrder(cat.links.filter((l) => l.department_id === d.id), subjects);
       return box(null,
         h("div", { class: "row" }, h("h3", {}, `${d.name} · ${list.length}과목`),
-          h("button", { type: "button", class: "btn", onclick: () => { location.hash = "#/courses/depts"; } }, "순서 수정")),
+          h("button", { type: "button", class: "btn", onclick: () => { location.hash = `#/courses/depts/${d.id}`; } }, "순서 수정")),
         list.length
           ? h("ol", {}, list.map((s) => h("li", {}, h("b", {}, s.name), s.roadmap_summary ? h("span", { class: "muted" }, ` — ${s.roadmap_summary}`) : null)))
           : empty("이 학과에 과목이 없습니다"));

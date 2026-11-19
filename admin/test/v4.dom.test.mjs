@@ -70,14 +70,43 @@ async function open(file, session = { uid: "u1", role: "head" }) {
   return main;
 }
 
-test("준비물: 캐드1·캐드2를 '캐드' 하나로 묶고 겹치는 것은 한 번, http(s) 아닌 링크는 걸지 않음", async () => {
+test("준비물: 캐드1·캐드2를 '캐드' 하나로 묶고 겹치는 것은 한 번, 확정은 기준 과목으로·http(s) 아닌 링크는 막음", async () => {
+  globalThis.confirm = () => true;
   const main = await open("prep");
   const bases = [...main.querySelectorAll(".chips button")].map((b) => b.textContent);
   assert.deepEqual(bases, ["아트 드로잉", "캐드"].sort((a, b) => a.localeCompare(b, "ko")));
   [...main.querySelectorAll(".chips button")].find((b) => b.textContent === "캐드").click();
   assert.match(main.textContent, /적용 과목: 캐드1, 캐드2/);
-  assert.equal(main.textContent.match(/삼각자/g).length, 1);
-  assert.equal(main.querySelector("a[href^='javascript']"), null);
+  const contents = [...main.querySelectorAll("input[aria-label='내용']")].map((i) => i.value);
+  assert.deepEqual(contents, ["삼각자", "ChatGPT"], "겹치는 삼각자는 한 번");
+  [...main.querySelectorAll("button")].find((b) => b.textContent === "확정").click();
+  await flush();
+  assert.match(main.textContent, /http:\/\/ 또는 https:\/\/로 시작/);
+});
+
+test("강사 준비물 칸을 항목으로(교재·물품은 쉼표·줄바꿈, AI는 이름 | 링크)", async () => {
+  const { itemsFromMaterials } = await import("../../admin-v4/js/pages/prep.mjs");
+  assert.deepEqual(itemsFromMaterials({ textbook: "교재A", supplies: "자, 펜\n노트", ai: "ChatGPT | chatgpt.com" }), [
+    { category: "textbook", content: "교재A" }, { category: "supply", content: "자" }, { category: "supply", content: "펜" },
+    { category: "supply", content: "노트" }, { category: "ai", content: "ChatGPT", link_url: "https://chatgpt.com" },
+  ]);
+});
+
+test("공통 정리: 4단계 아닌 강사 자료는 4묶음으로 나눔", async () => {
+  const { bucket } = await import("../../admin-v4/js/pages/common-editor.mjs");
+  assert.deepEqual([0, 1, 2, 3].map((i) => bucket(i, 4)), [0, 1, 2, 3]);
+  assert.deepEqual([0, 1, 2, 3, 4, 5].map((i) => bucket(i, 6)), [0, 0, 1, 2, 2, 3]);
+  assert.deepEqual([0, 1].map((i) => bucket(i, 2)), [0, 2]);
+});
+
+test("공개 페이지 학과별 순서: 26번째 칸 순서대로, 없으면 시트 순서", async () => {
+  const src = (await import("node:fs")).readFileSync(new URL("../../Curriculum_onepage.html", import.meta.url), "utf8");
+  const code = src.slice(src.indexOf("function _deptOrd"), src.indexOf("async function getCurriculumSimpleByDeptFromSupabase"));
+  const { _deptOrd, _sortByDeptOrd } = new Function(`${code}; return { _deptOrd, _sortByDeptOrd };`)();
+  assert.equal(_deptOrd('{"건축": 2, "시각 편집": 0}', "시각편집학과"), 0);
+  assert.equal(_deptOrd("", "건축학과"), 1e9);
+  const rows = [{ n: "a", c: '{"건축": 1}' }, { n: "b", c: "" }, { n: "c", c: '{"건축": 0}' }];
+  assert.deepEqual(_sortByDeptOrd(rows, (r) => _deptOrd(r.c, "건축학과")).map((r) => r.n), ["c", "a", "b"]);
 });
 
 test("학과·과목: 학과 구성 순서, 6단계 과목은 '4단계로 다시 정리 필요'", async () => {

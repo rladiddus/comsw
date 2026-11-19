@@ -164,7 +164,7 @@ test("전체수업 주차 행 마지막 칸에 그 주차의 승인된 강사 �
   const week = (name, label) => rows.find(v => v[2] === name && v[3] === label);
   assert.equal(week("포토샵", "1주차")[24], "cand-a\ncand-b");
   assert.equal(week("포토샵", "2주차")[24], "");
-  assert.ok(rows.every(v => v.length === 25));
+  assert.ok(rows.every(v => v.length === 26), "V4: 26번째 칸 = 학과별 순서(20261119030000)");
   assert.equal(week("포토샵", "1주차")[7], "img1");
 });
 

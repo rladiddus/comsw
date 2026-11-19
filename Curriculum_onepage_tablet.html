@@ -1094,6 +1094,21 @@
     //  2026-11-18: 과목 목록은 관리 화면 학과 관리 › 과목별 커리큘럼과 같게 = 컴수원_전체수업 B열(과목의 학과들)에 이 학과가 있는 과목,
     //  시트 순서(= 관리 화면 과목 순서). 예전에는 로드맵 시트의 학과 행에서 골라, 로드맵에 없는 과목(예: 인테리어 라이노)이 빠졌다.
     //  과목마다 G(기간)/J(학과별 커리큘럼 요약)/K(프로그램)/L(학습 수준)은 그 과목 첫 행에서.
+    // 학과별 과목 순서(관리 화면 V4 '학과 구성', 2026-11-19): 전체수업 26번째 칸 {"건축": 0, …}. 없으면 시트 순서 그대로.
+    function _deptOrd(cell, deptName) {
+      try {
+        var m = JSON.parse(cell || '{}');
+        var key = String(deptName || '').replace(/학과$/, '').replace(/\s+/g, '');
+        for (var k in m) { if (k.replace(/\s+/g, '') === key && typeof m[k] === 'number') return m[k]; }
+      } catch (e) {}
+      return 1e9;
+    }
+    function _sortByDeptOrd(list, ordOf) {
+      return list.map(function(x, i) { return [x, i]; })
+        .sort(function(a, b) { return (ordOf(a[0]) - ordOf(b[0])) || (a[1] - b[1]); })
+        .map(function(p) { return p[0]; });
+    }
+
     async function getCurriculumSimpleByDeptFromSupabase(deptName) {
       const sheets = _curSheets();
       const fullRows = await window.ComswSupabase.fetchSheetRows(sheets.curriculum || '컴수원_전체수업');
@@ -1121,11 +1136,12 @@
           duration: _curNorm(vals[6]),   // G열
           content: _curNorm(vals[9]),    // J열
           program: _curNorm(vals[10]),   // K열
-          level: _curNorm(vals[11])      // L열
+          level: _curNorm(vals[11]),     // L열
+          ord: _deptOrd(vals[25], deptName)
         });
       });
 
-      return { engName: engName, subjects: subjects };
+      return { engName: engName, subjects: _sortByDeptOrd(subjects, function(x) { return x.ord; }) };
     }
 
     // [getCurriculumByDept]의 Supabase 대체 (서브젝트 팝업용 — 단계별 상세)

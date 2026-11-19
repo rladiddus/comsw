@@ -96,3 +96,4 @@
 - V4 구조: `admin-v4/js/{main,app,menus,data,ui,rules}.mjs` + `pages/`(instructors·courses·roadmap·vacation·prep·seminars·site·mine·profile). data.mjs는 app이 `useDb(supabase)`로 연결(테스트는 fakeSupabase, `range()` 추가함). 캐드1 전용 준비물 없음(기준 과목에서만).
 - V4 확정 규칙: 모든 V4 공개 함수는 `comsw_private.v4_guard()`(권한·잠금·미반영 변경 검사) → 저장 → `comsw_private.v4_publish()`. 공개 묶음 최상위 래퍼 = v4(삭제·relink_needed 과목 숨김). 화면은 `data.call(rpc)`·`ui.busy`·`ui.publishBanner`.
 - V4 확정: 강사 커리큘럼은 `comsw_v4_confirm_curriculum`(기존 comsw_approve_curriculum 쓰지 않음: 공통 준비물 자동 추가 때문). 학과 탭(set)은 department_id 또는 학과와 같은 이름으로 찾는다. 강사 [저장] = v4_teacher_drafts.
+- V4 공개 순서: 전체수업 행 인덱스 25 = {학과명-'학과': 순서} JSON, 공개 페이지 `_deptOrd`/`_sortByDeptOrd`. 공개 로드맵(roadmap_tracks)은 아직 학과 구성과 연결 안 함(결정 필요).

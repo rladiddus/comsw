@@ -1,13 +1,16 @@
 // 학과·과목: 학과 구성 / 전체 과목 / 삭제된 과목. 과목 상세 = 공통 4단계 + 참고할 강사 자료(검수 완료본만).
-// 1단계는 실제 자료 읽기만. 구성 저장·삭제·복원·공통 정리 확정은 2·4단계(DB 함수) 뒤에 붙인다.
+// 학과 구성 저장(dept-layout), 공통 4단계 정리(common-editor), 과목 삭제·복원. 모두 그 건만 바로 공개.
 import * as data from "../data.mjs";
 import { h, head, box, table, tabs, pill, media, fill, empty, note, busy, publishBanner } from "../ui.mjs";
 import { baseName, deptOrder, stepState, curriculumUnits } from "../rules.mjs";
+import { deptLayout } from "./dept-layout.mjs";
+import { commonEditor } from "./common-editor.mjs";
 
 let state = { tab: "depts", dept: null, subject: null };
 
 export async function render({ main, params = [] }) {
   if (params[0]) state.tab = params[0];
+  if (params[1]) state.dept = params[1];
   const reload = () => render({ main });
   main.replaceChildren(head("학과·과목", "학과마다 과목 구성과 순서를 정하고, 과목마다 공통 4단계 커리큘럼을 정리합니다."));
   const body = h("div");
@@ -34,12 +37,8 @@ export async function render({ main, params = [] }) {
         view = [
           tabs(cat.departments.map((d) => [d.id, d.name]), state.dept, (id) => { state.dept = id; draw(); }, "chips"),
           h("div", { style: "height:14px" }),
-          box(`과목 ${ordered.length}개 · 이 순서가 학과별 커리큘럼과 로드맵 순서입니다`, table([
-            ["순서", (s) => String(ordered.indexOf(s) + 1)],
-            ["과목", (s) => s.name],
-            ["기간", (s) => s.duration || "—"],
-            ["공통 커리큘럼", stepPill],
-          ], ordered, { onPick: (s) => { state.subject = s.id; state.tab = "subjects"; draw(); } })),
+          deptLayout(cat.departments.find((d) => d.id === state.dept), ordered, subjects,
+            { msg, reload, stepPill, openSubject: (id) => { state.subject = id; state.tab = "subjects"; draw(); } }),
         ];
       } else if (state.tab === "subjects") {
         const pick = subjects.find((s) => s.id === state.subject);
@@ -72,31 +71,19 @@ export async function render({ main, params = [] }) {
 }
 
 function subjectDetail(s, cat, general, { msg, reload, deptsOf, vacsOf }) {
-  const steps = general.filter((w) => w.subject_id === s.id);
-  const panel = h("div");
-  fill(panel, async () => {
-    const rows = await data.curricula((q) => q.eq("subject_id", s.id).eq("status", "approved").order("sort_order", { nullsFirst: false }));
-    const people = new Map((await data.instructors()).map((p) => [p.id, p.name]));
-    const vacIds = new Set(cat.vacations.map((v) => v.id));
-    const refs = curriculumUnits(rows).filter((u) => !vacIds.has(u.set_id));
-    return box(`참고할 강사 자료 · 일반 · 검수 완료 ${refs.length}건`, refs.length
-      ? table([
-        ["강사", (u) => people.get(u.instructor_id) ?? "—"],
-        ["단계", (u) => { const st = stepState(u.approved.length); return pill(st.label, st.kind); }],
-        ["이미지", (u) => `${u.approved.filter((r) => r.media_url).length}장`],
-      ], refs)
-      : empty("검수 완료된 강사 자료가 없습니다"));
-  });
+  const steps = general.filter((w) => w.subject_id === s.id).sort((x, y) => (x.sort_order ?? 0) - (y.sort_order ?? 0));
   const st = stepState(steps.length);
   return h("div", {},
     box(null,
-      h("div", { class: "row" }, h("h3", {}, `${s.name} · 공통 커리큘럼(일반)`), pill(st.label, st.kind)),
+      h("div", { class: "row" }, h("h3", {}, `${s.name} · 공개 중인 공통 커리큘럼(일반)`), pill(st.label, st.kind)),
       s.relink_needed ? note("복원한 과목입니다. 학과나 방학 특강에 다시 넣기 전에는 홈페이지에 나오지 않습니다.") : null,
       s.duration ? h("p", { class: "muted" }, `과정 기간 ${s.duration}`) : null,
       steps.length ? h("div", { class: "steps" }, steps.map((w) => h("div", { class: "step" },
         h("b", {}, w.week_label), h("p", {}, w.summary || w.written || "—"), w.image_url ? media(w.image_url) : null)))
-        : empty("공통 커리큘럼이 아직 없습니다")),
-    panel,
+        : empty("공통 커리큘럼이 아직 없습니다"),
+      h("div", { class: "actions", style: "margin-top:10px" },
+        h("a", { class: "btn", href: `#/prep/${encodeURIComponent(baseName(s.name))}` }, `공통 준비물 정리(${baseName(s.name)})`))),
+    commonEditor(s, cat, steps.length === 4 ? steps : [], { msg, reload }),
     box("과목 삭제", h("p", { class: "muted" }, "학과에서만 빼려면 학과 구성에서 빼세요. 과목 삭제는 모든 학과·방학 특강에서 빠지고 삭제된 과목으로 옮겨집니다(자료는 보관, 복원 가능)."),
       h("button", { type: "button", class: "btn danger", onclick: (e) => busy(e.currentTarget, msg, async () => {
         const d = deptsOf(s.id), v = vacsOf(s.id);

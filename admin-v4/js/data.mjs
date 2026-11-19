@@ -99,3 +99,13 @@ export async function dropTeacherDraft(instructorId, kind, target) {
     .eq("instructor_id", instructorId).eq("kind", kind).eq("target", target);
   if (error) throw new Error(error.message);
 }
+
+// 학과장 작성 보관함(v4_drafts): 공통 커리큘럼·준비물 등. 저장은 여기까지(공개 안 됨).
+export async function upsertDraft(kind, target, payload) {
+  const { error } = await db.from("v4_drafts").upsert({ kind, target, payload, updated_at: new Date().toISOString() });
+  return { error: error?.message ?? null };
+}
+export async function dropDraft(kind, target) {
+  const { error } = await db.from("v4_drafts").delete().eq("kind", kind).eq("target", target);
+  if (error) throw new Error(error.message);
+}

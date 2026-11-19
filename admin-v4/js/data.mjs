@@ -109,3 +109,7 @@ export async function dropDraft(kind, target) {
   const { error } = await db.from("v4_drafts").delete().eq("kind", kind).eq("target", target);
   if (error) throw new Error(error.message);
 }
+export const roadmap = async () => {
+  const [tracks, steps, links] = await Promise.all([all("roadmap_tracks"), all("roadmap_steps"), all("roadmap_step_subjects")]);
+  return { tracks, steps, links };
+};

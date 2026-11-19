@@ -40,3 +40,13 @@ export function curriculumUnits(rows) {
   const bySort = (a, b) => num(a.sort_order) - num(b.sort_order);
   return [...units.values()].map((u) => ({ ...u, approved: u.approved.sort(bySort), pending: u.pending.sort(bySort) }));
 }
+
+// 로드맵 한 단계의 이름(공개 SQL v4_roadmap_label과 같은 규칙): 끝 숫자만 다른 과목들 → '캐드 1~2', 아니면 줄바꿈.
+export function roadmapLabel(names) {
+  const m = names.map((n) => String(n).trim().match(/^(.*?)\s*(\d+)$/));
+  if (names.length >= 2 && m.every(Boolean) && new Set(m.map((x) => x[1].trim())).size === 1 && m[0][1].trim()) {
+    const nums = m.map((x) => Number(x[2]));
+    return `${m[0][1].trim()} ${Math.min(...nums)}~${Math.max(...nums)}`;
+  }
+  return names.join("\n");
+}

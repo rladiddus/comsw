@@ -109,6 +109,30 @@ test("공개 페이지 학과별 순서: 26번째 칸 순서대로, 없으면 �
   assert.deepEqual(_sortByDeptOrd(rows, (r) => _deptOrd(r.c, "건축학과")).map((r) => r.n), ["c", "a", "b"]);
 });
 
+test("로드맵: [+]로 묶으면 한 단계, 이름 끝 숫자만 다르면 '캐드 1~2', 저장은 학과 구성 순서 그대로", async () => {
+  const { roadmapLabel } = await import("../../admin-v4/js/rules.mjs");
+  assert.equal(roadmapLabel(["AI웹툰1", "AI웹툰2", "AI웹툰3", "AI웹툰4", "AI웹툰5", "AI웹툰6"]), "AI웹툰 1~6");
+  assert.equal(roadmapLabel(["AI포토샵", "AI일러스트"]), "AI포토샵\nAI일러스트");
+  globalThis.confirm = () => true;
+  const fake = db();
+  const calls = [];
+  fake.rpc = async (name, args) => { calls.push([name, args]); return { data: false, error: null }; };
+  data.useDb(fake);
+  const main = document.getElementById("content");
+  const { render } = await import("../../admin-v4/js/pages/roadmap.mjs");
+  await render({ main, params: [] });
+  await flush();
+  assert.match(main.textContent, /과목 2개 → 로드맵 2단계/);
+  [...main.querySelectorAll("button")].find((b) => b.textContent === "+").click();
+  assert.match(main.textContent, /로드맵 1단계/);
+  assert.ok([...main.querySelectorAll(".step b")].some((b) => b.textContent === "캐드 1~2"));
+  [...main.querySelectorAll("button")].find((b) => b.textContent === "저장(바로 공개)").click();
+  await flush();
+  const [name, args] = calls.find(([n]) => n === "comsw_v4_save_roadmap");
+  assert.equal(name, "comsw_v4_save_roadmap");
+  assert.deepEqual(args.p_groups.map((g) => g.subjects), [["s1", "s2"]]);
+});
+
 test("학과·과목: 학과 구성 순서, 6단계 과목은 '4단계로 다시 정리 필요'", async () => {
   const main = await open("courses");
   assert.match(main.textContent, /과목 2개/);

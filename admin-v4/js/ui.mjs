@@ -58,3 +58,24 @@ export async function fill(el, load) {
     el.replaceChildren(fail(`불러오지 못했습니다: ${err?.message ?? err}`));
   }
 }
+
+// 확정 버튼 공통: 누르는 동안 잠그고, 실패하면 이유를 보여 준다(입력은 그대로).
+export async function busy(btn, msgEl, work) {
+  const label = btn.textContent;
+  btn.disabled = true;
+  btn.textContent = "처리 중...";
+  msgEl?.replaceChildren();
+  try { return await work(); } catch (err) {
+    console.error(err);
+    msgEl?.replaceChildren(fail(err?.message ?? String(err)));
+    return undefined;
+  } finally { btn.disabled = false; btn.textContent = label; }
+}
+
+// 반영 안 된 다른 변경 안내(학과장·관리자 화면 위)
+export async function publishBanner(check) {
+  const el = h("div");
+  const dirty = await check();
+  if (dirty) el.append(fail("기존 관리 화면에서 고치고 사이트에 반영하지 않은 변경이 있습니다. 그 변경이 섞여 공개되지 않도록 V4의 확정·삭제가 멈춥니다. 기존 화면에서 사이트에 반영한 뒤 다시 해주세요."));
+  return el;
+}

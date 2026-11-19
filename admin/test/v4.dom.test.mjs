@@ -107,3 +107,34 @@ test("읽기 실패는 '없음'이 아니라 실패로 보여 준다", async () 
   await render({ main, session: { role: "head" }, params: [] });
   assert.match(main.textContent, /불러오지 못했습니다: subjects: 권한 없음/);
 });
+
+test("과목 삭제·강사 노출은 DB 함수로(확인 후), 실패하면 이유를 보여 준다", async () => {
+  globalThis.confirm = () => true;
+  const fake = db();
+  const calls = [];
+  fake.rpc = async (name, args) => {
+    calls.push([name, args]);
+    if (name === "comsw_v4_set_instructor_listed") return { data: null, error: { message: "사이트에 반영하지 않은 다른 변경이 있어 멈췄습니다" } };
+    return { data: name === "comsw_v4_unpublished" ? false : null, error: null };
+  };
+  data.useDb(fake);
+  const main = document.getElementById("content");
+  const courses = await import("../../admin-v4/js/pages/courses.mjs");
+  await courses.render({ main, params: ["subjects"] });
+  await flush();
+  [...main.querySelectorAll("tr.pick")].find((tr) => tr.textContent.includes("캐드2")).click();
+  await flush();
+  [...main.querySelectorAll("button")].find((b) => b.textContent === "과목 삭제").click();
+  await flush();
+  assert.deepEqual(calls.find(([n]) => n === "comsw_v4_delete_subject"), ["comsw_v4_delete_subject", { p_id: "s2" }]);
+
+  const people = await import("../../admin-v4/js/pages/instructors.mjs");
+  await people.render({ main, params: [] });
+  await flush();
+  const btn = [...main.querySelectorAll("button")].find((b) => b.textContent === "노출");
+  btn.click();
+  await flush();
+  assert.deepEqual(calls.at(-1), ["comsw_v4_set_instructor_listed", { p_id: "i1", p_listed: false }]);
+  assert.match(main.textContent, /반영하지 않은 다른 변경/);
+  assert.equal([...main.querySelectorAll("button")].find((b) => b.textContent === "노출")?.disabled, false, "실패하면 그대로(노출), 다시 누를 수 있음");
+});

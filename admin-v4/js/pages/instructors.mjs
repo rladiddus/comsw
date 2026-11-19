@@ -1,6 +1,6 @@
 // 강사: 목록(홈페이지 노출·이번 제출) → 상세(프로필 / 커리큘럼). 1단계는 실제 자료 읽기만, 확정·AI는 3단계.
 import * as data from "../data.mjs";
-import { h, head, box, table, tabs, pill, media, dl, fill, empty, note } from "../ui.mjs";
+import { h, head, box, table, tabs, pill, media, dl, fill, empty, note, busy, publishBanner } from "../ui.mjs";
 import { curriculumUnits, stepState } from "../rules.mjs";
 
 export async function render({ main }) {
@@ -26,7 +26,11 @@ export async function render({ main }) {
     const list = () => table([
       ["이름", (p) => p.name],
       ["학과", (p) => p.depts.join(", ") || "—"],
-      ["홈페이지", (p) => pill(p.is_listed ? "노출" : "숨김", p.is_listed ? "" : "neutral")],
+      ["홈페이지", (p) => h("button", {
+        type: "button", class: `btn${p.is_listed ? " primary" : ""}`, "aria-pressed": String(!!p.is_listed),
+        title: "홈페이지 강사 소개에 보이기·숨기기(바로 반영). 계정 로그인과는 상관없습니다.",
+        onclick: (e) => { e.stopPropagation(); toggle(p, e.currentTarget); },
+      }, p.is_listed ? "노출" : "숨김")],
       ["계정", (p) => (p.account_uid ? "연결" : pill("미연결", "neutral"))],
       ["이번 제출", (p) => {
         const n = p.units.filter((u) => u.pending.length).length;
@@ -43,9 +47,17 @@ export async function render({ main }) {
       tabs([["profile", "프로필"], ["curriculum", "커리큘럼"]], tab, (t) => { tab = t; draw(); }),
       tab === "profile" ? profile(p) : curriculum(p, cat),
     )];
+    const msg = h("div");
+    const toggle = (p, btn) => busy(btn, msg, async () => {
+      const next = !p.is_listed;
+      if (!confirm(`${p.name} 강사를 홈페이지에서 ${next ? "보이게" : "숨기게"} 할까요? 바로 반영됩니다.`)) return;
+      await data.call("comsw_v4_set_instructor_listed", { p_id: p.id, p_listed: next });
+      p.is_listed = next;
+      draw();
+    });
     const listBox = h("section", { class: "box" });
     draw();
-    return h("div", { class: "two" }, listBox, detail);
+    return [await publishBanner(data.unpublished), msg, h("div", { class: "two" }, listBox, detail)];
   });
 }
 

@@ -91,3 +91,4 @@
 - 빨리 열기: `currentRole()`은 토큰 `comsw_role`이 있으면 바로 돌려주고 `recheckRole`을 뒤에서 돈다(바뀌면 `location.reload()`, 새 토큰도 같으면 되풀이 안 함). V3 `index.html` modulepreload 목록은 `admin/test/v3-preload.test.mjs`가 검사 — 시작·첫 화면(legacy→site, profile→admin 내 프로필) import나 첫 메뉴를 바꾸면 목록도 고친다.
 - 방특 판단: `instructor_curricula.vacation`은 믿지 않고 **기수 그룹(`curriculum_sets.is_vacation`)**으로 판단한다.
 - 사용자용 업데이트 기록 txt: `E:/바이브코딩/컴수원-관리플랫폼/컴수원_업데이트기록.txt`(최근 날짜 위, [관리자 사이트]/[학생용 사이트], ~함·~했음 말투).
+- V4: 설계 `docs/v4-설계.md`, 브랜치 `v4`, 폴더 `admin-v4/`(V3 화면 코드 import 금지, admin/js 바탕 모듈만). 인수 자료 `../V4/claude-code-handoff/`.

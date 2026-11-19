@@ -99,3 +99,4 @@
 - V4 공개 순서: 전체수업 행 인덱스 25 = {학과명-'학과': 순서} JSON, 공개 페이지 `_deptOrd`/`_sortByDeptOrd`. 공개 로드맵(roadmap_tracks)은 아직 학과 구성과 연결 안 함(결정 필요).
 - V4 로드맵: 학과 구성 순서 + [+] 묶음 → `comsw_v4_save_roadmap`. 이름 규칙은 SQL `v4_roadmap_label`과 JS `rules.roadmapLabel` 같게.
 - V4 5단계: 사이트 편집 저장 `comsw_v4_save_site(tab, p)`, 특강 `comsw_v4_save_seminar`, 방학 특강 `comsw_v4_save_vacation`. 업로드는 이미지만(영상은 주소).
+- V4 배포 주소: https://rladiddus.github.io/comsw/admin-v4/ (2026-11-19). 작업 브랜치 v4 → redesign → main ff.

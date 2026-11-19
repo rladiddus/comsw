@@ -48,7 +48,7 @@ export async function render({ main }) {
         inner.replaceChildren(popMsg,
           h("div", { class: "row" }, h("span", { class: "muted" }, p.depts.join(", ")), pill(p.is_listed ? "홈페이지 노출" : "홈페이지 숨김", p.is_listed ? "" : "neutral")),
           tabs([["profile", "프로필"], ["curriculum", "커리큘럼"]], keep.tab, (t) => { keep.tab = t; again(); }),
-          h("div", { class: "modal-main" }, keep.tab === "profile" ? box(null, profile(p, { msg: popMsg, reload })) : curriculum(p, cat, { msg: popMsg, reload, again })));
+          h("div", { class: "modal-main" }, keep.tab === "profile" ? h("section", { class: "box profile-box" }, profile(p, { msg: popMsg, reload })) : curriculum(p, cat, { msg: popMsg, reload, again })));
       };
       again();
       pop?.close();
@@ -77,9 +77,10 @@ export async function render({ main }) {
 
 function profile(p, { msg, reload }) {
   const d = p.draft;
-  if (!d) return h("div", { class: "two" },
-    h("div", {}, h("h4", {}, "공개 중"), dl([["이름", p.name], ["경력", p.career], ["한마디", p.message]])),
-    h("div", {}, h("h4", {}, "사진"), media(p.photo_url)));
+  // 사진은 팝업 높이 안에 다 보이게(스크롤 없이 최대한 크게), 글은 넘치면 글 쪽만 스크롤
+  if (!d) return h("div", { class: "profile-grid" },
+    h("div", { class: "profile-text" }, h("h4", {}, "공개 중"), dl([["이름", p.name], ["경력", p.career], ["한마디", p.message]])),
+    h("div", { class: "profile-photo" }, h("h4", {}, "사진"), media(p.photo_url)));
   const f = { career: d.career ?? "", message: d.message ?? "" };
   const area = (k, rows) => h("textarea", { rows, value: f[k], style: "width:100%", oninput: (e) => { f[k] = e.target.value; } });
   const photoBtn = h("button", { type: "button", class: "btn" }, "AI 프로필 사진 만들기");
@@ -95,11 +96,11 @@ function profile(p, { msg, reload }) {
     await data.call("comsw_v4_confirm_profile", { p_instructor: p.id, p_updated_at: d.updated_at, p_career: f.career, p_message: f.message });
     reload();
   });
-  return h("div", {},
+  return h("div", { class: "profile-wrap" },
     note("이번 제출입니다. 고친 문구로 확정하며, 확정 전에는 홈페이지에 공개되지 않습니다. 강사 원문은 기록에 남습니다."),
-    h("div", { class: "two" },
-      h("div", {}, dl([["이름", d.name]]), h("h4", {}, "경력"), area("career", 6), h("h4", {}, "한마디"), area("message", 3)),
-      h("div", {}, h("h4", {}, "사진(확정되면 공개)"), media(d.photo_url || p.photo_url),
+    h("div", { class: "profile-grid" },
+      h("div", { class: "profile-text" }, dl([["이름", d.name]]), h("h4", {}, "경력"), area("career", 6), h("h4", {}, "한마디"), area("message", 3)),
+      h("div", { class: "profile-photo" }, h("h4", {}, "사진(확정되면 공개)"), media(d.photo_url || p.photo_url),
         h("p", { class: "muted" }, d.photo_url ? "AI로 만든 사진입니다." : d.source_asset_id ? "강사가 본인 사진을 올렸습니다. AI 사진을 만든 뒤 확정하세요." : "새 사진 없음(지금 사진 그대로)."),
         d.source_asset_id ? photoBtn : null)),
     h("div", { class: "actions" }, ok));

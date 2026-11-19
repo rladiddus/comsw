@@ -108,6 +108,13 @@ dialog.modal[open] { display: flex; flex-direction: column; overflow: hidden; }
 .modal-main > .side-list { height: 100%; }
 .side-list > .box { height: 100%; overflow: auto; margin: 0; }
 .side-list .picks button { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.modal-main > .profile-box { height: 100%; margin: 0; display: flex; flex-direction: column; overflow: hidden; }
+.profile-box > *, .profile-wrap { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+.profile-grid { flex: 1; min-height: 0; display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 0.8fr); gap: 20px; }
+.profile-text { min-height: 0; overflow: auto; }
+.profile-photo { min-height: 0; display: flex; flex-direction: column; }
+.profile-photo .media { flex: 1; min-height: 0; }
+.profile-photo .media img { width: auto; height: 100%; max-width: 100%; object-fit: contain; margin: 0 auto; }
 dialog.modal .side-list .steps { grid-template-columns: repeat(4, minmax(0, 1fr)); }
 .side-list { display: grid; grid-template-columns: var(--picks, 240px) minmax(0, 1fr); gap: 16px; align-items: start; }
 .side-list .picks { display: grid; gap: 6px; }
@@ -120,7 +127,9 @@ dialog.modal .change-bar { position: sticky; }
 
 @media (max-width: 900px) {
   .side-list { grid-template-columns: 1fr; }
-  .modal-main > .side-list, .side-list > .box { height: auto; }
+  .modal-main > .side-list, .side-list > .box, .modal-main > .profile-box { height: auto; }
+  .profile-grid { grid-template-columns: 1fr; }
+  .profile-photo .media img { height: auto; max-height: 60vh; }
   dialog.modal .side-list .steps { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .two { grid-template-columns: 1fr; }
 }

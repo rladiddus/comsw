@@ -8,7 +8,9 @@ import { curriculumUnits, stepState, STEPS } from "../rules.mjs";
 // i번째(0부터) 단계가 n개 중이면 4묶음 중 몇 번째인가
 export const bucket = (i, n) => (n === STEPS ? i : Math.min(STEPS - 1, Math.floor((i * STEPS) / n)));
 
-export function commonEditor(subject, cat, current, { msg, reload }) {
+export function commonEditor(subject, cat, current, { msg, reload, set = null }) {
+  // set이 있으면 그 방학 특강의 공통(그 특강 검수본만), 없으면 일반 수업 공통
+  const target = set ? `${subject.id}|${set.id}` : subject.id;
   const el = h("div");
   (async () => {
     try {
@@ -16,10 +18,10 @@ export function commonEditor(subject, cat, current, { msg, reload }) {
       const [rows, people, saved] = await Promise.all([
         data.curricula((q) => q.eq("subject_id", subject.id).eq("status", "approved").order("sort_order", { nullsFirst: false })),
         data.instructors(),
-        data.all("v4_drafts", (q) => q.eq("kind", "common").eq("target", subject.id)).catch(() => []),
+        data.all("v4_drafts", (q) => q.eq("kind", "common").eq("target", target)).catch(() => []),
       ]);
       const vac = new Set(cat.vacations.map((v) => v.id));
-      const units = curriculumUnits(rows).filter((u) => !vac.has(u.set_id) && u.approved.length);
+      const units = curriculumUnits(rows).filter((u) => (set ? u.set_id === set.id : !vac.has(u.set_id)) && u.approved.length);
       const nameOf = new Map(people.map((p) => [p.id, p.name]));
       const draft = saved[0]?.payload;
       const st = {
@@ -64,25 +66,26 @@ export function commonEditor(subject, cat, current, { msg, reload }) {
             s.image_url ? h("button", { type: "button", onclick: () => { s.image_url = ""; draw(); } }, "빼기") : null));
         const save = h("button", { type: "button", class: "btn" }, "저장");
         save.onclick = () => busy(save, msg, async () => {
-          const { error } = await data.upsertDraft("common", subject.id, { picked: [...st.picked], steps: st.steps });
+          const { error } = await data.upsertDraft("common", target, { picked: [...st.picked], steps: st.steps });
           if (error) throw new Error(error);
           msg.replaceChildren(note(`${subject.name}: 저장했습니다(아직 공개 전).`));
         });
         const ok = h("button", { type: "button", class: "btn primary", disabled: !chosen.length || lost.some(Boolean) }, "확정");
         ok.onclick = () => busy(ok, msg, async () => {
           if (st.steps.some((s) => !s.summary.trim())) throw new Error("4단계 문구를 모두 채워주세요");
-          if (!confirm(`${subject.name} 공통 4단계를 확정할까요? 홈페이지에 바로 반영되고, 예전 단계는 보관됩니다.`)) return;
-          await data.call("comsw_v4_confirm_common", {
+          if (!confirm(`${subject.name}${set ? `(${set.name})` : ""} 공통 4단계를 확정할까요? 홈페이지에 바로 반영되고, 예전 단계는 보관됩니다.`)) return;
+          await data.call(set ? "comsw_v4_confirm_vacation_common" : "comsw_v4_confirm_common", {
+            ...(set ? { p_set: set.id } : {}),
             p_subject: subject.id,
             p_sources: chosen.flatMap((u) => u.approved.map((r) => ({ id: r.id, updated_at: r.updated_at }))),
             p_steps: st.steps.map((s) => ({ summary: s.summary.trim(), image_url: s.image_url || "" })),
           });
-          await data.dropDraft("common", subject.id).catch(() => {});
+          await data.dropDraft("common", target).catch(() => {});
           reload();
         });
         return h("div", {},
-          box("참고할 강사 자료(일반 · 검수 완료만)", pickList, h("div", { class: "actions", style: "margin-top:10px" }, aiBtn)),
-          box(`공통 4단계${draft ? " · 저장한 내용" : ""}`, h("div", { class: "steps" }, st.steps.map(stepCard)),
+          box(`참고할 강사 자료(${set ? set.name : "일반"} · 검수 완료만)`, pickList, h("div", { class: "actions", style: "margin-top:10px" }, aiBtn)),
+          box(`${set ? `${set.name} ` : ""}공통 4단계${draft ? " · 저장한 내용" : ""}`, h("div", { class: "steps" }, st.steps.map(stepCard)),
             h("div", { class: "actions", style: "margin-top:12px" }, save, ok)));
       };
       draw();

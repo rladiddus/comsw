@@ -176,14 +176,18 @@ test("내 커리큘럼 제출: 4단계를 다 써야 하고, 기존 제출 함�
   assert.deepEqual(args.p_subjects[0].steps.map((s) => [s.step_label, s.written]), [1, 2, 3, 4].map((n) => [`${n}단계`, `내용 ${n}`]));
 });
 
-test("강사 검수: 4단계가 아니면 확정 버튼이 잠기고 안내", async () => {
+test("강사 검수: 강사를 누르면 팝업, 커리큘럼은 왼쪽 과목·오른쪽 내용, 4단계가 아니면 확정 잠김", async () => {
   const main = await open("instructors");
   [...main.querySelectorAll("tr.pick")][0].click();
   await flush();
-  [...main.querySelectorAll(".tabs button")].find((b) => b.textContent === "커리큘럼").click();
-  await flush();
-  assert.match(main.textContent, /4단계가 모두 있어야 확정할 수 있습니다\(지금 1단계\)/);
-  assert.equal([...main.querySelectorAll("button")].find((b) => b.textContent === "확정").disabled, true);
+  const dlg = document.querySelector("dialog.modal");
+  assert.ok(dlg, "팝업");
+  [...dlg.querySelectorAll(".tabs button")].find((b) => b.textContent === "커리큘럼").click();
+  assert.ok(dlg.querySelector(".side-list .picks button"), "왼쪽 과목 목록");
+  assert.match(dlg.textContent, /4단계가 모두 있어야 확정할 수 있습니다\(지금 1단계\)/);
+  assert.equal([...dlg.querySelectorAll("button")].find((b) => b.textContent === "확정").disabled, true);
+  [...dlg.querySelectorAll("button")].find((b) => b.textContent === "닫기").click();
+  assert.equal(document.querySelector("dialog.modal"), null);
 });
 
 test("읽기 실패는 '없음'이 아니라 실패로 보여 준다", async () => {
@@ -220,12 +224,13 @@ test("과목 삭제·강사 노출은 DB 함수로(확인 후), 실패하면 이
   const people = await import("../../admin-v4/js/pages/instructors.mjs");
   await people.render({ main, params: [] });
   await flush();
-  const btn = [...main.querySelectorAll("button")].find((b) => b.textContent === "노출");
+  const btn = main.querySelector("button[role=switch]");
+  assert.equal(btn.getAttribute("aria-checked"), "true");
   btn.click();
   await flush();
   assert.deepEqual(calls.at(-1), ["comsw_v4_set_instructor_listed", { p_id: "i1", p_listed: false }]);
   assert.match(main.textContent, /반영하지 않은 다른 변경/);
-  assert.equal([...main.querySelectorAll("button")].find((b) => b.textContent === "노출")?.disabled, false, "실패하면 그대로(노출), 다시 누를 수 있음");
+  assert.equal(main.querySelector("button[role=switch]").getAttribute("aria-checked"), "true", "실패하면 그대로(노출)");
 });
 
 test("사이트 편집이 열리고, 방학 특강 과목 구성은 체크한 과목 그대로 저장 함수로", async () => {

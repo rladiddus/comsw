@@ -79,3 +79,21 @@ export async function publishBanner(check) {
   if (dirty) el.append(fail("기존 관리 화면에서 고치고 사이트에 반영하지 않은 변경이 있습니다. 그 변경이 섞여 공개되지 않도록 V4의 확정·삭제가 멈춥니다. 기존 화면에서 사이트에 반영한 뒤 다시 해주세요."));
   return el;
 }
+
+// 팝업(<dialog>). 닫으면 지워진다. Esc·바깥·[닫기]로 닫음.
+export function modal(title, body, { onClose } = {}) {
+  const dlg = h("dialog", { class: "modal", "aria-label": title });
+  const close = () => { dlg.close?.(); dlg.remove(); onClose?.(); };
+  dlg.append(h("div", { class: "row modal-head" }, h("h3", {}, title), h("button", { type: "button", class: "btn", onclick: close }, "닫기")), body);
+  dlg.addEventListener("cancel", (e) => { e.preventDefault(); close(); });
+  dlg.addEventListener("click", (e) => { if (e.target === dlg) close(); });
+  document.body.append(dlg);
+  if (dlg.showModal) dlg.showModal(); else dlg.setAttribute("open", "");
+  return { dlg, close };
+}
+
+// 켜기·끄기 스위치(role=switch). onToggle은 새 값으로 불림.
+export const toggleSwitch = (on, label, onToggle) => h("button", {
+  type: "button", role: "switch", class: "switch", "aria-checked": String(!!on), "aria-label": label, title: label,
+  onclick: (e) => { e.stopPropagation(); onToggle(!on, e.currentTarget); },
+}, h("span", { class: "knob" }));

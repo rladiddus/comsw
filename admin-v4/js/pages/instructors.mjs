@@ -1,13 +1,13 @@
-// 강사: 목록(홈페이지 노출·이번 제출) → 상세(프로필 / 커리큘럼). 이번 제출만 보고, AI는 버튼으로만, [확정] = 그 한 건만 공개.
+// 강사: 목록(홈페이지 노출 스위치·이번 제출) → 강사를 누르면 팝업(프로필 / 커리큘럼: 왼쪽 과목, 오른쪽 내용). 이번 제출만 보고, AI는 버튼으로만, [확정] = 그 한 건만 공개.
 import * as data from "../data.mjs";
-import { h, head, box, table, tabs, pill, media, dl, fill, empty, note, busy, publishBanner } from "../ui.mjs";
+import { h, head, box, table, tabs, pill, media, dl, fill, empty, note, busy, publishBanner, modal, toggleSwitch } from "../ui.mjs";
 import { curriculumUnits, stepState } from "../rules.mjs";
 
-let keep = { id: null, tab: "profile" };
+let keep = { id: null, tab: "profile", unit: null };
 
 export async function render({ main }) {
   const reload = () => render({ main });
-  main.replaceChildren(head("강사", "홈페이지 노출과 이번 제출을 확인합니다. 상세에서 프로필과 커리큘럼을 함께 봅니다."));
+  main.replaceChildren(head("강사", "홈페이지 노출과 이번 제출을 확인합니다. 강사를 누르면 프로필과 커리큘럼이 팝업으로 열립니다."));
   const body = h("div");
   main.append(body);
   await fill(body, async () => {
@@ -23,44 +23,45 @@ export async function render({ main }) {
       draft: drafts.find((d) => d.instructor_id === p.id && d.status === "pending"),
       units: units.filter((u) => u.instructor_id === p.id),
     }));
-    let selected = view.find((p) => p.id === keep.id) ?? null;
-    let tab = keep.tab;
-    const detail = h("div");
+    const msg = h("div");
+    const listBox = h("section", { class: "box" });
+    let pop = null;
     const list = () => table([
       ["이름", (p) => p.name],
       ["학과", (p) => p.depts.join(", ") || "—"],
-      ["홈페이지", (p) => h("button", {
-        type: "button", class: `btn${p.is_listed ? " primary" : ""}`, "aria-pressed": String(!!p.is_listed),
-        title: "홈페이지 강사 소개에 보이기·숨기기(바로 반영). 계정 로그인과는 상관없습니다.",
-        onclick: (e) => { e.stopPropagation(); toggle(p, e.currentTarget); },
-      }, p.is_listed ? "노출" : "숨김")],
+      ["홈페이지 노출", (p) => toggleSwitch(p.is_listed, `${p.name} 홈페이지 노출(바로 반영, 계정 로그인과는 상관없음)`, (next, btn) => toggle(p, next, btn))],
       ["계정", (p) => (p.account_uid ? "연결" : pill("미연결", "neutral"))],
       ["이번 제출", (p) => {
         const n = p.units.filter((u) => u.pending.length).length;
         const marks = [p.draft && pill("프로필"), n && pill(`커리큘럼 ${n}건`)].filter(Boolean);
         return marks.length ? h("div", { class: "chips" }, marks) : "—";
       }],
-    ], view, { selected, onPick: (p) => { selected = p; keep.id = p.id; draw(); } });
-    const draw = () => {
-      listBox.replaceChildren(h("h3", {}, `강사 ${view.length}명`), list());
-      detail.replaceChildren(...(selected ? showDetail(selected) : [box(null, empty("강사를 고르면 프로필과 커리큘럼이 나옵니다"))]));
+    ], view, { onPick: (p) => { keep.id = p.id; keep.unit = null; openPop(p); } });
+    const draw = () => listBox.replaceChildren(h("h3", {}, `강사 ${view.length}명`), list());
+    // 팝업: 다시 그려도(탭·과목 바꿈) 같은 팝업 안에서
+    const openPop = (p) => {
+      const inner = h("div");
+      const popMsg = h("div");
+      const again = () => {
+        inner.replaceChildren(popMsg,
+          h("div", { class: "row" }, h("span", { class: "muted" }, p.depts.join(", ")), pill(p.is_listed ? "홈페이지 노출" : "홈페이지 숨김", p.is_listed ? "" : "neutral")),
+          tabs([["profile", "프로필"], ["curriculum", "커리큘럼"]], keep.tab, (t) => { keep.tab = t; again(); }),
+          keep.tab === "profile" ? box(null, profile(p, { msg: popMsg, reload })) : curriculum(p, cat, { msg: popMsg, reload, again }));
+      };
+      again();
+      pop?.close();
+      pop = modal(p.name, inner, { onClose: () => { keep.id = null; pop = null; } });
     };
-    const showDetail = (p) => [box(null,
-      h("div", { class: "row" }, h("h3", {}, p.name), pill(p.is_listed ? "홈페이지 노출" : "홈페이지 숨김", p.is_listed ? "" : "neutral")),
-      tabs([["profile", "프로필"], ["curriculum", "커리큘럼"]], tab, (t) => { tab = keep.tab = t; draw(); }),
-      tab === "profile" ? profile(p, { msg, reload }) : curriculum(p, cat, { msg, reload }),
-    )];
-    const msg = h("div");
-    const toggle = (p, btn) => busy(btn, msg, async () => {
-      const next = !p.is_listed;
+    const toggle = (p, next, btn) => busy(btn, msg, async () => {
       if (!confirm(`${p.name} 강사를 홈페이지에서 ${next ? "보이게" : "숨기게"} 할까요? 바로 반영됩니다.`)) return;
       await data.call("comsw_v4_set_instructor_listed", { p_id: p.id, p_listed: next });
       p.is_listed = next;
       draw();
     });
-    const listBox = h("section", { class: "box" });
     draw();
-    return [await publishBanner(data.unpublished), msg, h("div", { class: "two" }, listBox, detail)];
+    const again = view.find((p) => p.id === keep.id);
+    if (again) setTimeout(() => openPop(again)); // 확정 뒤 다시 불러오면 보던 팝업을 다시 연다
+    return [await publishBanner(data.unpublished), msg, listBox];
   });
 }
 
@@ -94,11 +95,15 @@ function profile(p, { msg, reload }) {
     h("div", { class: "actions" }, ok));
 }
 
-function curriculum(p, cat, { msg, reload }) {
+function curriculum(p, cat, { msg, reload, again }) {
   if (!p.units.length) return empty("제출한 커리큘럼이 없습니다");
   const subj = new Map(cat.subjects.map((s) => [s.id, s.name]));
   const setName = new Map(cat.sets.map((s) => [s.id, s.name]));
-  return p.units.map((u) => {
+  const unitTitle = (u) => `${subj.get(u.subject_id) ?? "(삭제된 과목)"} · ${cat.vacations.some((v) => v.id === u.set_id) ? setName.get(u.set_id) : "일반"}`;
+  const sel = p.units.find((u) => u.key === keep.unit) ?? p.units.find((u) => u.pending.length) ?? p.units[0];
+  const picks = h("div", { class: "picks" }, p.units.map((u) => h("button", { type: "button", "aria-pressed": String(u === sel),
+    onclick: () => { keep.unit = u.key; again(); } }, unitTitle(u), " ", u.pending.length ? pill("이번 제출") : null)));
+  return h("div", { class: "side-list" }, box("과목", picks), [sel].map((u) => {
     const now = u.pending.length ? u.pending : u.approved;
     const st = stepState(now.length);
     const vac = cat.vacations.some((v) => v.id === u.set_id);
@@ -135,5 +140,5 @@ function curriculum(p, cat, { msg, reload }) {
       u.pending.length !== 4 ? note(`4단계가 모두 있어야 확정할 수 있습니다(지금 ${u.pending.length}단계). 강사가 채워서 다시 제출해야 합니다.`) : null,
       h("div", { class: "steps" }, u.pending.map(card)),
       h("div", { class: "actions", style: "margin-top:12px" }, ok));
-  });
+  })[0]);
 }

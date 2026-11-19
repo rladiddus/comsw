@@ -93,3 +93,4 @@
 - 사용자용 업데이트 기록 txt: `E:/바이브코딩/컴수원-관리플랫폼/컴수원_업데이트기록.txt`(최근 날짜 위, [관리자 사이트]/[학생용 사이트], ~함·~했음 말투).
 - V4: 설계 `docs/v4-설계.md`, 브랜치 `v4`, 폴더 `admin-v4/`(V3 화면 코드 import 금지, admin/js 바탕 모듈만). 인수 자료 `../V4/claude-code-handoff/`.
 - V4 결정: 준비물 = 기준 과목(끝 숫자 뺀 이름) 단위, 그룹 개념 없음, 옛 '웹툰' → 삭제된 과목, 6단계 과목은 표시만.
+- V4 구조: `admin-v4/js/{main,app,menus,data,ui,rules}.mjs` + `pages/`(instructors·courses·roadmap·vacation·prep·seminars·site·mine·profile). data.mjs는 app이 `useDb(supabase)`로 연결(테스트는 fakeSupabase, `range()` 추가함). 캐드1 전용 준비물 없음(기준 과목에서만).

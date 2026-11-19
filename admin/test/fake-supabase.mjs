@@ -53,6 +53,7 @@ export function fakeSupabase(tables, { unique = {} } = {}) {
           not: (k, _op, v) => { filters.push(r => (r[k] ?? null) !== v); return q; },
           order: col => { orderCol = col; return q; },
           limit: () => q, // 테스트 데이터는 작아서 자르지 않는다.
+          range: () => q,
           then: (ok, bad) => Promise.resolve().then(run).then(ok, bad),
         };
         return q;

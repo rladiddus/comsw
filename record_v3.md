@@ -195,3 +195,4 @@
 - 2026-11-19 V4 학과 추가·이름 수정: 운영 SQL `20261119070000_v4_department.sql` 사용자 실행 대기.
 - 2026-11-19 운영 SQL 20261119060000·070000 사용자 실행 확인. V4 남은 운영 SQL 없음.
 - 2026-11-20 V4 과목 팝업 머리에 [사이트 적용](changes.applyTracked(id)), ui.modal에 actions 옵션. AI 버튼은 공통 4단계 박스 제목 줄로.
+- 2026-11-20 V4 modal-small height:auto→fit-content(모달 dialog는 auto면 화면 높이로 늘어남).

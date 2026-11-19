@@ -132,7 +132,7 @@ dialog.modal .side-list .steps { grid-template-columns: repeat(4, minmax(0, 1fr)
 .drag-row.drop-before { border-top: 2px dashed var(--green); }
 .drag-row.drop-after { border-bottom: 2px dashed var(--green); }
 .drag-handle { color: var(--sub); }
-dialog.modal.modal-small { width: min(420px, calc(100vw - 32px)); height: auto; }
+dialog.modal.modal-small { width: min(420px, calc(100vw - 32px)); height: fit-content; } /* auto면 브라우저가 화면 높이로 늘림 */
 .change-bar { position: fixed; right: 20px; bottom: 20px; z-index: 50; width: min(360px, calc(100vw - 32px)); background: var(--paper); border: 1px solid var(--green); border-radius: 8px; padding: 14px 16px; box-shadow: 0 6px 24px rgb(0 0 0 / .15); display: grid; gap: 8px; }
 .change-bar .fail { margin: 0; }
 

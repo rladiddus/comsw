@@ -109,7 +109,7 @@ dialog.modal[open] { display: flex; flex-direction: column; overflow: hidden; }
 .side-list > .box { height: 100%; overflow: auto; margin: 0; }
 .side-list .picks button { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 dialog.modal .side-list .steps { grid-template-columns: repeat(4, minmax(0, 1fr)); }
-.side-list { display: grid; grid-template-columns: minmax(180px, 240px) minmax(0, 1fr); gap: 16px; align-items: start; }
+.side-list { display: grid; grid-template-columns: var(--picks, 240px) minmax(0, 1fr); gap: 16px; align-items: start; }
 .side-list .picks { display: grid; gap: 6px; }
 .side-list .picks button { text-align: left; border: 1px solid var(--line); background: var(--paper); border-radius: 5px; padding: 8px 10px; font-size: 13px; }
 .side-list .picks button[aria-pressed="true"] { border-color: var(--green); box-shadow: inset 3px 0 0 var(--lime); font-weight: 700; color: var(--green); }

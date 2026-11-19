@@ -27,6 +27,7 @@ export async function render({ main }) {
     const msg = h("div");
     const listBox = h("section", { class: "box" });
     let pop = null;
+    const picksWidth = widestTitle(view.flatMap((p) => p.units.map((u) => unitTitleOf(u, cat))));
     const list = () => table([
       ["이름", (p) => p.name],
       ["학과", (p) => p.depts.join(", ") || "—"],
@@ -52,6 +53,9 @@ export async function render({ main }) {
       again();
       pop?.close();
       pop = modal(p.name, inner, { onClose: () => { keep.id = null; pop = null; } });
+      // 모든 강사 팝업이 같은 너비: 왼쪽 과목 칸 = 가장 긴 과목 이름이 다 보이는 너비, 오른쪽 = 단계 4개
+      pop.dlg.style.setProperty("--picks", `${picksWidth}px`);
+      pop.dlg.style.width = `min(calc(100vw - 32px), ${picksWidth + 16 + 900}px)`;
     };
     // 홈페이지 노출: 스위치는 화면에서만 바뀌고 [사이트 적용] 때 반영(사용자 요청 2026-11-19)
     const base = Object.fromEntries(view.map((p) => [p.id, !!p.is_listed]));
@@ -101,11 +105,25 @@ function profile(p, { msg, reload }) {
     h("div", { class: "actions" }, ok));
 }
 
+// 과목 칸 이름 '과목 · 일반/특강'
+function unitTitleOf(u, cat) {
+  const subj = cat.subjects.find((x) => x.id === u.subject_id)?.name ?? "(삭제된 과목)";
+  const vac = cat.vacations.find((v) => v.id === u.set_id);
+  return `${subj} · ${vac ? vac.name : "일반"}`;
+}
+// 가장 긴 이름이 한 줄에 다 보이는 왼쪽 칸 너비(px): 글자 폭 + '이번 제출' 표시 + 안쪽 여백·스크롤 막대
+function widestTitle(titles) {
+  const ctx = globalThis.document?.createElement("canvas").getContext?.("2d");
+  if (ctx) ctx.font = "700 13px 'Malgun Gothic', system-ui, sans-serif";
+  const w = Math.max(0, ...titles.map((t) => (ctx ? ctx.measureText(t).width : t.length * 13)));
+  return Math.ceil(Math.max(180, w + 24 + 70 + 40 + 16));
+}
+
 function curriculum(p, cat, { msg, reload, again }) {
   if (!p.units.length) return empty("제출한 커리큘럼이 없습니다");
   const subj = new Map(cat.subjects.map((s) => [s.id, s.name]));
   const setName = new Map(cat.sets.map((s) => [s.id, s.name]));
-  const unitTitle = (u) => `${subj.get(u.subject_id) ?? "(삭제된 과목)"} · ${cat.vacations.some((v) => v.id === u.set_id) ? setName.get(u.set_id) : "일반"}`;
+  const unitTitle = (u) => unitTitleOf(u, cat);
   const sel = p.units.find((u) => u.key === keep.unit) ?? p.units.find((u) => u.pending.length) ?? p.units[0];
   const picks = h("div", { class: "picks" }, p.units.map((u) => h("button", { type: "button", "aria-pressed": String(u === sel), title: unitTitle(u),
     onclick: () => { keep.unit = u.key; again(); } }, unitTitle(u), " ", u.pending.length ? pill("이번 제출") : null)));

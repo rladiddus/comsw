@@ -243,7 +243,9 @@ test("과목 삭제·강사 노출은 DB 함수로(확인 후), 실패하면 이
   await flush();
   [...main.querySelectorAll("tr.pick")].find((tr) => tr.textContent.includes("캐드2")).click();
   await flush();
-  [...main.querySelectorAll("button")].find((b) => b.textContent === "과목 삭제").click();
+  const dlg = document.querySelector("dialog.modal");
+  assert.ok(dlg.querySelector(".side-list"), "과목 팝업: 왼쪽 강사, 오른쪽 공통 4단계");
+  [...dlg.querySelectorAll("button")].find((b) => b.textContent === "과목 삭제").click();
   await flush();
   assert.deepEqual(calls.find(([n]) => n === "comsw_v4_delete_subject"), ["comsw_v4_delete_subject", { p_id: "s2" }]);
 
@@ -286,4 +288,25 @@ test("사이트 편집이 열리고, 방학 특강 과목 구성은 체크한 �
   assert.equal(name, "comsw_v4_save_vacation");
   assert.deepEqual([...args.p_subjects].sort(), ["s1", "s2"]);
   assert.equal(args.p_id, "v1");
+});
+
+test("학과 구성: 끌어서 옮기기(moveItem), [+ 학과 추가] 팝업은 이름을 받아 DB 함수로", async () => {
+  const { moveItem } = await import("../../admin-v4/js/pages/dept-layout.mjs");
+  assert.deepEqual(moveItem(["a", "b", "c"], 0, 3), ["b", "c", "a"]);
+  assert.deepEqual(moveItem(["a", "b", "c"], 2, 0), ["c", "a", "b"]);
+  assert.deepEqual(moveItem(["a", "b", "c"], 1, 1), ["a", "b", "c"]);
+  document.querySelectorAll("dialog").forEach((d) => d.remove());
+  const fake = db();
+  const calls = [];
+  fake.rpc = async (name, args) => { calls.push([name, args]); return { data: "d9", error: null }; };
+  const main = await open("courses", undefined, fake);
+  [...main.querySelectorAll(".tabs button")].find((b) => b.textContent === "학과 구성").click();
+  [...main.querySelectorAll("button")].find((b) => b.textContent === "+ 학과 추가").click();
+  const dlg = document.querySelector("dialog.modal");
+  type(dlg.querySelector("input[aria-label='학과 이름']"), "게임학과");
+  [...dlg.querySelectorAll("button")].find((b) => b.textContent === "추가").click();
+  await flush();
+  assert.deepEqual(calls.find(([n]) => n === "comsw_v4_save_department"), ["comsw_v4_save_department", { p_id: null, p_name: "게임학과" }]);
+  assert.ok(!main.querySelector("button[aria-label$='위로']"), "화살표 없음(끌어서 옮김)");
+  assert.ok(main.querySelector(".drag-row[draggable]"));
 });

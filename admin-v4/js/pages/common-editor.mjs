@@ -9,10 +9,11 @@ import { track } from "../changes.mjs";
 // i번째(0부터) 단계가 n개 중이면 4묶음 중 몇 번째인가
 export const bucket = (i, n) => (n === STEPS ? i : Math.min(STEPS - 1, Math.floor((i * STEPS) / n)));
 
-export function commonEditor(subject, cat, current, { msg, reload, set = null }) {
+export function commonEditor(subject, cat, current, { msg, reload, set = null, extraLeft = [] }) {
   // set이 있으면 그 방학 특강의 공통(그 특강 검수본만), 없으면 일반 수업 공통
   const target = set ? `${subject.id}|${set.id}` : subject.id;
   const el = h("div");
+  el.trackId = `common:${target}`; // 팝업을 닫을 때 떠 있는 창 등록을 빼려고
   (async () => {
     try {
       el.replaceChildren(h("div", { class: "muted" }, "강사 자료 불러오는 중..."));
@@ -61,8 +62,9 @@ export function commonEditor(subject, cat, current, { msg, reload, set = null })
             h("img", { src: c.r.media_url, alt: `${nameOf.get(c.u.instructor_id)} ${c.r.step_label}`, class: "thumb" }),
             c.u.approved.length !== STEPS ? h("span", { class: "muted" }, ` ${c.r.step_label} 자료`) : null)),
             s.image_url ? h("button", { type: "button", onclick: () => { s.image_url = ""; draw(); } }, "빼기") : null));
-        return h("div", {},
-          box(`참고할 강사 자료(${set ? set.name : "일반"} · 검수 완료만)`, pickList, h("div", { class: "actions", style: "margin-top:10px" }, aiBtn)),
+        // 강사 팝업과 같은 모양: 왼쪽 = 강사(넣기·빼기), 오른쪽 = 공통 4단계(문구·대표 이미지)
+        return h("div", { class: "side-list" },
+          box(`강사(${set ? set.name : "일반"} · 검수 완료만)`, pickList, h("div", { class: "actions", style: "margin-top:10px" }, aiBtn), ...extraLeft),
           box(`${set ? `${set.name} ` : ""}공통 4단계`, h("div", { class: "steps" }, st.steps.map(stepCard))));
       };
       track({

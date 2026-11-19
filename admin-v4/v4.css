@@ -122,9 +122,20 @@ dialog.modal .side-list .steps { grid-template-columns: repeat(4, minmax(0, 1fr)
 .side-list .picks button { text-align: left; border: 1px solid var(--line); background: var(--paper); border-radius: 5px; padding: 8px 10px; font-size: 13px; }
 .side-list .picks button[aria-pressed="true"] { border-color: var(--green); box-shadow: inset 3px 0 0 var(--lime); font-weight: 700; color: var(--green); }
 
+.subject-chip { display: inline-block; border: 1px solid var(--line); background: var(--paper); border-radius: 5px; padding: 5px 10px; font-size: 13px; color: var(--text); text-decoration: none; cursor: pointer; }
+.subject-chip:hover { border-color: var(--green); color: var(--green); }
+.add-chip { border: 1px dashed var(--green) !important; color: var(--green); background: transparent !important; }
+.drag-list { display: grid; gap: 0; }
+.drag-row { display: flex; align-items: center; gap: 10px; padding: 8px 6px; border-top: 2px solid transparent; border-bottom: 2px solid transparent; border-radius: 4px; cursor: grab; }
+.drag-row:hover { background: var(--bg); }
+.drag-row.dragging { opacity: .4; }
+.drag-row.drop-before { border-top: 2px dashed var(--green); }
+.drag-row.drop-after { border-bottom: 2px dashed var(--green); }
+.drag-handle { color: var(--sub); }
+dialog.modal.modal-small { width: min(420px, calc(100vw - 32px)); height: auto; }
 .change-bar { position: fixed; right: 20px; bottom: 20px; z-index: 50; width: min(360px, calc(100vw - 32px)); background: var(--paper); border: 1px solid var(--green); border-radius: 8px; padding: 14px 16px; box-shadow: 0 6px 24px rgb(0 0 0 / .15); display: grid; gap: 8px; }
 .change-bar .fail { margin: 0; }
-dialog.modal .change-bar { position: sticky; }
+
 
 @media (max-width: 900px) {
   .side-list { grid-template-columns: 1fr; }

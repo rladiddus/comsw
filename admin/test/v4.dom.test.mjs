@@ -446,3 +446,30 @@ test("과목 팝업: 체크한 단계만 AI로 문구, [공통 준비물]은 메
   assert.match(prep.textContent, /적용 과목: 캐드1, 캐드2/);
   assert.ok([...prep.querySelectorAll("button")].some((b) => b.textContent === "강사 준비물 가져오기"));
 });
+
+test("학과 구성: 끌어서·키보드로 순서를 바꾸면 클릭 없이 바로 '바뀐 설정' 창", async () => {
+  document.querySelectorAll("dialog").forEach((d) => d.remove());
+  const fake = db();
+  fake.rpc = async (name) => ({ data: name === "comsw_v4_unpublished" ? false : null, error: null });
+  const main = await open("courses", undefined, fake);
+  [...main.querySelectorAll(".tabs button")].find((b) => b.textContent === "학과 구성").click();
+  await flush();
+  assert.ok(!barBtn("사이트 적용"), "처음엔 없음");
+  const Ev = dom.window.Event;
+  let rows = main.querySelectorAll(".drag-row");
+  rows[1].dispatchEvent(new Ev("dragstart", { bubbles: true }));
+  rows[0].dispatchEvent(Object.assign(new Ev("dragover", { bubbles: true, cancelable: true }), { clientY: 0 }));
+  rows[0].dispatchEvent(new Ev("drop", { bubbles: true, cancelable: true }));
+  await flush();
+  assert.ok(barBtn("사이트 적용"), "끌어서 놓으면 바로");
+  assert.match(main.querySelector(".drag-row").textContent, /캐드2/);
+
+  const main2 = await open("courses", undefined, fake);
+  [...main2.querySelectorAll(".tabs button")].find((b) => b.textContent === "학과 구성").click();
+  await flush();
+  rows = main2.querySelectorAll(".drag-row");
+  rows[1].dispatchEvent(new dom.window.KeyboardEvent("keydown", { key: "ArrowUp", altKey: true, bubbles: true }));
+  main2.dispatchEvent(new dom.window.KeyboardEvent("keyup", { key: "ArrowUp", bubbles: true }));
+  await flush();
+  assert.ok(barBtn("사이트 적용"), "Alt+↑로 옮겨도 바로");
+});

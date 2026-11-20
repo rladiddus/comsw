@@ -117,3 +117,4 @@
 - V4: 클릭·입력 없이 상태를 바꾸는 비동기 작업은 busy()로 감싸면 끝날 때 떠 있는 창이 다시 비교됨.
 - V4 준비물 편집은 prepEditor 하나(메뉴·팝업 공용). 팝업 닫기 확인은 unsaved(그 trackId)로.
 - V4 스크롤 튐은 ui.mjs 전역 스크롤 지키기가 처리. 화면마다 따로 고치지 말 것.
+- V4 떠 있는 창 비교 시점: input·change·click·drop·dragend·keyup, busy() 끝, 업로드 끝 check(), track 불러오기 뒤. 새 입력 방식을 만들면 여기에 걸리는지 확인.

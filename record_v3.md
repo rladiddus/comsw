@@ -207,3 +207,4 @@
 - 2026-11-20 V4 ui.busy finally에서 changes.check(). commonEditor AI는 Promise.all.
 - 2026-11-20 V4 prep.mjs에서 prepEditor(base, {...}) 분리(준비물 메뉴·과목 팝업 공용). changes.unsaved(id) 한 편집기만 확인 가능. commonEditor aiOn(단계별, 저장 안 함). .modal-mid 860px.
 - 2026-11-20 V4 ui.mjs 전역 스크롤 복원(input/change/click capture, body 자식 순번 경로로 칸 찾기). jsdom은 스크롤이 없어 자동 테스트 없음.
+- 2026-11-20 V4 changes 전역 비교 이벤트에 drop/dragend/keyup 추가.

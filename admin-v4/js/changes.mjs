@@ -65,7 +65,8 @@ export function check() {
   setTimeout(() => { pending = false; draw(); });
 }
 if (typeof document !== "undefined") {
-  for (const ev of ["input", "change", "click"]) document.addEventListener(ev, (e) => { if (!bar?.contains(e.target)) check(); }, true);
+  // 끌어서 옮기기(drop·dragend)와 키보드로 옮기기(Alt+↑/↓ → keyup)도 바로 비교
+  for (const ev of ["input", "change", "click", "drop", "dragend", "keyup"]) document.addEventListener(ev, (e) => { if (!bar?.contains(e.target)) check(); }, true);
 }
 
 function draw() {

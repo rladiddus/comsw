@@ -216,3 +216,4 @@
 - 2026-11-20 baseName 정규식 \s*\d+(\s*~\s*\d+)?$ (화면·SQL 같게). 20261120040000 실행 대기.
 - 2026-11-20 V4 ui.mjs fileInputAt/dropFiles + 전역 dragover/drop(Files만). 기존 파일 칸 change 처리를 그대로 탐.
 - 2026-11-20 comsw_v4_edit_curriculum(강사,세트,과목,[{id,updated_at,summary,media_url}]) — 검수 완료 줄 전부·버전 확인·보관·공개. instructors keep.edit. CSS .step-col/.step-foot/.actions.end/.drop-zone. 20261120050000 실행 대기.
+- 2026-11-20 20261120050000 실행 확인. V4 남은 운영 SQL 없음(20261120010000 AI common은 실행 여부 미확인).

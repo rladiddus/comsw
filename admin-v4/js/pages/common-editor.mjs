@@ -53,12 +53,11 @@ export function commonEditor(subject, cat, current, { msg, reload, set = null, e
         aiBtn.onclick = () => busy(aiBtn, msg, async () => {
           const parts = Array.from({ length: STEPS }, () => []);
           for (const u of chosen) u.approved.forEach((r, i) => { const t = (r.summary || r.written || "").trim(); if (t) parts[bucket(i, u.approved.length)].push(t); });
-          for (let n = 0; n < STEPS; n++) {
-            if (!parts[n].length) continue;
-            st.steps[n].summary = await data.ai("common", parts[n].map((t) => `- ${t}`).join("\n"));
-          }
+          // 4단계를 동시에 요청(차례로 하면 4배 기다림)
+          const outs = await Promise.all(parts.map((p) => (p.length ? data.ai("common", p.map((t) => `- ${t}`).join("\n")) : null)));
+          outs.forEach((text, n) => { if (text != null) st.steps[n].summary = text; });
           draw();
-          msg.replaceChildren(note("AI로 4단계 문구를 만들었습니다. 확인·수정한 뒤 오른쪽 아래 [임시 저장] 또는 [사이트 적용]을 눌러주세요."));
+          msg.replaceChildren(note("AI로 4단계 문구를 만들었습니다. 확인·수정한 뒤 [사이트 적용]을 누르거나, 오른쪽 아래 창의 [임시 저장]으로 보관하세요."));
         });
         // 한 단계 = 한 줄(2026-11-20 사용자 디자인): 왼쪽 대표 이미지, 오른쪽 내용 + 후보 이미지(누르면 대표, 고른 것을 다시 누르면 빼기)
         const stepCard = (s, n) => h("div", { class: "cstep" },

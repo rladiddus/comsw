@@ -204,3 +204,4 @@
 - 2026-11-20 comsw-tools 재배포 완료(common 지시문 반영).
 - 2026-11-20 V4 commonEditor 기준 체크: meta 있으면 그 강사, 없으면 모든 unit. lost 판단은 단계별 후보가 아니라 고른 강사 전체 이미지 기준.
 - 2026-11-20 comsw_ai_jobs kind 체크에 common 추가(20261120010000, 실행 대기). V4 .modal-fit 오른쪽 상자만 max-height 스크롤.
+- 2026-11-20 V4 ui.busy finally에서 changes.check(). commonEditor AI는 Promise.all.

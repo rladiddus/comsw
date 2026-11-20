@@ -395,3 +395,23 @@ test("과목 팝업: 지난번 반영에 쓴 강사는 처음부터 체크, 열�
   await flush();
   assert.ok(document.querySelector(".change-bar")?.hidden !== false, "열기만 하면 바뀐 설정 없음");
 });
+
+test("과목 팝업: [AI 공통 정리] 결과가 들어오면 '바뀐 설정' 창이 뜬다(클릭 뒤 기다린 변경도)", async () => {
+  document.querySelectorAll("dialog").forEach((d) => d.remove());
+  const { configureServices } = await import("../../admin/js/services.mjs");
+  const kinds = [];
+  configureServices({ summarize: async (kind) => { kinds.push(kind); await new Promise((r) => setTimeout(r, 30)); return { text: "AI 문구" }; } });
+  const fake = db();
+  fake.rpc = async (name) => ({ data: name === "comsw_v4_unpublished" ? false : null, error: null });
+  const main = await open("courses", undefined, fake);
+  [...main.querySelectorAll(".tabs button")].find((b) => b.textContent === "전체 과목").click();
+  [...main.querySelectorAll("tr.pick")].find((tr) => tr.textContent.includes("캐드1")).click();
+  await flush();
+  const dlg = document.querySelector("dialog.modal");
+  [...dlg.querySelectorAll("button")].find((b) => b.textContent === "AI 공통 정리").click();
+  await new Promise((r) => setTimeout(r, 80));
+  await flush();
+  assert.deepEqual([...new Set(kinds)], ["common"]);
+  assert.ok(barBtn("임시 저장") && barBtn("사이트 적용"), "AI 결과 뒤 떠 있는 창");
+  configureServices({});
+});

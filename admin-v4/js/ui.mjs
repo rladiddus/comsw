@@ -69,7 +69,10 @@ export async function busy(btn, msgEl, work) {
     console.error(err);
     msgEl?.replaceChildren(fail(err?.message ?? String(err)));
     return undefined;
-  } finally { btn.disabled = false; btn.textContent = label; }
+  } finally {
+    btn.disabled = false; btn.textContent = label;
+    import("./changes.mjs").then((c) => c.check()); // AI 등 기다린 뒤 바뀐 내용도 떠 있는 창에 반영
+  }
 }
 
 // 반영 안 된 다른 변경 안내(학과장·관리자 화면 위)

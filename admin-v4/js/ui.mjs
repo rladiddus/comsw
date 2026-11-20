@@ -152,3 +152,45 @@ if (typeof document !== "undefined" && typeof window !== "undefined") {
   };
   for (const ev of ["input", "change", "click"]) document.addEventListener(ev, remember, true);
 }
+
+// 이미지 끌어다 놓기(2026-11-20 사용자 요청): 파일 칸(input type=file)이 든 가장 가까운 칸에 이미지를 놓으면
+// 그 파일 칸에 넣고 change를 일으켜 [파일 선택]과 똑같이 올린다. 파일이 아닌 끌기(과목 순서 바꾸기)는 건드리지 않는다.
+// 파일 칸 밖에 떨어뜨리면 브라우저가 이미지를 열어 버리지 않게 막는다.
+export function fileInputAt(target) {
+  for (let el = target; el && el !== document.body; el = el.parentElement) {
+    const inputs = el.querySelectorAll?.("input[type=file]:not([disabled])");
+    if (inputs?.length === 1) return inputs[0];
+    if (inputs?.length > 1) return null; // 여러 칸이 섞인 큰 칸이면 어느 것인지 모름
+  }
+  return null;
+}
+export function dropFiles(input, files) {
+  const ok = [...files].filter((f) => !input.accept || input.accept.split(",").some((t) => f.type === t.trim()));
+  if (!ok.length) return false;
+  const dt = new DataTransfer();
+  dt.items.add(ok[0]);
+  input.files = dt.files;
+  input.dispatchEvent(new input.ownerDocument.defaultView.Event("change", { bubbles: true }));
+  return true;
+}
+if (typeof document !== "undefined" && typeof DataTransfer !== "undefined") {
+  const isFiles = (e) => [...(e.dataTransfer?.types ?? [])].includes("Files");
+  let over = null;
+  const mark = (el) => { if (over === el) return; over?.classList.remove("file-over"); over = el; el?.classList.add("file-over"); };
+  const zoneOf = (input) => input.closest("label, .step, .box") ?? input.parentElement;
+  document.addEventListener("dragover", (e) => {
+    if (!isFiles(e)) return;
+    e.preventDefault();
+    const input = fileInputAt(e.target);
+    e.dataTransfer.dropEffect = input ? "copy" : "none";
+    mark(input ? zoneOf(input) : null);
+  });
+  document.addEventListener("dragleave", (e) => { if (isFiles(e) && !e.relatedTarget) mark(null); });
+  document.addEventListener("drop", (e) => {
+    if (!isFiles(e)) return;
+    e.preventDefault();
+    mark(null);
+    const input = fileInputAt(e.target);
+    if (input && !dropFiles(input, e.dataTransfer.files)) alert("PNG·JPG·WEBP 이미지만 올릴 수 있습니다");
+  });
+}

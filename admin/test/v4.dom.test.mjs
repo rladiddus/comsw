@@ -549,3 +549,25 @@ test("로드맵: 같은 과목 묶음이 다른 학과에도 있으면 [타학�
   const [, args] = calls.find(([n]) => n === "comsw_v4_save_roadmap");
   assert.deepEqual(args.p_sync, [1]);
 });
+
+test("이미지 끌어다 놓기: 놓은 곳에서 가장 가까운 파일 칸 하나를 찾고, 이미지(accept)만 넣어 change로 올림", async () => {
+  const ui = await import("../../admin-v4/js/ui.mjs");
+  const { h } = ui;
+  const one = h("input", { type: "file", accept: "image/png,image/jpeg,image/webp" });
+  const two = h("input", { type: "file" });
+  const inner = h("span", {}, "사진");
+  const wrap = h("div", {}, h("label", {}, inner, one), h("label", {}, two));
+  document.body.append(wrap);
+  assert.equal(ui.fileInputAt(inner), one, "가장 가까운 칸");
+  assert.equal(ui.fileInputAt(wrap), null, "칸이 여럿이면 고르지 않음");
+  globalThis.DataTransfer = class { constructor() { const list = []; this.items = { add: (f) => list.push(f) }; this.files = list; } };
+  let changed = 0;
+  Object.defineProperty(one, "files", { set(v) { this._f = v; }, get() { return this._f; } });
+  one.addEventListener("change", () => { changed++; });
+  assert.equal(ui.dropFiles(one, [{ type: "application/pdf" }]), false, "이미지 아니면 안 넣음");
+  assert.equal(ui.dropFiles(one, [{ type: "text/plain" }, { type: "image/png", name: "a.png" }]), true);
+  assert.equal(one.files[0].name, "a.png");
+  assert.equal(changed, 1);
+  delete globalThis.DataTransfer;
+  wrap.remove();
+});

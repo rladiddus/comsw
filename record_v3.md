@@ -214,3 +214,4 @@
 - 2026-11-20 V4 drop-before/after 점선 var(--red) 3px.
 - 2026-11-20 V4 로드맵 상태에 sync(gkey 목록), apply p_sync=[단계 번호]. SQL은 과목 묶음(정렬한 id 배열)이 같은 다른 트랙 단계 summary 갱신 후 공개. 20261120030000 실행 대기.
 - 2026-11-20 baseName 정규식 \s*\d+(\s*~\s*\d+)?$ (화면·SQL 같게). 20261120040000 실행 대기.
+- 2026-11-20 V4 ui.mjs fileInputAt/dropFiles + 전역 dragover/drop(Files만). 기존 파일 칸 change 처리를 그대로 탐.

@@ -164,6 +164,8 @@ dialog.modal.modal-mid { width: min(860px, calc(100vw - 32px)); }
 dialog.modal.modal-small { width: min(420px, calc(100vw - 32px)); height: fit-content; } /* auto면 브라우저가 화면 높이로 늘림 */
 .change-bar { position: fixed; right: 20px; bottom: 20px; z-index: 50; width: min(360px, calc(100vw - 32px)); background: var(--paper); border: 1px solid var(--green); border-radius: 8px; padding: 14px 16px; box-shadow: 0 6px 24px rgb(0 0 0 / .15); display: grid; gap: 8px; }
 .change-bar .fail { margin: 0; }
+/* 이미지를 끌어 올 때 놓을 칸 표시 */
+.file-over { outline: 3px dashed var(--red); outline-offset: 2px; background: color-mix(in srgb, var(--lime) 30%, transparent); }
 /* 사이트 적용 중 막(맨 위 층) */
 dialog.blocker { border: 0; padding: 0; background: transparent; color: #fff; text-align: center; overflow: visible; }
 dialog.blocker::backdrop { background: rgb(0 0 0 / .5); }

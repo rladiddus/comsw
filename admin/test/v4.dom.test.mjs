@@ -261,7 +261,7 @@ test("과목 삭제·강사 노출은 DB 함수로(확인 후), 실패하면 이
   barBtn("사이트 적용").click();
   await flush();
   assert.deepEqual(calls.at(-1), ["comsw_v4_set_instructor_listed", { p_id: "i1", p_listed: false }]);
-  assert.match(document.querySelector(".change-bar").textContent, /반영하지 않은 다른 변경/, "실패하면 이유, 바꾼 것은 그대로");
+  assert.match(document.querySelector(".change-bar").textContent, /\[같이 반영\]/, "실패하면 이유(같이 반영 안내), 바꾼 것은 그대로");
 });
 
 test("사이트 편집이 열리고, 방학 특강 과목 구성은 체크한 과목 그대로 저장 함수로", async () => {
@@ -352,4 +352,25 @@ test("과목 팝업: [AI 공통 정리]는 '공통 4단계' 옆, [닫기] 옆 [�
   const hit = calls.find(([n]) => n === "comsw_v4_confirm_common");
   assert.equal(hit?.[1].p_subject, "s1");
   assert.deepEqual(hit[1].p_steps.map((s) => s.summary), ["문구1", "문구2", "문구3", "문구4"]);
+});
+
+test("반영 안 된 변경: 위쪽 안내의 [같이 반영]으로 V4에서 바로 공개, 막힌 확정 오류는 그 버튼을 안내", async () => {
+  const fake = db();
+  const calls = [];
+  let pending = true;
+  fake.rpc = async (name, args) => {
+    calls.push([name, args]);
+    if (name === "comsw_v4_unpublished") return { data: pending, error: null };
+    if (name === "comsw_publish") { pending = false; return { data: 9, error: null }; }
+    return { data: null, error: { message: "사이트에 반영하지 않은 다른 변경이 있어 멈췄습니다. 기존 관리 화면에서 사이트에 반영한 뒤 다시 눌러주세요" } };
+  };
+  const main = await open("courses", undefined, fake);
+  await assert.rejects(data.call("comsw_v4_confirm_common", {}), /\[같이 반영\]/);
+  const btn = [...main.querySelectorAll("button")].find((b) => b.textContent === "같이 반영");
+  assert.ok(btn, "안내에 [같이 반영]");
+  btn.click();
+  await flush();
+  assert.ok(calls.some(([n]) => n === "comsw_publish"), "기존 화면과 같은 반영 함수");
+  assert.match(main.textContent, /반영했습니다/);
+  assert.ok(![...main.querySelectorAll("button")].some((b) => b.textContent === "같이 반영"));
 });

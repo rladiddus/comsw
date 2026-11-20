@@ -76,7 +76,18 @@ export async function busy(btn, msgEl, work) {
 export async function publishBanner(check) {
   const el = h("div");
   const dirty = await check();
-  if (dirty) el.append(fail("기존 관리 화면에서 고치고 사이트에 반영하지 않은 변경이 있습니다. 그 변경이 섞여 공개되지 않도록 V4의 확정·삭제가 멈춥니다. 기존 화면에서 사이트에 반영한 뒤 다시 해주세요."));
+  if (!dirty) return el;
+  // [같이 반영](2026-11-20 사용자 결정 B안): 기존 화면에 가지 않고 여기서 그 변경을 공개 → V4 확정이 다시 된다.
+  const btn = h("button", { type: "button", class: "btn primary" }, "같이 반영");
+  const msg = h("div");
+  btn.onclick = () => busy(btn, msg, async () => {
+    if (!confirm("기존 관리 화면에서 고치고 아직 반영하지 않은 변경(강사 학과 연결, 승인한 커리큘럼 등)을 지금 홈페이지에 반영할까요?\n\nV4에서 임시 저장한 것은 포함되지 않습니다.")) return;
+    await (await import("./data.mjs")).publishPending();
+    el.replaceChildren(note("반영했습니다. 이제 V4의 확정·사이트 적용을 쓸 수 있습니다."));
+  });
+  el.append(h("div", { class: "fail", role: "alert" },
+    "기존 관리 화면에서 고치고 아직 홈페이지에 반영하지 않은 변경이 있습니다. 그 변경이 모르게 섞여 공개되지 않도록 V4의 확정·삭제가 멈춥니다. 맞는 변경이면 [같이 반영]을 눌러주세요.",
+    h("div", { class: "actions", style: "margin-top:8px" }, btn)), msg);
   return el;
 }
 

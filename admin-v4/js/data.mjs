@@ -56,12 +56,17 @@ export async function call(name, args = {}) {
   const { data, error } = await db.rpc(name, args);
   if (error) {
     const missing = error.code === "PGRST202" || /Could not find the function/i.test(error.message ?? "");
-    throw new Error(missing ? "DB 준비(V4 SQL) 전이라 아직 쓸 수 없습니다" : error.message);
+    const pending = /반영하지 않은 다른 변경/.test(error.message ?? "");
+    throw new Error(missing ? "DB 준비(V4 SQL) 전이라 아직 쓸 수 없습니다"
+      : pending ? "기존 관리 화면에서 고치고 아직 홈페이지에 반영하지 않은 변경이 있어 멈췄습니다. 화면 위쪽 안내의 [같이 반영]을 누른 뒤 다시 해주세요."
+      : error.message);
   }
   return data;
 }
 // 다른 곳에서 고치고 사이트에 반영하지 않은 변경이 있나(있으면 V4 확정이 멈춤). DB 준비 전이면 null.
 export const unpublished = () => call("comsw_v4_unpublished").catch(() => null);
+// 그 변경을 지금 공개(기존 화면 [사이트에 반영]과 같은 함수, 학과장·관리자만). V4 임시 저장은 DB 표가 아니라 섞이지 않는다.
+export const publishPending = () => call("comsw_publish");
 
 // 이미지 올리기: 기존 규칙(PNG·JPG·WEBP, 20MB, 브라우저에서 줄여 보냄)과 서버 함수 그대로. 성공해야 주소를 돌려준다.
 export async function upload(file, kind = "curriculum") {

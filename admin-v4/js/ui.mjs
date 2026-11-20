@@ -116,3 +116,29 @@ export const toggleSwitch = (on, label, onToggle) => h("button", {
   type: "button", role: "switch", class: "switch", "aria-checked": String(!!on), "aria-label": label, title: label,
   onclick: (e) => { e.stopPropagation(); onToggle(!on, e.currentTarget); },
 }, h("span", { class: "knob" }));
+
+// 스크롤 지키기(2026-11-20 사용자 요청): 입력·선택·클릭 뒤 화면을 다시 그려도 스크롤은 사용자가 움직일 때만.
+// 누르기 직전 스크롤된 칸(창 포함)의 위치를 기억했다가, 다시 그린 뒤(이미지 늦게 뜨는 것까지) 줄어든 것만 되돌린다.
+// 칸은 body에서의 자리(자식 순번 경로)로 찾는다(다시 그려 새 칸이 생겨도 같은 자리면 같은 칸). 메뉴 이동은 건드리지 않는다.
+if (typeof document !== "undefined" && typeof window !== "undefined") {
+  let userScroll = 0;
+  const mark = () => { userScroll = Date.now(); };
+  for (const ev of ["wheel", "touchmove"]) window.addEventListener(ev, mark, { passive: true, capture: true });
+  window.addEventListener("keydown", (e) => {
+    if (["PageUp", "PageDown", "Home", "End", "ArrowUp", "ArrowDown", " "].includes(e.key) && !e.target.closest?.("input,textarea,select,[contenteditable]")) mark();
+  }, true);
+  const pathOf = (el) => { const p = []; for (; el && el !== document.body; el = el.parentElement) p.unshift([...el.parentElement.children].indexOf(el)); return p; };
+  const at = (p) => p.reduce((n, i) => n?.children[i], document.body);
+  const remember = () => {
+    const hash = location.hash, since = Date.now(), y = window.scrollY;
+    const boxes = [...document.body.querySelectorAll("*")].filter((e) => e.scrollTop > 0).map((e) => ({ p: pathOf(e), t: e.scrollTop }));
+    const restore = () => {
+      if (location.hash !== hash || userScroll >= since) return;
+      for (const b of boxes) { const n = at(b.p); if (n && n.scrollTop < b.t) n.scrollTop = b.t; }
+      if (window.scrollY < y) window.scrollTo(window.scrollX, y);
+    };
+    setTimeout(restore);
+    setTimeout(restore, 300); // 이미지가 늦게 떠서 높이가 다시 늘어난 뒤
+  };
+  for (const ev of ["input", "change", "click"]) document.addEventListener(ev, remember, true);
+}

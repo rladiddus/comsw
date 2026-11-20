@@ -221,3 +221,4 @@
 - 2026-11-20 index.html 끝에 정비 블록(MAINTENANCE 상수, sessionStorage comsw_preview). index2.html 리디렉트(noindex).
 - 2026-11-20 image-crop.mjs zoomCrop(factor, fx, fy) + wheel. V4 data.upload(kind curriculum)이 chooseThumbnail 거쳐 url+fragment. v4.css .crop-dialog.
 - 2026-11-20 comsw_v4_save_subject_info([{id,duration,dept_curriculum,program,level}]) — program은 tools에 넣고 supplies 비움. confirm_curriculum p_steps media_url 선택. dept-layout 표(.dept-head/.dept-row), info 트래커 info:<학과>. PROMPTS.department 01~04. 20261120060000 실행·comsw-tools 재배포 대기.
+- 2026-11-20 V4 commonEditor startEditing/setEditing/isEditing. instructors work Map + track curriculum:<unit>(isTracked로 한 번만), changes.isTracked. 과목 바꿀 때 canSwitch.

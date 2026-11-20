@@ -7,7 +7,7 @@ import { baseName, deptOrder, stepState } from "../rules.mjs";
 import { deptLayout } from "./dept-layout.mjs";
 import { commonEditor } from "./common-editor.mjs";
 import { prepEditor } from "./prep.mjs";
-import { canSwitch, unsaved, untrack, applyTracked } from "../changes.mjs";
+import { canSwitch, unsaved, untrack } from "../changes.mjs";
 
 let state = { tab: "depts", dept: null };
 
@@ -49,15 +49,23 @@ export async function render({ main, params = [] }) {
           state.tab = "deleted"; reload();
         }) }, "과목 삭제")) : null,
       ];
-      const editor = commonEditor(s, cat, steps.length === 4 ? steps : [], { msg: popMsg, reload: () => { pop.close(); reload(); }, extraLeft: extra });
+      const editor = commonEditor(s, cat, steps.length === 4 ? steps : [], { msg: popMsg, reload: () => { pop.close(); reload(); }, extraLeft: extra, startEditing: false });
       const st = stepState(steps.length);
-      const applyBtn = h("button", { type: "button", class: "btn primary", onclick: () => busy(applyBtn, popMsg, () => applyTracked(editor.trackId)) }, "사이트 적용");
+      // [수정]: 보기 ↔ 고치기. 고치면 오른쪽 아래 창에서 [임시 저장]/[되돌리기]/[사이트 적용]
+      const editBtn = h("button", { type: "button", class: "btn primary" }, "수정");
+      const sync = () => { editBtn.textContent = editor.isEditing() ? "수정 끝" : "수정"; };
+      editor.onEditing = sync;
+      editBtn.onclick = () => {
+        if (editor.isEditing() && unsaved(editor.trackId) && !confirm("임시 저장하지 않은 바뀐 설정이 있습니다. 수정을 끝내면 화면은 보기로 바뀌고, 바꾼 내용은 오른쪽 아래 창에 남습니다. 계속할까요?")) return;
+        editor.setEditing(!editor.isEditing());
+        sync();
+      };
       const pop = modal(`${s.name} · 공통 커리큘럼(일반)`, h("div", { class: "modal-body" },
         popMsg, h("div", { class: "row" }, h("span", { class: "muted" }, deptsOf(s.id).join(", ") || "학과 없음"), pill(`공개 중 ${st.label}`, st.kind)),
         h("div", { class: "modal-main", style: "margin-top:10px" }, editor)), {
         beforeClose: () => !unsaved() || confirm("임시 저장하지 않은 바뀐 설정이 있습니다. 닫으면 사라집니다. 닫을까요?"),
         onClose: () => untrack(editor.trackId),
-        actions: [applyBtn],
+        actions: [editBtn],
       });
       // 왼쪽 칸은 '공통 준비물(과목)' 버튼이 한 줄에 들어갈 만큼 넓게(최소 240px)
       pop.dlg.style.setProperty("--picks", "minmax(240px, max-content)");
@@ -70,11 +78,9 @@ export async function render({ main, params = [] }) {
       const prepMsg = h("div");
       let pop = null;
       const ed = prepEditor(base, { subjects, items, mats, departments: cat.departments, msg: prepMsg, onApplied: () => pop?.close() });
-      const applyBtn = h("button", { type: "button", class: "btn primary", onclick: () => busy(applyBtn, prepMsg, () => applyTracked(ed.trackId)) }, "사이트 적용");
       pop = modal(`${base} · 공통 준비물`, h("div", { class: "modal-body" }, prepMsg, h("div", { class: "modal-main" }, ed.el)), {
         beforeClose: () => !unsaved(ed.trackId) || confirm("임시 저장하지 않은 준비물 변경이 있습니다. 닫으면 사라집니다. 닫을까요?"),
         onClose: () => untrack(ed.trackId),
-        actions: [applyBtn],
       });
       pop.dlg.classList.add("modal-fit", "modal-mid");
     };

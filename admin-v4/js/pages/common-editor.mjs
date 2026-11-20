@@ -9,11 +9,17 @@ import { track } from "../changes.mjs";
 // i번째(0부터) 단계가 n개 중이면 4묶음 중 몇 번째인가
 export const bucket = (i, n) => (n === STEPS ? i : Math.min(STEPS - 1, Math.floor((i * STEPS) / n)));
 
-export function commonEditor(subject, cat, current, { msg, reload, set = null, extraLeft = [] }) {
+export function commonEditor(subject, cat, current, { msg, reload, set = null, extraLeft = [], startEditing = true }) {
   // set이 있으면 그 방학 특강의 공통(그 특강 검수본만), 없으면 일반 수업 공통
   const target = set ? `${subject.id}|${set.id}` : subject.id;
   const el = h("div");
   el.trackId = `common:${target}`; // 팝업을 닫을 때 떠 있는 창 등록을 빼려고
+  // 보기 / 수정(팝업 [수정]으로 켬). 임시 저장한 것을 불러오면 수정으로.
+  let editing = startEditing;
+  let redraw = () => {};
+  el.isEditing = () => editing;
+  el.setEditing = (v) => { editing = v; redraw(); };
+  el.onEditing = null;
   (async () => {
     try {
       el.replaceChildren(h("div", { class: "muted" }, "강사 자료 불러오는 중..."));
@@ -34,6 +40,7 @@ export function commonEditor(subject, cat, current, { msg, reload, set = null, e
       const aiOn = Array(STEPS).fill(true); // 단계별 'AI로 만들기' 체크(화면에서만, 저장 안 함)
       const has = (k) => st.picked.includes(k);
       const draw = () => el.replaceChildren(view());
+      redraw = draw;
       const view = () => {
         const chosen = units.filter((u) => has(u.key));
         const candidates = (n) => chosen.flatMap((u) => u.approved.map((r, i) => ({ r, u, i }))
@@ -47,7 +54,7 @@ export function commonEditor(subject, cat, current, { msg, reload, set = null, e
         const pickList = units.length ? h("div", {}, units.map((u) => {
           const s2 = stepState(u.approved.length);
           return h("label", { style: "display:flex;gap:8px;align-items:center;margin:4px 0" },
-            h("input", { type: "checkbox", checked: has(u.key), onchange: (e) => { st.picked = e.target.checked ? [...st.picked, u.key] : st.picked.filter((k) => k !== u.key); draw(); } }),
+            h("input", { type: "checkbox", checked: has(u.key), disabled: !editing, onchange: (e) => { st.picked = e.target.checked ? [...st.picked, u.key] : st.picked.filter((k) => k !== u.key); draw(); } }),
             nameOf.get(u.instructor_id) ?? "—", " ", pill(s2.label, s2.kind), " ", h("span", { class: "muted" }, `이미지 ${u.approved.filter((r) => r.media_url).length}장`));
         })) : empty("검수 완료된 강사 자료가 없습니다(강사 메뉴에서 먼저 확정해주세요)");
         const aiBtn = h("button", { type: "button", class: "btn", disabled: !chosen.length || !aiOn.some(Boolean) }, "AI 공통 정리");
@@ -61,7 +68,9 @@ export function commonEditor(subject, cat, current, { msg, reload, set = null, e
           msg.replaceChildren(note("AI로 4단계 문구를 만들었습니다. 확인·수정한 뒤 [사이트 적용]을 누르거나, 오른쪽 아래 창의 [임시 저장]으로 보관하세요."));
         });
         // 단계 카드(강사 팝업 커리큘럼과 같은 모양): 제목·AI 체크, 대표 이미지, 후보(누르면 대표, 고른 것을 다시 누르면 빼기), 아래쪽 '내용'(높이 맞춤)
-        const stepCard = (s, n) => h("div", { class: "step step-col" },
+        const stepCard = (s, n) => (!editing ? h("div", { class: "step step-col" }, h("b", {}, `${n + 1}단계`),
+          s.image_url ? media(s.image_url) : h("div", { class: "media" }, h("span", { class: "muted" }, "이미지 없음")),
+          h("div", { class: "step-foot" }, h("h4", {}, "내용"), h("p", {}, s.summary || "—"))) : h("div", { class: "step step-col" },
           h("label", { class: "cstep-title" }, `${n + 1}단계 `,
             h("input", { type: "checkbox", checked: aiOn[n], title: "체크한 단계만 [AI 공통 정리]로 문구를 만듭니다", "aria-label": `${n + 1}단계 AI로 문구 만들기`,
               onchange: (e) => { aiOn[n] = e.target.checked; draw(); } })),
@@ -75,16 +84,16 @@ export function commonEditor(subject, cat, current, { msg, reload, set = null, e
             c.u.approved.length !== STEPS ? h("span", { class: "muted" }, ` ${c.r.step_label} 자료`) : null);
           }) : h("span", { class: "muted" }, "강사를 체크하면 후보 이미지가 나옵니다")),
           h("div", { class: "step-foot" }, h("h4", {}, "내용"),
-            h("textarea", { rows: 4, value: s.summary, style: "width:100%", "aria-label": `${n + 1}단계 공통 문구`, oninput: (e) => { s.summary = e.target.value; } })));
+            h("textarea", { rows: 4, value: s.summary, style: "width:100%", "aria-label": `${n + 1}단계 공통 문구`, oninput: (e) => { s.summary = e.target.value; } }))));
         // 강사 팝업과 같은 모양: 왼쪽 = 강사(넣기·빼기), 오른쪽 = 공통 4단계(문구·대표 이미지)
         return h("div", { class: "side-list" },
           box(`강사(${set ? set.name : "일반"} · 검수 완료만)`, pickList, ...extraLeft),
-          box(null, h("div", { class: "row" }, h("h3", { style: "margin:0" }, `${set ? `${set.name} ` : ""}공통 4단계`), aiBtn),
+          box(null, h("div", { class: "row" }, h("h3", { style: "margin:0" }, `${set ? `${set.name} ` : ""}공통 4단계`), editing ? aiBtn : null),
             h("div", { class: "steps", style: "margin-top:10px" }, st.steps.map(stepCard))));
       };
       track({
         id: `common:${target}`, slot: set ? "vacation-common" : "common", title: `${subject.name}${set ? `(${set.name})` : ""} 공통 4단계`, baseline,
-        read: () => st, write: (x) => { st = { picked: (x.picked ?? []).filter((k) => units.some((u) => u.key === k)), steps: x.steps }; draw(); },
+        read: () => st, write: (x) => { st = { picked: (x.picked ?? []).filter((k) => units.some((u) => u.key === k)), steps: x.steps }; if (!editing) { editing = true; el.onEditing?.(); } draw(); },
         apply: async (x) => {
           const chosen = units.filter((u) => x.picked.includes(u.key));
           if (!chosen.length) throw new Error(`${subject.name}: 참고할 강사 자료를 골라주세요`);

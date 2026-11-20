@@ -47,6 +47,7 @@ export function track(opts) {
 }
 // 화면 안에서 다른 학과·과목으로 바꾸기 전에: 임시 저장 안 한 변경이 있으면 묻는다
 export const canSwitch = () => !unsaved() || confirm("임시 저장하지 않은 바뀐 설정이 있습니다. 바꾸면 사라집니다. 계속할까요?");
+export const isTracked = (id) => trackers.some((t) => t.id === id);
 export function untrack(id) { trackers = trackers.filter((t) => t.id !== id); check(); }
 
 const clone = (x) => (x == null ? x : JSON.parse(JSON.stringify(x)));

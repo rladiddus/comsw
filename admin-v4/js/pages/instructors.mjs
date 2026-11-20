@@ -2,9 +2,11 @@
 import * as data from "../data.mjs";
 import { h, head, box, table, tabs, pill, media, dl, fill, empty, note, busy, publishBanner, modal, toggleSwitch, pickImage } from "../ui.mjs";
 import { curriculumUnits, stepState } from "../rules.mjs";
-import { track } from "../changes.mjs";
+import { track, isTracked, unsaved, untrack, check, canSwitch } from "../changes.mjs";
 
 let keep = { id: null, tab: "profile", unit: null, edit: null };
+const work = new Map(); // 과목 단위(unit.key)마다 고치는 중인 { summary: {줄 id: 문구}, media: {줄 id: 이미지} }
+let redrawPop = null;
 
 export async function render({ main }) {
   const reload = () => render({ main });
@@ -44,15 +46,21 @@ export async function render({ main }) {
     const openPop = (p) => {
       const inner = h("div", { class: "modal-body" });
       const popMsg = h("div");
+      const editBtn = h("button", { type: "button", class: "btn primary", hidden: true }, "수정");
       const again = () => {
         inner.replaceChildren(popMsg,
           h("div", { class: "row" }, h("span", { class: "muted" }, p.depts.join(", ")), pill(p.is_listed ? "홈페이지 노출" : "홈페이지 숨김", p.is_listed ? "" : "neutral")),
           tabs([["profile", "프로필"], ["curriculum", "커리큘럼"]], keep.tab, (t) => { keep.tab = t; again(); }),
-          h("div", { class: "modal-main" }, keep.tab === "profile" ? h("section", { class: "box profile-box" }, profile(p, { msg: popMsg, reload })) : curriculum(p, cat, { msg: popMsg, reload, again })));
+          h("div", { class: "modal-main" }, keep.tab === "profile" ? h("section", { class: "box profile-box" }, profile(p, { msg: popMsg, reload })) : curriculum(p, cat, { msg: popMsg, reload, again, editBtn })));
+        if (keep.tab === "profile") editBtn.hidden = true;
       };
       again();
       pop?.close();
-      pop = modal(p.name, inner, { onClose: () => { keep.id = null; keep.edit = null; pop = null; } });
+      pop = modal(p.name, inner, {
+        beforeClose: () => !p.units.some((u) => unsaved(`curriculum:${u.key}`)) || confirm("임시 저장하지 않은 바뀐 내용이 있습니다. 닫으면 사라집니다. 닫을까요?"),
+        onClose: () => { for (const u of p.units) { untrack(`curriculum:${u.key}`); work.delete(u.key); } keep.id = null; keep.edit = null; pop = null; redrawPop = null; },
+        actions: [editBtn],
+      });
       // 모든 강사 팝업이 같은 너비: 왼쪽 과목 칸 = 가장 긴 과목 이름이 다 보이는 너비, 오른쪽 = 단계 4개
       pop.dlg.style.setProperty("--picks", `${picksWidth}px`);
       pop.dlg.style.width = `min(calc(100vw - 32px), ${picksWidth + 16 + 900}px)`;
@@ -120,14 +128,15 @@ function widestTitle(titles) {
   return Math.ceil(Math.max(180, w + 24 + 70 + 40 + 16));
 }
 
-function curriculum(p, cat, { msg, reload, again }) {
+function curriculum(p, cat, { msg, reload, again, editBtn }) {
+  if (editBtn) editBtn.hidden = true;
   if (!p.units.length) return empty("제출한 커리큘럼이 없습니다");
   const subj = new Map(cat.subjects.map((s) => [s.id, s.name]));
   const setName = new Map(cat.sets.map((s) => [s.id, s.name]));
   const unitTitle = (u) => unitTitleOf(u, cat);
   const sel = p.units.find((u) => u.key === keep.unit) ?? p.units.find((u) => u.pending.length) ?? p.units[0];
   const picks = h("div", { class: "picks" }, p.units.map((u) => h("button", { type: "button", "aria-pressed": String(u === sel), title: unitTitle(u),
-    onclick: () => { keep.unit = u.key; again(); } }, unitTitle(u), " ", u.pending.length ? pill("이번 제출") : null)));
+    onclick: () => { if (!canSwitch()) return; keep.unit = u.key; again(); } }, unitTitle(u), " ", u.pending.length ? pill("이번 제출") : null)));
   return h("div", { class: "side-list" }, box("과목", picks), [sel].map((u) => {
     const now = u.pending.length ? u.pending : u.approved;
     const st = stepState(now.length);
@@ -136,29 +145,59 @@ function curriculum(p, cat, { msg, reload, again }) {
     const top = h("div", { class: "row" }, h("h3", {}, title),
       h("div", { class: "actions" }, pill(u.pending.length ? "이번 제출(검수 전)" : "검수 완료", u.pending.length ? "" : "neutral"), pill(st.label, st.kind)));
     const editing = !u.pending.length && keep.edit === u.key;
-    if (!u.pending.length && !editing) {
-      // 검수 완료 보기 + [수정](학과장·관리자가 직접 고침)
-      return h("div", { class: "box" }, top, h("div", { class: "steps" }, now.map((r) => h("div", { class: "step" },
-        h("b", {}, r.step_label), h("p", {}, r.summary || r.written || "—"), r.media_url ? media(r.media_url) : h("div", { class: "media" }, h("span", { class: "muted" }, "이미지 없음"))))),
-        h("div", { class: "actions end", style: "margin-top:12px" },
-          h("button", { type: "button", class: "btn", onclick: () => { keep.edit = u.key; again(); } }, "수정")));
+    // 팝업 위쪽 [수정]: 검수 완료일 때만(보기 ↔ 고치기)
+    if (editBtn) {
+      editBtn.hidden = !!u.pending.length;
+      editBtn.textContent = editing ? "수정 끝" : "수정";
+      editBtn.onclick = () => {
+        const id = `curriculum:${u.key}`;
+        if (editing) {
+          if (unsaved(id) && !confirm("임시 저장하지 않은 바뀐 내용이 있습니다. 수정을 끝내면 사라집니다. 계속할까요?")) return;
+          untrack(id); work.delete(u.key); keep.edit = null;
+        } else keep.edit = u.key;
+        again();
+      };
     }
-    // 이번 제출 검수 / 검수 완료 수정: 원문은 그대로, 홈페이지 문구(summary)를 고침. 단계 칸 아래쪽(홈페이지 문구)은 높이를 맞춘다.
+    if (!u.pending.length && !editing) {
+      return h("div", { class: "box" }, top, h("div", { class: "steps" }, now.map((r) => h("div", { class: "step" },
+        h("b", {}, r.step_label), h("p", {}, r.summary || r.written || "—"), r.media_url ? media(r.media_url) : h("div", { class: "media" }, h("span", { class: "muted" }, "이미지 없음"))))));
+    }
+    // 이번 제출 검수 / 검수 완료 수정: 원문은 그대로, 홈페이지 문구(summary)·이미지를 고침 → 바뀌면 오른쪽 아래 창(임시 저장·되돌리기·사이트 적용)
     const rows = u.pending.length ? u.pending : u.approved;
-    const edits = new Map(rows.map((r) => [r.id, r.summary ?? ""]));
-    const images = new Map(rows.map((r) => [r.id, r.media_url ?? ""]));
+    const base = { summary: Object.fromEntries(rows.map((r) => [r.id, r.summary ?? ""])), media: Object.fromEntries(rows.map((r) => [r.id, r.media_url ?? ""])) };
+    if (!work.has(u.key)) work.set(u.key, JSON.parse(JSON.stringify(base)));
+    const w = work.get(u.key);
+    const trackId = `curriculum:${u.key}`;
+    redrawPop = again;
+    if (!isTracked(trackId)) {
+      track({
+        id: trackId, slot: "curriculum", title: `${p.name} · ${title}`, baseline: base,
+        read: () => work.get(u.key) ?? base,
+        write: (x) => { work.set(u.key, JSON.parse(JSON.stringify(x))); if (!u.pending.length) keep.edit = u.key; redrawPop?.(); },
+        apply: (x) => (u.pending.length
+          ? data.call("comsw_v4_confirm_curriculum", {
+            p_instructor: u.instructor_id, p_set: u.set_id, p_subject: u.subject_id,
+            // 바꾼 이미지만 보냄(빈 값이면 강사 이미지 그대로)
+            p_steps: u.pending.map((r) => ({ id: r.id, updated_at: r.updated_at, summary: x.summary[r.id] ?? "", ...(x.media[r.id] !== (r.media_url ?? "") ? { media_url: x.media[r.id] } : {}) })),
+          })
+          : data.call("comsw_v4_edit_curriculum", {
+            p_instructor: u.instructor_id, p_set: u.set_id, p_subject: u.subject_id,
+            p_steps: rows.map((r) => ({ id: r.id, updated_at: r.updated_at, summary: x.summary[r.id] ?? "", media_url: x.media[r.id] ?? "" })),
+          })),
+        onApplied: () => { work.delete(u.key); keep.edit = null; reload(); },
+      });
+    }
     const aiOn = new Map(rows.map((r) => [r.id, true]));
     const areas = new Map();
     const card = (r) => {
-      const area = h("textarea", { rows: 3, value: edits.get(r.id), placeholder: "비우면 원문이 그대로 공개됩니다", style: "width:100%",
-        "aria-label": `${r.step_label} 홈페이지 문구`, oninput: (e) => edits.set(r.id, e.target.value) });
+      const area = h("textarea", { rows: 3, value: w.summary[r.id], placeholder: "비우면 원문이 그대로 공개됩니다", style: "width:100%",
+        "aria-label": `${r.step_label} 홈페이지 문구`, oninput: (e) => { w.summary[r.id] = e.target.value; } });
       areas.set(r.id, area);
-      // 이미지: 수정 중이면 이미지(없으면 '이미지 없음')를 눌러 바꾸기 팝업(파일 고르기·끌어다 놓기)
-      const imgView = () => (images.get(r.id) ? media(images.get(r.id)) : h("div", { class: "media" }, h("span", { class: "muted" }, "이미지 없음")));
-      // 이번 제출 검수·검수 완료 수정 모두: 이미지(없으면 '이미지 없음')를 누르거나 [이미지 수정]으로 바꾸기
+      const imgView = () => (w.media[r.id] ? media(w.media[r.id]) : h("div", { class: "media" }, h("span", { class: "muted" }, "이미지 없음")));
+      // 이미지(없으면 '이미지 없음')를 누르거나 [이미지 수정]으로 바꾸기(파일 고르기·끌어다 놓기)
       const change = async () => {
         const url = await pickImage(`${r.step_label} 이미지 바꾸기`);
-        if (url) { images.set(r.id, url); img.replaceChildren(imgView()); }
+        if (url) { w.media[r.id] = url; img.replaceChildren(imgView()); check(); }
       };
       const img = h("button", { type: "button", class: "img-pick", title: "눌러서 이미지 바꾸기", "aria-label": `${r.step_label} 이미지 바꾸기`, onclick: change }, imgView());
       return h("div", { class: "step step-col" }, h("b", {}, r.step_label), h("p", {}, r.written || "—"), img,
@@ -173,37 +212,26 @@ function curriculum(p, cat, { msg, reload, again }) {
       const targets = rows.filter((r) => aiOn.get(r.id) && (r.written ?? "").trim());
       if (!targets.length) throw new Error("다듬을 단계를 체크해주세요");
       const outs = await Promise.all(targets.map((r) => data.ai("week", r.written)));
-      targets.forEach((r, n) => { edits.set(r.id, outs[n]); areas.get(r.id).value = outs[n]; });
+      targets.forEach((r, n) => { w.summary[r.id] = outs[n]; areas.get(r.id).value = outs[n]; });
     });
-    let ok;
-    if (editing) {
-      ok = h("button", { type: "button", class: "btn primary" }, "저장");
-      ok.onclick = () => busy(ok, msg, async () => {
-        if (!confirm(`${p.name} · ${title}을(를) 고친 대로 저장할까요? 홈페이지에 바로 반영되고, 예전 것은 보관됩니다.`)) return;
-        await data.call("comsw_v4_edit_curriculum", {
-          p_instructor: u.instructor_id, p_set: u.set_id, p_subject: u.subject_id,
-          p_steps: rows.map((r) => ({ id: r.id, updated_at: r.updated_at, summary: edits.get(r.id) ?? "", media_url: images.get(r.id) ?? "" })),
-        });
-        keep.edit = null;
-        reload();
-      });
-    } else {
+    // 이번 제출: 고칠 것이 없으면 [확정]으로 바로(고쳤으면 오른쪽 아래 창 [사이트 적용]과 같음)
+    let ok = null;
+    if (u.pending.length) {
       ok = h("button", { type: "button", class: "btn primary", disabled: u.pending.length !== 4 }, "확정");
       ok.onclick = () => busy(ok, msg, async () => {
         if (!confirm(`${p.name} · ${title}을(를) 확정할까요? 이 4단계가 홈페이지에 바로 반영되고, 예전 검수본은 보관됩니다.`)) return;
         await data.call("comsw_v4_confirm_curriculum", {
           p_instructor: u.instructor_id, p_set: u.set_id, p_subject: u.subject_id,
-          // 바꾼 이미지만 보냄(빈 값이면 강사 이미지 그대로)
-          p_steps: u.pending.map((r) => ({ id: r.id, updated_at: r.updated_at, summary: edits.get(r.id) ?? "", ...(images.get(r.id) !== (r.media_url ?? "") ? { media_url: images.get(r.id) } : {}) })),
+          p_steps: u.pending.map((r) => ({ id: r.id, updated_at: r.updated_at, summary: w.summary[r.id] ?? "", ...(w.media[r.id] !== (r.media_url ?? "") ? { media_url: w.media[r.id] } : {}) })),
         });
+        untrack(trackId); work.delete(u.key);
         reload();
       });
     }
-    const cancel = editing ? h("button", { type: "button", class: "btn", onclick: () => { keep.edit = null; again(); } }, "취소") : null;
     return h("div", { class: "box" }, top,
       !editing && u.pending.length !== 4 ? note(`4단계가 모두 있어야 확정할 수 있습니다(지금 ${u.pending.length}단계). 강사가 채워서 다시 제출해야 합니다.`) : null,
-      editing ? note("검수 완료 커리큘럼을 고칩니다. 이미지를 누르면 바꿀 수 있습니다. [저장]하면 홈페이지에 바로 반영되고, 예전 것은 보관됩니다.") : null,
+      editing ? note("검수 완료 커리큘럼을 고칩니다. 바꾸면 오른쪽 아래 창에서 [임시 저장]·[사이트 적용]을 누릅니다. 이미지를 누르면 바꿀 수 있습니다.") : null,
       h("div", { class: "steps" }, rows.map(card)),
-      h("div", { class: "actions end", style: "margin-top:12px" }, cancel, aiBtn, ok));
+      h("div", { class: "actions end", style: "margin-top:12px" }, aiBtn, ok));
   })[0]);
 }

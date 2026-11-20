@@ -329,7 +329,7 @@ test("로그아웃: 저장 안 한 변경은 조용히 임시 저장하고, 떠 
   assert.equal(document.querySelector(".change-bar").hidden, true, "로그인 화면에 창이 남지 않음");
 });
 
-test("과목 팝업: [AI 공통 정리]는 '공통 4단계' 옆, [닫기] 옆 [사이트 적용]은 그 과목만 바로 반영", async () => {
+test("과목 팝업: 보기로 열리고 [닫기] 옆 [수정]으로 고침, [사이트 적용]은 오른쪽 아래 창에만, [AI 공통 정리]는 '공통 4단계' 옆", async () => {
   document.querySelectorAll("dialog").forEach((d) => d.remove());
   const fake = db();
   const calls = [];
@@ -339,17 +339,17 @@ test("과목 팝업: [AI 공통 정리]는 '공통 4단계' 옆, [닫기] 옆 [�
   [...main.querySelectorAll("tr.pick")].find((tr) => tr.textContent.includes("캐드1")).click();
   await flush();
   const dlg = document.querySelector("dialog.modal");
+  assert.deepEqual([...dlg.querySelectorAll(".modal-head button")].map((b) => b.textContent), ["닫기", "수정"], "팝업 위 [사이트 적용] 없음");
+  assert.equal(dlg.querySelectorAll("textarea").length, 0, "처음엔 보기");
+  [...dlg.querySelectorAll(".modal-head button")].find((b) => b.textContent === "수정").click();
+  await flush();
   const right = [...dlg.querySelectorAll(".side-list > .box")][1];
   assert.match(right.textContent, /공통 4단계/);
   assert.ok([...right.querySelectorAll("button")].some((b) => b.textContent === "AI 공통 정리"), "AI 버튼은 오른쪽 '공통 4단계' 옆");
-  const apply = [...dlg.querySelectorAll(".modal-head button")].find((b) => b.textContent === "사이트 적용");
-  assert.ok(apply, "[닫기] 옆 [사이트 적용]");
-  apply.click();
-  await flush();
-  assert.match(dlg.textContent, /바뀐 내용이 없습니다/);
   assert.equal(dlg.querySelector(".side-list input[type=checkbox]").checked, true, "V4 반영 기록이 없으면 강사 모두 체크");
   dlg.querySelectorAll("textarea").forEach((t, i) => type(t, `문구${i + 1}`));
-  apply.click();
+  await flush();
+  barBtn("사이트 적용").click();
   await flush();
   const hit = calls.find(([n]) => n === "comsw_v4_confirm_common");
   assert.equal(hit?.[1].p_subject, "s1");
@@ -410,6 +410,8 @@ test("과목 팝업: [AI 공통 정리] 결과가 들어오면 '바뀐 설정' �
   [...main.querySelectorAll("tr.pick")].find((tr) => tr.textContent.includes("캐드1")).click();
   await flush();
   const dlg = document.querySelector("dialog.modal");
+  [...dlg.querySelectorAll(".modal-head button")].find((b) => b.textContent === "수정").click();
+  await flush();
   [...dlg.querySelectorAll("button")].find((b) => b.textContent === "AI 공통 정리").click();
   await new Promise((r) => setTimeout(r, 80));
   await flush();
@@ -430,6 +432,8 @@ test("과목 팝업: 체크한 단계만 AI로 문구, [공통 준비물]은 메
   [...main.querySelectorAll("tr.pick")].find((tr) => tr.textContent.includes("캐드1")).click();
   await flush();
   const dlg = document.querySelector("dialog.modal");
+  [...dlg.querySelectorAll(".modal-head button")].find((b) => b.textContent === "수정").click();
+  await flush();
   dlg.querySelector("input[aria-label='1단계 AI로 문구 만들기']").click(); // 자료가 있는 1단계를 끔
   await flush();
   [...dlg.querySelectorAll("button")].find((b) => b.textContent === "AI 공통 정리").click();
@@ -604,7 +608,10 @@ test("강사 커리큘럼: 검수는 단계마다 AI 체크·오른쪽 끝 [AI �
   await flush();
   dlg = document.querySelector("dialog.modal");
   [...dlg.querySelectorAll(".tabs button")].find((b) => b.textContent === "커리큘럼").click();
-  [...dlg.querySelectorAll("button")].find((b) => b.textContent === "수정").click();
+  const edit = [...dlg.querySelectorAll(".modal-head button")].find((b) => b.textContent === "수정");
+  assert.ok(edit && !edit.hidden, "[닫기] 옆 [수정]");
+  edit.click();
+  assert.equal(edit.textContent, "수정 끝");
   assert.equal(dlg.querySelectorAll(".img-pick").length, 4, "모든 단계 이미지(없으면 '이미지 없음')를 눌러 바꿈");
   assert.match(dlg.querySelectorAll(".img-pick")[1].textContent, /이미지 없음/);
   dlg.querySelectorAll(".img-pick")[1].click();
@@ -613,9 +620,11 @@ test("강사 커리큘럼: 검수는 단계마다 AI 체크·오른쪽 끝 [AI �
   assert.ok(picker.querySelector("input[type=file]"));
   [...picker.querySelectorAll("button")].find((b) => b.textContent === "닫기").click();
   await flush();
-  assert.deepEqual([...dlg.querySelectorAll(".actions.end button")].map((b) => b.textContent), ["취소", "AI 문장 다듬기", "저장"]);
+  assert.deepEqual([...dlg.querySelectorAll(".actions.end button")].map((b) => b.textContent), ["AI 문장 다듬기"], "저장 버튼 없음(오른쪽 아래 창)");
   type(dlg.querySelector("textarea[aria-label='2단계 홈페이지 문구']"), "고친 2");
-  [...dlg.querySelectorAll("button")].find((b) => b.textContent === "저장").click();
+  await flush();
+  assert.ok(barBtn("임시 저장"), "고치자마자 오른쪽 아래 창");
+  barBtn("사이트 적용").click();
   await flush();
   const [, args] = calls.find(([n]) => n === "comsw_v4_edit_curriculum");
   assert.deepEqual(args.p_steps.map((x) => [x.id, x.summary, x.media_url]), [["a1", "", "https://img/1.png"], ["a2", "고친 2", ""], ["a3", "", ""], ["a4", "", ""]]);

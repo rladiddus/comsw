@@ -111,3 +111,4 @@
 - V4 로드맵 [+]는 .rm-plus(aria-pressed=true면 초록), 과목 상자는 .rm-chain 안 .rm-subject.
 - AI 요약 종류: week(강사 단계), common(V4 과목 공통), department, roadmap. 서버 지시문 바꾸면 사용자가 npx supabase functions deploy comsw-tools --project-ref bpdxbqsvkvvybrtgvrnf 실행. site_settings ai_prompt_<종류>가 있으면 그게 우선.
 - comsw-tools 배포는 반드시 comsw 폴더 안에서: cd E:\바이브코딩\컴수원-관리플랫폼\comsw 후 npx supabase functions deploy comsw-tools --project-ref bpdxbqsvkvvybrtgvrnf (상위 폴더면 'Missing required field in config: project_id').
+- comsw-tools 최신 배포 2026-11-20(common 포함).

@@ -107,3 +107,4 @@
 - V4 팝업 머리 버튼은 modal(title, body, { actions: [버튼] }), 편집기 하나만 반영은 changes.applyTracked(trackId).
 - V4 작은 팝업 높이는 fit-content(auto 쓰면 dialog가 세로로 꽉 참).
 - V4가 '반영하지 않은 다른 변경'으로 막히면: 위쪽 [같이 반영]. 원인은 보통 V3 승인(comsw_approve_curriculum이 학과 연결)·수업 설정처럼 공개 없이 바뀐 것.
+- V4 track 기준값(baseline)은 공개 중 상태를 빠짐없이 담아야 함(빠지면 열자마자 '바뀐 설정'이 뜸).

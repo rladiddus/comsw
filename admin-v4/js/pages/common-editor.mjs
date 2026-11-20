@@ -17,14 +17,17 @@ export function commonEditor(subject, cat, current, { msg, reload, set = null, e
   (async () => {
     try {
       el.replaceChildren(h("div", { class: "muted" }, "강사 자료 불러오는 중..."));
-      const [rows, people] = await Promise.all([
+      const [rows, people, meta] = await Promise.all([
         data.curricula((q) => q.eq("subject_id", subject.id).eq("status", "approved").order("sort_order", { nullsFirst: false })),
         data.instructors(),
+        // 지난번 [사이트 적용] 때 고른 강사 자료(있으면 그 강사를 처음부터 체크)
+        data.all(set ? "v4_vacation_meta" : "v4_common_meta", (q) => (set ? q.eq("set_id", set.id) : q).eq("subject_id", subject.id)).catch(() => []),
       ]);
       const vac = new Set(cat.vacations.map((v) => v.id));
       const units = curriculumUnits(rows).filter((u) => (set ? u.set_id === set.id : !vac.has(u.set_id)) && u.approved.length);
       const nameOf = new Map(people.map((p) => [p.id, p.name]));
-      const baseline = { picked: [], steps: Array.from({ length: STEPS }, (_, i) => ({ summary: current[i]?.summary ?? "", image_url: current[i]?.image_url ?? "" })) };
+      const usedIds = new Set((meta[0]?.sources ?? []).map((x) => x.id));
+      const baseline = { picked: units.filter((u) => u.approved.some((r) => usedIds.has(r.id))).map((u) => u.key), steps: Array.from({ length: STEPS }, (_, i) => ({ summary: current[i]?.summary ?? "", image_url: current[i]?.image_url ?? "" })) };
       let st = JSON.parse(JSON.stringify(baseline));
       const has = (k) => st.picked.includes(k);
       const draw = () => el.replaceChildren(view());

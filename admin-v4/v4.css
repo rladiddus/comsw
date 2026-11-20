@@ -99,7 +99,7 @@ tr.pick:hover td, tr.pick[aria-selected="true"] td { background: var(--soft); }
 .switch[aria-checked="true"] { background: var(--green); border-color: var(--green); }
 .switch[aria-checked="true"] .knob { left: 20px; }
 /* 강사 팝업: 프로필·커리큘럼 모두 같은 크기(가로 = 커리큘럼, 세로 = 프로필), 안쪽만 스크롤 */
-dialog.modal { width: min(1100px, calc(100vw - 32px)); height: min(640px, calc(100vh - 48px)); border: 1px solid var(--line); border-radius: 8px; padding: 20px; background: var(--bg); color: var(--text); }
+dialog.modal { width: min(1100px, calc(100vw - 32px)); height: min(760px, calc(100vh - 32px)); border: 1px solid var(--line); border-radius: 8px; padding: 20px; background: var(--bg); color: var(--text); }
 dialog.modal::backdrop { background: rgb(0 0 0 / .35); }
 .modal-head { margin-bottom: 8px; }
 dialog.modal[open] { display: flex; flex-direction: column; overflow: hidden; }
@@ -117,6 +117,8 @@ dialog.modal { --ph: min(340px, calc(100vh - 340px)); }
 .profile-photo .media img { width: auto; max-width: 100%; max-height: var(--ph); object-fit: contain; display: block; }
 .profile-wrap .profile-photo .media img { max-height: calc(var(--ph) - 90px); }
 dialog.modal .side-list .steps { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+/* 팝업 공통 4단계: 대표 이미지를 4:3으로(세로 스크롤 없게), 잘리지 않게 contain */
+dialog.modal .side-list .step .media img { aspect-ratio: 4 / 3; object-fit: contain; }
 .side-list { display: grid; grid-template-columns: var(--picks, 240px) minmax(0, 1fr); gap: 16px; align-items: start; }
 .side-list .picks { display: grid; gap: 6px; }
 .side-list .picks button { text-align: left; border: 1px solid var(--line); background: var(--paper); border-radius: 5px; padding: 8px 10px; font-size: 13px; }

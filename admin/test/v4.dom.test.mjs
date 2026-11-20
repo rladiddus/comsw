@@ -374,3 +374,24 @@ test("반영 안 된 변경: 위쪽 안내의 [같이 반영]으로 V4에서 바
   assert.match(main.textContent, /반영했습니다/);
   assert.ok(![...main.querySelectorAll("button")].some((b) => b.textContent === "같이 반영"));
 });
+
+test("과목 팝업: 지난번 반영에 쓴 강사는 처음부터 체크, 열자마자 '바뀐 설정' 창이 뜨지 않음", async () => {
+  document.querySelectorAll("dialog").forEach((d) => d.remove());
+  const fake = db();
+  fake.rpc = async (name) => ({ data: name === "comsw_v4_unpublished" ? false : null, error: null });
+  const base = fake.from.bind(fake);
+  const extra = {
+    v4_common_meta: [{ subject_id: "s1", sources: [{ id: "c2" }] }],
+    subject_weeks: [1, 2, 3, 4].map((n) => ({ id: `x${n}`, subject_id: "s1", week_label: `${n}단계`, summary: `공개${n}`, sort_order: n })),
+  };
+  const local = fakeSupabase({ ...extra });
+  fake.from = (t) => (t in extra ? local.from(t) : base(t));
+  const main = await open("courses", undefined, fake);
+  [...main.querySelectorAll(".tabs button")].find((b) => b.textContent === "전체 과목").click();
+  [...main.querySelectorAll("tr.pick")].find((tr) => tr.textContent.includes("캐드1")).click();
+  await flush();
+  const dlg = document.querySelector("dialog.modal");
+  assert.equal(dlg.querySelector(".side-list input[type=checkbox]").checked, true, "반영에 쓴 강사는 체크");
+  await flush();
+  assert.ok(document.querySelector(".change-bar")?.hidden !== false, "열기만 하면 바뀐 설정 없음");
+});

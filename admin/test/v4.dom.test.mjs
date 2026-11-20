@@ -23,6 +23,8 @@ test("기준 과목: 끝 숫자(개월)만 뗀다", () => {
   assert.equal(rules.baseName("AI웹툰6"), "AI웹툰");
   assert.equal(rules.baseName("3D맥스"), "3D맥스");
   assert.equal(rules.baseName("캐드"), "캐드");
+  assert.equal(rules.baseName("디지털 드로잉 1~2"), "디지털 드로잉", "끝 범위도 뗀다");
+  assert.equal(rules.baseName("캐드1~2"), "캐드");
 });
 
 test("단계 상태: 4단계만 정상, 6단계는 '4단계로 다시 정리 필요'(자르지 않음)", () => {

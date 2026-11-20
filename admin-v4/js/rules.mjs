@@ -5,7 +5,7 @@ export const STEPS = 4; // 강사별·공통 커리큘럼 모두 과목당 4단�
 // 기준 과목: 이름 맨 끝 숫자(개월 나눔)만 뗀다. "캐드1"·"라이노 1" → "캐드"·"라이노", "3D맥스"는 그대로.
 export function baseName(name) {
   const s = String(name ?? "").trim();
-  const base = s.replace(/\s*\d+$/, "").trim();
+  const base = s.replace(/\s*\d+(\s*~\s*\d+)?$/, "").trim(); // 끝 숫자나 범위(1~2)
   return base || s;
 }
 

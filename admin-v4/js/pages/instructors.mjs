@@ -139,7 +139,7 @@ function curriculum(p, cat, { msg, reload, again }) {
     if (!u.pending.length && !editing) {
       // 검수 완료 보기 + [수정](학과장·관리자가 직접 고침)
       return h("div", { class: "box" }, top, h("div", { class: "steps" }, now.map((r) => h("div", { class: "step" },
-        h("b", {}, r.step_label), h("p", {}, r.summary || r.written || "—"), r.media_url ? media(r.media_url) : null))),
+        h("b", {}, r.step_label), h("p", {}, r.summary || r.written || "—"), r.media_url ? media(r.media_url) : h("div", { class: "media" }, h("span", { class: "muted" }, "이미지 없음"))))),
         h("div", { class: "actions end", style: "margin-top:12px" },
           h("button", { type: "button", class: "btn", onclick: () => { keep.edit = u.key; again(); } }, "수정")));
     }
@@ -155,13 +155,14 @@ function curriculum(p, cat, { msg, reload, again }) {
       areas.set(r.id, area);
       // 이미지: 수정 중이면 이미지(없으면 '이미지 없음')를 눌러 바꾸기 팝업(파일 고르기·끌어다 놓기)
       const imgView = () => (images.get(r.id) ? media(images.get(r.id)) : h("div", { class: "media" }, h("span", { class: "muted" }, "이미지 없음")));
-      const img = editing
-        ? h("button", { type: "button", class: "img-pick", title: "눌러서 이미지 바꾸기", "aria-label": `${r.step_label} 이미지 바꾸기`, onclick: async () => {
-          const url = await pickImage(`${r.step_label} 이미지 바꾸기`);
-          if (url) { images.set(r.id, url); img.replaceChildren(imgView()); }
-        } }, imgView())
-        : h("div", {}, images.get(r.id) ? media(images.get(r.id)) : null);
+      // 이번 제출 검수·검수 완료 수정 모두: 이미지(없으면 '이미지 없음')를 누르거나 [이미지 수정]으로 바꾸기
+      const change = async () => {
+        const url = await pickImage(`${r.step_label} 이미지 바꾸기`);
+        if (url) { images.set(r.id, url); img.replaceChildren(imgView()); }
+      };
+      const img = h("button", { type: "button", class: "img-pick", title: "눌러서 이미지 바꾸기", "aria-label": `${r.step_label} 이미지 바꾸기`, onclick: change }, imgView());
       return h("div", { class: "step step-col" }, h("b", {}, r.step_label), h("p", {}, r.written || "—"), img,
+        h("button", { type: "button", class: "btn small", style: "margin-top:6px;align-self:flex-start", onclick: change }, "이미지 수정"),
         h("div", { class: "step-foot" }, h("h4", {}, "홈페이지 문구"), area,
           h("label", { class: "rm-sync" }, h("input", { type: "checkbox", checked: true, "aria-label": `${r.step_label} AI 문장 다듬기`,
             onchange: (e) => aiOn.set(r.id, e.target.checked) }), "AI 다듬기")));
@@ -192,7 +193,8 @@ function curriculum(p, cat, { msg, reload, again }) {
         if (!confirm(`${p.name} · ${title}을(를) 확정할까요? 이 4단계가 홈페이지에 바로 반영되고, 예전 검수본은 보관됩니다.`)) return;
         await data.call("comsw_v4_confirm_curriculum", {
           p_instructor: u.instructor_id, p_set: u.set_id, p_subject: u.subject_id,
-          p_steps: u.pending.map((r) => ({ id: r.id, updated_at: r.updated_at, summary: edits.get(r.id) ?? "" })),
+          // 바꾼 이미지만 보냄(빈 값이면 강사 이미지 그대로)
+          p_steps: u.pending.map((r) => ({ id: r.id, updated_at: r.updated_at, summary: edits.get(r.id) ?? "", ...(images.get(r.id) !== (r.media_url ?? "") ? { media_url: images.get(r.id) } : {}) })),
         });
         reload();
       });

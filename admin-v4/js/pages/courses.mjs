@@ -110,7 +110,7 @@ export async function render({ main, params = [] }) {
             cat.departments.map((d) => h("button", { type: "button", "aria-pressed": String(d.id === state.dept), onclick: () => { if (!canSwitch()) return; state.dept = d.id; draw(); } }, d.name)),
             h("button", { type: "button", class: "add-chip", onclick: () => deptPopup(null) }, "+ 학과 추가")),
           h("div", { style: "height:14px" }),
-          dept ? deptLayout(dept, ordered, subjects, { msg, reload, stepPill, openSubject: (id) => openSubject(subjects.find((x) => x.id === id)), rename: () => deptPopup(dept) })
+          dept ? deptLayout(dept, ordered, subjects, { msg, reload, stepPill, stepsOf: (id) => { const st = stepsOf(id); return st.length === 4 ? st : []; }, openSubject: (id) => openSubject(subjects.find((x) => x.id === id)), rename: () => deptPopup(dept) })
             : box(null, fail("학과가 없습니다. [+ 학과 추가]로 만들어주세요.")),
         ];
       } else if (state.tab === "subjects") {

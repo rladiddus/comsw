@@ -310,7 +310,7 @@ test("학과 구성: 끌어서 옮기기(moveItem), [+ 학과 추가] 팝업은 
   await flush();
   assert.deepEqual(calls.find(([n]) => n === "comsw_v4_save_department"), ["comsw_v4_save_department", { p_id: null, p_name: "게임학과" }]);
   assert.ok(!main.querySelector("button[aria-label$='위로']"), "화살표 없음(끌어서 옮김)");
-  assert.ok(main.querySelector(".drag-row[draggable]"));
+  assert.ok(main.querySelector(".dept-row .drag-handle"), "손잡이로 끌기");
 });
 
 test("로그아웃: 저장 안 한 변경은 조용히 임시 저장하고, 떠 있는 창은 숨긴다", async () => {
@@ -620,4 +620,41 @@ test("강사 커리큘럼: 검수는 단계마다 AI 체크·오른쪽 끝 [AI �
   const [, args] = calls.find(([n]) => n === "comsw_v4_edit_curriculum");
   assert.deepEqual(args.p_steps.map((x) => [x.id, x.summary, x.media_url]), [["a1", "", "https://img/1.png"], ["a2", "고친 2", ""], ["a3", "", ""], ["a4", "", ""]]);
   dlg.remove();
+});
+
+test("학과 구성 표: 기간(개월 숫자)·과정내용(비면 공통 4단계로 채움, 체크한 과목만 AI)·프로그램·학습수준(★ 선택) → 사이트 적용은 바뀐 과목만", async () => {
+  document.querySelectorAll("dialog").forEach((d) => d.remove());
+  const { months, linesFromSteps } = await import("../../admin-v4/js/pages/dept-layout.mjs");
+  assert.equal(months("2개월"), "2");
+  assert.equal(linesFromSteps([{ summary: "가" }, { written: "나" }]), "01 가\n02 나");
+  const { configureServices } = await import("../../admin/js/services.mjs");
+  const asked = [];
+  configureServices({ summarize: async (kind, text) => { asked.push([kind, text]); return { text: "01 AI 한 줄" }; } });
+  const fake = db();
+  const base = fake.from.bind(fake);
+  const extra = { subject_weeks: [1, 2, 3, 4].map((n) => ({ id: `x${n}`, subject_id: "s1", week_label: `${n}단계`, summary: `요약${n}`, sort_order: n })) };
+  const local = fakeSupabase({ ...extra });
+  fake.from = (t) => (t in extra ? local.from(t) : base(t));
+  const calls = [];
+  fake.rpc = async (name, args) => { calls.push([name, args]); return { data: name === "comsw_v4_unpublished" ? false : null, error: null }; };
+  const main = await open("courses", undefined, fake);
+  [...main.querySelectorAll(".tabs button")].find((b) => b.textContent === "학과 구성").click();
+  await flush();
+  const area = main.querySelector("textarea[aria-label='캐드1 과정내용']");
+  assert.equal(area.value, "01 요약1\n02 요약2\n03 요약3\n04 요약4", "비어 있으면 공통 4단계로 먼저 채움");
+  type(main.querySelector("input[aria-label='캐드1 기간(개월)']"), "2");
+  const lv = main.querySelector("select[aria-label='캐드2 학습수준']");
+  lv.value = "★★★☆☆"; lv.dispatchEvent(new dom.window.Event("change", { bubbles: true }));
+  main.querySelector("input[aria-label='캐드2 AI 정리']").click(); // 캐드2는 AI 제외
+  [...main.querySelectorAll("button")].find((b) => b.textContent === "AI 정리").click();
+  await flush();
+  assert.deepEqual(asked.map(([k]) => k), ["department"], "체크한(공통 4단계 있는) 캐드1만");
+  assert.match(asked[0][1], /1단계: 요약1/);
+  assert.equal(main.querySelector("textarea[aria-label='캐드1 과정내용']").value, "01 AI 한 줄");
+  await flush();
+  barBtn("사이트 적용").click();
+  await flush();
+  const [, args] = calls.find(([n]) => n === "comsw_v4_save_subject_info");
+  assert.deepEqual(args.p_items.map((x) => [x.id, x.duration, x.dept_curriculum, x.level]), [["s1", "2개월", "01 AI 한 줄", ""], ["s2", "", "", "★★★☆☆"]]);
+  configureServices({});
 });

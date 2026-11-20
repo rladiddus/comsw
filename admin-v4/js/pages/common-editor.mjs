@@ -60,30 +60,27 @@ export function commonEditor(subject, cat, current, { msg, reload, set = null, e
           draw();
           msg.replaceChildren(note("AI로 4단계 문구를 만들었습니다. 확인·수정한 뒤 [사이트 적용]을 누르거나, 오른쪽 아래 창의 [임시 저장]으로 보관하세요."));
         });
-        // 한 단계 = 한 줄(2026-11-20 사용자 디자인): 왼쪽 대표 이미지, 오른쪽 내용 + 후보 이미지(누르면 대표, 고른 것을 다시 누르면 빼기)
-        const stepCard = (s, n) => h("div", { class: "cstep" },
+        // 단계 카드(강사 팝업 커리큘럼과 같은 모양): 제목·AI 체크, 대표 이미지, 후보(누르면 대표, 고른 것을 다시 누르면 빼기), 아래쪽 '내용'(높이 맞춤)
+        const stepCard = (s, n) => h("div", { class: "step step-col" },
           h("label", { class: "cstep-title" }, `${n + 1}단계 `,
             h("input", { type: "checkbox", checked: aiOn[n], title: "체크한 단계만 [AI 공통 정리]로 문구를 만듭니다", "aria-label": `${n + 1}단계 AI로 문구 만들기`,
               onchange: (e) => { aiOn[n] = e.target.checked; draw(); } })),
-          h("div", { class: "cstep-body" },
-            h("div", {}, h("h4", {}, "대표 이미지"),
-              s.image_url ? media(s.image_url) : h("div", { class: "media" }, h("span", { class: "muted" }, "이미지 없음"))),
-            h("div", {},
-              h("h4", {}, "내용"),
-              h("textarea", { rows: 2, value: s.summary, style: "width:100%", "aria-label": `${n + 1}단계 공통 문구`, oninput: (e) => { s.summary = e.target.value; } }),
-              lost[n] ? fail(lost[n]) : null,
-              h("div", { class: "cand" }, candidates(n).length ? candidates(n).map((c) => {
-                const on = c.r.media_url === s.image_url;
-                return h("button", { type: "button", "aria-pressed": String(on), title: `${nameOf.get(c.u.instructor_id)} ${c.r.step_label}${on ? " (다시 누르면 빼기)" : ""}`,
-                  onclick: () => { s.image_url = on ? "" : c.r.media_url; draw(); } },
-                h("img", { src: c.r.media_url, alt: `${nameOf.get(c.u.instructor_id)} ${c.r.step_label}`, class: "thumb" }),
-                c.u.approved.length !== STEPS ? h("span", { class: "muted" }, ` ${c.r.step_label} 자료`) : null);
-              }) : h("span", { class: "muted" }, "강사를 체크하면 후보 이미지가 나옵니다")))));
+          s.image_url ? media(s.image_url) : h("div", { class: "media" }, h("span", { class: "muted" }, "이미지 없음")),
+          lost[n] ? fail(lost[n]) : null,
+          h("div", { class: "cand" }, candidates(n).length ? candidates(n).map((c) => {
+            const on = c.r.media_url === s.image_url;
+            return h("button", { type: "button", "aria-pressed": String(on), title: `${nameOf.get(c.u.instructor_id)} ${c.r.step_label}${on ? " (다시 누르면 빼기)" : ""}`,
+              onclick: () => { s.image_url = on ? "" : c.r.media_url; draw(); } },
+            h("img", { src: c.r.media_url, alt: `${nameOf.get(c.u.instructor_id)} ${c.r.step_label}`, class: "thumb" }),
+            c.u.approved.length !== STEPS ? h("span", { class: "muted" }, ` ${c.r.step_label} 자료`) : null);
+          }) : h("span", { class: "muted" }, "강사를 체크하면 후보 이미지가 나옵니다")),
+          h("div", { class: "step-foot" }, h("h4", {}, "내용"),
+            h("textarea", { rows: 4, value: s.summary, style: "width:100%", "aria-label": `${n + 1}단계 공통 문구`, oninput: (e) => { s.summary = e.target.value; } })));
         // 강사 팝업과 같은 모양: 왼쪽 = 강사(넣기·빼기), 오른쪽 = 공통 4단계(문구·대표 이미지)
         return h("div", { class: "side-list" },
           box(`강사(${set ? set.name : "일반"} · 검수 완료만)`, pickList, ...extraLeft),
           box(null, h("div", { class: "row" }, h("h3", { style: "margin:0" }, `${set ? `${set.name} ` : ""}공통 4단계`), aiBtn),
-            h("div", { style: "margin-top:6px" }, st.steps.map(stepCard))));
+            h("div", { class: "steps", style: "margin-top:10px" }, st.steps.map(stepCard))));
       };
       track({
         id: `common:${target}`, slot: set ? "vacation-common" : "common", title: `${subject.name}${set ? `(${set.name})` : ""} 공통 4단계`, baseline,

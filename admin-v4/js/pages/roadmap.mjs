@@ -48,7 +48,7 @@ export async function render({ main }) {
       const groups = groupsOf(d.joins);
       const matches = steps.length === groups.length && steps.every((s, i) => s.ids.join(",") === gkey(groups[i]));
       const plus = (i) => h("button", {
-        type: "button", class: `btn${d.joins[i] ? " primary" : ""}`, "aria-pressed": String(d.joins[i]),
+        type: "button", class: "rm-plus", "aria-pressed": String(d.joins[i]),
         title: d.joins[i] ? "묶음 풀기" : "앞뒤 과목을 한 단계로 묶기", "aria-label": `${list[i].name}와 ${list[i + 1].name} 묶기`,
         onclick: () => { d.joins[i] = !d.joins[i]; draw(); },
       }, "+");
@@ -73,9 +73,10 @@ export async function render({ main }) {
           h("div", { class: "row" }, h("h3", {}, `${dept.name} · 과목 ${list.length}개 → 로드맵 ${groups.length}단계`),
             h("a", { class: "btn", href: `#/courses/depts/${dept.id}` }, "순서 수정(학과 구성)")),
           trk && !matches ? fail("홈페이지 로드맵이 지금 학과 구성과 다릅니다. [+]를 확인한 뒤 [사이트 적용]하면 학과 구성 순서로 바뀝니다.") : null,
-          list.length ? h("ol", { style: "list-style:none;padding:0;margin:0" }, list.flatMap((s, i) => [
-            h("li", { style: "padding:6px 0" }, h("b", {}, s.name)),
-            i < list.length - 1 ? h("li", { style: "padding-left:16px" }, plus(i)) : null,
+          // 과목 상자를 가로로 잇고, 상자 경계 위에 [+](끄면 점선, 켜면 초록)
+          list.length ? h("div", { class: "rm-chain" }, list.flatMap((s, i) => [
+            h("span", { class: "rm-subject" }, s.name),
+            i < list.length - 1 ? plus(i) : null,
           ])) : empty("이 학과에 과목이 없습니다")),
         groups.length ? box("로드맵 단계(홈페이지에 보이는 모양)", note("이름 끝 숫자만 다른 과목은 '이름 1~6'으로, 다른 과목은 줄을 나눠 보여 줍니다."),
           h("div", { class: "steps" }, groups.map(card))) : null);

@@ -134,6 +134,11 @@ dialog.modal .side-list .step .media img { aspect-ratio: 4 / 3; object-fit: cont
 .drag-row.drop-before { border-top: 2px dashed var(--green); }
 .drag-row.drop-after { border-bottom: 2px dashed var(--green); }
 .drag-handle { color: var(--sub); }
+/* 로드맵: 과목 상자 가로 사슬, 경계 위 [+] */
+.rm-chain { display: flex; flex-wrap: wrap; align-items: center; row-gap: 14px; margin-top: 12px; }
+.rm-subject { min-width: 140px; padding: 16px 30px; border: 1px solid var(--green); border-radius: 6px; background: var(--paper); text-align: center; font-weight: 600; white-space: nowrap; }
+.rm-plus { position: relative; z-index: 1; width: 28px; height: 28px; margin: 0 -14px; padding: 0; border: 1px dashed var(--green); border-radius: 4px; background: var(--paper); color: var(--green); font-size: 16px; line-height: 1; cursor: pointer; }
+.rm-plus[aria-pressed="true"] { border-style: solid; background: var(--green); color: var(--paper); }
 dialog.modal.modal-small { width: min(420px, calc(100vw - 32px)); height: fit-content; } /* auto면 브라우저가 화면 높이로 늘림 */
 .change-bar { position: fixed; right: 20px; bottom: 20px; z-index: 50; width: min(360px, calc(100vw - 32px)); background: var(--paper); border: 1px solid var(--green); border-radius: 8px; padding: 14px 16px; box-shadow: 0 6px 24px rgb(0 0 0 / .15); display: grid; gap: 8px; }
 .change-bar .fail { margin: 0; }

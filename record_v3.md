@@ -198,3 +198,4 @@
 - 2026-11-20 V4 modal-small height:auto→fit-content(모달 dialog는 auto면 화면 높이로 늘어남).
 - 2026-11-20 V4 publishBanner에 [같이 반영](data.publishPending = comsw_publish). data.call이 v4_guard 오류 문구를 [같이 반영] 안내로 바꿈.
 - 2026-11-20 V4 commonEditor baseline.picked = 메타 sources의 강사 묶음. dialog.modal 높이 min(760px,100vh-32px), 팝업 단계 이미지 aspect 4/3.
+- 2026-11-20 V4 로드맵 .rm-chain/.rm-subject/.rm-plus(aria-pressed).

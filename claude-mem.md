@@ -113,3 +113,4 @@
 - comsw-tools 배포는 반드시 comsw 폴더 안에서: cd E:\바이브코딩\컴수원-관리플랫폼\comsw 후 npx supabase functions deploy comsw-tools --project-ref bpdxbqsvkvvybrtgvrnf (상위 폴더면 'Missing required field in config: project_id').
 - comsw-tools 최신 배포 2026-11-20(common 포함).
 - V4 과목 공통 팝업 처음 체크 = V4 반영 기록의 강사, 없으면 전원(사용자: 매번 다 체크는 일이 많음).
+- 새 AI 종류를 넣을 때는 policy·handler·ai-settings뿐 아니라 comsw_ai_jobs.kind 체크 제약도 바꿔야 함.

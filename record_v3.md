@@ -209,3 +209,4 @@
 - 2026-11-20 V4 ui.mjs 전역 스크롤 복원(input/change/click capture, body 자식 순번 경로로 칸 찾기). jsdom은 스크롤이 없어 자동 테스트 없음.
 - 2026-11-20 V4 changes 전역 비교 이벤트에 drop/dragend/keyup 추가.
 - 2026-11-20 V4 data.call이 반영 함수면 ui.blocker()(dialog.blocker showModal). changes 바는 blocker 안으로 안 들어감. .side sticky 100vh.
+- 2026-11-20 V4 로드맵 상태 {order, joins, summaries}, remapJoins export. custom_order면 공개 순서가 기준. 20261120020000 실행 대기(그 전엔 순서 바꾼 적용만 'DB 준비 전').

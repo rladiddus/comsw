@@ -45,3 +45,29 @@ test("공개 이름 규칙", async () => {
   assert.equal(await label("캐드1, 라이노2"), "캐드1, 라이노2");
   assert.equal(await label(""), "");
 });
+
+test("로드맵 순서 따로(20261120020000): p_custom이면 같은 과목끼리 순서 자유, 빠지거나 겹치면 막음, 표시 저장", async () => {
+  const db = await freshDb();
+  await as(db, null);
+  const one = async (sql, args = []) => (await db.query(sql, args)).rows[0]?.id;
+  const d = await one(`insert into departments(name) values ('모션학과') returning id`);
+  const ids = [];
+  for (const [n, name] of ["A", "B", "C"].entries()) {
+    const s = await one(`insert into subjects(name, sort_order) values ($1, $2) returning id`, [name, n]);
+    await db.query(`insert into subject_departments(subject_id, department_id, sort_order) values ($1, $2, $3)`, [s, d, n]);
+    ids.push(s);
+  }
+  await as(db, "authenticated", HEAD);
+  await db.query(`select comsw_publish()`);
+  const save = (groups, custom) => db.query(`select comsw_v4_save_roadmap($1, $2::jsonb, $3)`, [d, JSON.stringify(groups), custom]);
+  await assert.rejects(save([{ subjects: [ids[2], ids[0], ids[1]] }], false), /학과 구성 순서와 다릅니다/, "기본은 학과 구성 순서만");
+  await assert.rejects(save([{ subjects: [ids[2], ids[0]] }], true), /빠지거나 더해진/);
+  await assert.rejects(save([{ subjects: [ids[2], ids[0], ids[0]] }], true), /빠지거나 더해진/);
+  await save([{ subjects: [ids[2]] }, { subjects: [ids[0], ids[1]] }], true);
+  await as(db, null);
+  assert.equal((await db.query(`select custom_order from roadmap_tracks where department_id = $1`, [d])).rows[0].custom_order, true);
+  await as(db, "authenticated", HEAD);
+  await db.query(`select comsw_v4_save_roadmap($1, $2::jsonb)`, [d, JSON.stringify([{ subjects: ids }])]);
+  await as(db, null);
+  assert.equal((await db.query(`select custom_order from roadmap_tracks where department_id = $1`, [d])).rows[0].custom_order, false, "두 인자로 부르면 학과 순서(동기화)");
+});

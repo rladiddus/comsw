@@ -139,6 +139,11 @@ dialog.modal .side-list .step .media img { aspect-ratio: 4 / 3; object-fit: cont
 .rm-subject { min-width: 140px; padding: 16px 30px; border: 1px solid var(--green); border-radius: 6px; background: var(--paper); text-align: center; font-weight: 600; white-space: nowrap; }
 .rm-plus { position: relative; z-index: 1; width: 28px; height: 28px; margin: 0 -14px; padding: 0; border: 1px dashed var(--green); border-radius: 4px; background: var(--paper); color: var(--green); font-size: 16px; line-height: 1; cursor: pointer; }
 .rm-plus[aria-pressed="true"] { border-style: solid; background: var(--green); color: var(--paper); }
+.rm-subject { cursor: grab; }
+.rm-subject.dragging { opacity: .4; }
+.rm-subject.drop-before { border-left: 2px dashed var(--green); }
+.rm-subject.drop-after { border-right: 2px dashed var(--green); }
+.rm-label { display: block; white-space: pre-line; min-height: 2.8em; } /* 두 줄 높이 고정 → 글 상자 위치 같게 */
 /* 공통 4단계: 단계마다 한 줄(왼쪽 대표 이미지, 오른쪽 내용 + 후보) */
 .cstep { padding: 14px 0; border-top: 1px solid var(--line); }
 .cstep:first-child { border-top: 0; padding-top: 4px; }

@@ -488,3 +488,38 @@ test("사이트 적용 중: 화면 전체를 막는 '적용 중' 막, 끝나면(
   assert.deepEqual(seen, [["comsw_v4_save_roadmap", true], ["comsw_v4_unpublished", false], ["comsw_v4_save_site", true]]);
   assert.equal(document.querySelector("dialog.blocker"), null, "끝나면 걷힘");
 });
+
+test("로드맵: 과목을 끌어서 순서 바꾸면 '학과·과목의 순서와 다릅니다'·[동기화], 적용은 p_custom, 동기화하면 원래대로", async () => {
+  const { remapJoins } = await import("../../admin-v4/js/pages/roadmap.mjs");
+  assert.deepEqual(remapJoins(["a", "c", "b"], ["a", "b", "c"], [true, false]), [false, false], "떨어지면 묶음 풀림");
+  assert.deepEqual(remapJoins(["c", "a", "b"], ["a", "b", "c"], [true, false]), [false, true], "붙어 있으면 유지");
+  const fake = db();
+  const calls = [];
+  fake.rpc = async (name, args) => { calls.push([name, args]); return { data: false, error: null }; };
+  const main = await open("roadmap", undefined, fake);
+  assert.ok(!main.textContent.includes("순서 수정(학과 구성)"), "옛 버튼 없음");
+  assert.match(main.textContent, /학과·과목 순서/);
+  const Ev = dom.window.Event;
+  let boxes = main.querySelectorAll(".rm-subject");
+  boxes[1].dispatchEvent(new Ev("dragstart", { bubbles: true }));
+  boxes[0].dispatchEvent(Object.assign(new Ev("dragover", { bubbles: true, cancelable: true }), { clientX: 0 }));
+  boxes[0].dispatchEvent(new Ev("drop", { bubbles: true, cancelable: true }));
+  await flush();
+  assert.deepEqual([...main.querySelectorAll(".rm-subject")].map((b) => b.textContent), ["캐드2", "캐드1"]);
+  assert.match(main.textContent, /학과·과목의 순서와 다릅니다/);
+  barBtn("사이트 적용").click();
+  await flush();
+  const [, args] = calls.find(([n]) => n === "comsw_v4_save_roadmap");
+  assert.equal(args.p_custom, true);
+  assert.deepEqual(args.p_groups.map((g) => g.subjects), [["s2"], ["s1"]]);
+
+  const main2 = await open("roadmap", undefined, fake);
+  boxes = main2.querySelectorAll(".rm-subject");
+  boxes[1].dispatchEvent(new Ev("dragstart", { bubbles: true }));
+  boxes[0].dispatchEvent(Object.assign(new Ev("dragover", { bubbles: true, cancelable: true }), { clientX: 0 }));
+  boxes[0].dispatchEvent(new Ev("drop", { bubbles: true, cancelable: true }));
+  [...main2.querySelectorAll("button")].find((b) => b.textContent === "학과·과목의 순서와 동기화").click();
+  await flush();
+  assert.deepEqual([...main2.querySelectorAll(".rm-subject")].map((b) => b.textContent), ["캐드1", "캐드2"]);
+  assert.ok(!barBtn("사이트 적용"), "동기화하면 바뀐 것 없음");
+});

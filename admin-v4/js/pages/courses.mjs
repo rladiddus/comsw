@@ -6,6 +6,7 @@ import { h, head, box, table, tabs, pill, fill, note, fail, busy, publishBanner,
 import { baseName, deptOrder, stepState } from "../rules.mjs";
 import { deptLayout } from "./dept-layout.mjs";
 import { commonEditor } from "./common-editor.mjs";
+import { prepEditor } from "./prep.mjs";
 import { canSwitch, unsaved, untrack, applyTracked } from "../changes.mjs";
 
 let state = { tab: "depts", dept: null };
@@ -38,7 +39,7 @@ export async function render({ main, params = [] }) {
         h("hr", { style: "border:0;border-top:1px solid var(--line);margin:14px 0" }),
         s.duration ? h("p", { class: "muted" }, `과정 기간 ${s.duration}`) : null,
         s.relink_needed ? note("복원한 과목입니다. 학과나 방학 특강에 다시 넣기 전에는 홈페이지에 나오지 않습니다.") : null,
-        h("a", { class: "btn", style: "white-space:nowrap", href: `#/prep/${encodeURIComponent(baseName(s.name))}` }, `공통 준비물(${baseName(s.name)})`),
+        h("button", { type: "button", class: "btn", style: "white-space:nowrap", onclick: (e) => busy(e.currentTarget, popMsg, () => openPrep(baseName(s.name))) }, `공통 준비물(${baseName(s.name)})`),
         withDelete ? h("div", { style: "margin-top:10px" }, h("button", { type: "button", class: "btn danger", onclick: (e) => busy(e.currentTarget, popMsg, async () => {
           const d = deptsOf(s.id), v = vacsOf(s.id);
           const where = [d.length ? `학과: ${d.join(", ")}` : "", v.length ? `방학 특강: ${v.join(", ")}` : ""].filter(Boolean).join("\n") || "연결된 학과·방학 특강 없음";
@@ -61,6 +62,21 @@ export async function render({ main, params = [] }) {
       // 왼쪽 칸은 '공통 준비물(과목)' 버튼이 한 줄에 들어갈 만큼 넓게(최소 240px)
       pop.dlg.style.setProperty("--picks", "minmax(240px, max-content)");
       pop.dlg.classList.add("modal-fit"); // 높이는 내용만큼(빈 아래쪽 없이), 화면보다 크면 안에서 스크롤
+    };
+
+    // 공통 준비물 팝업(과목 팝업 위에 하나 더). 준비물 메뉴와 같은 편집기, [사이트 적용]은 준비물만 공개.
+    const openPrep = async (base) => {
+      const [items, mats] = await Promise.all([data.prepItems(), data.materials()]);
+      const prepMsg = h("div");
+      let pop = null;
+      const ed = prepEditor(base, { subjects, items, mats, departments: cat.departments, msg: prepMsg, onApplied: () => pop?.close() });
+      const applyBtn = h("button", { type: "button", class: "btn primary", onclick: () => busy(applyBtn, prepMsg, () => applyTracked(ed.trackId)) }, "사이트 적용");
+      pop = modal(`${base} · 공통 준비물`, h("div", { class: "modal-body" }, prepMsg, h("div", { class: "modal-main" }, ed.el)), {
+        beforeClose: () => !unsaved(ed.trackId) || confirm("임시 저장하지 않은 준비물 변경이 있습니다. 닫으면 사라집니다. 닫을까요?"),
+        onClose: () => untrack(ed.trackId),
+        actions: [applyBtn],
+      });
+      pop.dlg.classList.add("modal-fit", "modal-mid");
     };
 
     // 학과 추가·이름 수정 팝업(바로 반영)

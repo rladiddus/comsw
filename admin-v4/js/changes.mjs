@@ -24,7 +24,7 @@ export async function stashAll() {
 }
 
 // 저장하지 않은 바뀐 것이 있나(임시 저장 안 한 것)
-export const unsaved = () => trackers.some((t) => !same(t.read(), t.baseline) && !same(t.read(), t.saved));
+export const unsaved = (id) => trackers.some((t) => (id == null || t.id === id) && !same(t.read(), t.baseline) && !same(t.read(), t.saved));
 
 /**
  * id: 보관 이름(화면·대상마다 하나), baseline: 공개 중인 설정, read(): 지금 입력, write(state): 입력을 그 설정으로 바꿔 다시 그림,

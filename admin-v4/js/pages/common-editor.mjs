@@ -31,6 +31,7 @@ export function commonEditor(subject, cat, current, { msg, reload, set = null, e
       const used = units.filter((u) => u.approved.some((r) => usedIds.has(r.id)));
       const baseline = { picked: (used.length ? used : units).map((u) => u.key), steps: Array.from({ length: STEPS }, (_, i) => ({ summary: current[i]?.summary ?? "", image_url: current[i]?.image_url ?? "" })) };
       let st = JSON.parse(JSON.stringify(baseline));
+      const aiOn = Array(STEPS).fill(true); // 단계별 'AI로 만들기' 체크(화면에서만, 저장 안 함)
       const has = (k) => st.picked.includes(k);
       const draw = () => el.replaceChildren(view());
       const view = () => {
@@ -49,19 +50,21 @@ export function commonEditor(subject, cat, current, { msg, reload, set = null, e
             h("input", { type: "checkbox", checked: has(u.key), onchange: (e) => { st.picked = e.target.checked ? [...st.picked, u.key] : st.picked.filter((k) => k !== u.key); draw(); } }),
             nameOf.get(u.instructor_id) ?? "—", " ", pill(s2.label, s2.kind), " ", h("span", { class: "muted" }, `이미지 ${u.approved.filter((r) => r.media_url).length}장`));
         })) : empty("검수 완료된 강사 자료가 없습니다(강사 메뉴에서 먼저 확정해주세요)");
-        const aiBtn = h("button", { type: "button", class: "btn", disabled: !chosen.length }, "AI 공통 정리");
+        const aiBtn = h("button", { type: "button", class: "btn", disabled: !chosen.length || !aiOn.some(Boolean) }, "AI 공통 정리");
         aiBtn.onclick = () => busy(aiBtn, msg, async () => {
           const parts = Array.from({ length: STEPS }, () => []);
           for (const u of chosen) u.approved.forEach((r, i) => { const t = (r.summary || r.written || "").trim(); if (t) parts[bucket(i, u.approved.length)].push(t); });
           // 4단계를 동시에 요청(차례로 하면 4배 기다림)
-          const outs = await Promise.all(parts.map((p) => (p.length ? data.ai("common", p.map((t) => `- ${t}`).join("\n")) : null)));
+          const outs = await Promise.all(parts.map((p, n) => (aiOn[n] && p.length ? data.ai("common", p.map((t) => `- ${t}`).join("\n")) : null)));
           outs.forEach((text, n) => { if (text != null) st.steps[n].summary = text; });
           draw();
           msg.replaceChildren(note("AI로 4단계 문구를 만들었습니다. 확인·수정한 뒤 [사이트 적용]을 누르거나, 오른쪽 아래 창의 [임시 저장]으로 보관하세요."));
         });
         // 한 단계 = 한 줄(2026-11-20 사용자 디자인): 왼쪽 대표 이미지, 오른쪽 내용 + 후보 이미지(누르면 대표, 고른 것을 다시 누르면 빼기)
         const stepCard = (s, n) => h("div", { class: "cstep" },
-          h("b", { class: "cstep-title" }, `${n + 1}단계`),
+          h("label", { class: "cstep-title" }, `${n + 1}단계 `,
+            h("input", { type: "checkbox", checked: aiOn[n], title: "체크한 단계만 [AI 공통 정리]로 문구를 만듭니다", "aria-label": `${n + 1}단계 AI로 문구 만들기`,
+              onchange: (e) => { aiOn[n] = e.target.checked; draw(); } })),
           h("div", { class: "cstep-body" },
             h("div", {}, h("h4", {}, "대표 이미지"),
               s.image_url ? media(s.image_url) : h("div", { class: "media" }, h("span", { class: "muted" }, "이미지 없음"))),

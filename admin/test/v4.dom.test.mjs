@@ -415,3 +415,34 @@ test("과목 팝업: [AI 공통 정리] 결과가 들어오면 '바뀐 설정' �
   assert.ok(barBtn("임시 저장") && barBtn("사이트 적용"), "AI 결과 뒤 떠 있는 창");
   configureServices({});
 });
+
+test("과목 팝업: 체크한 단계만 AI로 문구, [공통 준비물]은 메뉴 이동 없이 준비물 팝업", async () => {
+  document.querySelectorAll("dialog").forEach((d) => d.remove());
+  const { configureServices } = await import("../../admin/js/services.mjs");
+  let asked = 0;
+  configureServices({ summarize: async () => { asked++; return { text: "AI 문구" }; } });
+  const fake = db();
+  fake.rpc = async (name) => ({ data: name === "comsw_v4_unpublished" ? false : null, error: null });
+  const main = await open("courses", undefined, fake);
+  [...main.querySelectorAll(".tabs button")].find((b) => b.textContent === "전체 과목").click();
+  [...main.querySelectorAll("tr.pick")].find((tr) => tr.textContent.includes("캐드1")).click();
+  await flush();
+  const dlg = document.querySelector("dialog.modal");
+  dlg.querySelector("input[aria-label='1단계 AI로 문구 만들기']").click(); // 자료가 있는 1단계를 끔
+  await flush();
+  [...dlg.querySelectorAll("button")].find((b) => b.textContent === "AI 공통 정리").click();
+  await flush();
+  assert.equal(asked, 0, "끈 단계는 AI를 부르지 않음");
+  assert.equal(dlg.querySelector("textarea[aria-label='1단계 공통 문구']").value, "");
+  configureServices({});
+
+  const before = location.hash;
+  [...dlg.querySelectorAll("button")].find((b) => b.textContent === "공통 준비물(캐드)").click();
+  await flush();
+  assert.equal(location.hash, before, "메뉴 이동 없음");
+  const prep = [...document.querySelectorAll("dialog.modal")].at(-1);
+  assert.notEqual(prep, dlg, "팝업 위에 준비물 팝업");
+  assert.match(prep.textContent, /캐드 공통 준비물/);
+  assert.match(prep.textContent, /적용 과목: 캐드1, 캐드2/);
+  assert.ok([...prep.querySelectorAll("button")].some((b) => b.textContent === "강사 준비물 가져오기"));
+});

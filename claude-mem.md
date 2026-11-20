@@ -115,3 +115,4 @@
 - V4 과목 공통 팝업 처음 체크 = V4 반영 기록의 강사, 없으면 전원(사용자: 매번 다 체크는 일이 많음).
 - 새 AI 종류를 넣을 때는 policy·handler·ai-settings뿐 아니라 comsw_ai_jobs.kind 체크 제약도 바꿔야 함.
 - V4: 클릭·입력 없이 상태를 바꾸는 비동기 작업은 busy()로 감싸면 끝날 때 떠 있는 창이 다시 비교됨.
+- V4 준비물 편집은 prepEditor 하나(메뉴·팝업 공용). 팝업 닫기 확인은 unsaved(그 trackId)로.

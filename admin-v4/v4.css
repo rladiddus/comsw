@@ -142,7 +142,7 @@ dialog.modal .side-list .step .media img { aspect-ratio: 4 / 3; object-fit: cont
 /* 공통 4단계: 단계마다 한 줄(왼쪽 대표 이미지, 오른쪽 내용 + 후보) */
 .cstep { padding: 14px 0; border-top: 1px solid var(--line); }
 .cstep:first-child { border-top: 0; padding-top: 4px; }
-.cstep-title { display: block; color: var(--green); margin-bottom: 8px; }
+.cstep-title { display: flex; align-items: center; gap: 6px; font-weight: 700; color: var(--green); margin-bottom: 8px; }
 .cstep-body { display: grid; grid-template-columns: 160px minmax(0, 1fr); gap: 20px; align-items: start; }
 .cstep h4 { margin: 0 0 6px; font-size: 13px; }
 .cstep .media img { aspect-ratio: 4 / 3; object-fit: contain; }
@@ -154,6 +154,7 @@ dialog.modal.modal-fit .modal-main > .side-list, dialog.modal.modal-fit .side-li
 /* 스크롤은 오른쪽 공통 4단계 칸에만(팝업 전체는 그대로) */
 dialog.modal.modal-fit .side-list > .box:last-child { max-height: calc(100vh - 210px); overflow: auto; }
 dialog.modal.modal-fit .side-list { align-items: stretch; }
+dialog.modal.modal-mid { width: min(860px, calc(100vw - 32px)); }
 dialog.modal.modal-small { width: min(420px, calc(100vw - 32px)); height: fit-content; } /* auto면 브라우저가 화면 높이로 늘림 */
 .change-bar { position: fixed; right: 20px; bottom: 20px; z-index: 50; width: min(360px, calc(100vw - 32px)); background: var(--paper); border: 1px solid var(--green); border-radius: 8px; padding: 14px 16px; box-shadow: 0 6px 24px rgb(0 0 0 / .15); display: grid; gap: 8px; }
 .change-bar .fail { margin: 0; }

@@ -27,15 +27,22 @@ export function commonEditor(subject, cat, current, { msg, reload, set = null, e
       const units = curriculumUnits(rows).filter((u) => (set ? u.set_id === set.id : !vac.has(u.set_id)) && u.approved.length);
       const nameOf = new Map(people.map((p) => [p.id, p.name]));
       const usedIds = new Set((meta[0]?.sources ?? []).map((x) => x.id));
-      const baseline = { picked: units.filter((u) => u.approved.some((r) => usedIds.has(r.id))).map((u) => u.key), steps: Array.from({ length: STEPS }, (_, i) => ({ summary: current[i]?.summary ?? "", image_url: current[i]?.image_url ?? "" })) };
+      // 처음 체크: V4로 반영한 기록이 있으면 그때 쓴 강사, 없으면 검수 완료 강사 모두(2026-11-20 사용자 요청)
+      const used = units.filter((u) => u.approved.some((r) => usedIds.has(r.id)));
+      const baseline = { picked: (used.length ? used : units).map((u) => u.key), steps: Array.from({ length: STEPS }, (_, i) => ({ summary: current[i]?.summary ?? "", image_url: current[i]?.image_url ?? "" })) };
       let st = JSON.parse(JSON.stringify(baseline));
       const has = (k) => st.picked.includes(k);
       const draw = () => el.replaceChildren(view());
       const view = () => {
         const chosen = units.filter((u) => has(u.key));
         const candidates = (n) => chosen.flatMap((u) => u.approved.map((r, i) => ({ r, u, i }))
-          .filter(({ r, i }) => r.media_url && (u.approved.length !== STEPS || i === n)));
-        const lost = st.steps.map((s, n) => s.image_url && !candidates(n).some((c) => c.r.media_url === s.image_url));
+          .filter(({ r, i }) => r.media_url && (u.approved.length !== STEPS || i === n || r.media_url === st.steps[n].image_url)));
+        // 대표 이미지가 고른 강사 자료에 없으면 알림: 뺀 강사의 이미지인지, 강사 자료에 없는 이미지(예전 화면에서 넣은 것)인지
+        const imgsOf = (us) => new Set(us.flatMap((u) => u.approved.map((r) => r.media_url)).filter(Boolean));
+        const chosenImgs = imgsOf(chosen), allImgs = imgsOf(units);
+        const lost = st.steps.map((s) => (!s.image_url || chosenImgs.has(s.image_url) ? null
+          : allImgs.has(s.image_url) ? "고른 이미지의 강사를 뺐습니다. 강사를 다시 체크하거나 다른 이미지를 골라주세요."
+          : "지금 대표 이미지는 강사 자료에 없는 이미지입니다(예전 관리 화면에서 넣은 것). 아래 후보에서 골라주세요."));
         const pickList = units.length ? h("div", {}, units.map((u) => {
           const s2 = stepState(u.approved.length);
           return h("label", { style: "display:flex;gap:8px;align-items:center;margin:4px 0" },
@@ -62,7 +69,7 @@ export function commonEditor(subject, cat, current, { msg, reload, set = null, e
             h("div", {},
               h("h4", {}, "내용"),
               h("textarea", { rows: 2, value: s.summary, style: "width:100%", "aria-label": `${n + 1}단계 공통 문구`, oninput: (e) => { s.summary = e.target.value; } }),
-              lost[n] ? fail("고른 이미지의 강사를 뺐습니다. 다시 골라주세요.") : null,
+              lost[n] ? fail(lost[n]) : null,
               h("div", { class: "cand" }, candidates(n).length ? candidates(n).map((c) => {
                 const on = c.r.media_url === s.image_url;
                 return h("button", { type: "button", "aria-pressed": String(on), title: `${nameOf.get(c.u.instructor_id)} ${c.r.step_label}${on ? " (다시 누르면 빼기)" : ""}`,

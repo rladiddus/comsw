@@ -345,7 +345,7 @@ test("과목 팝업: [AI 공통 정리]는 '공통 4단계' 옆, [닫기] 옆 [�
   apply.click();
   await flush();
   assert.match(dlg.textContent, /바뀐 내용이 없습니다/);
-  dlg.querySelector(".side-list input[type=checkbox]").click();
+  assert.equal(dlg.querySelector(".side-list input[type=checkbox]").checked, true, "V4 반영 기록이 없으면 강사 모두 체크");
   dlg.querySelectorAll("textarea").forEach((t, i) => type(t, `문구${i + 1}`));
   apply.click();
   await flush();

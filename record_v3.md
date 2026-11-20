@@ -202,3 +202,4 @@
 - 2026-11-20 AI 종류 common 추가(policy PROMPTS.common, handler 허용, ai-settings 라벨). V4 commonEditor는 ai('common'). 서버 미배포면 '요약 권한' 오류를 안내 문구로 바꿈. V4 과목 팝업 .modal-fit(높이 fit-content).
 - 2026-11-20 V4 commonEditor 단계 .cstep/.cstep-body/.cand, [빼기] 버튼 대신 고른 후보 다시 누르기. supabase CLI는 comsw 폴더(supabase/config.toml)에서 실행해야 함.
 - 2026-11-20 comsw-tools 재배포 완료(common 지시문 반영).
+- 2026-11-20 V4 commonEditor 기준 체크: meta 있으면 그 강사, 없으면 모든 unit. lost 판단은 단계별 후보가 아니라 고른 강사 전체 이미지 기준.

@@ -211,3 +211,4 @@
 - 2026-11-20 V4 data.call이 반영 함수면 ui.blocker()(dialog.blocker showModal). changes 바는 blocker 안으로 안 들어감. .side sticky 100vh.
 - 2026-11-20 V4 로드맵 상태 {order, joins, summaries}, remapJoins export. custom_order면 공개 순서가 기준. 20261120020000 실행 대기(그 전엔 순서 바꾼 적용만 'DB 준비 전').
 - 2026-11-20 20261120020000 실행 확인.
+- 2026-11-20 V4 drop-before/after 점선 var(--red) 3px.

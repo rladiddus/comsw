@@ -47,19 +47,20 @@ export async function render({ main }) {
       const inner = h("div", { class: "modal-body" });
       const popMsg = h("div");
       const editBtn = h("button", { type: "button", class: "btn primary", hidden: true }, "수정");
+      const aiHead = h("button", { type: "button", class: "btn", hidden: true }, "AI 문장 다듬기"); // 수정 중일 때 [수정] 왼쪽
       const again = () => {
         inner.replaceChildren(popMsg,
           h("div", { class: "row" }, h("span", { class: "muted" }, p.depts.join(", ")), pill(p.is_listed ? "홈페이지 노출" : "홈페이지 숨김", p.is_listed ? "" : "neutral")),
           tabs([["profile", "프로필"], ["curriculum", "커리큘럼"]], keep.tab, (t) => { keep.tab = t; again(); }),
-          h("div", { class: "modal-main" }, keep.tab === "profile" ? h("section", { class: "box profile-box" }, profile(p, { msg: popMsg, reload })) : curriculum(p, cat, { msg: popMsg, reload, again, editBtn })));
-        if (keep.tab === "profile") editBtn.hidden = true;
+          h("div", { class: "modal-main" }, keep.tab === "profile" ? h("section", { class: "box profile-box" }, profile(p, { msg: popMsg, reload })) : curriculum(p, cat, { msg: popMsg, reload, again, editBtn, aiHead })));
+        if (keep.tab === "profile") { editBtn.hidden = true; aiHead.hidden = true; }
       };
       again();
       pop?.close();
       pop = modal(p.name, inner, {
         beforeClose: () => !p.units.some((u) => unsaved(`curriculum:${u.key}`)) || confirm("임시 저장하지 않은 바뀐 내용이 있습니다. 닫으면 사라집니다. 닫을까요?"),
         onClose: () => { for (const u of p.units) { untrack(`curriculum:${u.key}`); work.delete(u.key); } keep.id = null; keep.edit = null; pop = null; redrawPop = null; },
-        actions: [editBtn],
+        actions: [aiHead, editBtn],
       });
       // 모든 강사 팝업이 같은 너비: 왼쪽 과목 칸 = 가장 긴 과목 이름이 다 보이는 너비, 오른쪽 = 단계 4개
       pop.dlg.style.setProperty("--picks", `${picksWidth}px`);
@@ -128,8 +129,9 @@ function widestTitle(titles) {
   return Math.ceil(Math.max(180, w + 24 + 70 + 40 + 16));
 }
 
-function curriculum(p, cat, { msg, reload, again, editBtn }) {
+function curriculum(p, cat, { msg, reload, again, editBtn, aiHead }) {
   if (editBtn) editBtn.hidden = true;
+  if (aiHead) aiHead.hidden = true;
   if (!p.units.length) return empty("제출한 커리큘럼이 없습니다");
   const subj = new Map(cat.subjects.map((s) => [s.id, s.name]));
   const setName = new Map(cat.sets.map((s) => [s.id, s.name]));
@@ -207,7 +209,9 @@ function curriculum(p, cat, { msg, reload, again, editBtn }) {
             onchange: (e) => aiOn.set(r.id, e.target.checked) }), "AI 다듬기")));
     };
     // [AI 문장 다듬기]: 체크한 단계만, 동시에
-    const aiBtn = h("button", { type: "button", class: "btn" }, "AI 문장 다듬기");
+    // 검수 완료 수정 중이면 팝업 위쪽 [수정] 왼쪽 버튼을 쓴다
+    const aiBtn = editing && aiHead ? aiHead : h("button", { type: "button", class: "btn" }, "AI 문장 다듬기");
+    aiBtn.hidden = false;
     aiBtn.onclick = () => busy(aiBtn, msg, async () => {
       const targets = rows.filter((r) => aiOn.get(r.id) && (r.written ?? "").trim());
       if (!targets.length) throw new Error("다듬을 단계를 체크해주세요");
@@ -232,6 +236,6 @@ function curriculum(p, cat, { msg, reload, again, editBtn }) {
       !editing && u.pending.length !== 4 ? note(`4단계가 모두 있어야 확정할 수 있습니다(지금 ${u.pending.length}단계). 강사가 채워서 다시 제출해야 합니다.`) : null,
       editing ? note("검수 완료 커리큘럼을 고칩니다. 바꾸면 오른쪽 아래 창에서 [임시 저장]·[사이트 적용]을 누릅니다. 이미지를 누르면 바꿀 수 있습니다.") : null,
       h("div", { class: "steps" }, rows.map(card)),
-      h("div", { class: "actions end", style: "margin-top:12px" }, aiBtn, ok));
+      editing && aiHead ? null : h("div", { class: "actions end", style: "margin-top:12px" }, aiBtn, ok));
   })[0]);
 }

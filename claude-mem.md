@@ -132,3 +132,4 @@
 - 커리큘럼 이미지 썸네일 = 주소 뒤 #crop=x,y,w,h(원본 대비). 고르기 창 admin/js/image-crop.mjs, 공개 쪽 assets/js/media-crop.js.
 - V4 학과 구성 표 = 공개 학과 커리큘럼 칸(subjects.duration·dept_curriculum·program(tools)·level). 과목 정보는 모든 학과 공유.
 - V4 원칙: 반영은 오른쪽 아래 창. 팝업에는 [수정]만(사이트 적용 버튼 두지 않음).
+- V4 강사 팝업 머리 버튼: [닫기][AI 문장 다듬기(수정 중)][수정].

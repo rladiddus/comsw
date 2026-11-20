@@ -620,7 +620,8 @@ test("강사 커리큘럼: 검수는 단계마다 AI 체크·오른쪽 끝 [AI �
   assert.ok(picker.querySelector("input[type=file]"));
   [...picker.querySelectorAll("button")].find((b) => b.textContent === "닫기").click();
   await flush();
-  assert.deepEqual([...dlg.querySelectorAll(".actions.end button")].map((b) => b.textContent), ["AI 문장 다듬기"], "저장 버튼 없음(오른쪽 아래 창)");
+  assert.equal(dlg.querySelectorAll(".actions.end button").length, 0, "아래 버튼 없음(저장은 오른쪽 아래 창)");
+  assert.deepEqual([...dlg.querySelectorAll(".modal-head button")].filter((b) => !b.hidden).map((b) => b.textContent), ["닫기", "AI 문장 다듬기", "수정 끝"], "[AI 문장 다듬기]는 [수정] 왼쪽");
   type(dlg.querySelector("textarea[aria-label='2단계 홈페이지 문구']"), "고친 2");
   await flush();
   assert.ok(barBtn("임시 저장"), "고치자마자 오른쪽 아래 창");

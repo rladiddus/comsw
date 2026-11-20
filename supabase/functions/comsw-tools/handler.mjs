@@ -250,7 +250,7 @@ export function createHandler(
       }
       if (body.action === "summarize") {
         if (
-          !["week", "department", "roadmap"].includes(body.kind) ||
+          !["week", "common", "department", "roadmap"].includes(body.kind) ||
           !member.manager
         ) throw new Error("요약 권한이 없습니다");
         const text = String(body.text || "").trim();

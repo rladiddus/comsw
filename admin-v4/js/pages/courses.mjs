@@ -38,7 +38,7 @@ export async function render({ main, params = [] }) {
         h("hr", { style: "border:0;border-top:1px solid var(--line);margin:14px 0" }),
         s.duration ? h("p", { class: "muted" }, `과정 기간 ${s.duration}`) : null,
         s.relink_needed ? note("복원한 과목입니다. 학과나 방학 특강에 다시 넣기 전에는 홈페이지에 나오지 않습니다.") : null,
-        h("a", { class: "btn", href: `#/prep/${encodeURIComponent(baseName(s.name))}` }, `공통 준비물(${baseName(s.name)})`),
+        h("a", { class: "btn", style: "white-space:nowrap", href: `#/prep/${encodeURIComponent(baseName(s.name))}` }, `공통 준비물(${baseName(s.name)})`),
         withDelete ? h("div", { style: "margin-top:10px" }, h("button", { type: "button", class: "btn danger", onclick: (e) => busy(e.currentTarget, popMsg, async () => {
           const d = deptsOf(s.id), v = vacsOf(s.id);
           const where = [d.length ? `학과: ${d.join(", ")}` : "", v.length ? `방학 특강: ${v.join(", ")}` : ""].filter(Boolean).join("\n") || "연결된 학과·방학 특강 없음";
@@ -58,6 +58,9 @@ export async function render({ main, params = [] }) {
         onClose: () => untrack(editor.trackId),
         actions: [applyBtn],
       });
+      // 왼쪽 칸은 '공통 준비물(과목)' 버튼이 한 줄에 들어갈 만큼 넓게(최소 240px)
+      pop.dlg.style.setProperty("--picks", "minmax(240px, max-content)");
+      pop.dlg.classList.add("modal-fit"); // 높이는 내용만큼(빈 아래쪽 없이), 화면보다 크면 안에서 스크롤
     };
 
     // 학과 추가·이름 수정 팝업(바로 반영)

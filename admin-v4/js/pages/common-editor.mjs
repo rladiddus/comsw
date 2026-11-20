@@ -48,7 +48,7 @@ export function commonEditor(subject, cat, current, { msg, reload, set = null, e
           for (const u of chosen) u.approved.forEach((r, i) => { const t = (r.summary || r.written || "").trim(); if (t) parts[bucket(i, u.approved.length)].push(t); });
           for (let n = 0; n < STEPS; n++) {
             if (!parts[n].length) continue;
-            st.steps[n].summary = await data.ai("week", parts[n].map((t) => `- ${t}`).join("\n"));
+            st.steps[n].summary = await data.ai("common", parts[n].map((t) => `- ${t}`).join("\n"));
           }
           draw();
           msg.replaceChildren(note("AI로 4단계 문구를 만들었습니다. 확인·수정한 뒤 오른쪽 아래 [임시 저장] 또는 [사이트 적용]을 눌러주세요."));

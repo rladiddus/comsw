@@ -82,7 +82,12 @@ export async function ai(kind, text) {
   const svc = getServices();
   if (!svc.summarize) throw new Error("다시 로그인해주세요");
   if (text.length > 12000) throw new Error("내용이 너무 길어 한 번에 AI로 정리할 수 없습니다. 고르는 자료를 줄여 주세요");
-  const out = String((await svc.summarize(kind, text))?.text ?? "").trim();
+  const res = await svc.summarize(kind, text).catch((err) => {
+    // 서버(comsw-tools)를 다시 배포하기 전에는 새 종류(common)를 모른다
+    if (/요약 권한이 없습니다/.test(err?.message ?? "")) throw new Error("AI 서버 업데이트 전입니다. 관리자에게 comsw-tools 배포를 요청해주세요");
+    throw err;
+  });
+  const out = String(res?.text ?? "").trim();
   if (!out) throw new Error("AI 결과가 비어 있습니다");
   return out;
 }

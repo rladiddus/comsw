@@ -109,3 +109,4 @@
 - V4가 '반영하지 않은 다른 변경'으로 막히면: 위쪽 [같이 반영]. 원인은 보통 V3 승인(comsw_approve_curriculum이 학과 연결)·수업 설정처럼 공개 없이 바뀐 것.
 - V4 track 기준값(baseline)은 공개 중 상태를 빠짐없이 담아야 함(빠지면 열자마자 '바뀐 설정'이 뜸).
 - V4 로드맵 [+]는 .rm-plus(aria-pressed=true면 초록), 과목 상자는 .rm-chain 안 .rm-subject.
+- AI 요약 종류: week(강사 단계), common(V4 과목 공통), department, roadmap. 서버 지시문 바꾸면 사용자가 npx supabase functions deploy comsw-tools --project-ref bpdxbqsvkvvybrtgvrnf 실행. site_settings ai_prompt_<종류>가 있으면 그게 우선.

@@ -132,6 +132,8 @@ export async function dropDraft(kind, target) {
   const { error } = await db.from("v4_drafts").delete().eq("kind", kind).eq("target", target);
   if (error) throw new Error(error.message);
 }
+// 일반 과목 = 학과·과목에서 만든 과목(+ 예전 자료로 학과에 들어 있는 과목). 방학 특강 과목은 방학 특강 메뉴에만.
+export const general = (cat) => live(cat.subjects).filter((s) => !s.is_vacation || cat.links.some((l) => l.subject_id === s.id));
 export const roadmap = async () => {
   const [tracks, steps, links] = await Promise.all([all("roadmap_tracks"), all("roadmap_steps"), all("roadmap_step_subjects")]);
   return { tracks, steps, links };

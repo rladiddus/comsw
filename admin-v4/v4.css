@@ -193,6 +193,12 @@ dialog.modal.modal-small { width: min(420px, calc(100vw - 32px)); height: fit-co
 .step-col { display: flex; flex-direction: column; }
 .step-foot { margin-top: auto; padding-top: 10px; }
 .step-foot h4 { margin: 0 0 6px; }
+/* 방학 특강: 설정 한 줄, 아래 왼쪽 과목·오른쪽 커리큘럼 */
+.vac-settings { display: grid; grid-template-columns: minmax(220px, 1fr) auto; gap: 16px; align-items: end; }
+.vac-body { margin-top: 16px; }
+.vac-pick { display: flex; gap: 6px; align-items: center; }
+.vac-pick > button:first-child { flex: 1; }
+.vac-right { min-width: 0; }
 .btn.small { padding: 4px 9px; font-size: 12px; }
 .actions.end { justify-content: flex-end; }
 .img-pick { display: block; width: 100%; padding: 0; border: 0; background: none; cursor: pointer; border-radius: 6px; }

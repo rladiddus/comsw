@@ -223,3 +223,4 @@
 - 2026-11-20 comsw_v4_save_subject_info([{id,duration,dept_curriculum,program,level}]) — program은 tools에 넣고 supplies 비움. confirm_curriculum p_steps media_url 선택. dept-layout 표(.dept-head/.dept-row), info 트래커 info:<학과>. PROMPTS.department 01~04. 20261120060000 실행·comsw-tools 재배포 대기.
 - 2026-11-20 V4 commonEditor startEditing/setEditing/isEditing. instructors work Map + track curriculum:<unit>(isTracked로 한 번만), changes.isTracked. 과목 바꿀 때 canSwitch.
 - 2026-11-20 instructors aiHead(모달 머리 버튼, 수정 중에만).
+- 2026-11-20 subjects unique(name, is_vacation)(이름만 unique 제약은 찾아서 삭제), comsw_v4_create_subject(name, vacation) — 방특은 sort_order null. confirm_prep 일반 과목만. data.general(cat). vacation.mjs 재작성(pane 캐시로 편집기 유지). 20261120070000 실행 대기.

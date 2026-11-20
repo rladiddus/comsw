@@ -75,7 +75,7 @@ export async function render({ main, params = [] }) {
   main.append(body);
   await fill(body, async () => {
     const [cat, items, mats] = await Promise.all([data.catalog(), data.prepItems(), data.materials()]);
-    const subjects = data.live(cat.subjects);
+    const subjects = data.general(cat); // 공통 준비물은 일반 과목끼리(방학 특강 과목 제외)
     const bases = [...new Set(subjects.map((s) => baseName(s.name)))].sort((a, b) => a.localeCompare(b, "ko"));
     const msg = h("div");
     const out = h("div");

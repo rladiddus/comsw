@@ -20,7 +20,7 @@ export async function render({ main, params = [] }) {
   main.append(body);
   await fill(body, async () => {
     const cat = await data.catalog();
-    const subjects = data.live(cat.subjects);
+    const subjects = data.general(cat); // 일반 과목만(방학 특강 과목은 방학 특강 메뉴)
     const weeks = await data.weeks();
     const general = weeks.filter((w) => !w.set_id);
     const stepsOf = (id) => general.filter((w) => w.subject_id === id).sort((x, y) => (x.sort_order ?? 0) - (y.sort_order ?? 0));
@@ -105,7 +105,7 @@ export async function render({ main, params = [] }) {
     };
 
     const draw = () => {
-      const top = tabs([["depts", "학과 구성"], ["subjects", "전체 과목"], ["deleted", "삭제된 과목"]], state.tab, (t) => { if (!canSwitch()) return; state.tab = t; draw(); });
+      const top = tabs([["depts", "학과 구성"], ["subjects", "전체 과목"], ["create", "과목 생성"], ["deleted", "삭제된 과목"]], state.tab, (t) => { if (!canSwitch()) return; state.tab = t; draw(); });
       let view;
       if (state.tab === "depts") {
         state.dept = cat.departments.some((d) => d.id === state.dept) ? state.dept : cat.departments[0]?.id;
@@ -127,6 +127,19 @@ export async function render({ main, params = [] }) {
           ["방학 특강", (s) => vacsOf(s.id).join(", ") || "—"],
           ["공통", stepPill],
         ], subjects, { onPick: (s) => openSubject(s, { withDelete: true }) }))];
+      } else if (state.tab === "create") {
+        // 일반 과목 만들기(방학 특강 과목과 이름이 같아도 다른 과목). 만든 뒤 학과 구성에서 학과에 넣는다.
+        const m = h("div");
+        const input = h("input", { "aria-label": "새 일반 과목 이름", placeholder: "예: AI포토샵", style: "width:100%" });
+        const ok = h("button", { type: "button", class: "btn primary" }, "만들기");
+        ok.onclick = () => busy(ok, m, async () => {
+          if (!input.value.trim()) throw new Error("과목 이름을 입력해주세요");
+          await data.call("comsw_v4_create_subject", { p_name: input.value.trim(), p_vacation: false });
+          state.tab = "subjects"; reload();
+        });
+        view = [box("일반 과목 만들기", m,
+          note("여기서 만든 과목은 일반 과목입니다. 방학 특강에서 만든 과목과 이름이 같아도 다른 과목입니다. 만들면 바로 저장되고, '학과 구성'에서 학과에 넣으면 학과 커리큘럼·로드맵에 나옵니다."),
+          h("div", { class: "actions", style: "margin-top:10px" }, h("div", { style: "flex:1;min-width:220px" }, input), ok))];
       } else {
         const gone = cat.subjects.filter((s) => s.deleted_at);
         view = data.hasDeleteColumn(cat.subjects)

@@ -278,18 +278,35 @@ test("사이트 편집이 열리고, 방학 특강 과목 구성은 체크한 �
   await flush();
   [...main.querySelectorAll(".tabs button")].find((b) => b.textContent === "하단 메뉴").click();
   assert.match(main.textContent, /메뉴 없음/);
+  // 방학 특강: 후보는 방학 특강 과목(만든 곳이 방학 특강이거나 이미 특강에 든 과목)만
+  const subs = (await base.from("subjects").select("*")).data;
+  const local = fakeSupabase({ subjects: [...subs, { id: "s9", name: "캐드1", is_vacation: true }] });
+  const from0 = base.from.bind(base);
+  base.from = (t) => (t === "subjects" ? local.from(t) : from0(t));
   const vac = await import("../../admin-v4/js/pages/vacation.mjs");
   await vac.render({ main });
   await flush();
-  const box = [...main.querySelectorAll("label")].find((l) => l.textContent.includes("캐드2"));
-  box.querySelector("input").click();
+  assert.ok(!main.textContent.includes("null"), "'null' 글자 없음");
+  const add = main.querySelector("select[aria-label='넣을 방학 특강 과목']");
+  assert.deepEqual([...add.options].slice(1).map((o) => o.value), ["s9"], "일반 과목(캐드2·아트 드로잉)은 후보 아님, 같은 이름이라도 방학 특강 과목만");
+  assert.match(main.querySelector(".vac-right").textContent, /캐드1 · 2026 겨울 공통 커리큘럼/, "넣은 과목을 고르면 오른쪽에 커리큘럼");
+  add.value = "s9"; add.dispatchEvent(new dom.window.Event("change", { bubbles: true }));
   await flush();
   barBtn("사이트 적용").click();
   await flush();
   const [name, args] = calls.find(([n]) => n === "comsw_v4_save_vacation");
   assert.equal(name, "comsw_v4_save_vacation");
-  assert.deepEqual([...args.p_subjects].sort(), ["s1", "s2"]);
+  assert.deepEqual([...args.p_subjects].sort(), ["s1", "s9"]);
   assert.equal(args.p_id, "v1");
+
+  await vac.render({ main });
+  await flush();
+  [...main.querySelectorAll("button")].find((b) => b.textContent === "과목 생성").click();
+  type(main.querySelector("input[aria-label='새 방학 특강 과목 이름']"), "여름 포토샵");
+  [...main.querySelectorAll("button")].find((b) => b.textContent === "만들기").click();
+  await flush();
+  assert.deepEqual(calls.find(([n]) => n === "comsw_v4_create_subject")[1], { p_name: "여름 포토샵", p_vacation: true });
+  base.from = from0;
 });
 
 test("학과 구성: 끌어서 옮기기(moveItem), [+ 학과 추가] 팝업은 이름을 받아 DB 함수로", async () => {
@@ -667,4 +684,23 @@ test("학과 구성 표: 기간(개월 숫자)·과정내용(비면 공통 4단�
   const [, args] = calls.find(([n]) => n === "comsw_v4_save_subject_info");
   assert.deepEqual(args.p_items.map((x) => [x.id, x.duration, x.dept_curriculum, x.level]), [["s1", "2개월", "01 AI 한 줄", ""], ["s2", "", "", "★★★☆☆"]]);
   configureServices({});
+});
+
+test("학과·과목: [과목 생성]은 일반 과목으로 만들고, 방학 특강 과목(학과 없음)은 전체 과목에 안 보임", async () => {
+  document.querySelectorAll("dialog").forEach((d) => d.remove());
+  const fake = db();
+  const subs = (await fake.from("subjects").select("*")).data;
+  const local = fakeSupabase({ subjects: [...subs, { id: "s9", name: "캐드1", is_vacation: true }] });
+  const from0 = fake.from.bind(fake);
+  fake.from = (t) => (t === "subjects" ? local.from(t) : from0(t));
+  const calls = [];
+  fake.rpc = async (name, args) => { calls.push([name, args]); return { data: name === "comsw_v4_unpublished" ? false : "new", error: null }; };
+  const main = await open("courses", undefined, fake);
+  [...main.querySelectorAll(".tabs button")].find((b) => b.textContent === "전체 과목").click();
+  assert.equal([...main.querySelectorAll("tr.pick")].filter((tr) => tr.textContent.includes("캐드1")).length, 1, "같은 이름 방학 특강 과목은 안 보임");
+  [...main.querySelectorAll(".tabs button")].find((b) => b.textContent === "과목 생성").click();
+  type(main.querySelector("input[aria-label='새 일반 과목 이름']"), "AI포토샵");
+  [...main.querySelectorAll("button")].find((b) => b.textContent === "만들기").click();
+  await flush();
+  assert.deepEqual(calls.find(([n]) => n === "comsw_v4_create_subject")[1], { p_name: "AI포토샵", p_vacation: false });
 });

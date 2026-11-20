@@ -4,7 +4,7 @@ import { h, head, box, table, tabs, pill, media, dl, fill, empty, note, busy, pu
 import { curriculumUnits, stepState } from "../rules.mjs";
 import { track } from "../changes.mjs";
 
-let keep = { id: null, tab: "profile", unit: null };
+let keep = { id: null, tab: "profile", unit: null, edit: null };
 
 export async function render({ main }) {
   const reload = () => render({ main });
@@ -52,7 +52,7 @@ export async function render({ main }) {
       };
       again();
       pop?.close();
-      pop = modal(p.name, inner, { onClose: () => { keep.id = null; pop = null; } });
+      pop = modal(p.name, inner, { onClose: () => { keep.id = null; keep.edit = null; pop = null; } });
       // 모든 강사 팝업이 같은 너비: 왼쪽 과목 칸 = 가장 긴 과목 이름이 다 보이는 너비, 오른쪽 = 단계 4개
       pop.dlg.style.setProperty("--picks", `${picksWidth}px`);
       pop.dlg.style.width = `min(calc(100vw - 32px), ${picksWidth + 16 + 900}px)`;
@@ -135,35 +135,81 @@ function curriculum(p, cat, { msg, reload, again }) {
     const title = `${subj.get(u.subject_id) ?? "(삭제된 과목)"} · ${vac ? setName.get(u.set_id) : "일반"}`;
     const top = h("div", { class: "row" }, h("h3", {}, title),
       h("div", { class: "actions" }, pill(u.pending.length ? "이번 제출(검수 전)" : "검수 완료", u.pending.length ? "" : "neutral"), pill(st.label, st.kind)));
-    if (!u.pending.length) {
+    const editing = !u.pending.length && keep.edit === u.key;
+    if (!u.pending.length && !editing) {
+      // 검수 완료 보기 + [수정](학과장·관리자가 직접 고침)
       return h("div", { class: "box" }, top, h("div", { class: "steps" }, now.map((r) => h("div", { class: "step" },
-        h("b", {}, r.step_label), h("p", {}, r.summary || r.written || "—"), r.media_url ? media(r.media_url) : null))));
+        h("b", {}, r.step_label), h("p", {}, r.summary || r.written || "—"), r.media_url ? media(r.media_url) : null))),
+        h("div", { class: "actions end", style: "margin-top:12px" },
+          h("button", { type: "button", class: "btn", onclick: () => { keep.edit = u.key; again(); } }, "수정")));
     }
-    // 이번 제출 검수: 원문은 그대로, 홈페이지 문구(summary)만 고침. AI 다듬기는 버튼으로만.
-    const edits = new Map(u.pending.map((r) => [r.id, r.summary ?? ""]));
+    // 이번 제출 검수 / 검수 완료 수정: 원문은 그대로, 홈페이지 문구(summary)를 고침. 단계 칸 아래쪽(홈페이지 문구)은 높이를 맞춘다.
+    const rows = u.pending.length ? u.pending : u.approved;
+    const edits = new Map(rows.map((r) => [r.id, r.summary ?? ""]));
+    const images = new Map(rows.map((r) => [r.id, r.media_url ?? ""]));
+    const aiOn = new Map(rows.map((r) => [r.id, true]));
+    const areas = new Map();
     const card = (r) => {
       const area = h("textarea", { rows: 3, value: edits.get(r.id), placeholder: "비우면 원문이 그대로 공개됩니다", style: "width:100%",
         "aria-label": `${r.step_label} 홈페이지 문구`, oninput: (e) => edits.set(r.id, e.target.value) });
-      const aiBtn = h("button", { type: "button", class: "btn" }, "AI 문장 다듬기");
-      aiBtn.onclick = () => busy(aiBtn, msg, async () => {
-        area.value = await data.ai("week", r.written ?? "");
-        edits.set(r.id, area.value);
-      });
-      return h("div", { class: "step" }, h("b", {}, r.step_label), h("p", {}, r.written || "—"),
-        r.media_url ? media(r.media_url) : null, h("h4", {}, "홈페이지 문구"), area, aiBtn);
+      areas.set(r.id, area);
+      // 이미지: 있으면 보여 주고, 검수 완료 수정에서 이미지가 없는 단계는 올리기(파일 고르기·끌어다 놓기)
+      const img = h("div", {}, images.get(r.id) ? media(images.get(r.id)) : null);
+      let upload = null;
+      if (editing && !r.media_url) {
+        const file = h("input", { type: "file", accept: "image/png,image/jpeg,image/webp", "aria-label": `${r.step_label} 이미지 올리기` });
+        file.onchange = () => busy(file, msg, async () => {
+          if (!file.files[0]) return;
+          img.replaceChildren(h("div", { class: "muted" }, "올리는 중..."));
+          try { images.set(r.id, (await data.upload(file.files[0], "curriculum")).url); } finally {
+            img.replaceChildren(images.get(r.id) ? media(images.get(r.id)) : h("div", { class: "media" }, h("span", { class: "muted" }, "이미지 없음")));
+            file.value = "";
+          }
+        });
+        img.replaceChildren(h("div", { class: "media" }, h("span", { class: "muted" }, "이미지 없음")));
+        upload = h("label", { class: "drop-zone" }, h("span", { class: "muted" }, "이미지 올리기(파일 선택 또는 여기로 끌어다 놓기)"), file);
+      }
+      return h("div", { class: "step step-col" }, h("b", {}, r.step_label), h("p", {}, r.written || "—"), img, upload,
+        h("div", { class: "step-foot" }, h("h4", {}, "홈페이지 문구"), area,
+          h("label", { class: "rm-sync" }, h("input", { type: "checkbox", checked: true, "aria-label": `${r.step_label} AI 문장 다듬기`,
+            onchange: (e) => aiOn.set(r.id, e.target.checked) }), "AI 다듬기")));
     };
-    const ok = h("button", { type: "button", class: "btn primary", disabled: u.pending.length !== 4 }, "확정");
-    ok.onclick = () => busy(ok, msg, async () => {
-      if (!confirm(`${p.name} · ${title}을(를) 확정할까요? 이 4단계가 홈페이지에 바로 반영되고, 예전 검수본은 보관됩니다.`)) return;
-      await data.call("comsw_v4_confirm_curriculum", {
-        p_instructor: u.instructor_id, p_set: u.set_id, p_subject: u.subject_id,
-        p_steps: u.pending.map((r) => ({ id: r.id, updated_at: r.updated_at, summary: edits.get(r.id) ?? "" })),
-      });
-      reload();
+    // [AI 문장 다듬기]: 체크한 단계만, 동시에
+    const aiBtn = h("button", { type: "button", class: "btn" }, "AI 문장 다듬기");
+    aiBtn.onclick = () => busy(aiBtn, msg, async () => {
+      const targets = rows.filter((r) => aiOn.get(r.id) && (r.written ?? "").trim());
+      if (!targets.length) throw new Error("다듬을 단계를 체크해주세요");
+      const outs = await Promise.all(targets.map((r) => data.ai("week", r.written)));
+      targets.forEach((r, n) => { edits.set(r.id, outs[n]); areas.get(r.id).value = outs[n]; });
     });
+    let ok;
+    if (editing) {
+      ok = h("button", { type: "button", class: "btn primary" }, "저장");
+      ok.onclick = () => busy(ok, msg, async () => {
+        if (!confirm(`${p.name} · ${title}을(를) 고친 대로 저장할까요? 홈페이지에 바로 반영되고, 예전 것은 보관됩니다.`)) return;
+        await data.call("comsw_v4_edit_curriculum", {
+          p_instructor: u.instructor_id, p_set: u.set_id, p_subject: u.subject_id,
+          p_steps: rows.map((r) => ({ id: r.id, updated_at: r.updated_at, summary: edits.get(r.id) ?? "", media_url: images.get(r.id) ?? "" })),
+        });
+        keep.edit = null;
+        reload();
+      });
+    } else {
+      ok = h("button", { type: "button", class: "btn primary", disabled: u.pending.length !== 4 }, "확정");
+      ok.onclick = () => busy(ok, msg, async () => {
+        if (!confirm(`${p.name} · ${title}을(를) 확정할까요? 이 4단계가 홈페이지에 바로 반영되고, 예전 검수본은 보관됩니다.`)) return;
+        await data.call("comsw_v4_confirm_curriculum", {
+          p_instructor: u.instructor_id, p_set: u.set_id, p_subject: u.subject_id,
+          p_steps: u.pending.map((r) => ({ id: r.id, updated_at: r.updated_at, summary: edits.get(r.id) ?? "" })),
+        });
+        reload();
+      });
+    }
+    const cancel = editing ? h("button", { type: "button", class: "btn", onclick: () => { keep.edit = null; again(); } }, "취소") : null;
     return h("div", { class: "box" }, top,
-      u.pending.length !== 4 ? note(`4단계가 모두 있어야 확정할 수 있습니다(지금 ${u.pending.length}단계). 강사가 채워서 다시 제출해야 합니다.`) : null,
-      h("div", { class: "steps" }, u.pending.map(card)),
-      h("div", { class: "actions", style: "margin-top:12px" }, ok));
+      !editing && u.pending.length !== 4 ? note(`4단계가 모두 있어야 확정할 수 있습니다(지금 ${u.pending.length}단계). 강사가 채워서 다시 제출해야 합니다.`) : null,
+      editing ? note("검수 완료 커리큘럼을 고칩니다. [저장]하면 홈페이지에 바로 반영되고, 예전 것은 보관됩니다. 이미지가 없는 단계는 이미지를 올릴 수 있습니다.") : null,
+      h("div", { class: "steps" }, rows.map(card)),
+      h("div", { class: "actions end", style: "margin-top:12px" }, cancel, aiBtn, ok));
   })[0]);
 }

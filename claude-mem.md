@@ -125,3 +125,4 @@
 - V4 로드맵 문구는 학과별 저장. 타학과 동기화 체크 시에만 같은 과목 묶음 단계에 복사(계속 연결 아님).
 - 기준 과목 이름 규칙은 화면 rules.baseName과 SQL comsw_private.v4_base 두 곳 — 바꿀 때 둘 다.
 - V4 이미지 올리기 칸은 input type=file 하나가 든 칸이면 끌어다 놓기가 자동으로 됨(ui.mjs 전역).
+- V4 강사 커리큘럼: 검수(pending)는 confirm_curriculum, 검수 완료 수정은 edit_curriculum. 이미지는 없는 단계만 올리기.

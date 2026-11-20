@@ -571,3 +571,46 @@ test("이미지 끌어다 놓기: 놓은 곳에서 가장 가까운 파일 칸 �
   delete globalThis.DataTransfer;
   wrap.remove();
 });
+
+test("강사 커리큘럼: 검수는 단계마다 AI 체크·오른쪽 끝 [AI 문장 다듬기][확정], 검수 완료는 [수정]으로 문구·빈 단계 이미지 고쳐 저장", async () => {
+  document.querySelectorAll("dialog").forEach((d) => d.remove());
+  const { configureServices } = await import("../../admin/js/services.mjs");
+  const asked = [];
+  configureServices({ summarize: async (kind, text) => { asked.push(text); return { text: `다듬은 ${text}` }; } });
+  let main = await open("instructors");
+  [...main.querySelectorAll("tr.pick")][0].click();
+  await flush();
+  let dlg = document.querySelector("dialog.modal");
+  [...dlg.querySelectorAll(".tabs button")].find((b) => b.textContent === "커리큘럼").click();
+  const btns = [...dlg.querySelectorAll(".actions.end button")].map((b) => b.textContent);
+  assert.deepEqual(btns, ["AI 문장 다듬기", "확정"], "확정이 오른쪽 끝, 그 왼쪽 AI");
+  assert.ok(dlg.querySelector(".step-foot input[type=checkbox]"), "단계마다 AI 체크");
+  dlg.querySelector(".step-foot input[type=checkbox]").click(); // 하나뿐인 단계를 끔
+  [...dlg.querySelectorAll("button")].find((b) => b.textContent === "AI 문장 다듬기").click();
+  await flush();
+  assert.equal(asked.length, 0, "끈 단계는 AI 안 부름");
+  configureServices({});
+  dlg.remove();
+
+  const fake = db();
+  const base = fake.from.bind(fake);
+  const local = fakeSupabase({ instructor_curricula: [1, 2, 3, 4].map((n) => ({ id: `a${n}`, instructor_id: "i1", set_id: "set1", subject_id: "s1", step_label: `${n}단계`,
+    written: `원문${n}`, status: "approved", sort_order: n, updated_at: `2026-11-20T00:00:0${n}Z`, media_url: n === 1 ? "https://img/1.png" : null })) });
+  fake.from = (t) => (t === "instructor_curricula" ? local.from(t) : base(t));
+  const calls = [];
+  fake.rpc = async (name, args) => { calls.push([name, args]); return { data: false, error: null }; };
+  main = await open("instructors", undefined, fake);
+  [...main.querySelectorAll("tr.pick")][0].click();
+  await flush();
+  dlg = document.querySelector("dialog.modal");
+  [...dlg.querySelectorAll(".tabs button")].find((b) => b.textContent === "커리큘럼").click();
+  [...dlg.querySelectorAll("button")].find((b) => b.textContent === "수정").click();
+  assert.equal(dlg.querySelectorAll("input[type=file]").length, 3, "이미지 없는 3단계만 올리기");
+  assert.deepEqual([...dlg.querySelectorAll(".actions.end button")].map((b) => b.textContent), ["취소", "AI 문장 다듬기", "저장"]);
+  type(dlg.querySelector("textarea[aria-label='2단계 홈페이지 문구']"), "고친 2");
+  [...dlg.querySelectorAll("button")].find((b) => b.textContent === "저장").click();
+  await flush();
+  const [, args] = calls.find(([n]) => n === "comsw_v4_edit_curriculum");
+  assert.deepEqual(args.p_steps.map((x) => [x.id, x.summary, x.media_url]), [["a1", "", "https://img/1.png"], ["a2", "고친 2", ""], ["a3", "", ""], ["a4", "", ""]]);
+  dlg.remove();
+});

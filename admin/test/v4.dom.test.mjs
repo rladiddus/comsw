@@ -473,3 +473,18 @@ test("학과 구성: 끌어서·키보드로 순서를 바꾸면 클릭 없이 �
   await flush();
   assert.ok(barBtn("사이트 적용"), "Alt+↑로 옮겨도 바로");
 });
+
+test("사이트 적용 중: 화면 전체를 막는 '적용 중' 막, 끝나면(실패해도) 걷힘, 읽기만 하는 확인은 막지 않음", async () => {
+  const seen = [];
+  const fake = db();
+  fake.rpc = async (name) => {
+    seen.push([name, !!document.querySelector("dialog.blocker[open]")]);
+    return name === "comsw_v4_save_site" ? { data: null, error: { message: "실패" } } : { data: false, error: null };
+  };
+  data.useDb(fake);
+  await data.call("comsw_v4_save_roadmap", {});
+  await data.call("comsw_v4_unpublished");
+  await assert.rejects(data.call("comsw_v4_save_site", {}));
+  assert.deepEqual(seen, [["comsw_v4_save_roadmap", true], ["comsw_v4_unpublished", false], ["comsw_v4_save_site", true]]);
+  assert.equal(document.querySelector("dialog.blocker"), null, "끝나면 걷힘");
+});

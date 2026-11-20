@@ -111,6 +111,16 @@ export function modal(title, body, { onClose, beforeClose, actions = [] } = {}) 
   return { dlg, close };
 }
 
+// 화면 전체 막기(반투명 검은 막 + 도는 표시). 맨 위(다른 팝업 위)에 뜨고 Esc로도 안 닫힘. 돌려준 함수로 걷는다.
+export function blocker(text) {
+  const dlg = h("dialog", { class: "blocker", "aria-label": text, "aria-busy": "true" },
+    h("div", { class: "spinner", "aria-hidden": "true" }), h("p", { role: "status" }, text));
+  dlg.addEventListener("cancel", (e) => e.preventDefault());
+  document.body.append(dlg);
+  if (dlg.showModal) dlg.showModal(); else dlg.setAttribute("open", "");
+  return () => { dlg.close?.(); dlg.remove(); };
+}
+
 // 켜기·끄기 스위치(role=switch). onToggle은 새 값으로 불림.
 export const toggleSwitch = (on, label, onToggle) => h("button", {
   type: "button", role: "switch", class: "switch", "aria-checked": String(!!on), "aria-label": label, title: label,

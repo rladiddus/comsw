@@ -118,3 +118,4 @@
 - V4 준비물 편집은 prepEditor 하나(메뉴·팝업 공용). 팝업 닫기 확인은 unsaved(그 trackId)로.
 - V4 스크롤 튐은 ui.mjs 전역 스크롤 지키기가 처리. 화면마다 따로 고치지 말 것.
 - V4 떠 있는 창 비교 시점: input·change·click·drop·dragend·keyup, busy() 끝, 업로드 끝 check(), track 불러오기 뒤. 새 입력 방식을 만들면 여기에 걸리는지 확인.
+- V4 '적용 중' 막은 data.call 한 곳(반영 함수 이름 규칙: comsw_publish, comsw_v4_* 중 unpublished 제외). 새 반영 함수도 이름만 맞으면 자동.

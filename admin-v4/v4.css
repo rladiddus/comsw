@@ -34,7 +34,7 @@ img, video, iframe { max-width: 100%; }
 
 /* 틀 */
 .shell { display: grid; grid-template-columns: 180px minmax(0, 1fr); min-height: 100vh; }
-.side { background: var(--paper); border-right: 1px solid var(--line); padding: 24px 0; }
+.side { background: var(--paper); border-right: 1px solid var(--line); padding: 24px 0; position: sticky; top: 0; height: 100vh; overflow-y: auto; } /* 왼쪽 메뉴 고정, 오른쪽만 스크롤 */
 .brand { font-size: 19px; font-weight: 700; letter-spacing: -.05em; padding: 0 21px 28px; }
 .brand span { display: inline-block; width: 11px; height: 17px; background: var(--green); margin-right: 8px; transform: skew(-18deg); }
 .navlabel { font-size: 10px; letter-spacing: .12em; color: var(--sub); margin: 14px 21px 8px; }
@@ -158,6 +158,12 @@ dialog.modal.modal-mid { width: min(860px, calc(100vw - 32px)); }
 dialog.modal.modal-small { width: min(420px, calc(100vw - 32px)); height: fit-content; } /* auto면 브라우저가 화면 높이로 늘림 */
 .change-bar { position: fixed; right: 20px; bottom: 20px; z-index: 50; width: min(360px, calc(100vw - 32px)); background: var(--paper); border: 1px solid var(--green); border-radius: 8px; padding: 14px 16px; box-shadow: 0 6px 24px rgb(0 0 0 / .15); display: grid; gap: 8px; }
 .change-bar .fail { margin: 0; }
+/* 사이트 적용 중 막(맨 위 층) */
+dialog.blocker { border: 0; padding: 0; background: transparent; color: #fff; text-align: center; overflow: visible; }
+dialog.blocker::backdrop { background: rgb(0 0 0 / .5); }
+dialog.blocker p { margin: 14px 0 0; font-weight: 700; font-size: 15px; }
+.spinner { width: 46px; height: 46px; margin: 0 auto; border: 4px solid rgb(255 255 255 / .3); border-top-color: #fff; border-radius: 50%; animation: spin .8s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
 
 
 @media (max-width: 900px) {
@@ -169,7 +175,7 @@ dialog.modal.modal-small { width: min(420px, calc(100vw - 32px)); height: fit-co
 }
 @media (max-width: 670px) {
   .shell { grid-template-columns: 1fr; }
-  .side { padding: 12px; border-right: 0; border-bottom: 1px solid var(--line); }
+  .side { padding: 12px; border-right: 0; border-bottom: 1px solid var(--line); position: static; height: auto; }
   .brand { padding: 0 5px 8px; font-size: 16px; }
   .side nav { display: flex; gap: 3px; flex-wrap: wrap; }
   .side nav a { padding: 7px 9px; border-right: 0; border-bottom: 2px solid transparent; }

@@ -72,7 +72,7 @@ if (typeof document !== "undefined") {
 function draw() {
   bar ??= h("div", { class: "change-bar", role: "region", "aria-label": "바뀐 설정" });
   // 팝업이 열려 있으면 바깥은 누를 수 없어 창을 맨 위 팝업 안으로 옮긴다
-  const top = [...document.querySelectorAll("dialog[open]")].at(-1) ?? document.body;
+  const top = [...document.querySelectorAll("dialog[open]:not(.blocker)")].at(-1) ?? document.body;
   if (bar.parentElement !== top) top.append(bar);
   const dirty = trackers.filter((t) => !same(t.read(), t.baseline));
   // 기준과 같아졌는데 보관이 남아 있으면 지운다(되돌아가면 창이 사라지게)

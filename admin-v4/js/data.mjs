@@ -52,8 +52,13 @@ export const settings = () => all("site_settings");
 export const myInstructor = async (uid) => (await all("instructors", (q) => q.eq("account_uid", uid)))[0] ?? null;
 
 // DB 함수 부르기. 실패하면 DB가 준 이유로 던진다(성공으로 보이지 않게).
+// 홈페이지에 반영하는 함수(V4 확정·저장·삭제·복원, [같이 반영]). 도는 동안 화면을 막는다.
+const publishes = (name) => name === "comsw_publish" || (name.startsWith("comsw_v4_") && name !== "comsw_v4_unpublished");
 export async function call(name, args = {}) {
-  const { data, error } = await db.rpc(name, args);
+  const block = publishes(name) && typeof document !== "undefined" ? (await import("./ui.mjs")).blocker("사이트에 적용 중입니다") : null;
+  let res;
+  try { res = await db.rpc(name, args); } finally { block?.(); }
+  const { data, error } = res;
   if (error) {
     const missing = error.code === "PGRST202" || /Could not find the function/i.test(error.message ?? "");
     const pending = /반영하지 않은 다른 변경/.test(error.message ?? "");

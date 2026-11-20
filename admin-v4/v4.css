@@ -164,6 +164,18 @@ dialog.modal.modal-mid { width: min(860px, calc(100vw - 32px)); }
 dialog.modal.modal-small { width: min(420px, calc(100vw - 32px)); height: fit-content; } /* auto면 브라우저가 화면 높이로 늘림 */
 .change-bar { position: fixed; right: 20px; bottom: 20px; z-index: 50; width: min(360px, calc(100vw - 32px)); background: var(--paper); border: 1px solid var(--green); border-radius: 8px; padding: 14px 16px; box-shadow: 0 6px 24px rgb(0 0 0 / .15); display: grid; gap: 8px; }
 .change-bar .fail { margin: 0; }
+/* 썸네일 영역 고르기 창(admin/js/image-crop.mjs) */
+.crop-dialog { width: min(560px, calc(100vw - 24px)); max-height: calc(100dvh - 24px); overflow: auto; margin: auto; padding: 22px; border: 1px solid var(--line); border-radius: 10px; background: var(--paper); color: var(--text); }
+.crop-dialog::backdrop { background: rgb(0 0 0 / .45); }
+.crop-dialog h2 { font-size: 17px; margin: 0 0 8px; }
+.crop-dialog .desc { font-size: 13px; color: var(--sub); margin: 0; }
+.crop-canvas { display: block; width: auto; max-width: 100%; height: min(55dvh, 480px); margin: 14px auto; border: 1px solid var(--line); border-radius: 8px; cursor: grab; touch-action: none; }
+.crop-canvas:active { cursor: grabbing; }
+.crop-control { display: grid; grid-template-columns: 80px minmax(0, 1fr); align-items: center; gap: 10px; font-size: 13px; }
+.crop-control input { width: 100%; accent-color: var(--green); }
+.crop-dialog .form-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 12px; }
+.crop-dialog .form-actions button { padding: 8px 14px; border: 1px solid var(--line); border-radius: 5px; background: var(--paper); font-size: 13px; cursor: pointer; }
+.crop-dialog .form-actions .publish-btn { background: var(--green); border-color: var(--green); color: var(--paper); font-weight: 700; }
 /* 강사 커리큘럼 검수·수정: 단계 칸 아래쪽(홈페이지 문구)을 같은 높이에, 버튼은 오른쪽 끝 */
 .step-col { display: flex; flex-direction: column; }
 .step-foot { margin-top: auto; padding-top: 10px; }

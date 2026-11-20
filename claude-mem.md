@@ -129,3 +129,4 @@
 - 2026-11-20 기준 V4 운영 SQL 20261120020000~050000 실행 확인.
 - V4 이미지 바꾸기 팝업은 ui.pickImage 재사용.
 - 학생용 정비 모드: index.html MAINTENANCE 상수. 미리보기는 index2.html. 정비 끝나면 false로 바꾸고 배포.
+- 커리큘럼 이미지 썸네일 = 주소 뒤 #crop=x,y,w,h(원본 대비). 고르기 창 admin/js/image-crop.mjs, 공개 쪽 assets/js/media-crop.js.

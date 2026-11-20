@@ -80,7 +80,15 @@ export async function upload(file, kind = "curriculum") {
   validateImage(file);
   const svc = getServices();
   if (!svc.upload) throw new Error("다시 로그인해주세요");
-  return svc.upload(await shrinkImage(file, kind), kind); // { id, url }
+  // 커리큘럼 이미지: 사이트 카드(세로 직사각형) 썸네일 영역을 고르고 원본을 올린다 → 주소 뒤 '#crop=…'(크게 보기는 원본)
+  let fragment = "";
+  if (kind === "curriculum") {
+    const { chooseThumbnail } = await import("../../admin/js/image-crop.mjs");
+    fragment = await chooseThumbnail(file);
+    if (fragment === null) throw new Error("이미지 첨부를 취소했습니다");
+  }
+  const up = await svc.upload(await shrinkImage(file, kind), kind); // { id, url }
+  return { ...up, url: up.url + fragment };
 }
 export async function ai(kind, text) {
   const { getServices } = await import("../../admin/js/services.mjs");

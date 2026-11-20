@@ -219,3 +219,4 @@
 - 2026-11-20 20261120050000 실행 확인. V4 남은 운영 SQL 없음(20261120010000 AI common은 실행 여부 미확인).
 - 2026-11-20 ui.pickImage(title, kind) → 올린 주소 Promise(닫으면 null). instructors 수정 모드 .img-pick.
 - 2026-11-20 index.html 끝에 정비 블록(MAINTENANCE 상수, sessionStorage comsw_preview). index2.html 리디렉트(noindex).
+- 2026-11-20 image-crop.mjs zoomCrop(factor, fx, fy) + wheel. V4 data.upload(kind curriculum)이 chooseThumbnail 거쳐 url+fragment. v4.css .crop-dialog.

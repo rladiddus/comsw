@@ -23,6 +23,12 @@ export function adjustCrop(current, patch) {
     y: clamp(patch.y ?? current.y, 0, current.height - h),
   };
 }
+// 마우스 휠 확대·축소: factor > 1이면 영역이 커짐(축소), 마우스가 가리키는 곳(fx, fy: 미리보기 안 0~1)을 그 자리에 둔다
+export function zoomCrop(current, factor, fx = 0.5, fy = 0.5) {
+  const px = current.x + fx * current.w, py = current.y + fy * current.h;
+  const w = adjustCrop(current, { w: current.w * factor }).w;
+  return adjustCrop(current, { w, x: px - fx * w, y: py - fy * (w / THUMB_RATIO) });
+}
 export function panCrop(current, dx, dy, previewWidth) {
   return adjustCrop(current, {
     x: current.x - dx * current.w / previewWidth,
@@ -86,7 +92,7 @@ export async function chooseThumbnail(source) {
       const desc = document.createElement("p");
       desc.className = "desc";
       desc.textContent =
-        "사이트 카드에 세로 직사각형으로 보일 부분입니다. 끌어서 위치를 맞추고 크기를 조절해주세요. 원본은 그대로 올라가고, 크게 볼 때는 원본 전체가 보입니다.";
+        "사이트 카드에 세로 직사각형으로 보일 부분입니다. 마우스 휠로 확대·축소하고, 끌어서 위치를 맞춰주세요. 원본은 그대로 올라가고, 크게 볼 때는 원본 전체가 보입니다.";
       const PREVIEW_W = 340;
       const PREVIEW_H = Math.round(PREVIEW_W / THUMB_RATIO);
       const canvas = document.createElement("canvas");
@@ -139,6 +145,13 @@ export async function chooseThumbnail(source) {
         pointer = { ...pointer, x: event.clientX, y: event.clientY };
         draw();
       });
+      canvas.addEventListener("wheel", (event) => {
+        event.preventDefault();
+        const r = canvas.getBoundingClientRect();
+        crop = zoomCrop(crop, event.deltaY > 0 ? 1.1 : 1 / 1.1,
+          r.width ? (event.clientX - r.left) / r.width : 0.5, r.height ? (event.clientY - r.top) / r.height : 0.5);
+        draw();
+      }, { passive: false });
       const release = () => { pointer = null; };
       canvas.addEventListener("pointerup", release);
       canvas.addEventListener("pointercancel", release);

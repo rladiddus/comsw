@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { adjustCrop, initialCrop, panCrop, cropFragment, parseCrop, stripCrop, applyCrop, THUMB_RATIO } from "../js/image-crop.mjs";
+import { adjustCrop, initialCrop, panCrop, zoomCrop, cropFragment, parseCrop, stripCrop, applyCrop, THUMB_RATIO } from "../js/image-crop.mjs";
 
 test("썸네일 영역은 사이트 카드와 같은 세로 직사각형(269:391), 원본 중앙에서 가장 크게 시작", () => {
   const wide = initialCrop(2000, 1200);
@@ -34,4 +34,18 @@ test("영역은 주소 뒤 '#crop=x,y,w,h'(비율)로 남고, 썸네일만 그 �
   const img = { style: {}, classList: { add() {} } };
   applyCrop(img, "https://x#crop=0.25,0.1,0.5,0.5");
   assert.deepEqual([img.style.width, img.style.height, img.style.left, img.style.top], ["200%", "200%", "-50%", "-20%"]);
+});
+
+test("마우스 휠 확대·축소: 가리킨 곳을 그 자리에 두고, 원본 밖·최소 크기는 넘지 않음", () => {
+  const c = initialCrop(2000, 2000);
+  const zin = zoomCrop(c, 1 / 1.1, 0.25, 0.25);
+  assert.ok(zin.w < c.w, "확대하면 영역이 작아짐");
+  const px = c.x + 0.25 * c.w, py = c.y + 0.25 * c.h;
+  assert.ok(Math.abs(zin.x + 0.25 * zin.w - px) < 1e-6 && Math.abs(zin.y + 0.25 * zin.h - py) < 1e-6, "가리킨 곳 고정");
+  let z = c;
+  for (let i = 0; i < 100; i++) z = zoomCrop(z, 1 / 1.1);
+  assert.equal(Math.round(z.w), 300, "최소 300px");
+  const zout = zoomCrop(c, 1.1, 0.9, 0.9);
+  assert.ok(zout.w <= c.width && zout.x >= 0 && zout.y >= 0 && zout.x + zout.w <= c.width + 1e-9 && zout.y + zout.h <= c.height + 1e-9, "원본 안");
+  assert.equal(Math.abs(zout.w / zout.h - THUMB_RATIO) < 1e-9, true);
 });

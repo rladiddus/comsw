@@ -1,6 +1,6 @@
 // 강사: 목록(홈페이지 노출 스위치·이번 제출) → 강사를 누르면 팝업(프로필 / 커리큘럼: 왼쪽 과목, 오른쪽 내용). 이번 제출만 보고, AI는 버튼으로만, [확정] = 그 한 건만 공개.
 import * as data from "../data.mjs";
-import { h, head, box, table, tabs, pill, media, dl, fill, empty, note, busy, publishBanner, modal, toggleSwitch } from "../ui.mjs";
+import { h, head, box, table, tabs, pill, media, dl, fill, empty, note, busy, publishBanner, modal, toggleSwitch, pickImage } from "../ui.mjs";
 import { curriculumUnits, stepState } from "../rules.mjs";
 import { track } from "../changes.mjs";
 
@@ -153,23 +153,15 @@ function curriculum(p, cat, { msg, reload, again }) {
       const area = h("textarea", { rows: 3, value: edits.get(r.id), placeholder: "비우면 원문이 그대로 공개됩니다", style: "width:100%",
         "aria-label": `${r.step_label} 홈페이지 문구`, oninput: (e) => edits.set(r.id, e.target.value) });
       areas.set(r.id, area);
-      // 이미지: 있으면 보여 주고, 검수 완료 수정에서 이미지가 없는 단계는 올리기(파일 고르기·끌어다 놓기)
-      const img = h("div", {}, images.get(r.id) ? media(images.get(r.id)) : null);
-      let upload = null;
-      if (editing && !r.media_url) {
-        const file = h("input", { type: "file", accept: "image/png,image/jpeg,image/webp", "aria-label": `${r.step_label} 이미지 올리기` });
-        file.onchange = () => busy(file, msg, async () => {
-          if (!file.files[0]) return;
-          img.replaceChildren(h("div", { class: "muted" }, "올리는 중..."));
-          try { images.set(r.id, (await data.upload(file.files[0], "curriculum")).url); } finally {
-            img.replaceChildren(images.get(r.id) ? media(images.get(r.id)) : h("div", { class: "media" }, h("span", { class: "muted" }, "이미지 없음")));
-            file.value = "";
-          }
-        });
-        img.replaceChildren(h("div", { class: "media" }, h("span", { class: "muted" }, "이미지 없음")));
-        upload = h("label", { class: "drop-zone" }, h("span", { class: "muted" }, "이미지 올리기(파일 선택 또는 여기로 끌어다 놓기)"), file);
-      }
-      return h("div", { class: "step step-col" }, h("b", {}, r.step_label), h("p", {}, r.written || "—"), img, upload,
+      // 이미지: 수정 중이면 이미지(없으면 '이미지 없음')를 눌러 바꾸기 팝업(파일 고르기·끌어다 놓기)
+      const imgView = () => (images.get(r.id) ? media(images.get(r.id)) : h("div", { class: "media" }, h("span", { class: "muted" }, "이미지 없음")));
+      const img = editing
+        ? h("button", { type: "button", class: "img-pick", title: "눌러서 이미지 바꾸기", "aria-label": `${r.step_label} 이미지 바꾸기`, onclick: async () => {
+          const url = await pickImage(`${r.step_label} 이미지 바꾸기`);
+          if (url) { images.set(r.id, url); img.replaceChildren(imgView()); }
+        } }, imgView())
+        : h("div", {}, images.get(r.id) ? media(images.get(r.id)) : null);
+      return h("div", { class: "step step-col" }, h("b", {}, r.step_label), h("p", {}, r.written || "—"), img,
         h("div", { class: "step-foot" }, h("h4", {}, "홈페이지 문구"), area,
           h("label", { class: "rm-sync" }, h("input", { type: "checkbox", checked: true, "aria-label": `${r.step_label} AI 문장 다듬기`,
             onchange: (e) => aiOn.set(r.id, e.target.checked) }), "AI 다듬기")));
@@ -208,7 +200,7 @@ function curriculum(p, cat, { msg, reload, again }) {
     const cancel = editing ? h("button", { type: "button", class: "btn", onclick: () => { keep.edit = null; again(); } }, "취소") : null;
     return h("div", { class: "box" }, top,
       !editing && u.pending.length !== 4 ? note(`4단계가 모두 있어야 확정할 수 있습니다(지금 ${u.pending.length}단계). 강사가 채워서 다시 제출해야 합니다.`) : null,
-      editing ? note("검수 완료 커리큘럼을 고칩니다. [저장]하면 홈페이지에 바로 반영되고, 예전 것은 보관됩니다. 이미지가 없는 단계는 이미지를 올릴 수 있습니다.") : null,
+      editing ? note("검수 완료 커리큘럼을 고칩니다. 이미지를 누르면 바꿀 수 있습니다. [저장]하면 홈페이지에 바로 반영되고, 예전 것은 보관됩니다.") : null,
       h("div", { class: "steps" }, rows.map(card)),
       h("div", { class: "actions end", style: "margin-top:12px" }, cancel, aiBtn, ok));
   })[0]);

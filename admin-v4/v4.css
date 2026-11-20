@@ -169,6 +169,9 @@ dialog.modal.modal-small { width: min(420px, calc(100vw - 32px)); height: fit-co
 .step-foot { margin-top: auto; padding-top: 10px; }
 .step-foot h4 { margin: 0 0 6px; }
 .actions.end { justify-content: flex-end; }
+.img-pick { display: block; width: 100%; padding: 0; border: 0; background: none; cursor: pointer; border-radius: 6px; }
+.img-pick:hover { outline: 2px dashed var(--red); outline-offset: 2px; }
+.drop-zone.big { min-height: 140px; place-content: center; text-align: center; cursor: pointer; }
 .drop-zone { display: grid; gap: 6px; margin-top: 8px; padding: 10px; border: 1px dashed var(--line); border-radius: 6px; font-size: 12px; }
 /* 이미지를 끌어 올 때 놓을 칸 표시 */
 .file-over { outline: 3px dashed var(--red); outline-offset: 2px; background: color-mix(in srgb, var(--lime) 30%, transparent); }

@@ -605,7 +605,14 @@ test("강사 커리큘럼: 검수는 단계마다 AI 체크·오른쪽 끝 [AI �
   dlg = document.querySelector("dialog.modal");
   [...dlg.querySelectorAll(".tabs button")].find((b) => b.textContent === "커리큘럼").click();
   [...dlg.querySelectorAll("button")].find((b) => b.textContent === "수정").click();
-  assert.equal(dlg.querySelectorAll("input[type=file]").length, 3, "이미지 없는 3단계만 올리기");
+  assert.equal(dlg.querySelectorAll(".img-pick").length, 4, "모든 단계 이미지(없으면 '이미지 없음')를 눌러 바꿈");
+  assert.match(dlg.querySelectorAll(".img-pick")[1].textContent, /이미지 없음/);
+  dlg.querySelectorAll(".img-pick")[1].click();
+  const picker = [...document.querySelectorAll("dialog.modal")].at(-1);
+  assert.match(picker.textContent, /끌어다 놓거나/);
+  assert.ok(picker.querySelector("input[type=file]"));
+  [...picker.querySelectorAll("button")].find((b) => b.textContent === "닫기").click();
+  await flush();
   assert.deepEqual([...dlg.querySelectorAll(".actions.end button")].map((b) => b.textContent), ["취소", "AI 문장 다듬기", "저장"]);
   type(dlg.querySelector("textarea[aria-label='2단계 홈페이지 문구']"), "고친 2");
   [...dlg.querySelectorAll("button")].find((b) => b.textContent === "저장").click();

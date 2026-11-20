@@ -121,6 +121,26 @@ export function blocker(text) {
   return () => { dlg.close?.(); dlg.remove(); };
 }
 
+// 이미지 고르기 팝업: 파일 고르기 또는 끌어다 놓기 → 올린 주소(닫으면 null)
+export function pickImage(title, kind = "curriculum") {
+  return new Promise((resolve) => {
+    let done = false;
+    const msg = h("div");
+    const file = h("input", { type: "file", accept: "image/png,image/jpeg,image/webp", "aria-label": `${title} 파일 고르기` });
+    const pop = modal(title, h("section", { class: "box", style: "margin:0" }, msg,
+      h("label", { class: "drop-zone big" }, h("b", {}, "이미지를 여기로 끌어다 놓거나, 눌러서 파일을 고르세요"), h("span", { class: "muted" }, "PNG·JPG·WEBP"), file)),
+    { onClose: () => { if (!done) resolve(null); } });
+    pop.dlg.classList.add("modal-small");
+    file.onchange = () => busy(file, msg, async () => {
+      if (!file.files[0]) return;
+      const { url } = await (await import("./data.mjs")).upload(file.files[0], kind);
+      done = true;
+      resolve(url);
+      pop.close();
+    });
+  });
+}
+
 // 켜기·끄기 스위치(role=switch). onToggle은 새 값으로 불림.
 export const toggleSwitch = (on, label, onToggle) => h("button", {
   type: "button", role: "switch", class: "switch", "aria-checked": String(!!on), "aria-label": label, title: label,

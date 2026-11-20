@@ -39,6 +39,13 @@ export async function render({ main }) {
       const steps = rm.steps.filter((s) => s.track_id === trk?.id).sort((a, b) => a.position - b.position)
         .map((s) => ({ ...s, ids: rm.links.filter((l) => l.step_id === s.id).sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0)).map((l) => l.subject_id) }));
       const stepOf = (id) => steps.find((s) => s.ids.includes(id));
+      // 다른 학과 로드맵에 과목 묶음이 똑같은 단계가 있는 학과(타학과 동기화 후보)
+      const setKey = (ids) => [...ids].sort().join(",");
+      const othersWith = (g) => {
+        const k = setKey(g.map((x) => x.id));
+        return [...new Set(rm.steps.filter((s) => s.track_id !== trk?.id && setKey(rm.links.filter((l) => l.step_id === s.id).map((l) => l.subject_id)) === k)
+          .map((s) => cat.departments.find((x) => x.id === rm.tracks.find((t) => t.id === s.track_id)?.department_id)?.name).filter(Boolean))];
+      };
       const joinsFor = (order) => order.slice(0, -1).map((x, i) => { const a = stepOf(x); return !!a && a === stepOf(order[i + 1]); });
       const groupsOf = (order, joins) => { const g = []; order.forEach((id, i) => { const x = byId.get(id); if (i > 0 && joins[i - 1]) g.at(-1).push(x); else g.push([x]); }); return g; };
       const gkey = (g) => g.map((x) => x.id).join(",");
@@ -50,23 +57,29 @@ export async function render({ main }) {
       const baseOrder = trk?.custom_order && sameSet ? pubFlat : deptIds;
       if (d?.dept !== dept.id) {
         const baseJoins = joinsFor(baseOrder);
-        d = { dept: dept.id, order: [...baseOrder], joins: baseJoins, summaries: {} };
+        d = { dept: dept.id, order: [...baseOrder], joins: baseJoins, summaries: {}, sync: [] };
         track({
           id: `roadmap:${dept.id}`, slot: "roadmap", title: `${dept.name} 로드맵`,
-          baseline: { order: baseOrder, joins: baseJoins, summaries: Object.fromEntries(groupsOf(baseOrder, baseJoins).map((x) => [gkey(x), publishedSummary(x)])) },
-          read: () => ({ order: d.order, joins: d.joins, summaries: Object.fromEntries(groupsOf(d.order, d.joins).map((x) => [gkey(x), summaryOf(x)])) }),
+          baseline: { order: baseOrder, joins: baseJoins, summaries: Object.fromEntries(groupsOf(baseOrder, baseJoins).map((x) => [gkey(x), publishedSummary(x)])), sync: [] },
+          read: () => {
+            const gs = groupsOf(d.order, d.joins);
+            return { order: d.order, joins: d.joins, summaries: Object.fromEntries(gs.map((x) => [gkey(x), summaryOf(x)])), sync: gs.map(gkey).filter((k) => d.sync.includes(k)) };
+          },
           write: (x) => {
             // 예전 임시 저장(순서 없음)이나 과목이 바뀐 보관은 지금 순서로
             const ok = Array.isArray(x.order) && x.order.length === deptIds.length && x.order.every((id) => deptIds.includes(id));
             d.order = ok ? [...x.order] : d.order;
             d.joins = x.joins?.length === d.order.length - 1 ? [...x.joins] : joinsFor(d.order);
             d.summaries = { ...x.summaries };
+            d.sync = [...(x.sync ?? [])];
             draw();
           },
           apply: (x) => data.call("comsw_v4_save_roadmap", {
             p_department: dept.id,
             p_groups: groupsOf(x.order, x.joins).map((g) => ({ subjects: g.map((y) => y.id), summary: x.summaries[gkey(g)] ?? "" })),
             ...(x.order.join() !== deptIds.join() ? { p_custom: true } : {}), // 학과·과목 순서와 같으면 따라가기(동기화)
+            // 타학과 동기화: 체크한 단계 번호(1부터). 없으면 보내지 않음(예전 함수와도 맞게)
+            ...(x.sync.length ? { p_sync: groupsOf(x.order, x.joins).flatMap((g, i) => (x.sync.includes(gkey(g)) ? [i + 1] : [])) } : {}),
           }),
           onApplied: () => { d = null; render({ main }); },
         });
@@ -119,8 +132,15 @@ export async function render({ main }) {
           area.value = await data.ai("roadmap", text);
           d.summaries[gkey(g)] = area.value;
         });
+        // 같은 과목 묶음이 다른 학과에도 있으면 [타학과 동기화]: 체크하고 [사이트 적용]하면 그 학과들 문구도 이걸로
+        const others = othersWith(g);
+        const syncBox = others.length ? h("label", { class: "rm-sync", title: `같은 단계가 있는 학과: ${others.join(", ")}` },
+          h("input", { type: "checkbox", checked: d.sync.includes(gkey(g)), "aria-label": `${roadmapLabel(g.map((s) => s.name))} 타학과 동기화`,
+            onchange: (e) => { d.sync = e.target.checked ? [...d.sync, gkey(g)] : d.sync.filter((k) => k !== gkey(g)); } }),
+          "타학과 동기화") : null;
         // 이름 칸은 두 줄 높이로 고정(과목이 하나든 둘이든 글 상자가 같은 위치)
-        return h("div", { class: "step" }, h("b", { class: "rm-label" }, roadmapLabel(g.map((s) => s.name))), area, aiBtn);
+        return h("div", { class: "step" }, h("b", { class: "rm-label" }, roadmapLabel(g.map((s) => s.name))), area,
+          h("div", { class: "actions" }, aiBtn, syncBox));
       };
       out.replaceChildren(banner, msg,
         tabs(cat.departments.map((x) => [x.id, x.name]), pick, (id) => { if (!canSwitch()) return; pick = id; msg.replaceChildren(); draw(); }, "chips"),

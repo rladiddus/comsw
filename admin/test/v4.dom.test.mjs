@@ -523,3 +523,27 @@ test("로드맵: 과목을 끌어서 순서 바꾸면 '학과·과목의 순서�
   assert.deepEqual([...main2.querySelectorAll(".rm-subject")].map((b) => b.textContent), ["캐드1", "캐드2"]);
   assert.ok(!barBtn("사이트 적용"), "동기화하면 바뀐 것 없음");
 });
+
+test("로드맵: 같은 과목 묶음이 다른 학과에도 있으면 [타학과 동기화], 체크해 적용하면 p_sync로 그 단계 번호", async () => {
+  const fake = db();
+  const calls = [];
+  fake.rpc = async (name, args) => { calls.push([name, args]); return { data: false, error: null }; };
+  const extra = {
+    roadmap_tracks: [{ id: "t2", department_id: "d2", name: "시각학과" }],
+    roadmap_steps: [{ id: "st2", track_id: "t2", position: 1, summary: "시각 문구" }],
+    roadmap_step_subjects: [{ step_id: "st2", subject_id: "s1", sort_order: 1 }],
+  };
+  const local = fakeSupabase({ ...extra });
+  const base = fake.from.bind(fake);
+  fake.from = (t) => (t in extra ? local.from(t) : base(t));
+  const main = await open("roadmap", undefined, fake);
+  const syncs = main.querySelectorAll(".rm-sync input");
+  assert.equal(syncs.length, 1, "캐드1 단계만(시각학과에도 있음)");
+  assert.match(main.querySelector(".rm-sync").title, /시각학과/);
+  syncs[0].click();
+  await flush();
+  barBtn("사이트 적용").click();
+  await flush();
+  const [, args] = calls.find(([n]) => n === "comsw_v4_save_roadmap");
+  assert.deepEqual(args.p_sync, [1]);
+});

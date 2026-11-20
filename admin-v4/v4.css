@@ -143,6 +143,7 @@ dialog.modal .side-list .step .media img { aspect-ratio: 4 / 3; object-fit: cont
 .rm-subject.dragging { opacity: .4; }
 .rm-subject.drop-before { border-left: 3px dashed var(--red); }
 .rm-subject.drop-after { border-right: 3px dashed var(--red); }
+.rm-sync { display: inline-flex; align-items: center; gap: 4px; font-size: 12px; color: var(--sub); cursor: pointer; }
 .rm-label { display: block; white-space: pre-line; min-height: 2.8em; } /* 두 줄 높이 고정 → 글 상자 위치 같게 */
 /* 공통 4단계: 단계마다 한 줄(왼쪽 대표 이미지, 오른쪽 내용 + 후보) */
 .cstep { padding: 14px 0; border-top: 1px solid var(--line); }

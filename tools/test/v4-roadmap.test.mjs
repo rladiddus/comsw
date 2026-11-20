@@ -71,3 +71,26 @@ test("로드맵 순서 따로(20261120020000): p_custom이면 같은 과목끼�
   await as(db, null);
   assert.equal((await db.query(`select custom_order from roadmap_tracks where department_id = $1`, [d])).rows[0].custom_order, false, "두 인자로 부르면 학과 순서(동기화)");
 });
+
+test("타학과 동기화(20261120030000): 고른 단계 문구를 과목 묶음이 똑같은 다른 학과 단계에도, 묶음이 다르면 그대로", async () => {
+  const db = await freshDb();
+  await as(db, null);
+  const one = async (sql, args = []) => (await db.query(sql, args)).rows[0]?.id;
+  const [d1, d2] = [await one(`insert into departments(name) values ('모션') returning id`), await one(`insert into departments(name) values ('시각') returning id`)];
+  const ids = [];
+  for (const [n, name] of ["AI포토샵", "AI일러스트", "프리미어"].entries()) {
+    const s = await one(`insert into subjects(name, sort_order) values ($1, $2) returning id`, [name, n]);
+    for (const d of [d1, d2]) await db.query(`insert into subject_departments(subject_id, department_id, sort_order) values ($1, $2, $3)`, [s, d, n]);
+    ids.push(s);
+  }
+  await as(db, "authenticated", HEAD);
+  await db.query(`select comsw_publish()`);
+  const save = (d, groups, sync) => db.query(`select comsw_v4_save_roadmap($1, $2::jsonb, false, $3::jsonb)`, [d, JSON.stringify(groups), JSON.stringify(sync)]);
+  await save(d2, [{ subjects: [ids[0], ids[1]], summary: "시각 문구" }, { subjects: [ids[2]], summary: "시각 프리미어" }], []);
+  await save(d1, [{ subjects: [ids[0], ids[1]], summary: "모션 새 문구" }, { subjects: [ids[2]], summary: "모션 프리미어" }], [1]);
+  await as(db, null);
+  const sums = (await db.query(`select st.summary from roadmap_steps st join roadmap_tracks t on t.id = st.track_id where t.department_id = $1 order by st.position`, [d2])).rows.map((r) => r.summary);
+  assert.deepEqual(sums, ["모션 새 문구", "시각 프리미어"], "1단계만 동기화");
+  const snap = (await db.query(`select rows from site_snapshots order by id desc limit 1`)).rows[0].rows;
+  assert.ok(snap.some((r) => r.sheet_name === "로드맵" && r.data.values[0] === "시각" && r.data.values.includes("모션 새 문구")), "함께 공개");
+});

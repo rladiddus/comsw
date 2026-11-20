@@ -122,3 +122,4 @@
 - V4 로드맵 순서: 기본 학과·과목 순서, 따로 바꾸면 roadmap_tracks.custom_order=true(save_roadmap p_custom). 학과 순서와 같게 저장하면 다시 false.
 - 운영 SQL 확인법: assets/js/supabase-config.js 공개 키로 RPC 호출 → 42501(권한 거부)=함수 있음, PGRST202=없음.
 - V4 끌어 놓기 경계 표시는 붉은 점선(.drop-before/.drop-after).
+- V4 로드맵 문구는 학과별 저장. 타학과 동기화 체크 시에만 같은 과목 묶음 단계에 복사(계속 연결 아님).

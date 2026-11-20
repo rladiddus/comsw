@@ -212,3 +212,4 @@
 - 2026-11-20 V4 로드맵 상태 {order, joins, summaries}, remapJoins export. custom_order면 공개 순서가 기준. 20261120020000 실행 대기(그 전엔 순서 바꾼 적용만 'DB 준비 전').
 - 2026-11-20 20261120020000 실행 확인.
 - 2026-11-20 V4 drop-before/after 점선 var(--red) 3px.
+- 2026-11-20 V4 로드맵 상태에 sync(gkey 목록), apply p_sync=[단계 번호]. SQL은 과목 묶음(정렬한 id 배열)이 같은 다른 트랙 단계 summary 갱신 후 공개. 20261120030000 실행 대기.

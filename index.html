@@ -1102,5 +1102,37 @@
       return div.innerHTML;
     }
   </script>
+  <!-- 정비 중 안내(2026-11-20): 접속할 때마다 안내 창, 메뉴 버튼 숨김. 끝나면 MAINTENANCE = false.
+       미리보기: index2.html(→ index.html?preview=1, 이 창을 닫기 전까지 다른 페이지를 다녀와도 미리보기 유지) -->
+  <style>
+    body.maintenance #menu-area { display: none !important; }
+    #maint-dim { position: fixed; inset: 0; z-index: 2147483000; display: grid; place-items: center; padding: 16px; background: rgba(0,0,0,.55); }
+    #maint-box { width: min(420px, 100%); background: #fff; color: #173f31; border-radius: 12px; padding: 30px 26px 24px; text-align: center; box-shadow: 0 10px 40px rgba(0,0,0,.3); font-family: inherit; }
+    #maint-box h2 { margin: 0 0 12px; font-size: 20px; }
+    #maint-box p { margin: 0 0 22px; font-size: 15px; line-height: 1.6; color: #444; }
+    #maint-box button { min-width: 120px; padding: 11px 20px; border: 0; border-radius: 8px; background: #173f31; color: #fff; font-size: 15px; font-weight: 700; cursor: pointer; }
+  </style>
+  <script>
+    (function () {
+      var MAINTENANCE = true;
+      var KEY = 'comsw_preview';
+      try { if (/[?&]preview=/.test(location.search)) sessionStorage.setItem(KEY, '1'); } catch (e) {}
+      var preview = false;
+      try { preview = sessionStorage.getItem(KEY) === '1'; } catch (e) {}
+      if (!MAINTENANCE || preview) return;
+      document.body.classList.add('maintenance');
+      var dim = document.createElement('div');
+      dim.id = 'maint-dim';
+      dim.setAttribute('role', 'dialog');
+      dim.setAttribute('aria-modal', 'true');
+      dim.setAttribute('aria-labelledby', 'maint-title');
+      dim.innerHTML = '<div id="maint-box"><h2 id="maint-title">홈페이지 정비 중입니다</h2>'
+        + '<p>더 나은 서비스를 위해 잠시 정비하고 있습니다.<br>이용에 불편을 드려 죄송합니다.</p>'
+        + '<button type="button">확인</button></div>';
+      dim.querySelector('button').addEventListener('click', function () { dim.remove(); });
+      document.body.appendChild(dim);
+      dim.querySelector('button').focus();
+    })();
+  </script>
 </body>
 </html>

@@ -53,23 +53,28 @@ export function commonEditor(subject, cat, current, { msg, reload, set = null, e
           draw();
           msg.replaceChildren(note("AI로 4단계 문구를 만들었습니다. 확인·수정한 뒤 오른쪽 아래 [임시 저장] 또는 [사이트 적용]을 눌러주세요."));
         });
-        const stepCard = (s, n) => h("div", { class: "step" },
-          h("b", {}, `${n + 1}단계`),
-          h("textarea", { rows: 3, value: s.summary, style: "width:100%", "aria-label": `${n + 1}단계 공통 문구`, oninput: (e) => { s.summary = e.target.value; } }),
-          h("h4", {}, "대표 이미지"),
-          s.image_url ? media(s.image_url) : h("div", { class: "media" }, h("span", { class: "muted" }, "이미지 없음")),
-          lost[n] ? fail("고른 이미지의 강사를 뺐습니다. 다시 골라주세요.") : null,
-          h("div", { class: "chips", style: "margin-top:6px" },
-            candidates(n).map((c) => h("button", { type: "button", "aria-pressed": String(c.r.media_url === s.image_url), title: `${nameOf.get(c.u.instructor_id)} ${c.r.step_label}`,
-              onclick: () => { s.image_url = c.r.media_url; draw(); } },
-            h("img", { src: c.r.media_url, alt: `${nameOf.get(c.u.instructor_id)} ${c.r.step_label}`, class: "thumb" }),
-            c.u.approved.length !== STEPS ? h("span", { class: "muted" }, ` ${c.r.step_label} 자료`) : null)),
-            s.image_url ? h("button", { type: "button", onclick: () => { s.image_url = ""; draw(); } }, "빼기") : null));
+        // 한 단계 = 한 줄(2026-11-20 사용자 디자인): 왼쪽 대표 이미지, 오른쪽 내용 + 후보 이미지(누르면 대표, 고른 것을 다시 누르면 빼기)
+        const stepCard = (s, n) => h("div", { class: "cstep" },
+          h("b", { class: "cstep-title" }, `${n + 1}단계`),
+          h("div", { class: "cstep-body" },
+            h("div", {}, h("h4", {}, "대표 이미지"),
+              s.image_url ? media(s.image_url) : h("div", { class: "media" }, h("span", { class: "muted" }, "이미지 없음"))),
+            h("div", {},
+              h("h4", {}, "내용"),
+              h("textarea", { rows: 2, value: s.summary, style: "width:100%", "aria-label": `${n + 1}단계 공통 문구`, oninput: (e) => { s.summary = e.target.value; } }),
+              lost[n] ? fail("고른 이미지의 강사를 뺐습니다. 다시 골라주세요.") : null,
+              h("div", { class: "cand" }, candidates(n).length ? candidates(n).map((c) => {
+                const on = c.r.media_url === s.image_url;
+                return h("button", { type: "button", "aria-pressed": String(on), title: `${nameOf.get(c.u.instructor_id)} ${c.r.step_label}${on ? " (다시 누르면 빼기)" : ""}`,
+                  onclick: () => { s.image_url = on ? "" : c.r.media_url; draw(); } },
+                h("img", { src: c.r.media_url, alt: `${nameOf.get(c.u.instructor_id)} ${c.r.step_label}`, class: "thumb" }),
+                c.u.approved.length !== STEPS ? h("span", { class: "muted" }, ` ${c.r.step_label} 자료`) : null);
+              }) : h("span", { class: "muted" }, "강사를 체크하면 후보 이미지가 나옵니다")))));
         // 강사 팝업과 같은 모양: 왼쪽 = 강사(넣기·빼기), 오른쪽 = 공통 4단계(문구·대표 이미지)
         return h("div", { class: "side-list" },
           box(`강사(${set ? set.name : "일반"} · 검수 완료만)`, pickList, ...extraLeft),
           box(null, h("div", { class: "row" }, h("h3", { style: "margin:0" }, `${set ? `${set.name} ` : ""}공통 4단계`), aiBtn),
-            h("div", { class: "steps", style: "margin-top:10px" }, st.steps.map(stepCard))));
+            h("div", { style: "margin-top:6px" }, st.steps.map(stepCard))));
       };
       track({
         id: `common:${target}`, slot: set ? "vacation-common" : "common", title: `${subject.name}${set ? `(${set.name})` : ""} 공통 4단계`, baseline,

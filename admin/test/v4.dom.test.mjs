@@ -704,3 +704,22 @@ test("학과·과목: [과목 생성]은 일반 과목으로 만들고, 방학 �
   await flush();
   assert.deepEqual(calls.find(([n]) => n === "comsw_v4_create_subject")[1], { p_name: "AI포토샵", p_vacation: false });
 });
+
+test("방학 특강: 설정 제목 오른쪽 '공개' 스위치로 켜고 끄기(체크박스 문구 없음), 바꾸면 오른쪽 아래 창", async () => {
+  const fake = db();
+  const calls = [];
+  fake.rpc = async (name, args) => { calls.push([name, args]); return { data: name === "comsw_v4_unpublished" ? false : "v1", error: null }; };
+  const main = await open("vacation", undefined, fake);
+  [...main.querySelectorAll("button")].find((b) => b.textContent.startsWith("2026 겨울")).click();
+  await flush();
+  assert.ok(!main.textContent.includes("보여 주기"), "예전 체크박스 문구 없음: " + main.textContent.slice(0, 300));
+  const sw = main.querySelector("button[role=switch]");
+  assert.ok(sw && sw.closest(".row").textContent.includes("공개"), main.textContent.slice(0, 400));
+  const before = sw.getAttribute("aria-checked");
+  sw.click();
+  await flush();
+  assert.notEqual(main.querySelector("button[role=switch]").getAttribute("aria-checked"), before);
+  barBtn("사이트 적용").click();
+  await flush();
+  assert.equal(calls.find(([n]) => n === "comsw_v4_save_vacation")[1].p_show, before !== "true");
+});

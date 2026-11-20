@@ -2,7 +2,7 @@
 // 과목 생성에서 만든 과목은 '방학 특강 과목'(is_vacation) — 학과·과목의 일반 과목과 이름이 같아도 다른 과목이고, 여기서만 넣을 수 있다.
 // 특강 설정(이름·홈페이지 노출·과목 구성)을 바꾸면 오른쪽 아래 창 [임시 저장]/[사이트 적용]. 커리큘럼은 [수정]으로 고치고 같은 창으로 반영.
 import * as data from "../data.mjs";
-import { h, head, box, tabs, pill, fill, empty, note, busy, publishBanner } from "../ui.mjs";
+import { h, head, box, tabs, pill, fill, empty, note, busy, publishBanner, toggleSwitch } from "../ui.mjs";
 import { commonEditor } from "./common-editor.mjs";
 import { track, canSwitch, untrack, unsaved } from "../changes.mjs";
 
@@ -53,10 +53,12 @@ export async function render({ main }) {
       }
       const st = edits.get(ekey);
       const name = h("input", { value: st.name, "aria-label": "특강 이름", placeholder: "예: 2026 겨울방학특강", style: "width:100%", oninput: (e) => { st.name = e.target.value; } });
-      const show = h("input", { type: "checkbox", checked: st.show, onchange: (e) => { st.show = e.target.checked; } });
-      const settingsBox = box(v ? `${v.name} 설정` : "새 방학 특강",
-        h("div", { class: "vac-settings" }, h("label", { class: "step" }, h("b", {}, "특강 이름"), name),
-          h("label", { style: "display:flex;gap:8px;align-items:center" }, show, "홈페이지 방학 특강 페이지에 이 특강을 보여 주기")));
+      // 공개 = 홈페이지 방학 특강 페이지에 이 특강(제목 오른쪽 스위치)
+      const settingsBox = box(null,
+        h("div", { class: "row" }, h("h3", { style: "margin:0" }, v ? `${v.name} 설정` : "새 방학 특강"),
+          h("div", { class: "actions" }, h("span", {}, "공개"),
+            toggleSwitch(st.show, "홈페이지 방학 특강 페이지에 이 특강 공개", (next) => { st.show = next; draw(); }))),
+        h("label", { class: "step", style: "display:block;margin-top:10px" }, h("b", {}, "특강 이름"), name));
       // 왼쪽: 이 특강 과목(넣기·빼기)
       const count = (sid) => new Set(rows.filter((r) => r.set_id === v?.id && r.subject_id === sid).map((r) => r.instructor_id)).size;
       const linked = (sid) => cat.vacLinks.some((l) => l.set_id === v?.id && l.subject_id === sid);

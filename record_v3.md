@@ -228,3 +228,4 @@
 - 2026-11-20 vacation.mjs 공개 = toggleSwitch(st.show).
 - 2026-11-23 vacation.mjs namePopup(v) — save_vacation에 공개 중인 과목·공개 그대로 넘겨 이름만 바꿈.
 - 2026-11-23 prep.mjs render = table + modal(prepEditor). #/prep/<기준> 으로 오면 그 팝업 열기.
+- 2026-11-23 ui.filterBar(fields, onChange)·hasText(공백 무시). 목록만 다시 그림.

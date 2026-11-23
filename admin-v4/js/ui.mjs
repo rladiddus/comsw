@@ -141,6 +141,19 @@ export function pickImage(title, kind = "curriculum") {
   });
 }
 
+// 목록 위 거르기 줄: [{ key, label, options? }] — options가 없으면 검색칸, 있으면 드롭다운([[값, 이름]…], 첫 값 ''=전체).
+// 바꿀 때마다 onChange(값들). 목록만 다시 그리고 이 줄은 그대로 둔다(입력 중 글자가 날아가지 않게).
+export function filterBar(fields, onChange) {
+  const values = Object.fromEntries(fields.map((f) => [f.key, ""]));
+  const el = h("div", { class: "filter-bar" }, fields.map((f) => h("label", {}, h("span", { class: "muted" }, f.label),
+    f.options
+      ? h("select", { "aria-label": `${f.label} 거르기`, onchange: (e) => { values[f.key] = e.target.value; onChange(values); } },
+        f.options.map(([v, l]) => h("option", { value: v }, l)))
+      : h("input", { type: "search", "aria-label": `${f.label} 검색`, placeholder: `${f.label} 검색`, oninput: (e) => { values[f.key] = e.target.value.trim(); onChange(values); } }))));
+  return { el, values };
+}
+export const hasText = (text, q) => !q || String(text ?? "").toLowerCase().replace(/\s/g, "").includes(q.toLowerCase().replace(/\s/g, ""));
+
 // 켜기·끄기 스위치(role=switch). onToggle은 새 값으로 불림.
 export const toggleSwitch = (on, label, onToggle) => h("button", {
   type: "button", role: "switch", class: "switch", "aria-checked": String(!!on), "aria-label": label, title: label,

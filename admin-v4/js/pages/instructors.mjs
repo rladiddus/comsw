@@ -1,6 +1,6 @@
 // 강사: 목록(홈페이지 노출 스위치·이번 제출) → 강사를 누르면 팝업(프로필 / 커리큘럼: 왼쪽 과목, 오른쪽 내용). 이번 제출만 보고, AI는 버튼으로만, [확정] = 그 한 건만 공개.
 import * as data from "../data.mjs";
-import { h, head, box, table, tabs, pill, media, dl, fill, empty, note, busy, publishBanner, modal, toggleSwitch, pickImage } from "../ui.mjs";
+import { h, head, box, table, tabs, pill, media, dl, fill, empty, note, busy, publishBanner, modal, toggleSwitch, pickImage, filterBar, hasText } from "../ui.mjs";
 import { curriculumUnits, stepState } from "../rules.mjs";
 import { track, isTracked, unsaved, untrack, check, canSwitch } from "../changes.mjs";
 
@@ -30,7 +30,7 @@ export async function render({ main }) {
     const listBox = h("section", { class: "box" });
     let pop = null;
     const picksWidth = widestTitle(view.flatMap((p) => p.units.map((u) => unitTitleOf(u, cat))));
-    const list = () => table([
+    const list = (people) => table([
       ["이름", (p) => p.name],
       ["학과", (p) => p.depts.join(", ") || "—"],
       ["홈페이지 노출", (p) => toggleSwitch(listed[p.id], `${p.name} 홈페이지 노출([사이트 적용] 때 반영, 계정 로그인과는 상관없음)`, (next) => { listed[p.id] = next; draw(); })],
@@ -40,8 +40,22 @@ export async function render({ main }) {
         const marks = [p.draft && pill("프로필"), n && pill(`커리큘럼 ${n}건`)].filter(Boolean);
         return marks.length ? h("div", { class: "chips" }, marks) : "—";
       }],
-    ], view, { onPick: (p) => { keep.id = p.id; keep.unit = null; openPop(p); } });
-    const draw = () => listBox.replaceChildren(h("h3", {}, `강사 ${view.length}명`), list());
+    ], people, { onPick: (p) => { keep.id = p.id; keep.unit = null; openPop(p); } });
+    // 거르기: 이름(검색), 학과(드롭다운), 홈페이지 노출(On/Off)
+    const deptOpts = [...new Set(view.flatMap((p) => p.depts))].sort((a, b) => a.localeCompare(b, "ko"));
+    const filter = filterBar([
+      { key: "name", label: "이름" },
+      { key: "dept", label: "학과", options: [["", "전체 학과"], ...deptOpts.map((d) => [d, d])] },
+      { key: "listed", label: "홈페이지 노출", options: [["", "전체"], ["on", "On"], ["off", "Off"]] },
+    ], () => draw());
+    const shown = () => view.filter((p) => hasText(p.name, filter.values.name)
+      && (!filter.values.dept || p.depts.includes(filter.values.dept))
+      && (!filter.values.listed || (filter.values.listed === "on") === !!listed[p.id]));
+    const draw = () => {
+      const rowsNow = shown();
+      listBox.replaceChildren(h("h3", {}, rowsNow.length === view.length ? `강사 ${view.length}명` : `강사 ${rowsNow.length}명 (전체 ${view.length}명)`),
+        rowsNow.length ? list(rowsNow) : empty("조건에 맞는 강사가 없습니다"));
+    };
     // 팝업: 다시 그려도(탭·과목 바꿈) 같은 팝업 안에서
     const openPop = (p) => {
       const inner = h("div", { class: "modal-body" });
@@ -80,7 +94,7 @@ export async function render({ main }) {
     draw();
     const again = view.find((p) => p.id === keep.id);
     if (again) setTimeout(() => openPop(again)); // 확정 뒤 다시 불러오면 보던 팝업을 다시 연다
-    return [await publishBanner(data.unpublished), msg, listBox];
+    return [await publishBanner(data.unpublished), msg, filter.el, listBox];
   });
 }
 

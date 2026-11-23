@@ -760,3 +760,42 @@ test("방학 특강: 탭에 '(홈페이지)' 없음, [이름 수정]·[+ 새 방
   await flush();
   assert.deepEqual(calls.find(([n]) => n === "comsw_v4_save_vacation")[1], { p_id: null, p_name: "2027 여름", p_subjects: [], p_show: false });
 });
+
+test("목록 거르기: 강사(이름 검색·학과·홈페이지 노출), 준비물(기준·적용 과목 검색·학과·공통 준비물)", async () => {
+  document.querySelectorAll("dialog").forEach((d) => d.remove());
+  const fake = db();
+  const ppl = fakeSupabase({ instructors: [
+    { id: "i1", name: "김강사", is_listed: true, account_uid: "u1" },
+    { id: "i2", name: "이선생", is_listed: false },
+  ] });
+  const from0 = fake.from.bind(fake);
+  fake.from = (t) => (t === "instructors" ? ppl.from(t) : from0(t));
+  let main = await open("instructors", undefined, fake);
+  const names = () => [...main.querySelectorAll("tr.pick")].map((tr) => tr.firstChild.textContent);
+  assert.deepEqual(names(), ["김강사", "이선생"]);
+  type(main.querySelector("input[aria-label='이름 검색']"), "이선");
+  assert.deepEqual(names(), ["이선생"]);
+  type(main.querySelector("input[aria-label='이름 검색']"), "");
+  const sel = (label, v) => { const s = main.querySelector(`select[aria-label='${label} 거르기']`); s.value = v; s.dispatchEvent(new dom.window.Event("change", { bubbles: true })); };
+  sel("학과", "건축학과");
+  assert.deepEqual(names(), ["김강사"]);
+  sel("학과", "");
+  sel("홈페이지 노출", "off");
+  assert.deepEqual(names(), ["이선생"]);
+  assert.match(main.textContent, /강사 1명 \(전체 2명\)/);
+
+  main = await open("prep");
+  const bases = () => [...main.querySelectorAll("tr.pick .subject-chip")].map((x) => x.textContent);
+  type(main.querySelector("input[aria-label='적용 과목 검색']"), "캐드2");
+  assert.deepEqual(bases(), ["캐드"]);
+  type(main.querySelector("input[aria-label='적용 과목 검색']"), "");
+  sel("공통 준비물", "no");
+  assert.deepEqual(bases(), ["아트 드로잉"]);
+  sel("공통 준비물", "ai");
+  assert.deepEqual(bases(), ["캐드"]);
+  sel("공통 준비물", "");
+  sel("학과", "시각학과");
+  assert.deepEqual(bases(), ["아트 드로잉"]);
+  type(main.querySelector("input[aria-label='기준 과목 검색']"), "캐");
+  assert.match(main.textContent, /조건에 맞는 과목이 없습니다/);
+});

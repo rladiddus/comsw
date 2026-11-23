@@ -199,6 +199,10 @@ dialog.modal.modal-small { width: min(420px, calc(100vw - 32px)); height: fit-co
 .vac-pick { display: flex; gap: 6px; align-items: center; }
 .vac-pick > button:first-child { flex: 1; }
 .vac-right { min-width: 0; }
+/* 목록 위 거르기 줄 */
+.filter-bar { display: flex; flex-wrap: wrap; gap: 12px; align-items: end; margin-bottom: 14px; padding: 12px 14px; background: var(--paper); border: 1px solid var(--line); border-radius: 8px; }
+.filter-bar label { display: grid; gap: 4px; font-size: 12px; }
+.filter-bar input, .filter-bar select { min-width: 160px; padding: 7px 9px; border: 1px solid var(--line); border-radius: 5px; font-size: 13px; background: var(--paper); color: var(--text); }
 .btn.small { padding: 4px 9px; font-size: 12px; }
 .actions.end { justify-content: flex-end; }
 .img-pick { display: block; width: 100%; padding: 0; border: 0; background: none; cursor: pointer; border-radius: 6px; }

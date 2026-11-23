@@ -2,7 +2,7 @@
 // 강사 준비물(원문)은 그대로 두고 [강사 준비물 가져오기]로 모아 학과장이 정리 → 떠 있는 창 [임시 저장] / [사이트 적용](준비물만 공개).
 // 학과·과목 화면의 '공통 준비물 정리'도 여기로 온다(같은 원본 course_prep_items).
 import * as data from "../data.mjs";
-import { h, head, box, fill, empty, note, publishBanner, table, pill, modal } from "../ui.mjs";
+import { h, head, box, fill, empty, note, publishBanner, table, pill, modal, filterBar, hasText } from "../ui.mjs";
 import { baseName } from "../rules.mjs";
 import { track, unsaved, untrack } from "../changes.mjs";
 
@@ -88,19 +88,37 @@ export async function render({ main, params = [] }) {
       return {
         base: b, members,
         depts: [...new Set(cat.links.filter((l) => ids.has(l.subject_id)).map((l) => deptName.get(l.department_id)).filter(Boolean))],
-        count: own.length, summary: CATS.map(([c, l]) => (n(c) ? `${l} ${n(c)}` : "")).filter(Boolean).join(" · "),
+        count: own.length, cats: [...new Set(own.map((i) => i.category))], summary: CATS.map(([c, l]) => (n(c) ? `${l} ${n(c)}` : "")).filter(Boolean).join(" · "),
         teachers: new Set(mats.filter((m) => ids.has(m.subject_id) && itemsFromMaterials(m).length).map((m) => m.instructor_id)).size,
       };
     });
     const msg = h("div");
     const banner = await publishBanner(data.unpublished);
-    const listBox = h("section", { class: "box" }, h("h3", {}, `기준 과목 ${bases.length}개`), table([
+    // 거르기: 기준 과목(검색), 적용 과목(검색), 학과(드롭다운), 공통 준비물(드롭다운)
+    const deptOpts = [...new Set(rows.flatMap((r) => r.depts))].sort((a, b) => a.localeCompare(b, "ko"));
+    const filter = filterBar([
+      { key: "base", label: "기준 과목" },
+      { key: "member", label: "적용 과목" },
+      { key: "dept", label: "학과", options: [["", "전체 학과"], ["-", "학과 없음"], ...deptOpts.map((d) => [d, d])] },
+      { key: "prep", label: "공통 준비물", options: [["", "전체"], ["yes", "있음"], ["no", "없음"], ...CATS.map(([c, l]) => [c, `${l} 있음`])] },
+    ], () => drawList());
+    const listBox = h("section", { class: "box" });
+    const drawList = () => {
+      const f = filter.values;
+      const now = rows.filter((r) => hasText(r.base, f.base) && (!f.member || r.members.some((s) => hasText(s.name, f.member)))
+        && (!f.dept || (f.dept === "-" ? !r.depts.length : r.depts.includes(f.dept)))
+        && (!f.prep || (f.prep === "yes" ? r.count > 0 : f.prep === "no" ? r.count === 0 : r.cats.includes(f.prep))));
+      listBox.replaceChildren(h("h3", {}, now.length === rows.length ? `기준 과목 ${rows.length}개` : `기준 과목 ${now.length}개 (전체 ${rows.length}개)`),
+        now.length ? listTable(now) : empty("조건에 맞는 과목이 없습니다"));
+    };
+    const listTable = (list) => table([
       ["기준 과목", (r) => h("span", { class: "subject-chip" }, r.base)],
       ["적용 과목", (r) => (r.members.length > 1 || r.members[0]?.name !== r.base ? r.members.map((s) => s.name).join(", ") : "—")],
       ["학과", (r) => r.depts.join(", ") || pill("학과 없음", "neutral")],
       ["공통 준비물", (r) => (r.count ? r.summary : pill("없음", "neutral"))],
       ["강사 준비물", (r) => (r.teachers ? `${r.teachers}명 작성` : "—")],
-    ], rows, { onPick: (r) => openPop(r.base) }));
+    ], list, { onPick: (r) => openPop(r.base) });
+    drawList();
     // 과목을 누르면 팝업(학과·과목의 준비물 팝업과 같은 편집기). 반영은 오른쪽 아래 창.
     const openPop = (base) => {
       pick = base;
@@ -114,6 +132,6 @@ export async function render({ main, params = [] }) {
       pop.dlg.classList.add("modal-fit", "modal-mid");
     };
     if (pick && bases.includes(pick)) setTimeout(() => openPop(pick)); // #/prep/기준과목 으로 오면 그 팝업을 연다
-    return [banner, msg, listBox];
+    return [banner, msg, filter.el, listBox];
   });
 }

@@ -239,3 +239,4 @@
 - 2026-11-23 profile.mjs form-field/photo-drop/consent.
 - 2026-11-23 mine.mjs picker = .pick-row 세 select.
 - 2026-11-23 changes.track load: write 후 t.saved = read()(기준과 같으면 drop). mine go() = stashAll 후 이동.
+- 2026-11-23 mine.mjs .mine-body(2.2fr | 320px+).

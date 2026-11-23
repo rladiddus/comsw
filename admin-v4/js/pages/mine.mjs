@@ -171,12 +171,14 @@ export async function render({ main, session }) {
             st.media_url ? h("button", { type: "button", class: "btn small", onclick: () => { st.media_url = ""; draw(); } }, "이미지 빼기") : null));
       };
       const status = u?.pending.length ? pill("제출함 · 검수 전") : u ? pill("검수 완료", "neutral") : pill("아직 제출 전", "neutral");
+      // 아래 왼쪽 = 4단계 커리큘럼, 오른쪽 = 준비물
       return h("div", {},
-        box(null,
-          h("div", { class: "row" }, h("h3", {}, `${sub.name} · ${set.is_vacation ? set.name : "일반 수업"}`), h("div", { class: "actions" }, status)),
-          old ? note(`예전 자료가 ${old.length}단계입니다(${stepState(old.length).label}). 아래 참고 자료를 보고 4단계로 새로 써서 제출해주세요. 확정 전까지 예전 공개 내용은 그대로입니다.`) : null,
-          h("div", { class: "steps" }, ed.steps.map(card))),
-        matBox(ed),
+        h("div", { class: "mine-body" },
+          box(null,
+            h("div", { class: "row" }, h("h3", {}, `${sub.name} · ${set.is_vacation ? set.name : "일반 수업"}`), h("div", { class: "actions" }, status)),
+            old ? note(`예전 자료가 ${old.length}단계입니다(${stepState(old.length).label}). 아래 참고 자료를 보고 4단계로 새로 써서 제출해주세요. 확정 전까지 예전 공개 내용은 그대로입니다.`) : null,
+            h("div", { class: "steps" }, ed.steps.map(card))),
+          matBox(ed)),
         h("p", { class: "muted" }, "고치면 오른쪽 아래 창에서 [임시 저장] 또는 [학과장에게 제출]을 누르세요."),
         old ? box(`참고: 예전 ${old.length}단계`, h("div", { class: "steps" }, old.map((r) => h("div", { class: "step" },
           h("b", {}, r.step_label), h("p", {}, r.written || "—"), r.media_url ? media(r.media_url) : null)))) : null);

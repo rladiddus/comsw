@@ -152,3 +152,4 @@
 - 내 커리큘럼: 고르기 줄 / 아래 왼쪽 4단계 · 오른쪽 준비물.
 - V4 메뉴 묶음 제목 = 연두 바탕 굵은 글자(.navlabel).
 - V4 사용방법 = admin-v4/help.html. 기능 바꾸면 같이 고친다.
+- V4 사용방법 편 나눔은 localStorage comsw_v4_help_role(보안 아님).

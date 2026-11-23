@@ -304,10 +304,20 @@
   </main>
 
   <script>
+    // 학과장·관리자로 로그인한 브라우저만 두 편 모두, 강사·로그인 안 함은 강사 편만(관리 화면이 남긴 역할 기록을 본다).
+    // 화면에서 숨기는 용도일 뿐 보안 장치는 아니다(안내 글이라 비밀 없음).
+    var canHead = false;
+    try { canHead = localStorage.getItem('comsw_v4_help_role') === 'head'; } catch (e) { canHead = false; }
+    if (!canHead) {
+      document.getElementById('tab-head').remove();
+      document.getElementById('head').remove();
+      document.querySelector('.tabs').hidden = true;
+      document.querySelector('h1').textContent = '컴수원 강사 사용방법';
+    }
     // #head / #teacher 로 편을 고른다(주소로 바로 열기 가능)
     function show() {
-      var id = location.hash === '#teacher' ? 'teacher' : 'head';
-      ['head', 'teacher'].forEach(function (k) {
+      var id = canHead && location.hash !== '#teacher' ? 'head' : 'teacher';
+      (canHead ? ['head', 'teacher'] : ['teacher']).forEach(function (k) {
         document.getElementById(k).hidden = k !== id;
         document.getElementById('tab-' + k).classList.toggle('on', k === id);
         document.getElementById('tab-' + k).setAttribute('aria-current', k === id ? 'page' : 'false');

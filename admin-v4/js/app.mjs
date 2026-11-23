@@ -51,6 +51,8 @@ export function startApp({ role, email, uid, displayName }) {
   $("#userRole").textContent = roleLabel(role);
   // 사용방법(새 탭): 강사는 강사 편부터
   $("#helpLink").href = role === "teacher" ? "./help.html#teacher" : "./help.html#head";
+  // 사용방법 페이지가 볼 편을 정하도록 이 브라우저에 역할만 남긴다(로그아웃하면 지움). 화면에서 숨기는 용도일 뿐 보안 장치는 아님.
+  try { localStorage.setItem("comsw_v4_help_role", role === "teacher" ? "teacher" : "head"); } catch { /* 저장 못 하면 강사 편만 보임 */ }
   window.addEventListener("hashchange", route);
   window.addEventListener("beforeunload", (e) => { if (unsaved()) e.preventDefault(); });
   route();
@@ -58,6 +60,7 @@ export function startApp({ role, email, uid, displayName }) {
 
 export function stopApp() {
   window.removeEventListener("hashchange", route);
+  try { localStorage.removeItem("comsw_v4_help_role"); } catch { /* 없음 */ }
   resetTracking(); // 로그인 화면에 '바뀐 설정' 창이 남지 않게
   document.querySelectorAll("dialog").forEach((d) => d.remove());
   here = "";

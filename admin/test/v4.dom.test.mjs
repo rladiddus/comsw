@@ -1018,3 +1018,23 @@ test("사용방법: 메뉴 바 아래 링크(새 탭), 강사는 강사 편으�
   assert.match(help, /id="teacher"/);
   assert.ok((help.match(/<summary>/g) ?? []).length >= 30, "상황별 설명");
 });
+
+test("사용방법: 학과장·관리자로 로그인한 브라우저는 두 편, 강사·로그인 안 함은 강사 편만", async () => {
+  const { readFileSync } = await import("node:fs");
+  const html = readFileSync(new URL("../../admin-v4/help.html", import.meta.url), "utf8");
+  const view = (role, hash = "") => {
+    const d = new JSDOM(html, { url: `https://x/comsw/admin-v4/help.html${hash}`, runScripts: "dangerously",
+      beforeParse(w) { if (role) w.localStorage.setItem("comsw_v4_help_role", role); } });
+    const doc = d.window.document;
+    return { head: doc.getElementById("head"), teacherShown: !doc.getElementById("teacher").hidden, tabs: !doc.querySelector(".tabs").hidden, title: doc.querySelector("h1").textContent };
+  };
+  const h = view("head");
+  assert.ok(h.head && !h.head.hidden && h.tabs, "학과장: 학과장 편 + 탭");
+  assert.ok(view("head", "#teacher").teacherShown, "학과장도 강사 편 볼 수 있음");
+  for (const r of ["teacher", null]) {
+    const t = view(r, "#head");
+    assert.equal(t.head, null, `${r ?? "로그인 안 함"}: 학과장 편 없음`);
+    assert.ok(t.teacherShown && !t.tabs);
+    assert.equal(t.title, "컴수원 강사 사용방법");
+  }
+});

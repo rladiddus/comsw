@@ -242,3 +242,4 @@
 - 2026-11-23 mine.mjs .mine-body(2.2fr | 320px+).
 - 2026-11-23 .navlabel 스타일(--soft 바탕, 800).
 - 2026-11-23 admin-v4/help.html 추가(#head/#teacher), index.html #helpLink(target _blank), app.mjs 역할별 링크. 기능 바꾸면 help.html 동기화.
+- 2026-11-23 help.html canHead(localStorage) — 아니면 #head 제거. app.mjs 로그인 때 기록·stopApp에서 지움.

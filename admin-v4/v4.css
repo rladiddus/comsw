@@ -256,6 +256,11 @@ dialog.modal.modal-small { width: min(420px, calc(100vw - 32px)); height: fit-co
 .check-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 2px 10px; max-height: 220px; overflow-y: auto; padding: 8px; border: 1px solid var(--line); border-radius: 6px; font-size: 13px; }
 .check-list label { display: flex; gap: 6px; align-items: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding: 3px 4px; border-radius: 4px; cursor: pointer; }
 .check-list label:has(input:checked) { background: var(--soft); color: var(--green); font-weight: 700; }
+/* 고른 항목 알약(× 빼기) */
+.pick-chip { display: inline-flex; align-items: center; gap: 4px; padding: 4px 6px 4px 12px; border: 1px solid var(--green); border-radius: 999px; background: var(--soft); color: var(--green); font-size: 13px; font-weight: 700; white-space: nowrap; }
+.pick-chip button { width: 22px; height: 22px; padding: 0; border: 0; border-radius: 50%; background: transparent; color: var(--green); font-size: 15px; line-height: 1; }
+.pick-chip button:hover { background: var(--lime); }
+.picker-list tr.pick td:first-child { width: 36px; }
 .btn.small { padding: 2px 7px; font-size: 11px; }
 /* 끌어 놓을 자리: 모양(알약·모서리)을 따라가지 않고 실제 경계에 곧은 점선 */
 .menu-chip.drop-before::before, .menu-chip.drop-after::after, .rm-subject.drop-before::before, .rm-subject.drop-after::after {

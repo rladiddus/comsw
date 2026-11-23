@@ -1121,3 +1121,25 @@ test("하단 메뉴 켜기·끄기 스위치, 학과 알약 끌어서 순서·�
   assert.ok(form.querySelector(".check-chip input").checked, "연결된 학과 체크");
   document.querySelectorAll("dialog").forEach((d) => d.remove());
 });
+
+test("강사 정보 담당 과목: 고른 과목만 알약(× 빼기), [과목 검색] 팝업에서 거르고 골라 더함", async () => {
+  document.querySelectorAll("dialog").forEach((d) => d.remove());
+  const main = await open("instructors");
+  [...main.querySelectorAll("button")].find((b) => b.textContent === "+ 강사 추가").click();
+  const form = [...document.querySelectorAll("dialog.modal")].at(-1);
+  const chips = () => [...form.querySelectorAll(".pick-chip")].map((c) => c.firstChild.textContent);
+  assert.deepEqual(chips(), []);
+  [...form.querySelectorAll("button")].find((b) => b.textContent === "과목 검색").click();
+  const pk = [...document.querySelectorAll("dialog.modal")].at(-1);
+  const sel = pk.querySelector("select[aria-label='학과 거르기']");
+  sel.value = "시각학과"; sel.dispatchEvent(new dom.window.Event("change", { bubbles: true }));
+  const rows = [...pk.querySelectorAll("tr.pick")];
+  assert.deepEqual(rows.map((tr) => tr.children[1].textContent), ["아트 드로잉"]);
+  rows[0].click();
+  assert.match(pk.textContent, /고른 과목 1개/);
+  [...pk.querySelectorAll("button")].find((b) => b.textContent === "확인").click();
+  assert.deepEqual(chips(), ["아트 드로잉"]);
+  form.querySelector(".pick-chip button").click();
+  assert.deepEqual(chips(), []);
+  document.querySelectorAll("dialog").forEach((d) => d.remove());
+});

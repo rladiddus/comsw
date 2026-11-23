@@ -901,3 +901,18 @@ test("학과·과목 전체 과목 거르기: 과목 검색, 학과 드롭다운
   assert.deepEqual(names(), ["아트 드로잉"]);
   assert.match(main.textContent, /과목 1개 \(전체 3개\)/);
 });
+
+test("방학 특강 과목 생성: 넣을 특강을 고르면 만들자마자 그 특강 구성에도(기존 과목 + 새 과목)", async () => {
+  const fake = db();
+  const calls = [];
+  fake.rpc = async (name, args) => { calls.push([name, args]); return { data: name === "comsw_v4_unpublished" ? false : name === "comsw_v4_create_subject" ? "s-new" : "v1", error: null }; };
+  const main = await open("vacation", undefined, fake);
+  [...main.querySelectorAll("button")].find((b) => b.textContent === "과목 생성").click();
+  type(main.querySelector("input[aria-label='새 방학 특강 과목 이름']"), "블렌더(방학)");
+  const into = main.querySelector("select[aria-label='넣을 방학 특강']");
+  into.value = "v1";
+  [...main.querySelectorAll("button")].find((b) => b.textContent === "만들기").click();
+  await flush();
+  assert.deepEqual(calls.filter(([n]) => n !== "comsw_v4_unpublished").map(([n]) => n), ["comsw_v4_create_subject", "comsw_v4_save_vacation"]);
+  assert.deepEqual(calls.find(([n]) => n === "comsw_v4_save_vacation")[1].p_subjects, ["s1", "s-new"]);
+});

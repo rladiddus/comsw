@@ -143,15 +143,26 @@ export async function render({ main }) {
     const createBox = () => {
       const m = h("div");
       const input = h("input", { "aria-label": "새 방학 특강 과목 이름", placeholder: "예: 여름방학 포토샵", style: "width:100%" });
+      // 넣을 방학 특강(선택): 고르면 만들자마자 그 특강 과목 구성에 넣어 바로 반영
+      const into = h("select", { "aria-label": "넣을 방학 특강" }, h("option", { value: "" }, "특강에 넣지 않음"), cat.vacations.map((v) => h("option", { value: v.id }, `${v.name}에 넣기`)));
       const ok = h("button", { type: "button", class: "btn primary" }, "만들기");
       ok.onclick = () => busy(ok, m, async () => {
         if (!input.value.trim()) throw new Error("과목 이름을 입력해주세요");
-        await data.call("comsw_v4_create_subject", { p_name: input.value.trim(), p_vacation: true });
+        const id = await data.call("comsw_v4_create_subject", { p_name: input.value.trim(), p_vacation: true });
+        const v = cat.vacations.find((x) => x.id === into.value);
+        if (v) {
+          // 공개 중인 그 특강 구성 + 새 과목(이름·공개는 그대로)
+          await data.call("comsw_v4_save_vacation", {
+            p_id: v.id, p_name: v.name, p_show: v.id === shown,
+            p_subjects: [...cat.vacLinks.filter((l) => l.set_id === v.id).map((l) => l.subject_id), id],
+          });
+          pick = v.id; open = id;
+        }
         render({ main });
       });
       return box("방학 특강 과목 만들기", m,
-        note("여기서 만든 과목은 방학 특강 과목입니다. 학과·과목에서 만든 일반 과목과 이름이 같아도 다른 과목이며, 방학 특강에서만 넣을 수 있습니다. 만들면 바로 저장됩니다."),
-        h("div", { class: "actions", style: "margin:10px 0" }, h("div", { style: "flex:1;min-width:220px" }, input), ok),
+        note("여기서 만든 과목은 방학 특강 과목입니다. 학과·과목에서 만든 일반 과목과 이름이 같아도 다른 과목이며, 방학 특강에서만 넣을 수 있습니다. 만들면 바로 저장되고, 특강을 고르면 그 특강에도 바로 들어갑니다."),
+        h("div", { class: "actions", style: "margin:10px 0" }, h("div", { style: "flex:1;min-width:220px" }, input), into, ok),
         h("h4", {}, `방학 특강 과목 ${vacSubjects.length}개`),
         vacSubjects.length ? h("div", { class: "chips" }, vacSubjects.map((s) => h("span", { class: "subject-chip" }, s.name))) : empty("아직 없습니다"));
     };

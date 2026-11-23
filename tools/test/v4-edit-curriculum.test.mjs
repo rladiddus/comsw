@@ -36,3 +36,26 @@ test("검수 완료 커리큘럼 고치기", async () => {
   await as(db, "authenticated", { sub: "t", role: "authenticated", comsw_role: "teacher" });
   await assert.rejects(edit(seen), /권한/);
 });
+
+test("검수 완료 수정 넓히기(20261123020000): 원래 문구 고치기, 4단계 넘는 단계 지우기·번호 다시 매기기, 4단계 밑으로는 못 지움", async () => {
+  const db = await freshDb();
+  await as(db, null);
+  const one = async (sql, args = []) => (await db.query(sql, args)).rows[0]?.id;
+  const d = await one(`insert into departments(name) values ('AI학과') returning id`);
+  const s = await one(`insert into subjects(name) values ('AI베이직') returning id`);
+  const set = await one(`insert into curriculum_sets(name, department_id) values ('AI학과', $1) returning id`, [d]);
+  const i = await one(`insert into instructors(name) values ('허강사') returning id`);
+  for (let n = 1; n <= 6; n++) {
+    await db.query(`insert into instructor_curricula(set_id, instructor_id, subject_id, step_label, written, status, sort_order) values ($1,$2,$3,$4,$5,'approved',$6)`, [set, i, s, `${n}단계`, `원문 ${n}`, n]);
+  }
+  await as(db, "authenticated", HEAD);
+  await db.query(`select comsw_publish()`);
+  const rows = async () => (await db.query(`select id, updated_at, step_label, written from instructor_curricula order by sort_order`)).rows;
+  const edit = (steps) => db.query(`select comsw_v4_edit_curriculum($1,$2,$3,$4::jsonb)`, [i, set, s, JSON.stringify(steps)]);
+  let r = await rows();
+  const base = (x) => ({ id: x.id, updated_at: x.updated_at.toISOString(), summary: "", media_url: "" });
+  await assert.rejects(edit(r.map((x, k) => ({ ...base(x), delete: k >= 3 }))), /4단계보다 적게/);
+  await edit(r.map((x, k) => ({ ...base(x), written: k === 0 ? "고친 원문" : x.written, delete: k === 1 || k === 4 })));
+  r = await rows();
+  assert.deepEqual(r.map((x) => [x.step_label, x.written]), [["1단계", "고친 원문"], ["2단계", "원문 3"], ["3단계", "원문 4"], ["4단계", "원문 6"]]);
+});

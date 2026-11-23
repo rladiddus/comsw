@@ -1170,3 +1170,35 @@ test("떠 있는 창 옮기기: 버튼 아닌 곳을 끌면 옮겨지고 위치 
   await flush();
   document.querySelectorAll("dialog").forEach((d) => d.remove());
 });
+
+test("강사 커리큘럼 수정: 원래 문구도 고치고, 4단계 넘는 단계는 오른쪽 위 ×로 지움(4단계까지만), 저장에 delete·written", async () => {
+  document.querySelectorAll("dialog").forEach((d) => d.remove());
+  const fake = db();
+  const base = fake.from.bind(fake);
+  const local = fakeSupabase({ instructor_curricula: [1, 2, 3, 4, 5, 6].map((n) => ({ id: `a${n}`, instructor_id: "i1", set_id: "set1", subject_id: "s1", step_label: `${n}단계`,
+    written: `원문${n}`, status: "approved", sort_order: n, updated_at: `2026-11-23T00:00:0${n}Z` })) });
+  fake.from = (t) => (t === "instructor_curricula" ? local.from(t) : base(t));
+  const calls = [];
+  fake.rpc = async (name, args) => { calls.push([name, args]); return { data: false, error: null }; };
+  const main = await open("instructors", undefined, fake);
+  [...main.querySelectorAll("tr.pick")][0].click();
+  await flush();
+  const dlg = document.querySelector("dialog.modal");
+  [...dlg.querySelectorAll(".tabs button")].find((b) => b.textContent === "커리큘럼").click();
+  [...dlg.querySelectorAll(".modal-head button")].find((b) => b.textContent === "수정").click();
+  assert.equal(dlg.querySelectorAll(".step-x").length, 6, "6단계면 모든 단계에 ×");
+  dlg.querySelector("button[aria-label='2단계 지우기']").click();
+  await flush();
+  assert.equal(dlg.querySelectorAll(".steps .step-col").length, 5);
+  dlg.querySelector("button[aria-label='4단계 지우기']").click(); // 화면 번호 4단계 = 원래 5단계
+  await flush();
+  assert.equal(dlg.querySelectorAll(".step-x").length, 0, "4단계가 되면 × 없음");
+  assert.deepEqual([...dlg.querySelectorAll(".steps .step-col > b")].map((b) => b.textContent), ["1단계", "2단계", "3단계", "4단계"], "번호 다시");
+  type(dlg.querySelector("textarea[aria-label='1단계 원래 문구']"), "고친 원문");
+  await flush();
+  barBtn("사이트 적용").click();
+  await flush();
+  const [, args] = calls.find(([n]) => n === "comsw_v4_edit_curriculum");
+  assert.deepEqual(args.p_steps.map((x) => [x.id, x.written, !!x.delete]), [["a1", "고친 원문", false], ["a2", "원문2", true], ["a3", "원문3", false], ["a4", "원문4", false], ["a5", "원문5", true], ["a6", "원문6", false]]);
+  dlg.remove();
+});

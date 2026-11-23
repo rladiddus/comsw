@@ -194,7 +194,9 @@ dialog.modal.modal-small { width: min(420px, calc(100vw - 32px)); height: fit-co
 .crop-dialog .form-actions button { padding: 8px 14px; border: 1px solid var(--line); border-radius: 5px; background: var(--paper); font-size: 13px; cursor: pointer; }
 .crop-dialog .form-actions .publish-btn { background: var(--green); border-color: var(--green); color: var(--paper); font-weight: 700; }
 /* 강사 커리큘럼 검수·수정: 단계 칸 아래쪽(홈페이지 문구)을 같은 높이에, 버튼은 오른쪽 끝 */
-.step-col { display: flex; flex-direction: column; }
+.step-col { position: relative; display: flex; flex-direction: column; }
+.step-x { position: absolute; top: -9px; right: -9px; width: 24px; height: 24px; padding: 0; border: 1px solid var(--red); border-radius: 50%; background: var(--paper); color: var(--red); font-size: 15px; line-height: 1; }
+.step-x:hover { background: var(--red); color: var(--paper); }
 .step-foot { margin-top: auto; padding-top: 10px; }
 .step-foot h4 { margin: 0 0 6px; }
 /* 방학 특강: 설정 한 줄, 아래 왼쪽 과목·오른쪽 커리큘럼 */

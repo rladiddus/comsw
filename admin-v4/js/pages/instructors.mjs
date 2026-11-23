@@ -185,9 +185,12 @@ function curriculum(p, cat, { msg, reload, again, editBtn, aiHead }) {
     }
     // 이번 제출 검수 / 검수 완료 수정: 원문은 그대로, 홈페이지 문구(summary)·이미지를 고침 → 바뀌면 오른쪽 아래 창(임시 저장·되돌리기·사이트 적용)
     const rows = u.pending.length ? u.pending : u.approved;
-    const base = { summary: Object.fromEntries(rows.map((r) => [r.id, r.summary ?? ""])), media: Object.fromEntries(rows.map((r) => [r.id, r.media_url ?? ""])) };
+    // 검수 완료 수정이면 원래 문구(written)도 고치고, 4단계 넘는 단계는 ⓧ로 지운다(deleted)
+    const base = { summary: Object.fromEntries(rows.map((r) => [r.id, r.summary ?? ""])), media: Object.fromEntries(rows.map((r) => [r.id, r.media_url ?? ""])),
+      ...(editing ? { written: Object.fromEntries(rows.map((r) => [r.id, r.written ?? ""])), deleted: [] } : {}) };
     if (!work.has(u.key)) work.set(u.key, JSON.parse(JSON.stringify(base)));
     const w = work.get(u.key);
+    if (editing && !w.written) { w.written = { ...base.written }; w.deleted = w.deleted ?? []; } // 예전 임시 저장(원래 문구 칸 없음)
     const trackId = `curriculum:${u.key}`;
     redrawPop = again;
     if (!isTracked(trackId)) {
@@ -203,14 +206,16 @@ function curriculum(p, cat, { msg, reload, again, editBtn, aiHead }) {
           })
           : data.call("comsw_v4_edit_curriculum", {
             p_instructor: u.instructor_id, p_set: u.set_id, p_subject: u.subject_id,
-            p_steps: rows.map((r) => ({ id: r.id, updated_at: r.updated_at, summary: x.summary[r.id] ?? "", media_url: x.media[r.id] ?? "" })),
+            p_steps: rows.map((r) => ({ id: r.id, updated_at: r.updated_at, written: x.written?.[r.id] ?? r.written ?? "", summary: x.summary[r.id] ?? "", media_url: x.media[r.id] ?? "",
+              ...(x.deleted?.includes(r.id) ? { delete: true } : {}) })),
           })),
         onApplied: () => { work.delete(u.key); keep.edit = null; reload(); },
       });
     }
     const aiOn = new Map(rows.map((r) => [r.id, true]));
     const areas = new Map();
-    const card = (r) => {
+    const shown = editing ? rows.filter((r) => !w.deleted?.includes(r.id)) : rows;
+    const card = (r, idx) => {
       const area = h("textarea", { rows: 3, value: w.summary[r.id], placeholder: "비우면 원문이 그대로 공개됩니다", style: "width:100%",
         "aria-label": `${r.step_label} 홈페이지 문구`, oninput: (e) => { w.summary[r.id] = e.target.value; } });
       areas.set(r.id, area);
@@ -221,7 +226,16 @@ function curriculum(p, cat, { msg, reload, again, editBtn, aiHead }) {
         if (url) { w.media[r.id] = url; img.replaceChildren(imgView()); check(); }
       };
       const img = h("button", { type: "button", class: "img-pick", title: "눌러서 이미지 바꾸기", "aria-label": `${r.step_label} 이미지 바꾸기`, onclick: change }, imgView());
-      return h("div", { class: "step step-col" }, h("b", {}, r.step_label), h("p", {}, r.written || "—"), img,
+      // 검수 완료 수정: 원래 문구도 고침, 4단계 넘으면 오른쪽 위 ⓧ로 단계 지우기(저장하면 1단계부터 다시 번호)
+      const original = editing
+        ? h("textarea", { rows: 3, value: w.written[r.id], "aria-label": `${idx + 1}단계 원래 문구`, style: "width:100%", oninput: (e) => { w.written[r.id] = e.target.value; } })
+        : h("p", {}, r.written || "—");
+      const del = editing && shown.length > 4
+        ? h("button", { type: "button", class: "step-x", title: "이 단계 지우기(4단계를 넘는 것만)", "aria-label": `${idx + 1}단계 지우기`,
+          onclick: () => { w.deleted = [...(w.deleted ?? []), r.id]; check(); again(); } }, "×")
+        : null;
+      return h("div", { class: "step step-col" }, del, h("b", {}, editing ? `${idx + 1}단계` : r.step_label),
+        editing ? h("h4", { style: "margin:4px 0" }, "원래 문구") : null, original, img,
         h("button", { type: "button", class: "btn small", style: "margin-top:6px;align-self:flex-start", onclick: change }, "이미지 수정"),
         h("div", { class: "step-foot" }, h("h4", {}, "홈페이지 문구"), area,
           h("label", { class: "rm-sync" }, h("input", { type: "checkbox", checked: true, "aria-label": `${r.step_label} AI 문장 다듬기`,
@@ -232,9 +246,10 @@ function curriculum(p, cat, { msg, reload, again, editBtn, aiHead }) {
     const aiBtn = editing && aiHead ? aiHead : h("button", { type: "button", class: "btn" }, "AI 문장 다듬기");
     aiBtn.hidden = false;
     aiBtn.onclick = () => busy(aiBtn, msg, async () => {
-      const targets = rows.filter((r) => aiOn.get(r.id) && (r.written ?? "").trim());
+      const src = (r) => (editing ? w.written[r.id] : r.written) ?? "";
+      const targets = shown.filter((r) => aiOn.get(r.id) && src(r).trim());
       if (!targets.length) throw new Error("다듬을 단계를 체크해주세요");
-      const outs = await Promise.all(targets.map((r) => data.ai("week", r.written)));
+      const outs = await Promise.all(targets.map((r) => data.ai("week", src(r))));
       targets.forEach((r, n) => { w.summary[r.id] = outs[n]; areas.get(r.id).value = outs[n]; });
     });
     // 이번 제출: 고칠 것이 없으면 [확정]으로 바로(고쳤으면 오른쪽 아래 창 [사이트 적용]과 같음)
@@ -254,7 +269,8 @@ function curriculum(p, cat, { msg, reload, again, editBtn, aiHead }) {
     return h("div", { class: "box" }, top,
       !editing && u.pending.length !== 4 ? note(`4단계가 모두 있어야 확정할 수 있습니다(지금 ${u.pending.length}단계). 강사가 채워서 다시 제출해야 합니다.`) : null,
       editing ? note("검수 완료 커리큘럼을 고칩니다. 바꾸면 오른쪽 아래 창에서 [임시 저장]·[사이트 적용]을 누릅니다. 이미지를 누르면 바꿀 수 있습니다.") : null,
-      h("div", { class: "steps" }, rows.map(card)),
+      editing && shown.length > 4 ? note(`지금 ${shown.length}단계입니다. 4단계를 넘는 단계는 오른쪽 위 ×로 지울 수 있습니다(저장하면 남은 단계가 1단계부터 다시 번호가 매겨집니다).`) : null,
+      h("div", { class: "steps" }, shown.map(card)),
       editing && aiHead ? null : h("div", { class: "actions end", style: "margin-top:12px" }, aiBtn, ok));
   })[0]);
 }

@@ -248,3 +248,4 @@
 - 2026-11-23 .form-field input:not([type=checkbox]) 등, .check-chip/.check-list :has(:checked).
 - 2026-11-23 instructors subjectPicker, .pick-chip.
 - 2026-11-23 changes.movable(bar)·place, localStorage comsw_v4_bar_pos.
+- 2026-11-23 edit_curriculum 확장(written·delete·번호 다시). instructors work에 written/deleted(검수 완료 수정만), .step-x.

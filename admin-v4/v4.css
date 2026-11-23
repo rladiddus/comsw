@@ -220,6 +220,11 @@ dialog.modal.modal-small { width: min(420px, calc(100vw - 32px)); height: fit-co
 .mat-list { display: grid; gap: 8px; }
 .mat-row { display: grid; grid-template-columns: 130px minmax(0, 2fr) minmax(0, 1.4fr) auto; gap: 8px; align-items: center; }
 .mat-row input, .mat-row select { width: 100%; padding: 7px 9px; border: 1px solid var(--line); border-radius: 5px; }
+/* 입력 칸 한 묶음(제목 + 입력): 블록으로 감싸 테두리가 깨지지 않게 */
+.form-field { display: grid; gap: 6px; margin: 0 0 14px; }
+.form-field input, .form-field textarea { width: 100%; padding: 8px 10px; border: 1px solid var(--line); border-radius: 6px; font: inherit; font-size: 14px; background: var(--paper); color: var(--text); resize: vertical; }
+.photo-drop .media { max-width: 360px; }
+.consent { display: flex; gap: 8px; align-items: center; margin: 12px 0 4px; font-size: 13px; }
 .btn.small { padding: 2px 7px; font-size: 11px; }
 /* 끌어 놓을 자리: 모양(알약·모서리)을 따라가지 않고 실제 경계에 곧은 점선 */
 .menu-chip.drop-before::before, .menu-chip.drop-after::after, .rm-subject.drop-before::before, .rm-subject.drop-after::after {

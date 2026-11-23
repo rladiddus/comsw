@@ -17,8 +17,10 @@ export async function render({ main, session }) {
     const f = { ...baseline };
     let preview = "";
     const msg = h("div");
-    const photo = h("div", {}, media(sent?.photo_url || me.photo_url));
-    const file = h("input", { type: "file", accept: "image/png,image/jpeg,image/webp", "aria-label": "본인 사진" });
+    // 사진: 누르면 파일 고르기, 사진 칸에 끌어다 놓아도 됨(숨은 파일 칸)
+    const shown = () => (preview || sent?.photo_url || me.photo_url ? media(preview || sent?.photo_url || me.photo_url) : h("div", { class: "media" }, h("span", { class: "muted" }, "사진 없음 · 눌러서 올리기")));
+    const file = h("input", { type: "file", hidden: true, accept: "image/png,image/jpeg,image/webp", "aria-label": "본인 사진" });
+    const photo = h("button", { type: "button", class: "img-pick", title: "눌러서 사진 올리기(끌어다 놓아도 됩니다)", "aria-label": "본인 사진 올리기", onclick: () => file.click() }, shown());
     file.onchange = async () => {
       const x = file.files[0];
       if (!x) return;
@@ -28,11 +30,11 @@ export async function render({ main, session }) {
         f.asset = up.id;
         preview = URL.createObjectURL(x);
       } catch (err) { msg.replaceChildren(fail(`사진: ${err.message}`)); }
-      photo.replaceChildren(media(preview || sent?.photo_url || me.photo_url));
+      photo.replaceChildren(shown());
       file.value = "";
       check();
     };
-    const field = (k, label, rows) => h("label", { class: "step" }, h("b", {}, label),
+    const field = (k, label, rows) => h("label", { class: "form-field" }, h("b", {}, label),
       rows ? h("textarea", { rows, value: f[k], style: "width:100%", oninput: (e) => { f[k] = e.target.value; } })
         : h("input", { value: f[k], style: "width:100%", oninput: (e) => { f[k] = e.target.value; } }));
     const consent = h("input", { type: "checkbox", checked: !!f.consent, onchange: (e) => { f.consent = e.target.checked; } });
@@ -60,8 +62,9 @@ export async function render({ main, session }) {
         h("div", { class: "row" }, h("h3", {}, "프로필"),
           sent?.status === "pending" ? pill("제출함 · 검수 전") : pill(sent ? "확정됨" : "공개 중", "neutral")),
         form, h("p", { class: "muted" }, "고치면 오른쪽 아래 창에서 [임시 저장] 또는 [학과장에게 제출]을 누르세요.")),
-      box("사진", photo, file,
-        h("label", { class: "muted" }, consent, " 프로필 사진을 만드는 데 본인 사진을 쓰는 것에 동의합니다"),
+      box("사진", h("div", { class: "photo-drop" }, photo, file),
+        h("div", { class: "actions", style: "margin-top:8px" }, h("button", { type: "button", class: "btn small", onclick: () => file.click() }, "사진 올리기")),
+        h("label", { class: "consent" }, consent, "프로필 사진을 만드는 데 본인 사진을 쓰는 것에 동의합니다"),
         h("p", { class: "muted" }, "올린 사진은 학과장만 보고, 홈페이지용 프로필 사진은 학과장이 검수 때 만듭니다.")))];
   });
 }

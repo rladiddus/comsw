@@ -236,3 +236,4 @@
 - 2026-11-23 vacation createBox into 선택 → create_subject 후 save_vacation(공개 구성+새 id).
 - 2026-11-23 mine.mjs parseMat/serializeMat export, matBox, remember(library).
 - 2026-11-23 mine.mjs card: img-pick + hidden file input(전역 끌어다 놓기). .step overflow-wrap:anywhere.
+- 2026-11-23 profile.mjs form-field/photo-drop/consent.

@@ -146,3 +146,4 @@
 - V4 방학 특강 과목 생성 시 특강 선택하면 바로 그 특강에 넣음.
 - 강사 준비물: 화면은 줄 목록, 저장은 instructor_subject_materials 분류별 칸. 재사용 목록 = teacher_drafts(curriculum, prep-library).
 - V4 이미지 올리기 칸 공통: 이미지 누르면 pickImage, 카드엔 숨은 file input으로 끌어다 놓기.
+- V4 입력 묶음은 .form-field(label을 .step으로 쓰면 테두리 깨짐).

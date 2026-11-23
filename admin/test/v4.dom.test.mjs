@@ -1227,6 +1227,43 @@ test("이번 제출이 1단계여도 학과장이 원래 문구를 고치고 [+ 
   document.querySelectorAll("dialog").forEach((d) => d.remove());
 });
 
+test("강사 담당 과목에 제출이 없어도 과목 목록에서 학과장이 4단계를 대신 작성해 제출", async () => {
+  document.querySelectorAll("dialog").forEach((d) => d.remove());
+  const fake = db();
+  const originalFrom = fake.from.bind(fake);
+  const assignments = fakeSupabase({ instructor_subjects: [
+    { instructor_id: "i1", subject_id: "s1" },
+    { instructor_id: "i1", subject_id: "s2" },
+    { instructor_id: "i1", subject_id: "s3" },
+  ] });
+  fake.from = (table) => table === "instructor_subjects" ? assignments.from(table) : originalFrom(table);
+  const calls = [];
+  fake.rpc = async (name, args) => { calls.push([name, args]); return { data: null, error: null }; };
+  const main = await open("instructors", undefined, fake);
+  main.querySelector("tr.pick").click();
+  await flush();
+  const dlg = document.querySelector("dialog.modal");
+  [...dlg.querySelectorAll(".tabs button")].find((b) => b.textContent === "커리큘럼").click();
+  const pick = [...dlg.querySelectorAll(".picks button")].find((b) => b.textContent.includes("캐드2 · 일반"));
+  assert.ok(pick, "프로필에 지정된 미제출 과목도 보임");
+  const unlinked = [...dlg.querySelectorAll(".picks button")].find((b) => b.textContent.includes("아트 드로잉"));
+  assert.ok(unlinked, "학과 연결이 없는 담당 과목도 목록에 보임");
+  unlinked.click();
+  assert.match(dlg.textContent, /학과 구성에 과목을 넣은 뒤/);
+  assert.equal(dlg.querySelectorAll(".steps .step-col").length, 0, "제출할 학과 탭 없이 작성하지 않음");
+  pick.click();
+  assert.equal(dlg.querySelectorAll(".steps .step-col").length, 4);
+  [1, 2, 3, 4].forEach((n) => type(dlg.querySelector(`textarea[aria-label='${n}단계 원래 문구']`), `대신 쓴 ${n}단계`));
+  await flush();
+  [...dlg.querySelectorAll("button")].find((b) => b.textContent === "학과장에게 제출").click();
+  await flush();
+  const [, args] = calls.find(([name]) => name === "comsw_submit_curriculum");
+  assert.equal(args.p_instructor_id, "i1");
+  assert.equal(args.p_set_id, "set1");
+  assert.deepEqual(args.p_subjects[0].steps.map((s) => s.written), [1, 2, 3, 4].map((n) => `대신 쓴 ${n}단계`));
+  document.querySelectorAll("dialog").forEach((d) => d.remove());
+});
+
 test("미리보기: 구글 드라이브 링크는 드라이브 보기 화면(iframe)이 아니라 썸네일 사진", async () => {
   const { media } = await import("../../admin-v4/js/ui.mjs");
   const el = media("https://drive.google.com/file/d/ABC123/view?usp=sharing");

@@ -24,7 +24,7 @@ export async function render({ main }) {
       ...p,
       depts: links.filter((l) => l.instructor_id === p.id).map((l) => deptName.get(l.department_id)).filter(Boolean),
       draft: drafts.find((d) => d.instructor_id === p.id && d.status === "pending"),
-      units: units.filter((u) => u.instructor_id === p.id),
+      units: instructorUnits(p, units, isubs, links, cat),
     }));
     const msg = h("div");
     const listBox = h("section", { class: "box" });
@@ -140,6 +140,25 @@ function unitTitleOf(u, cat) {
   const vac = cat.vacations.find((v) => v.id === u.set_id);
   return `${subj} · ${vac ? vac.name : "일반"}`;
 }
+
+// 담당 과목은 제출 전에도 강사 팝업에 보인다. 작성용 일반 탭은 강사 소속 학과와 과목이
+// 함께 연결된 학과에서 고른다. 연결이 없으면 목록에는 남기고 연결 안내를 보여 준다.
+function instructorUnits(person, submitted, assignments, departmentLinks, cat) {
+  const existing = submitted.filter((u) => u.instructor_id === person.id);
+  const ownDepartments = new Set(departmentLinks.filter((l) => l.instructor_id === person.id).map((l) => l.department_id));
+  const subjects = new Map(data.general(cat).map((s) => [s.id, s]));
+  const assigned = assignments.filter((a) => a.instructor_id === person.id && subjects.has(a.subject_id))
+    .sort((a, b) => (a.sort_order ?? Infinity) - (b.sort_order ?? Infinity));
+  const missing = assigned.filter((a) => !existing.some((u) => u.subject_id === a.subject_id && !u.vacation));
+  const placeholders = missing.map((a) => {
+    const department = cat.links.find((l) => l.subject_id === a.subject_id && ownDepartments.has(l.department_id))?.department_id;
+    const name = cat.departments.find((d) => d.id === department)?.name;
+    const set = department ? cat.sets.find((s) => !s.is_vacation && (s.department_id === department || (name && s.name === name))) : null;
+    return { key: `${person.id}|${a.subject_id}|${set?.id ?? "unlinked"}|0`, instructor_id: person.id,
+      subject_id: a.subject_id, set_id: set?.id ?? null, vacation: false, approved: [], pending: [] };
+  });
+  return [...existing, ...placeholders];
+}
 // 가장 긴 이름이 한 줄에 다 보이는 왼쪽 칸 너비(px): 글자 폭 + '이번 제출' 표시 + 안쪽 여백·스크롤 막대
 function widestTitle(titles) {
   const ctx = globalThis.document?.createElement("canvas").getContext?.("2d");
@@ -151,7 +170,7 @@ function widestTitle(titles) {
 function curriculum(p, cat, { msg, reload, again, editBtn, aiHead }) {
   if (editBtn) editBtn.hidden = true;
   if (aiHead) aiHead.hidden = true;
-  if (!p.units.length) return empty("제출한 커리큘럼이 없습니다");
+  if (!p.units.length) return empty("담당 과목이 없습니다. 강사 프로필의 정보 수정에서 담당 과목을 지정해주세요.");
   const subj = new Map(cat.subjects.map((s) => [s.id, s.name]));
   const setName = new Map(cat.sets.map((s) => [s.id, s.name]));
   const unitTitle = (u) => unitTitleOf(u, cat);
@@ -159,6 +178,7 @@ function curriculum(p, cat, { msg, reload, again, editBtn, aiHead }) {
   const picks = h("div", { class: "picks" }, p.units.map((u) => h("button", { type: "button", "aria-pressed": String(u === sel), title: unitTitle(u),
     onclick: () => { if (!canSwitch()) return; keep.unit = u.key; again(); } }, unitTitle(u), " ", u.pending.length ? pill("이번 제출") : null)));
   return h("div", { class: "side-list" }, box("과목", picks), [sel].map((u) => {
+    if (!u.pending.length && !u.approved.length) return newCurriculum(p, u, cat, { msg, reload, again, editBtn });
     const now = u.pending.length ? u.pending : u.approved;
     const st = stepState(now.length);
     const vac = cat.vacations.some((v) => v.id === u.set_id);
@@ -274,6 +294,40 @@ function curriculum(p, cat, { msg, reload, again, editBtn, aiHead }) {
       h("div", { class: "steps" }, w.steps.map(card)),
       h("div", { class: "actions end", style: "margin-top:12px" }, addBtn, editing && aiHead ? null : aiBtn, ok));
   })[0]);
+}
+
+function newCurriculum(p, u, cat, { msg, reload, again, editBtn }) {
+  if (editBtn) editBtn.hidden = true;
+  const title = unitTitleOf(u, cat);
+  if (!u.set_id) return box(null, h("h3", {}, title),
+    note("이 담당 과목이 강사의 소속 학과에 연결되어 있지 않거나 학과의 일반 커리큘럼 탭이 없습니다. 학과·과목의 학과 구성에 과목을 넣은 뒤 다시 열어주세요."));
+  const base = { steps: Array.from({ length: 4 }, () => ({ written: "", media_url: "" })) };
+  if (!work.has(u.key)) work.set(u.key, JSON.parse(JSON.stringify(base)));
+  const state = work.get(u.key);
+  const id = `curriculum:${u.key}`;
+  redrawPop = again;
+  if (!isTracked(id)) track({
+    id, slot: "curriculum", title: `${p.name} · ${title}`, baseline: base, applyLabel: "학과장에게 제출",
+    read: () => work.get(u.key) ?? base,
+    write: (x) => { work.set(u.key, JSON.parse(JSON.stringify(x))); redrawPop?.(); },
+    apply: async (x) => {
+      if (x.steps.length !== 4 || x.steps.some((s) => !s.written.trim())) throw new Error("1~4단계 수업 내용을 모두 써주세요");
+      await data.call("comsw_submit_curriculum", { p_set_id: u.set_id, p_vacation: false, p_instructor_id: p.id,
+        p_subjects: [{ subject_id: u.subject_id, steps: x.steps.map((s, i) => ({ step_label: `${i + 1}단계`, written: s.written.trim(), media_url: s.media_url || "" })) }] });
+    },
+    onApplied: () => { work.delete(u.key); reload(); },
+  });
+  return box(null, h("div", { class: "row" }, h("h3", {}, title), pill("아직 제출 전", "neutral")),
+    note("이 강사의 담당 과목입니다. 학과장·관리자가 4단계를 대신 작성해 제출하면 검수 전 자료로 저장됩니다. 이후 이 화면에서 확정할 수 있습니다."),
+    h("div", { class: "steps" }, state.steps.map((step, i) => {
+      const label = `${i + 1}단계`;
+      const image = h("button", { type: "button", class: "img-pick", "aria-label": `${label} 이미지 바꾸기`,
+        onclick: async () => { const url = await pickImage(`${label} 이미지`, "curriculum"); if (url) { step.media_url = url; check(); again(); } } },
+      step.media_url ? media(step.media_url) : h("div", { class: "media" }, h("span", { class: "muted" }, "이미지 없음 · 눌러서 올리기")));
+      return h("div", { class: "step step-col" }, h("b", {}, label),
+        h("h4", {}, "원래 문구"), h("textarea", { rows: 6, value: step.written, "aria-label": `${label} 원래 문구`,
+          oninput: (e) => { step.written = e.target.value; } }), image);
+    })));
 }
 
 // 강사 추가·정보 수정 팝업(학과장·관리자가 직접 입력, [저장]하면 바로 반영). p = 기존 강사(없으면 새로)

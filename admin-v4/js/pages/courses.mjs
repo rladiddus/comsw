@@ -2,12 +2,12 @@
 // 과목을 누르면 팝업(강사 팝업과 같은 크기): 왼쪽 강사 넣기·빼기, 오른쪽 공통 4단계(문구·대표 이미지). 바꾸면 떠 있는 창으로 저장·적용.
 // 학과 추가·이름 수정, 과목 삭제·복원은 팝업에서 눌러 바로 반영.
 import * as data from "../data.mjs";
-import { h, head, box, table, tabs, pill, fill, note, fail, busy, publishBanner, modal, filterBar, hasText } from "../ui.mjs";
+import { h, head, box, table, tabs, pill, fill, note, fail, busy, publishBanner, modal, filterBar, hasText, toggleSwitch } from "../ui.mjs";
 import { baseName, deptOrder, stepState } from "../rules.mjs";
-import { deptLayout } from "./dept-layout.mjs";
+import { deptLayout, moveItem } from "./dept-layout.mjs";
 import { commonEditor } from "./common-editor.mjs";
 import { prepEditor } from "./prep.mjs";
-import { canSwitch, unsaved, untrack } from "../changes.mjs";
+import { canSwitch, unsaved, untrack, track } from "../changes.mjs";
 
 let state = { tab: "depts", dept: null };
 
@@ -35,8 +35,11 @@ export async function render({ main, params = [] }) {
     const openSubject = (s, { withDelete = false } = {}) => {
       const popMsg = h("div");
       const steps = stepsOf(s.id);
+      // 과목명 수정: 팝업 [수정]을 누른 동안만 보임(작은 팝업, 바로 반영)
+      const renameBtn = h("button", { type: "button", class: "btn", hidden: true, style: "margin-bottom:8px", onclick: () => renamePopup(s, () => { pop.close(); reload(); }) }, "과목명 수정");
       const extra = [
         h("hr", { style: "border:0;border-top:1px solid var(--line);margin:14px 0" }),
+        renameBtn,
         s.duration ? h("p", { class: "muted" }, `과정 기간 ${s.duration}`) : null,
         s.relink_needed ? note("복원한 과목입니다. 학과나 방학 특강에 다시 넣기 전에는 홈페이지에 나오지 않습니다.") : null,
         h("button", { type: "button", class: "btn", style: "white-space:nowrap", onclick: (e) => busy(e.currentTarget, popMsg, () => openPrep(baseName(s.name))) }, `공통 준비물(${baseName(s.name)})`),
@@ -53,7 +56,7 @@ export async function render({ main, params = [] }) {
       const st = stepState(steps.length);
       // [수정]: 보기 ↔ 고치기. 고치면 오른쪽 아래 창에서 [임시 저장]/[되돌리기]/[사이트 적용]
       const editBtn = h("button", { type: "button", class: "btn primary" }, "수정");
-      const sync = () => { editBtn.textContent = editor.isEditing() ? "수정 끝" : "수정"; };
+      const sync = () => { editBtn.textContent = editor.isEditing() ? "수정 끝" : "수정"; renameBtn.hidden = !editor.isEditing(); };
       editor.onEditing = sync;
       editBtn.onclick = () => {
         if (editor.isEditing() && unsaved(editor.trackId) && !confirm("임시 저장하지 않은 바뀐 설정이 있습니다. 수정을 끝내면 화면은 보기로 바뀌고, 바꾼 내용은 오른쪽 아래 창에 남습니다. 계속할까요?")) return;
@@ -85,6 +88,64 @@ export async function render({ main, params = [] }) {
       pop.dlg.classList.add("modal-fit", "modal-mid");
     };
 
+    const renamePopup = (s, done) => {
+      const popMsg = h("div");
+      const input = h("input", { value: s.name, "aria-label": "과목 이름", style: "width:100%;padding:9px 10px;border:1px solid var(--line);border-radius:5px" });
+      const ok = h("button", { type: "button", class: "btn primary" }, "수정");
+      const pop = modal("과목명 수정", h("section", { class: "box", style: "margin:0" }, popMsg,
+        h("label", { class: "form-field" }, h("b", {}, "과목 이름"), input),
+        h("p", { class: "muted" }, "바꾸면 학과 커리큘럼·로드맵·강사 소개 등 사이트 전체에서 새 이름이 보입니다(바로 반영). 같은 종류(일반/방학 특강) 안에서 겹치는 이름은 쓸 수 없습니다."),
+        h("div", { class: "actions" }, ok)));
+      pop.dlg.classList.add("modal-small");
+      ok.onclick = () => busy(ok, popMsg, async () => {
+        if (!input.value.trim()) throw new Error("과목 이름을 입력해주세요");
+        await data.call("comsw_v4_rename_subject", { p_id: s.id, p_name: input.value.trim() });
+        pop.close();
+        done();
+      });
+      input.focus();
+    };
+
+    // 학과 순서·공개: 알약을 끌어서 순서, 학과명 수정 옆 스위치로 공개/비공개 → 오른쪽 아래 창으로 반영
+    const deptBase = { order: cat.departments.map((d) => d.id), active: Object.fromEntries(cat.departments.map((d) => [d.id, d.is_active !== false])) };
+    const deptMeta = JSON.parse(JSON.stringify(deptBase));
+    track({
+      id: "departments", slot: "departments", title: "학과 순서·공개", baseline: deptBase,
+      read: () => deptMeta, write: (x) => { deptMeta.order = [...x.order]; deptMeta.active = { ...x.active }; draw(); },
+      apply: (x) => data.call("comsw_v4_save_departments", { p_items: x.order.map((id, i) => ({ id, sort_order: i, is_active: x.active[id] !== false })) }),
+      onApplied: reload,
+    });
+    let dragDept = null;
+    const deptChips = () => {
+      const row = h("div", { class: "chips dept-chips" });
+      const clear = () => row.querySelectorAll(".drop-before,.drop-after").forEach((x) => x.classList.remove("drop-before", "drop-after"));
+      const byId = new Map(cat.departments.map((d) => [d.id, d]));
+      deptMeta.order.forEach((id, i) => {
+        const d = byId.get(id);
+        if (!d) return;
+        const b = h("button", {
+          type: "button", draggable: "true", class: deptMeta.active[id] === false ? "off" : null, "aria-pressed": String(id === state.dept),
+          title: `${d.name}${deptMeta.active[id] === false ? " (비공개)" : ""} · 끌어서 순서 바꾸기`,
+          onclick: () => { if (!canSwitch()) return; state.dept = id; draw(); },
+          ondragstart: (e) => { dragDept = id; b.classList.add("dragging"); e.dataTransfer?.setData("text/plain", id); },
+          ondragend: () => { dragDept = null; b.classList.remove("dragging"); clear(); },
+          ondragover: (e) => { if (!dragDept) return; e.preventDefault(); const r = b.getBoundingClientRect(); clear(); b.classList.add(e.clientX > r.left + r.width / 2 ? "drop-after" : "drop-before"); },
+          ondrop: (e) => {
+            e.preventDefault();
+            if (!dragDept) return;
+            const from = deptMeta.order.indexOf(dragDept);
+            const to = i + (b.classList.contains("drop-after") ? 1 : 0);
+            deptMeta.order = moveItem(deptMeta.order, from, to);
+            dragDept = null;
+            draw();
+          },
+        }, d.name);
+        row.append(b);
+      });
+      row.append(h("button", { type: "button", class: "add-chip", onclick: () => deptPopup(null) }, "+ 학과 추가"));
+      return row;
+    };
+
     // 학과 추가·이름 수정 팝업(바로 반영)
     const deptPopup = (d) => {
       const popMsg = h("div");
@@ -112,11 +173,10 @@ export async function render({ main, params = [] }) {
         const dept = cat.departments.find((d) => d.id === state.dept);
         const ordered = deptOrder(cat.links.filter((l) => l.department_id === state.dept), subjects);
         view = [
-          h("div", { class: "chips" },
-            cat.departments.map((d) => h("button", { type: "button", "aria-pressed": String(d.id === state.dept), onclick: () => { if (!canSwitch()) return; state.dept = d.id; draw(); } }, d.name)),
-            h("button", { type: "button", class: "add-chip", onclick: () => deptPopup(null) }, "+ 학과 추가")),
+          deptChips(),
           h("div", { style: "height:14px" }),
-          dept ? deptLayout(dept, ordered, subjects, { msg, reload, stepPill, stepsOf: (id) => { const st = stepsOf(id); return st.length === 4 ? st : []; }, openSubject: (id) => openSubject(subjects.find((x) => x.id === id)), rename: () => deptPopup(dept) })
+          dept ? deptLayout(dept, ordered, subjects, { msg, reload, stepPill, stepsOf: (id) => { const st = stepsOf(id); return st.length === 4 ? st : []; }, openSubject: (id) => openSubject(subjects.find((x) => x.id === id)), rename: () => deptPopup(dept),
+            activeSwitch: toggleSwitch(deptMeta.active[dept.id] !== false, `${dept.name} 홈페이지 공개`, (next) => { deptMeta.active[dept.id] = next; draw(); }) })
             : box(null, fail("학과가 없습니다. [+ 학과 추가]로 만들어주세요.")),
         ];
       } else if (state.tab === "subjects") {

@@ -21,7 +21,7 @@ export const months = (duration) => String(duration ?? "").match(/\d+(\.\d+)?/)?
 export const linesFromSteps = (steps) => steps.map((w, i) => `${String(i + 1).padStart(2, "0")} ${(w.summary || w.written || "").trim()}`).join("\n");
 const infoOf = (s) => ({ duration: s.duration ?? "", dept_curriculum: s.dept_curriculum ?? "", program: s.program ?? "", level: s.level ?? "" });
 
-export function deptLayout(dept, ordered, allSubjects, { reload, stepPill, openSubject, rename, stepsOf = () => [], msg }) {
+export function deptLayout(dept, ordered, allSubjects, { reload, stepPill, openSubject, rename, stepsOf = () => [], msg, activeSwitch = null }) {
   let list = [...ordered];
   const listEl = h("div", { class: "drag-list" });
   const add = h("select", { "aria-label": "넣을 과목" });
@@ -124,7 +124,8 @@ export function deptLayout(dept, ordered, allSubjects, { reload, stepPill, openS
   return box(null,
     h("div", { class: "row" },
       h("div", { class: "actions" }, h("h3", { style: "margin:0" }, `${dept.name} · 과목 ${ordered.length}개`),
-        h("button", { type: "button", class: "btn", onclick: rename }, "학과명 수정")),
+        h("button", { type: "button", class: "btn", onclick: rename }, "학과명 수정"),
+        activeSwitch ? h("span", { class: "actions", title: "끄면 홈페이지에서 이 학과를 숨깁니다" }, h("span", { class: "muted" }, "공개"), activeSwitch) : null),
       h("div", { class: "actions" }, h("span", { class: "pill neutral" }, "이 순서 = 학과별 커리큘럼·로드맵 순서"), aiBtn)),
     note("손잡이(⠿)를 끌어서 순서를 바꿉니다. 기간·과정내용·프로그램·학습수준은 공개 '학과 커리큘럼'에 나오고, 같은 과목을 쓰는 모든 학과에 함께 바뀝니다. 과정내용은 직접 쓰거나 체크한 과목만 [AI 정리](공통 4단계를 01~04로). 과목 이름을 누르면 공통 커리큘럼이 열립니다."),
     listEl, h("div", { class: "actions", style: "margin-top:12px" }, add));

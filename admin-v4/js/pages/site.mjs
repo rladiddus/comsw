@@ -64,7 +64,7 @@ export async function render({ main }) {
             h("div", { class: "two" }, box(null, left), box("미리보기", prev))];
         }
       } else {
-        view = [menuEditor(menus, trackTab)];
+        view = [menuEditor(menus, trackTab, () => render({ main }))];
       }
       out.replaceChildren(banner, msg, tabs([["main", "메인 화면"], ["dept", "학과 대표 화면"], ["loading", "로딩 화면"], ["menu", "하단 메뉴"]], state.tab, (t) => { if (!canSwitch()) return; state.tab = t; msg.replaceChildren(); draw(); }), ...[view].flat());
     };
@@ -136,11 +136,12 @@ function listEditor(items, { url, text, textLabel, kind, video = false, tracked 
 }
 
 // 하단 메뉴: 홈페이지처럼 [왼쪽 메뉴들] ● [오른쪽 메뉴들], 끌어서 좌우·순서(놓을 자리 경계에 점선), 이름은 [수정] 팝업
-function menuEditor(menus, trackTab) {
+function menuEditor(menus, trackTab, reload) {
   // 상태 = 좌우 순서대로 [{id, label, side, sort_order}] (양쪽 모두 왼쪽→오른쪽이 순서 0, 1, 2…)
-  const norm = (arr) => ["left", "right"].flatMap((side) => arr.filter((m) => m.side === side).sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0)).map((m, i) => ({ id: m.id, label: m.label ?? "", side, sort_order: i })));
+  const norm = (arr) => ["left", "right"].flatMap((side) => arr.filter((m) => m.side === side).sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0))
+    .map((m, i) => ({ id: m.id, label: m.label ?? "", side, sort_order: i, is_active: m.is_active !== false })));
   const base = norm(menus);
-  const items = clone(base).map((m) => ({ ...m, name: menus.find((x) => x.id === m.id)?.name, is_active: menus.find((x) => x.id === m.id)?.is_active }));
+  const items = clone(base).map((m) => ({ ...m, name: menus.find((x) => x.id === m.id)?.name }));
   const side = (s) => items.filter((m) => m.side === s).sort((a, b) => a.sort_order - b.sort_order);
   let dragId = null;
   const bar = h("div", { class: "menu-bar" });
@@ -179,6 +180,8 @@ function menuEditor(menus, trackTab) {
       },
     },
     h("span", { class: "drag-handle", "aria-hidden": "true" }, "⠿"), h("b", {}, m.label || m.name),
+    // 켜기·끄기: 끄면 홈페이지에서 숨김(회색 글자)
+    toggleSwitch(m.is_active !== false, `${m.label || m.name} 메뉴 홈페이지에 보이기`, (next) => { m.is_active = next; drawBar(); check(); }),
     h("button", { type: "button", class: "btn small", onclick: () => rename(m) }, "수정"));
     return el;
   };
@@ -192,7 +195,13 @@ function menuEditor(menus, trackTab) {
     h("div", { class: "menu-center", "aria-hidden": "true" }, "●"),
     h("div", {}, h("h4", {}, "오른쪽"), zone("right")));
   drawBar();
-  trackTab("menu", "하단 메뉴", base, () => norm(items).map((m) => ({ ...m, label: m.label.trim() })),
-    (x) => { for (const m of x) Object.assign(items.find((y) => y.id === m.id) ?? {}, m); drawBar(); }, (x) => ({ items: x }));
-  return box("하단 메뉴 배치", note("홈페이지와 같은 모양입니다(가운데 ● = 메뉴 버튼). 메뉴를 끌어서 왼쪽·오른쪽과 순서를 바꾸고, 이름은 [수정]으로 고칩니다. 누르면 가는 페이지는 그대로입니다."), bar);
+  // 메뉴는 켜기·끄기까지 저장하는 전용 함수로(comsw_v4_save_menus)
+  track({
+    id: "site:menu", slot: "site", title: "하단 메뉴", baseline: base,
+    read: () => norm(items).map((m) => ({ ...m, label: m.label.trim() })),
+    write: (x) => { for (const m of x) Object.assign(items.find((y) => y.id === m.id) ?? {}, m); drawBar(); },
+    apply: (x) => data.call("comsw_v4_save_menus", { p_items: x }),
+    onApplied: reload,
+  });
+  return box("하단 메뉴 배치", note("홈페이지와 같은 모양입니다(가운데 ● = 메뉴 버튼). 메뉴를 끌어서 왼쪽·오른쪽과 순서를 바꾸고, 스위치를 끄면 홈페이지에서 숨깁니다(회색 글자). 이름은 [수정]으로 고칩니다. 누르면 가는 페이지는 그대로입니다."), bar);
 }

@@ -14,9 +14,9 @@ export async function render({ main }) {
   const body = h("div");
   main.append(body);
   await fill(body, async () => {
-    const [people, depts, links, drafts, rows, cat] = await Promise.all([
+    const [people, depts, links, drafts, rows, cat, isubs] = await Promise.all([
       data.instructors(), data.all("departments"), data.instructorDepartments(), data.profileDrafts(),
-      data.curricula((q) => q.order("sort_order", { nullsFirst: false })), data.catalog(),
+      data.curricula((q) => q.order("sort_order", { nullsFirst: false })), data.catalog(), data.all("instructor_subjects"),
     ]);
     const deptName = new Map(depts.map((d) => [d.id, d.name]));
     const units = curriculumUnits(rows);
@@ -61,6 +61,8 @@ export async function render({ main }) {
       const inner = h("div", { class: "modal-body" });
       const popMsg = h("div");
       const editBtn = h("button", { type: "button", class: "btn primary", hidden: true }, "수정");
+      // 프로필 탭: [정보 수정] = 학과장·관리자가 강사 정보를 직접 고침(바로 반영)
+      const infoBtn = h("button", { type: "button", class: "btn primary", hidden: true, onclick: () => instructorForm(p, { cat, links, isubs, reload }) }, "정보 수정");
       const aiHead = h("button", { type: "button", class: "btn", hidden: true }, "AI 문장 다듬기"); // 수정 중일 때 [수정] 왼쪽
       const again = () => {
         inner.replaceChildren(popMsg,
@@ -68,13 +70,14 @@ export async function render({ main }) {
           tabs([["profile", "프로필"], ["curriculum", "커리큘럼"]], keep.tab, (t) => { keep.tab = t; again(); }),
           h("div", { class: "modal-main" }, keep.tab === "profile" ? h("section", { class: "box profile-box" }, profile(p, { msg: popMsg, reload })) : curriculum(p, cat, { msg: popMsg, reload, again, editBtn, aiHead })));
         if (keep.tab === "profile") { editBtn.hidden = true; aiHead.hidden = true; }
+        infoBtn.hidden = keep.tab !== "profile";
       };
       again();
       pop?.close();
       pop = modal(p.name, inner, {
         beforeClose: () => !p.units.some((u) => unsaved(`curriculum:${u.key}`)) || confirm("임시 저장하지 않은 바뀐 내용이 있습니다. 닫으면 사라집니다. 닫을까요?"),
         onClose: () => { for (const u of p.units) { untrack(`curriculum:${u.key}`); work.delete(u.key); } keep.id = null; keep.edit = null; pop = null; redrawPop = null; },
-        actions: [aiHead, editBtn],
+        actions: [infoBtn, aiHead, editBtn],
       });
       // 모든 강사 팝업이 같은 너비: 왼쪽 과목 칸 = 가장 긴 과목 이름이 다 보이는 너비, 오른쪽 = 단계 4개
       pop.dlg.style.setProperty("--picks", `${picksWidth}px`);
@@ -94,6 +97,8 @@ export async function render({ main }) {
     draw();
     const again = view.find((p) => p.id === keep.id);
     if (again) setTimeout(() => openPop(again)); // 확정 뒤 다시 불러오면 보던 팝업을 다시 연다
+    // [+ 강사 추가]: 거르기 줄 오른쪽. 학과장·관리자가 직접 입력(바로 반영)
+    filter.el.append(h("button", { type: "button", class: "btn primary", style: "margin-left:auto", onclick: () => instructorForm(null, { cat, links, isubs, reload }) }, "+ 강사 추가"));
     return [await publishBanner(data.unpublished), msg, filter.el, listBox];
   });
 }
@@ -252,4 +257,53 @@ function curriculum(p, cat, { msg, reload, again, editBtn, aiHead }) {
       h("div", { class: "steps" }, rows.map(card)),
       editing && aiHead ? null : h("div", { class: "actions end", style: "margin-top:12px" }, aiBtn, ok));
   })[0]);
+}
+
+// 강사 추가·정보 수정 팝업(학과장·관리자가 직접 입력, [저장]하면 바로 반영). p = 기존 강사(없으면 새로)
+function instructorForm(p, { cat, links, isubs, reload }) {
+  const f = {
+    name: p?.name ?? "", career: p?.career ?? "", message: p?.message ?? "", photo_url: p?.photo_url ?? "", gender: p?.gender ?? "",
+    is_listed: p ? !!p.is_listed : false,
+    departments: p ? links.filter((l) => l.instructor_id === p.id).map((l) => l.department_id) : [],
+    subjects: p ? isubs.filter((x) => x.instructor_id === p.id).sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0)).map((x) => x.subject_id) : [],
+  };
+  const subjects = data.general(cat).sort((a, b) => a.name.localeCompare(b.name, "ko"));
+  const popMsg = h("div");
+  const photo = h("div");
+  const drawPhoto = () => photo.replaceChildren(h("button", { type: "button", class: "img-pick", title: "눌러서 사진 바꾸기(파일 고르기·끌어다 놓기)", "aria-label": "강사 사진 바꾸기",
+    onclick: async () => { const url = await pickImage("강사 사진", "image"); if (url) { f.photo_url = url; drawPhoto(); } } },
+  f.photo_url ? media(f.photo_url) : h("div", { class: "media" }, h("span", { class: "muted" }, "사진 없음 · 눌러서 올리기"))));
+  drawPhoto();
+  const deptBox = h("div", { class: "chips" }, cat.departments.map((d) => h("label", { class: "check-chip" },
+    h("input", { type: "checkbox", checked: f.departments.includes(d.id), onchange: (e) => { f.departments = e.target.checked ? [...f.departments, d.id] : f.departments.filter((x) => x !== d.id); } }), d.name)));
+  const subjList = h("div", { class: "check-list" });
+  let q = "";
+  const drawSubjects = () => subjList.replaceChildren(...subjects.filter((s) => f.subjects.includes(s.id) || hasText(s.name, q)).map((s) => h("label", {},
+    h("input", { type: "checkbox", checked: f.subjects.includes(s.id), onchange: (e) => { f.subjects = e.target.checked ? [...f.subjects, s.id] : f.subjects.filter((x) => x !== s.id); } }), s.name)));
+  drawSubjects();
+  const field = (label, el) => h("label", { class: "form-field" }, h("b", {}, label), el);
+  const ok = h("button", { type: "button", class: "btn primary" }, "저장");
+  const body = h("div", { class: "modal-body" }, popMsg, h("div", { class: "modal-main" }, h("section", { class: "box", style: "margin:0" },
+    h("div", { class: "inst-form" },
+      h("div", {},
+        field("이름", h("input", { value: f.name, "aria-label": "강사 이름", oninput: (e) => { f.name = e.target.value; } })),
+        h("div", { class: "row", style: "margin-bottom:14px" },
+          field("성별", h("select", { "aria-label": "성별", onchange: (e) => { f.gender = e.target.value; } },
+            [...new Set(["", "남", "여", f.gender])].map((g) => h("option", { value: g, selected: g === f.gender }, g || "선택 안 함")))),
+          h("div", { class: "actions" }, h("span", {}, "홈페이지 노출"), toggleSwitch(f.is_listed, "홈페이지 노출", (next) => { f.is_listed = next; }))),
+        h("div", { class: "form-field" }, h("b", {}, "학과"), deptBox),
+        h("div", { class: "form-field" }, h("b", {}, "담당 과목"),
+          h("input", { type: "search", placeholder: "과목 검색", "aria-label": "담당 과목 검색", oninput: (e) => { q = e.target.value.trim(); drawSubjects(); } }), subjList),
+        field("경력", h("textarea", { rows: 6, value: f.career, "aria-label": "경력", oninput: (e) => { f.career = e.target.value; } })),
+        field("수강생에게 한마디", h("textarea", { rows: 3, value: f.message, "aria-label": "한마디", oninput: (e) => { f.message = e.target.value; } }))),
+      h("div", {}, h("b", {}, "사진"), photo, h("p", { class: "muted" }, "사진을 누르면 파일을 고르거나 끌어다 놓을 수 있습니다."))))));
+  const pop = modal(p ? `${p.name} 정보 수정` : "강사 추가", body, { actions: [ok] });
+  pop.dlg.classList.add("modal-fit", "modal-mid");
+  ok.onclick = () => busy(ok, popMsg, async () => {
+    if (!f.name.trim()) throw new Error("강사 이름을 입력해주세요");
+    if (!confirm(`${f.name.trim()} 강사 정보를 저장할까요? 홈페이지에 바로 반영됩니다.`)) return;
+    await data.call("comsw_v4_save_instructor", { p_id: p?.id ?? null, p: { ...f, name: f.name.trim() } });
+    pop.close();
+    reload();
+  });
 }

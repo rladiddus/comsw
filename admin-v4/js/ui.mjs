@@ -157,7 +157,8 @@ export const hasText = (text, q) => !q || String(text ?? "").toLowerCase().repla
 // 켜기·끄기 스위치(role=switch). onToggle은 새 값으로 불림.
 export const toggleSwitch = (on, label, onToggle) => h("button", {
   type: "button", role: "switch", class: "switch", "aria-checked": String(!!on), "aria-label": label, title: label,
-  onclick: (e) => { e.stopPropagation(); onToggle(!on, e.currentTarget); },
+  // 지금 표시 상태에서 뒤집는다(다시 그리지 않는 화면에서도 여러 번 누를 수 있게)
+  onclick: (e) => { e.stopPropagation(); const el = e.currentTarget; const next = el.getAttribute("aria-checked") !== "true"; el.setAttribute("aria-checked", String(next)); onToggle(next, el); },
 }, h("span", { class: "knob" }));
 
 // 스크롤 지키기(2026-11-20 사용자 요청): 입력·선택·클릭 뒤 화면을 다시 그려도 스크롤은 사용자가 움직일 때만.

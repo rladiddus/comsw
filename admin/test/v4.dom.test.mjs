@@ -843,15 +843,15 @@ test("사이트 편집: 학과 대표·로딩은 [수정] 팝업(주소 안 보�
   target.dispatchEvent(new Ev("drop", { bubbles: true, cancelable: true }));
   await flush();
   assert.deepEqual(chips(), [["학과 커리큘럼"], ["특강", "로드맵"]], "왼쪽 로드맵을 오른쪽 특강 뒤로");
-  [...main.querySelectorAll(".menu-chip button")].find((b) => b.closest(".menu-chip").textContent.includes("특강")).click();
+  [...main.querySelectorAll(".menu-chip button")].find((b) => b.textContent === "수정" && b.closest(".menu-chip").textContent.includes("특강")).click();
   dlg = [...document.querySelectorAll("dialog.modal")].at(-1);
   type(dlg.querySelector("input[aria-label='보이는 이름']"), "특강·세미나");
   [...dlg.querySelectorAll("button")].find((b) => b.textContent === "확인").click();
   await flush();
   barBtn("사이트 적용").click();
   await flush();
-  const [, args] = calls.find(([n, a]) => n === "comsw_v4_save_site" && a.p_tab === "menu");
-  assert.deepEqual(args.p.items.map((m) => [m.id, m.side, m.sort_order, m.label]), [["m2", "left", 0, ""], ["m3", "right", 0, "특강·세미나"], ["m1", "right", 1, ""]]);
+  const [, args] = calls.find(([n]) => n === "comsw_v4_save_menus");
+  assert.deepEqual(args.p_items.map((m) => [m.id, m.side, m.sort_order, m.label, m.is_active]), [["m2", "left", 0, "", true], ["m3", "right", 0, "특강·세미나", true], ["m1", "right", 1, "", true]]);
 });
 
 test("떠 있는 창 [취소]: 방금 바꾼 것만 되돌림(임시 저장 전이면 공개 상태로, 임시 저장 뒤면 그 상태로), 임시 저장 뒤엔 [되돌리기]", async () => {
@@ -1037,4 +1037,87 @@ test("사용방법: 학과장·관리자로 로그인한 브라우저는 두 편
     assert.ok(t.teacherShown && !t.tabs);
     assert.equal(t.title, "컴수원 강사 사용방법");
   }
+});
+
+test("하단 메뉴 켜기·끄기 스위치, 학과 알약 끌어서 순서·공개 스위치, 과목명 수정(수정 중에만), 강사 추가·정보 수정 팝업", async () => {
+  document.querySelectorAll("dialog").forEach((d) => d.remove());
+  const fake = db();
+  const extra = { menus: [{ id: "m1", name: "로드맵", side: "left", sort_order: 0, is_active: true }] };
+  const local = fakeSupabase({ ...extra });
+  const from0 = fake.from.bind(fake);
+  fake.from = (t) => (t in extra ? local.from(t) : from0(t));
+  const calls = [];
+  fake.rpc = async (name, args) => { calls.push([name, args]); return { data: name === "comsw_v4_unpublished" ? false : "new", error: null }; };
+  let main = await open("site", undefined, fake);
+  [...main.querySelectorAll(".tabs button")].find((b) => b.textContent === "하단 메뉴").click();
+  main.querySelector(".menu-chip button[role=switch]").click();
+  await flush();
+  barBtn("사이트 적용").click();
+  await flush();
+  assert.equal(calls.find(([n]) => n === "comsw_v4_save_menus")[1].p_items[0].is_active, false, "끄면 저장(홈페이지가 숨김)");
+
+  main = await open("courses", undefined, fake);
+  [...main.querySelectorAll(".tabs button")].find((b) => b.textContent === "학과 구성").click();
+  const chips = () => [...main.querySelectorAll(".dept-chips button[draggable]")].map((b) => b.textContent);
+  assert.deepEqual(chips(), ["건축학과", "시각학과"]);
+  const Ev = dom.window.Event;
+  const bs = main.querySelectorAll(".dept-chips button[draggable]");
+  bs[1].dispatchEvent(new Ev("dragstart", { bubbles: true }));
+  bs[0].dispatchEvent(Object.assign(new Ev("dragover", { bubbles: true, cancelable: true }), { clientX: 0 }));
+  bs[0].dispatchEvent(new Ev("drop", { bubbles: true, cancelable: true }));
+  await flush();
+  assert.deepEqual(chips(), ["시각학과", "건축학과"]);
+  const sw = [...main.querySelectorAll("button[role=switch]")].find((b) => b.getAttribute("aria-label").includes("홈페이지 공개"));
+  sw.click();
+  await flush();
+  barBtn("사이트 적용").click();
+  await flush();
+  const dep = calls.find(([n]) => n === "comsw_v4_save_departments")[1].p_items;
+  assert.deepEqual(dep.map((x) => [x.id, x.sort_order, x.is_active]), [["d2", 0, true], ["d1", 1, false]], "고른 학과(건축학과) 비공개");
+
+  main = await open("courses", undefined, fake);
+  [...main.querySelectorAll(".tabs button")].find((b) => b.textContent === "전체 과목").click();
+  [...main.querySelectorAll("tr.pick")].find((tr) => tr.textContent.includes("캐드1")).click();
+  await flush();
+  let dlg = document.querySelector("dialog.modal");
+  const rn = () => [...dlg.querySelectorAll("button")].find((b) => b.textContent === "과목명 수정");
+  assert.ok(rn().hidden, "보기 때는 숨김");
+  [...dlg.querySelectorAll(".modal-head button")].find((b) => b.textContent === "수정").click();
+  await flush();
+  assert.ok(!rn().hidden);
+  rn().click();
+  const rp = [...document.querySelectorAll("dialog.modal")].at(-1);
+  type(rp.querySelector("input[aria-label='과목 이름']"), "캐드 기초");
+  [...rp.querySelectorAll("button")].find((b) => b.textContent === "수정").click();
+  await flush();
+  assert.deepEqual(calls.find(([n]) => n === "comsw_v4_rename_subject")[1], { p_id: "s1", p_name: "캐드 기초" });
+  document.querySelectorAll("dialog").forEach((d) => d.remove());
+
+  main = await open("instructors", undefined, fake);
+  [...main.querySelectorAll("button")].find((b) => b.textContent === "+ 강사 추가").click();
+  dlg = [...document.querySelectorAll("dialog.modal")].at(-1);
+  type(dlg.querySelector("input[aria-label='강사 이름']"), "새강사");
+  [...dlg.querySelectorAll(".check-chip input")][0].click();
+  const lsw = dlg.querySelector("button[role=switch]");
+  lsw.click(); lsw.click(); lsw.click();
+  [...dlg.querySelectorAll("button")].find((b) => b.textContent === "저장").click();
+  await flush();
+  const ins = calls.find(([n]) => n === "comsw_v4_save_instructor")[1];
+  assert.equal(ins.p_id, null);
+  assert.equal(ins.p.name, "새강사");
+  assert.deepEqual(ins.p.departments, ["d1"]);
+  assert.equal(ins.p.is_listed, true, "스위치 여러 번 눌러도 마지막 상태");
+  document.querySelectorAll("dialog").forEach((d) => d.remove());
+  main = await open("instructors", undefined, fake);
+  [...main.querySelectorAll("tr.pick")][0].click();
+  await flush();
+  dlg = document.querySelector("dialog.modal");
+  [...dlg.querySelectorAll(".tabs button")].find((b) => b.textContent === "프로필").click();
+  const info = [...dlg.querySelectorAll(".modal-head button")].find((b) => b.textContent === "정보 수정");
+  assert.ok(info && !info.hidden, "프로필 탭에 [정보 수정]");
+  info.click();
+  const form = [...document.querySelectorAll("dialog.modal")].at(-1);
+  assert.equal(form.querySelector("input[aria-label='강사 이름']").value, "김강사");
+  assert.ok(form.querySelector(".check-chip input").checked, "연결된 학과 체크");
+  document.querySelectorAll("dialog").forEach((d) => d.remove());
 });

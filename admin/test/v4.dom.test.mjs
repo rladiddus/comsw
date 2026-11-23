@@ -955,3 +955,23 @@ test("내 커리큘럼 단계 이미지: 눌러서 이미지 바꾸기 팝업, �
   assert.match(picker.textContent, /끌어다 놓거나/);
   picker.remove();
 });
+
+test("내 커리큘럼 고르기: 한 줄 드롭다운 — 수업 구분 → 학과(일반)/방학 특강 → 과목", async () => {
+  document.querySelectorAll("dialog").forEach((d) => d.remove());
+  const main = await open("mine", { uid: "u1", role: "teacher" });
+  const pick = (label, v) => { const s = main.querySelector(`select[aria-label='${label}']`); s.value = v; s.dispatchEvent(new dom.window.Event("change", { bubbles: true })); };
+  const opts = (label) => [...(main.querySelector(`select[aria-label='${label}']`)?.options ?? [])].map((o) => o.textContent);
+  const row = main.querySelector(".pick-row");
+  assert.ok(row, "한 줄");
+  assert.deepEqual(opts("수업 구분"), ["일반 수업", "방학 특강"]);
+  assert.deepEqual(opts("학과"), ["건축학과"], "일반이면 내 학과");
+  assert.deepEqual(opts("과목").map((t) => t.replace(" ✓", "")), ["캐드1", "캐드2"]);
+  pick("수업 구분", "vacation");
+  await flush();
+  assert.equal(main.querySelector("select[aria-label='학과']"), null);
+  assert.deepEqual(opts("방학 특강"), ["2026 겨울"]);
+  assert.deepEqual(opts("과목").map((t) => t.replace(" ✓", "")), ["캐드1"], "그 특강에 든 과목만");
+  assert.match(main.textContent, /캐드1 · 2026 겨울/);
+  pick("수업 구분", "general");
+  await flush();
+});

@@ -117,13 +117,20 @@ export async function render({ main, session }) {
       const sub = pool.find((s) => s.id === state.subject) ?? pool.find((s) => chosen.has(s.id)) ?? pool[0];
       state.subject = sub?.id ?? null;
       const set = setFor();
-      const picker = [
-        box("내 학과", tabs(depts.map((d) => [d.id, d.name]), state.dept, (id) => { if (!canSwitch()) return; editors.clear(); state.dept = id; state.subject = null; draw(); }, "chips")),
-        box("수업 구분", tabs(scopes, state.scope, (v) => { if (!canSwitch()) return; editors.clear(); state.scope = v; state.subject = null; draw(); }, "chips")),
-        box("과목", pool.length ? h("div", { class: "chips" }, pool.map((s) => h("button", {
-          type: "button", "aria-pressed": String(s.id === sub?.id), onclick: () => { if (s.id !== state.subject && !canSwitch()) return; editors.clear(); state.subject = s.id; draw(); },
-        }, s.name, chosen.has(s.id) ? " ✓" : ""))) : empty("이 구분에 과목이 없습니다")),
-      ];
+      // 한 줄 드롭다운: 수업 구분 → (일반) 학과 / (방학 특강) 특강 → 과목. 바꾸기 전 임시 저장 안 한 변경이 있으면 묻는다.
+      const go = (fn) => (e) => { if (!canSwitch()) { draw(); return; } editors.clear(); fn(e.target.value); draw(); };
+      const kind = state.scope === "general" ? "general" : "vacation";
+      const select = (label, value, opts, onChange) => h("label", { class: "form-field" }, h("b", {}, label),
+        h("select", { "aria-label": label, onchange: go(onChange), disabled: !opts.length },
+          opts.length ? opts.map(([v, l]) => h("option", { value: v, selected: v === value }, l)) : h("option", { value: "" }, "없음")));
+      const picker = [box(null, h("div", { class: "pick-row" },
+        select("수업 구분", kind, [["general", "일반 수업"], ...(cat.vacations.length ? [["vacation", "방학 특강"]] : [])],
+          (v) => { state.scope = v === "general" ? "general" : cat.vacations[0].id; state.subject = null; }),
+        kind === "general"
+          ? select("학과", state.dept, depts.map((d) => [d.id, d.name]), (v) => { state.dept = v; state.subject = null; })
+          : select("방학 특강", state.scope, cat.vacations.map((v) => [v.id, v.name]), (v) => { state.scope = v; state.subject = null; }),
+        select("과목", sub?.id, pool.map((s) => [s.id, `${s.name}${chosen.has(s.id) ? " ✓" : ""}`]), (v) => { state.subject = v; })),
+        pool.length ? null : empty("이 구분에 과목이 없습니다"))];
       if (!sub) return out.replaceChildren(msg, ...picker);
       if (!set) return out.replaceChildren(msg, ...picker, box(null, fail("이 학과의 커리큘럼 탭이 없어 제출할 수 없습니다. 학과장에게 알려주세요.")));
       const ed = editorFor(set, sub);

@@ -80,23 +80,30 @@ async function open(file, session = { uid: "u1", role: "head" }, fake = db()) {
 
 test("준비물: 캐드1·캐드2를 '캐드' 하나로 묶고 겹치는 것은 한 번, 확정은 기준 과목으로·http(s) 아닌 링크는 막음", async () => {
   globalThis.confirm = () => true;
+  document.querySelectorAll("dialog").forEach((d) => d.remove());
   const main = await open("prep");
-  const bases = [...main.querySelectorAll(".chips button")].map((b) => b.textContent);
-  assert.deepEqual(bases, ["아트 드로잉", "캐드"].sort((a, b) => a.localeCompare(b, "ko")));
-  [...main.querySelectorAll(".chips button")].find((b) => b.textContent === "캐드").click();
-  assert.match(main.textContent, /적용 과목: 캐드1, 캐드2/);
-  const contents = [...main.querySelectorAll("input[aria-label='내용']")].map((i) => i.value);
+  // 강사 페이지처럼 표: 기준 과목 한 줄, 적용 과목·공통 준비물 개수
+  const rows = [...main.querySelectorAll("tr.pick")];
+  assert.deepEqual(rows.map((tr) => tr.querySelector(".subject-chip").textContent), ["아트 드로잉", "캐드"].sort((a, b) => a.localeCompare(b, "ko")));
+  const cad = rows.find((tr) => tr.textContent.includes("캐드1, 캐드2"));
+  assert.match(cad.textContent, /준비물 1 · AI 도구 1/);
+  cad.click();
+  await flush();
+  const main2 = [...document.querySelectorAll("dialog.modal")].at(-1);
+  assert.match(main2.textContent, /적용 과목: 캐드1, 캐드2/);
+  const contents = [...main2.querySelectorAll("input[aria-label='내용']")].map((i) => i.value);
   assert.deepEqual(contents, ["삼각자", "ChatGPT"], "겹치는 삼각자는 한 번");
   assert.equal(document.querySelector(".change-bar")?.hidden ?? true, true, "바꾸기 전에는 창 없음");
-  type(main.querySelector("input[aria-label='내용']"), "삼각자 2개");
+  type(main2.querySelector("input[aria-label='내용']"), "삼각자 2개");
   await flush();
   assert.ok(barBtn("임시 저장") && barBtn("사이트 적용"), "바꾸면 [임시 저장]/[사이트 적용]");
   barBtn("사이트 적용").click();
   await flush();
   assert.match(document.querySelector(".change-bar").textContent, /http:\/\/ 또는 https:\/\/로 시작/);
-  type(main.querySelector("input[aria-label='내용']"), "삼각자");
+  type(main2.querySelector("input[aria-label='내용']"), "삼각자");
   await flush();
   assert.equal(document.querySelector(".change-bar").hidden, true, "원래대로 돌아가면 창이 사라짐");
+  document.querySelectorAll("dialog").forEach((d) => d.remove());
 });
 
 test("강사 준비물 칸을 항목으로(교재·물품은 쉼표·줄바꿈, AI는 이름 | 링크)", async () => {
@@ -192,8 +199,11 @@ test("내 커리큘럼: 고치면 [임시 저장]/[학과장에게 제출], 임�
 });
 
 test("되돌리기: 임시 저장한 변경을 버리고 원래 설정으로, 창이 사라짐", async () => {
-  const main = await open("prep");
-  [...main.querySelectorAll(".chips button")].find((b) => b.textContent === "캐드").click();
+  document.querySelectorAll("dialog").forEach((d) => d.remove());
+  const page = await open("prep");
+  [...page.querySelectorAll("tr.pick")].find((tr) => tr.textContent.includes("캐드1, 캐드2")).click();
+  await flush();
+  const main = [...document.querySelectorAll("dialog.modal")].at(-1);
   type(main.querySelector("input[aria-label='내용']"), "자");
   await flush();
   barBtn("임시 저장").click();
@@ -202,6 +212,7 @@ test("되돌리기: 임시 저장한 변경을 버리고 원래 설정으로, �
   await flush();
   assert.equal(main.querySelector("input[aria-label='내용']").value, "삼각자");
   assert.equal(document.querySelector(".change-bar").hidden, true);
+  document.querySelectorAll("dialog").forEach((d) => d.remove());
 });
 
 test("강사 검수: 강사를 누르면 팝업, 커리큘럼은 왼쪽 과목·오른쪽 내용, 4단계가 아니면 확정 잠김", async () => {

@@ -244,3 +244,4 @@
 - 2026-11-23 admin-v4/help.html 추가(#head/#teacher), index.html #helpLink(target _blank), app.mjs 역할별 링크. 기능 바꾸면 help.html 동기화.
 - 2026-11-23 help.html canHead(localStorage) — 아니면 #head 제거. app.mjs 로그인 때 기록·stopApp에서 지움.
 - 2026-11-23 SQL save_departments/rename_subject/save_menus/save_instructor. courses deptMeta 트래커(departments), site 메뉴는 save_menus, instructors instructorForm. ui.toggleSwitch는 aria-checked 기준으로 뒤집음.
+- 2026-11-23 20261123010000 실행 확인, help.html 보강.

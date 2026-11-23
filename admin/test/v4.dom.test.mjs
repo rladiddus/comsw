@@ -288,7 +288,7 @@ test("사이트 편집이 열리고, 방학 특강 과목 구성은 체크한 �
   await site.render({ main });
   await flush();
   [...main.querySelectorAll(".tabs button")].find((b) => b.textContent === "하단 메뉴").click();
-  assert.match(main.textContent, /메뉴 없음/);
+  assert.match(main.textContent, /여기로 끌어 놓기/);
   // 방학 특강: 후보는 방학 특강 과목(만든 곳이 방학 특강이거나 이미 특강에 든 과목)만
   const subs = (await base.from("subjects").select("*")).data;
   const local = fakeSupabase({ subjects: [...subs, { id: "s9", name: "캐드1", is_vacation: true }] });
@@ -798,4 +798,58 @@ test("목록 거르기: 강사(이름 검색·학과·홈페이지 노출), 준�
   assert.deepEqual(bases(), ["아트 드로잉"]);
   type(main.querySelector("input[aria-label='기준 과목 검색']"), "캐");
   assert.match(main.textContent, /조건에 맞는 과목이 없습니다/);
+});
+
+test("사이트 편집: 학과 대표·로딩은 [수정] 팝업(주소 안 보임), 로딩 미리보기 정상, 하단 메뉴는 끌어서 좌우·순서, 이름은 팝업", async () => {
+  document.querySelectorAll("dialog").forEach((d) => d.remove());
+  const fake = db();
+  const extra = {
+    loading_items: [{ id: "L1", image_url: "https://img/l1.png", text: "불러오는 중", is_active: true }],
+    menus: [{ id: "m1", name: "로드맵", side: "left", sort_order: 0 }, { id: "m2", name: "학과 커리큘럼", side: "left", sort_order: 1 }, { id: "m3", name: "특강", side: "right", sort_order: 0 }],
+  };
+  const local = fakeSupabase({ ...extra });
+  const from0 = fake.from.bind(fake);
+  fake.from = (t) => (t in extra ? local.from(t) : from0(t));
+  const calls = [];
+  fake.rpc = async (name, args) => { calls.push([name, args]); return { data: name === "comsw_v4_unpublished" ? false : null, error: null }; };
+  const main = await open("site", undefined, fake);
+  const tab = (t) => [...main.querySelectorAll(".tabs button")].find((b) => b.textContent === t).click();
+  tab("학과 대표 화면");
+  assert.ok(!main.querySelector("input[aria-label$='주소']"), "주소 칸 없음");
+  [...main.querySelectorAll("button")].find((b) => b.textContent === "수정").click();
+  let dlg = [...document.querySelectorAll("dialog.modal")].at(-1);
+  assert.ok(dlg.querySelector(".img-pick"), "이미지는 눌러서 바꾸기");
+  type(dlg.querySelector("input[aria-label='영문 이름']"), "ARCHI");
+  [...dlg.querySelectorAll("button")].find((b) => b.textContent === "확인").click();
+  await flush();
+  assert.match(main.textContent, /ARCHI/);
+  assert.ok(barBtn("사이트 적용"), "팝업 [확인] 뒤 오른쪽 아래 창");
+  barBtn("되돌리기")?.click();
+  changes.resetTracking();
+
+  tab("로딩 화면");
+  assert.ok(!main.textContent.includes("[object"), "미리보기 정상");
+  assert.ok(!main.textContent.includes("https://img/l1.png"), "링크 안 보임");
+  assert.ok(![...main.querySelectorAll("button")].some((b) => b.textContent === "↑"), "순서 버튼 없음");
+
+  tab("하단 메뉴");
+  const chips = () => [...main.querySelectorAll(".menu-zone")].map((z) => [...z.querySelectorAll(".menu-chip b")].map((b) => b.textContent));
+  assert.deepEqual(chips(), [["로드맵", "학과 커리큘럼"], ["특강"]]);
+  const Ev = dom.window.Event;
+  const c = main.querySelectorAll(".menu-chip");
+  c[0].dispatchEvent(new Ev("dragstart", { bubbles: true }));
+  const target = main.querySelectorAll(".menu-chip")[2];
+  target.dispatchEvent(Object.assign(new Ev("dragover", { bubbles: true, cancelable: true }), { clientX: 999 }));
+  target.dispatchEvent(new Ev("drop", { bubbles: true, cancelable: true }));
+  await flush();
+  assert.deepEqual(chips(), [["학과 커리큘럼"], ["특강", "로드맵"]], "왼쪽 로드맵을 오른쪽 특강 뒤로");
+  [...main.querySelectorAll(".menu-chip button")].find((b) => b.closest(".menu-chip").textContent.includes("특강")).click();
+  dlg = [...document.querySelectorAll("dialog.modal")].at(-1);
+  type(dlg.querySelector("input[aria-label='보이는 이름']"), "특강·세미나");
+  [...dlg.querySelectorAll("button")].find((b) => b.textContent === "확인").click();
+  await flush();
+  barBtn("사이트 적용").click();
+  await flush();
+  const [, args] = calls.find(([n, a]) => n === "comsw_v4_save_site" && a.p_tab === "menu");
+  assert.deepEqual(args.p.items.map((m) => [m.id, m.side, m.sort_order, m.label]), [["m2", "left", 0, ""], ["m3", "right", 0, "특강·세미나"], ["m1", "right", 1, ""]]);
 });

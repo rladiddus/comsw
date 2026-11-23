@@ -203,6 +203,22 @@ dialog.modal.modal-small { width: min(420px, calc(100vw - 32px)); height: fit-co
 .filter-bar { display: flex; flex-wrap: wrap; gap: 12px; align-items: end; margin-bottom: 14px; padding: 12px 14px; background: var(--paper); border: 1px solid var(--line); border-radius: 8px; }
 .filter-bar label { display: grid; gap: 4px; font-size: 12px; }
 .filter-bar input, .filter-bar select { min-width: 160px; padding: 7px 9px; border: 1px solid var(--line); border-radius: 5px; font-size: 13px; background: var(--paper); color: var(--text); }
+/* 사이트 편집 */
+.site-field { display: grid; gap: 6px; margin: 12px 0; }
+.site-field .media { max-width: 420px; }
+.site-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 10px; }
+.site-card { cursor: pointer; display: grid; gap: 6px; align-content: start; }
+.site-card.on { border-color: var(--green); box-shadow: inset 0 0 0 1px var(--green); }
+.site-card .media img { aspect-ratio: 16 / 10; object-fit: cover; }
+/* 하단 메뉴: 왼쪽 | ● | 오른쪽 */
+.menu-bar { display: grid; grid-template-columns: 1fr auto 1fr; gap: 14px; align-items: end; }
+.menu-zone { display: flex; flex-wrap: wrap; gap: 8px; min-height: 64px; padding: 10px; border: 1px dashed var(--line); border-radius: 8px; align-items: center; }
+.menu-zone.left { justify-content: flex-end; }
+.menu-center { font-size: 26px; color: var(--green); padding-bottom: 18px; }
+.menu-chip { display: flex; align-items: center; gap: 6px; padding: 8px 10px; border: 1px solid var(--line); border-radius: 999px; background: var(--paper); cursor: grab; border-left-width: 1px; border-right-width: 1px; }
+.menu-chip.dragging { opacity: .4; }
+.menu-chip.drop-before { border-left: 3px dashed var(--red); }
+.menu-chip.drop-after { border-right: 3px dashed var(--red); }
 .btn.small { padding: 4px 9px; font-size: 12px; }
 .actions.end { justify-content: flex-end; }
 .img-pick { display: block; width: 100%; padding: 0; border: 0; background: none; cursor: pointer; border-radius: 6px; }
@@ -240,6 +256,7 @@ dialog.blocker p { margin: 14px 0 0; font-weight: 700; font-size: 15px; }
   .top { padding: 12px 16px; }
   h2 { font-size: 22px; }
   .box { padding: 14px; }
-  .menucols { grid-template-columns: 1fr; }
+  .menucols, .menu-bar { grid-template-columns: 1fr; }
+  .menu-center { display: none; }
   input, textarea, select { font-size: 16px; }
 }

@@ -37,7 +37,7 @@ img, video, iframe { max-width: 100%; }
 .side { background: var(--paper); border-right: 1px solid var(--line); padding: 24px 0; position: sticky; top: 0; height: 100vh; overflow-y: auto; } /* 왼쪽 메뉴 고정, 오른쪽만 스크롤 */
 .brand { font-size: 19px; font-weight: 700; letter-spacing: -.05em; padding: 0 21px 28px; }
 .brand span { display: inline-block; width: 11px; height: 17px; background: var(--green); margin-right: 8px; transform: skew(-18deg); }
-.navlabel { font-size: 10px; letter-spacing: .12em; color: var(--sub); margin: 14px 21px 8px; }
+.navlabel { font-size: 12px; font-weight: 800; letter-spacing: .06em; color: var(--green); background: var(--soft); margin: 16px 12px 6px; padding: 7px 10px; border-radius: 5px; } /* 메뉴 묶음(카테고리) 제목: 연두 바탕 + 굵은 글자 */
 .side nav a { display: block; padding: 10px 20px; font-size: 13px; color: var(--sub); text-decoration: none; border-right: 3px solid transparent; }
 .side nav a[aria-current="page"] { background: var(--bg); border-right-color: var(--lime); color: var(--green); font-weight: 700; }
 .work { min-width: 0; }

@@ -87,11 +87,13 @@ function draw() {
     : h("button", { type: "button", class: "btn", onclick: () => run(first, msg, saveAll) }, "임시 저장");
   const labels = [...new Set(dirty.map((t) => t.applyLabel))];
   const apply = h("button", { type: "button", class: "btn primary", onclick: () => run(apply, msg, applyAll) }, labels.join(" · "));
+  // [취소]: 방금 바꾼 것(임시 저장 안 한 것)만 되돌림 — 임시 저장한 게 있으면 그 상태로, 없으면 공개 중인 상태로
+  const cancel = allSaved ? null : h("button", { type: "button", class: "btn", onclick: () => run(cancel, msg, cancelAll) }, "취소");
   bar.hidden = false;
   bar.replaceChildren(
     h("b", {}, allSaved ? "임시 저장한 변경이 있습니다" : "바뀐 설정이 있습니다"),
     h("span", { class: "muted" }, dirty.map((t) => t.title).filter(Boolean).join(", ")),
-    msg, h("div", { class: "actions" }, first, apply));
+    msg, h("div", { class: "actions" }, cancel, first, apply));
 }
 
 async function run(btn, msg, work) {
@@ -111,6 +113,9 @@ async function saveAll() {
     await t.store.save(state);
     t.saved = state;
   }
+}
+async function cancelAll() {
+  for (const t of trackers.filter((x) => !same(x.read(), x.baseline) && !same(x.read(), x.saved))) t.write(clone(t.saved ?? t.baseline));
 }
 async function revert() {
   if (!confirm("임시 저장한 변경을 버리고 원래 설정으로 되돌릴까요?")) return;

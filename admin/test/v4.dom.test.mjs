@@ -853,3 +853,33 @@ test("사이트 편집: 학과 대표·로딩은 [수정] 팝업(주소 안 보�
   const [, args] = calls.find(([n, a]) => n === "comsw_v4_save_site" && a.p_tab === "menu");
   assert.deepEqual(args.p.items.map((m) => [m.id, m.side, m.sort_order, m.label]), [["m2", "left", 0, ""], ["m3", "right", 0, "특강·세미나"], ["m1", "right", 1, ""]]);
 });
+
+test("떠 있는 창 [취소]: 방금 바꾼 것만 되돌림(임시 저장 전이면 공개 상태로, 임시 저장 뒤면 그 상태로), 임시 저장 뒤엔 [되돌리기]", async () => {
+  document.querySelectorAll("dialog").forEach((d) => d.remove());
+  const page = await open("prep");
+  [...page.querySelectorAll("tr.pick")].find((tr) => tr.textContent.includes("캐드1, 캐드2")).click();
+  await flush();
+  const dlg = [...document.querySelectorAll("dialog.modal")].at(-1);
+  const input = () => dlg.querySelector("input[aria-label='내용']");
+  type(input(), "자");
+  await flush();
+  assert.deepEqual([...document.querySelectorAll(".change-bar .actions button")].map((b) => b.textContent), ["취소", "임시 저장", "사이트 적용"]);
+  barBtn("취소").click();
+  await flush();
+  assert.equal(input().value, "삼각자", "공개 상태로");
+  assert.equal(document.querySelector(".change-bar").hidden, true);
+  type(input(), "자");
+  await flush();
+  barBtn("임시 저장").click();
+  await flush();
+  assert.deepEqual([...document.querySelectorAll(".change-bar .actions button")].map((b) => b.textContent), ["되돌리기", "사이트 적용"]);
+  type(input(), "큰 자");
+  await flush();
+  barBtn("취소").click();
+  await flush();
+  assert.equal(input().value, "자", "임시 저장한 상태로");
+  assert.ok(barBtn("되돌리기"));
+  barBtn("되돌리기").click();
+  await flush();
+  document.querySelectorAll("dialog").forEach((d) => d.remove());
+});

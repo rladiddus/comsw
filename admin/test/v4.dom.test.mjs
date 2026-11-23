@@ -941,3 +941,17 @@ test("내 커리큘럼 준비물: 한 줄 = 분류(드롭다운)+내용, 여러 
   load.value = "1"; load.dispatchEvent(new dom.window.Event("change", { bubbles: true }));
   assert.deepEqual([...main.querySelectorAll(".mat-row input[aria-label$='내용']")].map((i) => i.value), ["Illustrator", "AutoCAD"]);
 });
+
+test("내 커리큘럼 단계 이미지: 눌러서 이미지 바꾸기 팝업, 카드에 끌어다 놓으면 그 단계 숨은 칸으로(보이는 파일 칸 없음)", async () => {
+  document.querySelectorAll("dialog").forEach((d) => d.remove());
+  const ui = await import("../../admin-v4/js/ui.mjs");
+  const main = await open("mine", { uid: "u1", role: "teacher" });
+  const cards = [...main.querySelectorAll(".steps .step-col")];
+  assert.equal(cards.length, 4);
+  assert.ok(cards.every((c) => c.querySelector("input[type=file]").hidden), "파일 칸은 숨김");
+  assert.equal(ui.fileInputAt(cards[2].querySelector(".img-pick")), cards[2].querySelector("input[type=file]"), "3단계 카드에 놓으면 3단계로");
+  cards[0].querySelector(".img-pick").click();
+  const picker = [...document.querySelectorAll("dialog.modal")].at(-1);
+  assert.match(picker.textContent, /끌어다 놓거나/);
+  picker.remove();
+});

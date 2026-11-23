@@ -2,7 +2,7 @@
 // 바꾸면 떠 있는 창: [임시 저장] = 본인 저장함(v4_teacher_drafts, 공개·검수와 상관없음), [학과장에게 제출] = 기존 제출 함수(대기 줄).
 // 과목을 바꿔도 과목마다 입력이 따로 남고, 이미지 올리기는 시작한 과목·단계에만 붙는다.
 import * as data from "../data.mjs";
-import { h, head, box, tabs, pill, media, fill, empty, note, fail, busy } from "../ui.mjs";
+import { h, head, box, tabs, pill, media, fill, empty, note, fail, busy, pickImage } from "../ui.mjs";
 import { curriculumUnits, deptOrder, stepState, STEPS } from "../rules.mjs";
 import { track, check, canSwitch } from "../changes.mjs";
 
@@ -134,29 +134,33 @@ export async function render({ main, session }) {
       const key = `${set.id}|${sub.id}`;
       const u = ed.unit;
       const old = u && !u.pending.length && u.approved.length !== STEPS ? u.approved : u?.pending.length && u.pending.length !== STEPS ? u.pending : null;
+      // 단계 카드: 이미지(없으면 '설명 이미지 없음')를 누르면 이미지 바꾸기 팝업(파일 고르기·끌어다 놓기), 카드에 바로 끌어다 놓아도 됨.
+      // 이미지는 썸네일 영역을 고른 뒤 올라가고, 시작한 과목·단계에만 붙는다.
       const card = (st, i) => {
-        const img = h("div", {}, st.media_url ? media(st.media_url) : h("div", { class: "media" }, h("span", { class: "muted" }, "설명 이미지 없음")));
-        const file = h("input", { type: "file", accept: "image/png,image/jpeg,image/webp", "aria-label": `${LABELS[i]} 이미지` });
+        const view = () => (st.media_url ? media(st.media_url) : h("div", { class: "media" }, h("span", { class: "muted" }, "설명 이미지 없음 · 눌러서 올리기")));
+        const set = (url) => { st.media_url = url; if (editors.get(key) === ed) img.replaceChildren(view()); check(); };
+        const img = h("button", { type: "button", class: "img-pick", title: "눌러서 이미지 바꾸기(파일 고르기·끌어다 놓기)", "aria-label": `${LABELS[i]} 이미지 바꾸기`,
+          onclick: async () => { const url = await pickImage(`${LABELS[i]} 이미지`, "curriculum"); if (url) set(url); } }, view());
+        // 카드에 끌어다 놓은 파일을 받는 숨은 칸(눈에 안 보임)
+        const file = h("input", { type: "file", hidden: true, accept: "image/png,image/jpeg,image/webp", "aria-label": `${LABELS[i]} 이미지` });
         file.onchange = async () => {
           const f = file.files[0];
           if (!f) return;
-          const target = ed.steps[i]; // 시작한 과목·단계에만 붙인다
           img.replaceChildren(h("div", { class: "muted" }, "올리는 중..."));
-          try {
-            target.media_url = (await data.upload(f, "curriculum")).url;
-          } catch (err) {
+          try { set((await data.upload(f, "curriculum")).url); } catch (err) {
             msg.replaceChildren(fail(`${sub.name} ${LABELS[i]} 이미지: ${err.message}`));
+            img.replaceChildren(view());
           }
-          if (editors.get(key) === ed) img.replaceChildren(target.media_url ? media(target.media_url) : h("span", { class: "muted" }, "설명 이미지 없음"));
           file.value = "";
-          check();
         };
-        return h("div", { class: "step" },
+        return h("div", { class: "step step-col" },
           h("b", {}, LABELS[i]),
           h("textarea", { rows: 6, "aria-label": `${LABELS[i]} 수업 내용`, value: st.written, style: "width:100%",
             oninput: (e) => { st.written = e.target.value; } }),
           img, file,
-          st.media_url ? h("button", { type: "button", class: "btn", onclick: () => { st.media_url = ""; draw(); } }, "이미지 빼기") : null);
+          h("div", { class: "actions", style: "margin-top:6px" },
+            h("button", { type: "button", class: "btn small", onclick: () => img.click() }, "이미지 수정"),
+            st.media_url ? h("button", { type: "button", class: "btn small", onclick: () => { st.media_url = ""; draw(); } }, "이미지 빼기") : null));
       };
       const status = u?.pending.length ? pill("제출함 · 검수 전") : u ? pill("검수 완료", "neutral") : pill("아직 제출 전", "neutral");
       return h("div", {},

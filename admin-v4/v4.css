@@ -81,7 +81,7 @@ tr.pick:hover td, tr.pick[aria-selected="true"] td { background: var(--soft); }
 .note { padding: 11px 13px; background: var(--soft); font-size: 12px; color: var(--green); border-radius: 5px; margin-bottom: 14px; }
 .fail { padding: 11px 13px; border: 1px solid var(--red); color: var(--red); border-radius: 5px; margin-bottom: 14px; font-size: 13px; }
 .steps { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 12px; }
-.step { border: 1px solid var(--line); border-radius: 6px; padding: 12px; min-width: 0; }
+.step { border: 1px solid var(--line); border-radius: 6px; padding: 12px; min-width: 0; overflow-wrap: anywhere; } /* 글자가 칸 밖으로 안 나가게 */
 .step b { display: block; font-size: 12px; color: var(--green); margin-bottom: 4px; }
 .step p { white-space: pre-wrap; font-size: 13px; margin: 0 0 8px; }
 .media { background: var(--bg); border-radius: 6px; overflow: hidden; display: grid; place-items: center; min-height: 80px; }

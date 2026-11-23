@@ -975,3 +975,36 @@ test("내 커리큘럼 고르기: 한 줄 드롭다운 — 수업 구분 → 학
   pick("수업 구분", "general");
   await flush();
 });
+
+test("내 커리큘럼: 예전 형식 임시 저장(쉼표 준비물)을 불러와도 '임시 저장한 변경'으로, 고르기를 바꾸면 묻지 않고 고치던 내용은 임시 저장", async () => {
+  document.querySelectorAll("dialog").forEach((d) => d.remove());
+  const fake = db();
+  const saved = [];
+  const extra = { v4_teacher_drafts: [{ instructor_id: "i1", kind: "curriculum", target: "set1|s1",
+    payload: { steps: [1, 2, 3, 4].map((n) => ({ written: `내용${n}`, media_url: "" })), mat: { textbook: "", supplies: "마우스, 이어폰", tools: "", ai: "" } } }] };
+  const local = fakeSupabase({ ...extra });
+  const from0 = fake.from.bind(fake);
+  fake.from = (t) => {
+    if (t !== "v4_teacher_drafts") return from0(t);
+    const q = local.from(t);
+    q.upsert = async (row) => { saved.push(row); return { error: null }; };
+    return q;
+  };
+  const main = await open("mine", { uid: "u1", role: "teacher" }, fake);
+  await flush();
+  assert.ok(barBtn("되돌리기"), "임시 저장한 상태로 인식(쉼표·줄바꿈 차이는 변경 아님)");
+  assert.ok(!barBtn("임시 저장"));
+  type(main.querySelector("textarea[aria-label='1단계 수업 내용']"), "고친 내용");
+  await flush();
+  const prev = globalThis.confirm;
+  globalThis.confirm = () => { throw new Error("묻지 않아야 함"); };
+  const s = main.querySelector("select[aria-label='과목']");
+  s.value = "s2"; s.dispatchEvent(new dom.window.Event("change", { bubbles: true }));
+  await flush();
+  globalThis.confirm = prev;
+  assert.match(main.textContent, /캐드2 · 일반 수업/);
+  const mine = saved.filter((r) => r.target === "set1|s1").at(-1);
+  assert.ok(mine, "고치던 캐드1은 조용히 임시 저장");
+  assert.equal(mine.payload.steps[0].written, "고친 내용");
+  assert.ok(saved.some((r) => r.target === "prep-library"), "준비물은 '내 준비물'에도 모임");
+});

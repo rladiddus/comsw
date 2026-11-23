@@ -238,3 +238,4 @@
 - 2026-11-23 mine.mjs card: img-pick + hidden file input(전역 끌어다 놓기). .step overflow-wrap:anywhere.
 - 2026-11-23 profile.mjs form-field/photo-drop/consent.
 - 2026-11-23 mine.mjs picker = .pick-row 세 select.
+- 2026-11-23 changes.track load: write 후 t.saved = read()(기준과 같으면 drop). mine go() = stashAll 후 이동.

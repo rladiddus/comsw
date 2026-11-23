@@ -4,7 +4,7 @@
 import * as data from "../data.mjs";
 import { h, head, box, tabs, pill, media, fill, empty, note, fail, busy, pickImage } from "../ui.mjs";
 import { curriculumUnits, deptOrder, stepState, STEPS } from "../rules.mjs";
-import { track, check, canSwitch } from "../changes.mjs";
+import { track, check, stashAll } from "../changes.mjs";
 
 const LABELS = Array.from({ length: STEPS }, (_, i) => `${i + 1}단계`);
 // 준비물 분류(저장 칸 이름). 화면은 '한 줄 = 분류 하나 + 내용' 목록, 저장은 예전처럼 분류별 칸(줄바꿈으로 이음, AI는 '이름 | 링크').
@@ -118,7 +118,8 @@ export async function render({ main, session }) {
       state.subject = sub?.id ?? null;
       const set = setFor();
       // 한 줄 드롭다운: 수업 구분 → (일반) 학과 / (방학 특강) 특강 → 과목. 바꾸기 전 임시 저장 안 한 변경이 있으면 묻는다.
-      const go = (fn) => (e) => { if (!canSwitch()) { draw(); return; } editors.clear(); fn(e.target.value); draw(); };
+      // 고르기는 '변경'이 아니라 선택: 묻지 않고, 고치던 내용은 조용히 임시 저장해 두고 넘어간다(돌아오면 그대로)
+      const go = (fn) => async (e) => { const v = e.target.value; await stashAll(); editors.clear(); fn(v); draw(); };
       const kind = state.scope === "general" ? "general" : "vacation";
       const select = (label, value, opts, onChange) => h("label", { class: "form-field" }, h("b", {}, label),
         h("select", { "aria-label": label, onchange: go(onChange), disabled: !opts.length },

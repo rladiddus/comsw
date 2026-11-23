@@ -38,8 +38,10 @@ export function track(opts) {
   t.store.load().then((d) => {
     if (!trackers.includes(t) || d == null) return;
     if (same(d, t.baseline)) { t.store.drop().catch(() => {}); return; }
-    t.saved = d;
     t.write(clone(d));
+    // 화면에 채운 모양 그대로를 '임시 저장한 상태'로(편집기가 글을 다듬어 담으면 저장본과 글자가 달라질 수 있음)
+    const now = clone(t.read());
+    if (same(now, t.baseline)) { t.saved = null; t.store.drop().catch(() => {}); } else t.saved = now;
     check();
   }).catch(() => {});
   check();

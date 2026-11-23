@@ -250,3 +250,4 @@
 - 2026-11-23 changes.movable(bar)·place, localStorage comsw_v4_bar_pos.
 - 2026-11-23 edit_curriculum 확장(written·delete·번호 다시). instructors work에 written/deleted(검수 완료 수정만), .step-x.
 - 2026-11-23 20261123020000 실행(같은 이름 함수 교체라 바깥에서 확인 불가, 사용자 확인).
+- 2026-11-23 v4_apply_steps(p_status, exact4). instructors 단계 목록 work {steps:[{key,id,written,summary,media}]}, 지운 단계는 payload 뒤에 delete.

@@ -42,7 +42,7 @@ test("4단계가 아니면 확정 안 됨 → 4단계면 확정: 그 건만 공�
   await as(db, "authenticated", T1);
   await submit(db, set, s, [1, 2, 3], { supplies: "삼각자" });
   await as(db, "authenticated", HEAD);
-  await assert.rejects(db.query(`select comsw_v4_confirm_curriculum($1,$2,$3,$4::jsonb)`, [i1, set, s, JSON.stringify(steps(await pending(db, i1)))]), /4단계가 모두 있어야/);
+  await assert.rejects(db.query(`select comsw_v4_confirm_curriculum($1,$2,$3,$4::jsonb)`, [i1, set, s, JSON.stringify(steps(await pending(db, i1)))]), /4단계가 되어야 확정/);
   await as(db, "authenticated", T1);
   await submit(db, set, s, [1, 2, 3, 4], { supplies: "삼각자" });
   await as(db, "authenticated", HEAD);

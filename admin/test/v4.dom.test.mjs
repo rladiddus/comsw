@@ -223,7 +223,7 @@ test("강사 검수: 강사를 누르면 팝업, 커리큘럼은 왼쪽 과목·
   assert.ok(dlg, "팝업");
   [...dlg.querySelectorAll(".tabs button")].find((b) => b.textContent === "커리큘럼").click();
   assert.ok(dlg.querySelector(".side-list .picks button"), "왼쪽 과목 목록");
-  assert.match(dlg.textContent, /4단계가 모두 있어야 확정할 수 있습니다\(지금 1단계\)/);
+  assert.match(dlg.textContent, /지금 1단계입니다\. \[\+ 단계 추가\]로 4단계를 채우면 확정할 수 있습니다/);
   assert.equal([...dlg.querySelectorAll("button")].find((b) => b.textContent === "확정").disabled, true);
   [...dlg.querySelectorAll("button")].find((b) => b.textContent === "닫기").click();
   assert.equal(document.querySelector("dialog.modal"), null);
@@ -615,7 +615,7 @@ test("강사 커리큘럼: 검수는 단계마다 AI 체크·오른쪽 끝 [AI �
   let dlg = document.querySelector("dialog.modal");
   [...dlg.querySelectorAll(".tabs button")].find((b) => b.textContent === "커리큘럼").click();
   const btns = [...dlg.querySelectorAll(".actions.end button")].map((b) => b.textContent);
-  assert.deepEqual(btns, ["AI 문장 다듬기", "확정"], "확정이 오른쪽 끝, 그 왼쪽 AI");
+  assert.deepEqual(btns, ["+ 단계 추가", "AI 문장 다듬기", "확정"], "확정이 오른쪽 끝, 그 왼쪽 AI, 4단계보다 적으면 [+ 단계 추가]");
   assert.ok(dlg.querySelector(".step-foot input[type=checkbox]"), "단계마다 AI 체크");
   dlg.querySelector(".step-foot input[type=checkbox]").click(); // 하나뿐인 단계를 끔
   [...dlg.querySelectorAll("button")].find((b) => b.textContent === "AI 문장 다듬기").click();
@@ -1199,6 +1199,30 @@ test("강사 커리큘럼 수정: 원래 문구도 고치고, 4단계 넘는 단
   barBtn("사이트 적용").click();
   await flush();
   const [, args] = calls.find(([n]) => n === "comsw_v4_edit_curriculum");
-  assert.deepEqual(args.p_steps.map((x) => [x.id, x.written, !!x.delete]), [["a1", "고친 원문", false], ["a2", "원문2", true], ["a3", "원문3", false], ["a4", "원문4", false], ["a5", "원문5", true], ["a6", "원문6", false]]);
+  assert.deepEqual(args.p_steps.map((x) => [x.id, x.written ?? null, !!x.delete]), [["a1", "고친 원문", false], ["a3", "원문3", false], ["a4", "원문4", false], ["a6", "원문6", false], ["a2", null, true], ["a5", null, true]], "남길 단계는 화면 순서, 지운 단계는 뒤에");
   dlg.remove();
+});
+
+test("이번 제출이 1단계여도 학과장이 원래 문구를 고치고 [+ 단계 추가]로 4단계를 채워 확정", async () => {
+  document.querySelectorAll("dialog").forEach((d) => d.remove());
+  const fake = db();
+  const calls = [];
+  fake.rpc = async (name, args) => { calls.push([name, args]); return { data: false, error: null }; };
+  const main = await open("instructors", undefined, fake);
+  [...main.querySelectorAll("tr.pick")][0].click();
+  await flush();
+  const dlg = document.querySelector("dialog.modal");
+  [...dlg.querySelectorAll(".tabs button")].find((b) => b.textContent === "커리큘럼").click();
+  type(dlg.querySelector("textarea[aria-label='1단계 원래 문구']"), "고친 1");
+  for (let k = 0; k < 3; k++) [...dlg.querySelectorAll("button")].find((b) => b.textContent === "+ 단계 추가").click();
+  assert.equal(dlg.querySelectorAll(".steps .step-col").length, 4);
+  assert.ok(![...dlg.querySelectorAll("button")].some((b) => b.textContent === "+ 단계 추가"), "4단계면 추가 버튼 없음");
+  ["2", "3", "4"].forEach((n) => type(dlg.querySelector(`textarea[aria-label='${n}단계 원래 문구']`), `새 ${n}`));
+  const ok = [...dlg.querySelectorAll("button")].find((b) => b.textContent === "확정");
+  assert.equal(ok.disabled, false);
+  ok.click();
+  await flush();
+  const [, args] = calls.find(([n]) => n === "comsw_v4_confirm_curriculum");
+  assert.deepEqual(args.p_steps.map((x) => [x.id ?? null, x.written]), [["c1", "고친 1"], [null, "새 2"], [null, "새 3"], [null, "새 4"]]);
+  document.querySelectorAll("dialog").forEach((d) => d.remove());
 });

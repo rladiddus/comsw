@@ -59,3 +59,29 @@ test("검수 완료 수정 넓히기(20261123020000): 원래 문구 고치기, 4
   r = await rows();
   assert.deepEqual(r.map((x) => [x.step_label, x.written]), [["1단계", "고친 원문"], ["2단계", "원문 3"], ["3단계", "원문 4"], ["4단계", "원문 6"]]);
 });
+
+test("언제든 고치기(20261123030000): 이번 제출 1단계에 원래 문구 고치고 단계 3개 더해 4단계로 확정, 4단계 아니면 막음", async () => {
+  const db = await freshDb();
+  await as(db, null);
+  const one = async (sql, args = []) => (await db.query(sql, args)).rows[0]?.id;
+  const d = await one(`insert into departments(name) values ('모션학과') returning id`);
+  const s = await one(`insert into subjects(name) values ('프리미어 프로') returning id`);
+  const set = await one(`insert into curriculum_sets(name, department_id) values ('모션학과', $1) returning id`, [d]);
+  const i = await one(`insert into instructors(name) values ('오강사') returning id`);
+  await db.query(`insert into instructor_curricula(set_id, instructor_id, subject_id, step_label, written, status, sort_order) values ($1,$2,$3,'1단계','원문 1','pending',1)`, [set, i, s]);
+  await as(db, "authenticated", HEAD);
+  await db.query(`select comsw_publish()`);
+  const r = (await db.query(`select id, updated_at from instructor_curricula`)).rows[0];
+  const first = { id: r.id, updated_at: r.updated_at.toISOString(), written: "고친 원문 1", summary: "요약 1", media_url: "" };
+  const confirm = (steps) => db.query(`select comsw_v4_confirm_curriculum($1,$2,$3,$4::jsonb)`, [i, set, s, JSON.stringify(steps)]);
+  await assert.rejects(confirm([first, { written: "새 2", summary: "", media_url: "" }]), /4단계가 되어야 확정할 수 있습니다\(지금 2단계\)/);
+  await assert.rejects(confirm([first, { written: "", summary: "", media_url: "" }, { written: "a" }, { written: "b" }]), /새 단계에는 원래 문구/);
+  await confirm([first, { written: "새 2", summary: "", media_url: "https://img/2.png" }, { written: "새 3", summary: "요약 3", media_url: "" }, { written: "새 4", summary: "", media_url: "" }]);
+  await as(db, null);
+  const got = (await db.query(`select step_label, written, summary, media_url, status from instructor_curricula order by sort_order`)).rows;
+  assert.deepEqual(got.map((x) => [x.step_label, x.written, x.summary, x.media_url, x.status]), [
+    ["1단계", "고친 원문 1", "요약 1", null, "approved"], ["2단계", "새 2", null, "https://img/2.png", "approved"],
+    ["3단계", "새 3", "요약 3", null, "approved"], ["4단계", "새 4", null, null, "approved"]]);
+  const snap = (await db.query(`select rows from site_snapshots order by id desc limit 1`)).rows[0].rows;
+  assert.equal(snap.filter((x) => x.source_id === "instructor_curriculum").length, 4, "바로 공개");
+});

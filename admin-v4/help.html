@@ -1,0 +1,320 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex">
+  <title>컴수원 관리 사용방법</title>
+  <style>
+    :root {
+      color-scheme: light dark;
+      --bg: light-dark(#f5f6f7, #141b19);
+      --paper: light-dark(#fff, #202925);
+      --text: light-dark(#202b27, #e7eee9);
+      --sub: light-dark(#69746e, #b0beb6);
+      --line: light-dark(#e7ebe8, #3a4740);
+      --green: light-dark(#173f31, #b8dcc7);
+      --on: light-dark(#fff, #153324);
+      --lime: light-dark(#d5ee89, #58733b);
+      --soft: light-dark(#f0f6ee, #2a3a2c);
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; font: 15px/1.75 "Malgun Gothic", system-ui, sans-serif; color: var(--text); background: var(--bg); }
+    header { background: var(--paper); border-bottom: 1px solid var(--line); padding: 22px 16px; }
+    .wrap { max-width: 920px; margin: 0 auto; }
+    h1 { margin: 0 0 4px; font-size: 24px; }
+    .lead { margin: 0; color: var(--sub); font-size: 14px; }
+    .tabs { display: flex; gap: 8px; margin-top: 16px; flex-wrap: wrap; }
+    .tabs a { padding: 8px 16px; border: 1px solid var(--line); border-radius: 999px; text-decoration: none; color: var(--text); background: var(--paper); font-weight: 700; }
+    .tabs a.on { background: var(--green); border-color: var(--green); color: var(--on); }
+    main { padding: 20px 16px 60px; }
+    section[hidden] { display: none; }
+    h2 { font-size: 19px; margin: 28px 0 10px; padding: 8px 12px; background: var(--soft); color: var(--green); border-radius: 6px; }
+    h2:first-child { margin-top: 0; }
+    details { background: var(--paper); border: 1px solid var(--line); border-radius: 8px; margin: 8px 0; }
+    summary { cursor: pointer; padding: 12px 16px; font-weight: 700; list-style: none; }
+    summary::-webkit-details-marker { display: none; }
+    summary::before { content: "▸"; display: inline-block; width: 18px; color: var(--green); transition: transform .15s; }
+    details[open] summary::before { transform: rotate(90deg); }
+    details > div { padding: 0 16px 14px 34px; }
+    ol, ul { margin: 6px 0; padding-left: 20px; }
+    li { margin: 3px 0; }
+    b.btn { display: inline-block; padding: 0 7px; border: 1px solid var(--line); border-radius: 4px; background: var(--bg); font-weight: 700; font-size: 13px; }
+    .where { color: var(--green); font-weight: 700; }
+    .tip { margin: 8px 0 0; padding: 8px 12px; background: var(--soft); border-radius: 6px; font-size: 14px; }
+    .basics { background: var(--paper); border: 1px solid var(--line); border-left: 4px solid var(--lime); border-radius: 8px; padding: 12px 16px; }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="wrap">
+      <h1>컴수원 관리 사용방법</h1>
+      <p class="lead">"~할 때" 찾아보세요. 제목을 누르면 어디서 무엇을 하는지 펼쳐집니다.</p>
+      <nav class="tabs" aria-label="사용방법 고르기">
+        <a href="#head" id="tab-head">학과장·관리자</a>
+        <a href="#teacher" id="tab-teacher">강사</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="wrap">
+    <!-- ===================== 학과장·관리자 ===================== -->
+    <section id="head" aria-labelledby="tab-head">
+      <h2>먼저 알아 두기</h2>
+      <div class="basics">
+        <ul>
+          <li>무엇을 바꾸면 <b>오른쪽 아래</b>에 창이 뜹니다. <b class="btn">취소</b> = 방금 바꾼 것 되돌리기, <b class="btn">임시 저장</b> = 홈페이지에 내지 않고 보관, <b class="btn">사이트 적용</b> = 홈페이지에 반영.</li>
+          <li>임시 저장한 뒤에는 <b class="btn">되돌리기</b>가 나옵니다. 누르면 임시 저장한 것까지 버리고 지금 홈페이지 상태로 돌아갑니다.</li>
+          <li>사이트에 적용하는 동안은 화면이 어둡게 막히고 "사이트에 적용 중입니다"가 돕니다. 끝날 때까지 기다리세요.</li>
+          <li>학과 추가·이름 수정, 과목 만들기·삭제·복원은 누르면 <b>바로</b> 반영됩니다.</li>
+          <li>화면이 예전 모양으로 보이면 키보드 <b>Ctrl + Shift + R</b>로 새로고침하세요.</li>
+        </ul>
+      </div>
+
+      <h2>강사</h2>
+      <details><summary>강사가 커리큘럼을 제출했을 때(검수·확정)</summary><div>
+        <ol>
+          <li><span class="where">강사</span> 메뉴에서 "이번 제출" 칸에 <b>커리큘럼 N건</b>이 있는 강사를 누릅니다.</li>
+          <li>팝업의 <b>커리큘럼</b> 탭 → 왼쪽에서 "이번 제출" 표시가 있는 과목을 고릅니다.</li>
+          <li>단계마다 강사 원문을 보고 <b>홈페이지 문구</b>를 고칩니다(비우면 원문이 그대로 나갑니다).</li>
+          <li>문장을 다듬고 싶으면 다듬을 단계의 <b>AI 다듬기</b>만 체크하고 <b class="btn">AI 문장 다듬기</b>.</li>
+          <li>이미지가 없거나 바꾸고 싶으면 이미지(또는 "이미지 없음")를 누르거나 <b class="btn">이미지 수정</b>.</li>
+          <li>그대로 승인하면 <b class="btn">확정</b>, 고쳤다면 오른쪽 아래 <b class="btn">사이트 적용</b>(같은 확정입니다).</li>
+        </ol>
+        <p class="tip">4단계가 모두 있어야 확정됩니다. 모자라면 강사에게 채워서 다시 내 달라고 하세요.</p>
+      </div></details>
+      <details><summary>이미 확정된 강사 커리큘럼을 고쳐야 할 때</summary><div>
+        <ol>
+          <li><span class="where">강사</span> → 강사 누르기 → <b>커리큘럼</b> 탭 → 과목 고르기.</li>
+          <li>팝업 위쪽 <b class="btn">닫기</b> 옆 <b class="btn">수정</b>을 누릅니다.</li>
+          <li>홈페이지 문구·이미지를 고칩니다(<b class="btn">AI 문장 다듬기</b>는 <b class="btn">수정 끝</b> 왼쪽).</li>
+          <li>오른쪽 아래 <b class="btn">사이트 적용</b>. 고치기 전 내용은 기록으로 남습니다.</li>
+        </ol>
+      </div></details>
+      <details><summary>강사가 프로필·사진을 제출했을 때(AI 프로필 사진)</summary><div>
+        <ol>
+          <li><span class="where">강사</span>에서 "이번 제출"에 <b>프로필</b>이 있는 강사를 누릅니다 → <b>프로필</b> 탭.</li>
+          <li>경력·한마디를 확인하고 필요하면 고칩니다.</li>
+          <li>강사가 본인 사진을 올렸으면 <b class="btn">AI 프로필 사진 만들기</b> → 만들어진 사진을 확인합니다.</li>
+          <li><b class="btn">확정</b>하면 홈페이지에 반영됩니다(홈페이지 노출 여부는 그대로).</li>
+        </ol>
+      </div></details>
+      <details><summary>강사를 홈페이지에서 숨기거나 다시 보일 때</summary><div>
+        <ol><li><span class="where">강사</span> 목록의 <b>홈페이지 노출</b> 스위치를 끄거나 켭니다.</li><li>오른쪽 아래 <b class="btn">사이트 적용</b>.</li></ol>
+      </div></details>
+      <details><summary>강사를 빨리 찾고 싶을 때</summary><div>
+        <p><span class="where">강사</span> 위쪽에서 <b>이름</b>(검색), <b>학과</b>, <b>홈페이지 노출(On/Off)</b>로 걸러 봅니다.</p>
+      </div></details>
+
+      <h2>학과·과목</h2>
+      <details><summary>새 학과를 만들거나 학과 이름을 바꿀 때</summary><div>
+        <ol>
+          <li><span class="where">학과·과목 › 학과 구성</span>에서 <b class="btn">+ 학과 추가</b>, 또는 학과를 고르고 <b class="btn">학과명 수정</b>.</li>
+          <li>이름을 쓰고 <b class="btn">추가</b>/<b class="btn">수정</b> → 바로 반영됩니다(사이트 편집의 학과 대표 화면에도 생깁니다).</li>
+        </ol>
+      </div></details>
+      <details><summary>새 과목을 만들 때(일반 수업)</summary><div>
+        <ol>
+          <li><span class="where">학과·과목 › 과목 생성</span>에서 이름을 쓰고 <b class="btn">만들기</b>.</li>
+          <li><span class="where">학과 구성</span>에서 학과를 고르고 아래 <b>과목 넣기</b>로 그 학과에 넣은 뒤 <b class="btn">사이트 적용</b>.</li>
+        </ol>
+        <p class="tip">학과·과목에서 만든 과목은 일반 과목입니다. 방학 특강 과목은 방학 특강 메뉴에서 따로 만듭니다(이름이 같아도 다른 과목).</p>
+      </div></details>
+      <details><summary>학과 안에서 과목 순서를 바꿀 때</summary><div>
+        <p><span class="where">학과 구성</span>에서 줄 왼쪽 손잡이(⠿)를 잡고 끌어서 놓습니다(놓을 자리에 붉은 점선). → <b class="btn">사이트 적용</b>.</p>
+      </div></details>
+      <details><summary>학과 커리큘럼(기간·과정내용·프로그램·학습수준)을 고칠 때</summary><div>
+        <ol>
+          <li><span class="where">학과 구성</span> 표에서 바로 고칩니다. 기간은 숫자만, 학습수준은 ★ 개수를 고릅니다.</li>
+          <li>과정내용을 AI로 만들려면 그 과목 칸 오른쪽 아래 체크를 켜고 위쪽 <b class="btn">AI 정리</b>(공통 4단계를 01~04 네 줄로 정리).</li>
+          <li><b class="btn">사이트 적용</b>.</li>
+        </ol>
+        <p class="tip">이 정보는 과목에 붙어 있어서, 같은 과목을 쓰는 다른 학과에도 함께 바뀝니다.</p>
+      </div></details>
+      <details><summary>과목의 공통 4단계 커리큘럼을 만들 때</summary><div>
+        <ol>
+          <li>과목 이름을 누르면 팝업이 열립니다(학과 구성·전체 과목 어디서든).</li>
+          <li>팝업 위쪽 <b class="btn">수정</b> → 왼쪽에서 참고할 강사를 체크합니다(검수 완료된 강사만 나옵니다).</li>
+          <li>AI로 만들 단계만 체크하고 <b class="btn">AI 공통 정리</b> → 문구를 확인·수정합니다.</li>
+          <li>단계마다 후보 이미지 중 대표 이미지를 누릅니다(다시 누르면 빼기).</li>
+          <li>오른쪽 아래 <b class="btn">사이트 적용</b>.</li>
+        </ol>
+      </div></details>
+      <details><summary>과목을 지우거나 되살릴 때</summary><div>
+        <ul>
+          <li>지우기: <span class="where">전체 과목</span>에서 과목을 누르고 팝업 왼쪽 <b class="btn">과목 삭제</b>. 자료는 보관됩니다.</li>
+          <li>되살리기: <span class="where">삭제된 과목</span>에서 <b class="btn">복원</b>. 학과·방학 특강에는 다시 넣어야 합니다.</li>
+        </ul>
+      </div></details>
+      <details><summary>과목을 빨리 찾고 싶을 때</summary><div>
+        <p><span class="where">전체 과목</span> 위쪽에서 <b>과목</b>(검색), <b>학과</b>, <b>방학 특강(On/Off)</b>로 걸러 봅니다.</p>
+      </div></details>
+
+      <h2>준비물</h2>
+      <details><summary>과목 공통 준비물을 정리할 때</summary><div>
+        <ol>
+          <li><span class="where">준비물</span> 메뉴에서 과목 줄을 누릅니다(또는 과목 팝업의 <b class="btn">공통 준비물</b>).</li>
+          <li><b class="btn">강사 준비물 가져오기</b>로 강사들이 적은 것을 모은 뒤 정리하고, 필요하면 <b class="btn">+ 항목</b>.</li>
+          <li><b class="btn">사이트 적용</b>.</li>
+        </ol>
+        <p class="tip">"캐드"에 적으면 캐드1·캐드2 모두에 적용됩니다. 위쪽 거르기로 "공통 준비물: 없음"을 고르면 아직 정리 안 한 과목만 볼 수 있습니다.</p>
+      </div></details>
+
+      <h2>로드맵</h2>
+      <details><summary>학과 로드맵을 만들거나 고칠 때</summary><div>
+        <ol>
+          <li><span class="where">로드맵</span>에서 학과를 고릅니다(기본 순서 = 학과 구성 순서).</li>
+          <li>두 과목을 한 단계로 묶으려면 과목 사이 <b class="btn">+</b>를 켭니다(초록이면 묶임).</li>
+          <li>순서를 바꾸려면 과목 상자를 끌어서 옮깁니다 → "학과·과목의 순서와 다릅니다" 표시. 원래대로는 <b class="btn">학과·과목의 순서와 동기화</b>.</li>
+          <li>아래 단계 카드에서 문구를 쓰거나 <b class="btn">AI 요약</b>.</li>
+          <li><b class="btn">사이트 적용</b>.</li>
+        </ol>
+      </div></details>
+      <details><summary>같은 단계 문구를 다른 학과에도 똑같이 쓰고 싶을 때</summary><div>
+        <p>단계 카드의 <b>타학과 동기화</b>를 체크하고 <b class="btn">사이트 적용</b>하면, 과목 묶음이 똑같은 다른 학과 단계도 이 문구로 바뀝니다(한 번 맞춤).</p>
+      </div></details>
+
+      <h2>방학 특강</h2>
+      <details><summary>새 방학 특강을 열 때</summary><div>
+        <ol>
+          <li><span class="where">방학 특강</span>에서 <b class="btn">+ 새 방학 특강</b> → 이름 쓰고 <b class="btn">추가</b>(공개는 꺼진 채로 만들어집니다).</li>
+          <li><b>과목 생성</b>에서 특강 과목을 만들 때 "OO방학특강에 넣기"를 고르면 바로 그 특강에 들어갑니다.</li>
+          <li>이미 있는 특강 과목은 특강 화면 왼쪽 아래 <b>과목 넣기</b>로 넣습니다.</li>
+          <li>준비되면 제목 오른쪽 <b>공개</b> 스위치를 켜고 <b class="btn">사이트 적용</b>.</li>
+        </ol>
+        <p class="tip">강사는 특강에 들어간 과목만 "내 커리큘럼 › 방학 특강"에서 고를 수 있습니다.</p>
+      </div></details>
+      <details><summary>방학 특강 과목의 공통 커리큘럼을 만들 때</summary><div>
+        <ol>
+          <li><span class="where">방학 특강</span>에서 특강을 고르고 왼쪽 과목을 누릅니다("적용 전" 과목은 먼저 사이트 적용).</li>
+          <li>오른쪽 <b class="btn">수정</b> → 강사 체크 → <b class="btn">AI 공통 정리</b> → 대표 이미지 → <b class="btn">사이트 적용</b>.</li>
+        </ol>
+      </div></details>
+      <details><summary>방학 특강 이름을 바꿀 때</summary><div>
+        <p>특강 설정 제목 옆 <b class="btn">이름 수정</b> → 바로 반영됩니다.</p>
+      </div></details>
+
+      <h2>특강·세미나 / 사이트 편집</h2>
+      <details><summary>특강·세미나를 올리거나 고칠 때</summary><div>
+        <p><span class="where">특강·세미나</span>에서 포스터와 내용을 입력하고 오른쪽 아래 <b class="btn">사이트 적용</b>.</p>
+      </div></details>
+      <details><summary>메인 화면·로딩 화면 이미지를 바꿀 때</summary><div>
+        <ol>
+          <li><span class="where">사이트 편집</span> → <b>메인 화면</b> 또는 <b>로딩 화면</b>.</li>
+          <li>카드의 <b class="btn">수정</b> → 이미지를 누르거나 끌어다 놓고, 문구·사용 스위치를 정한 뒤 <b class="btn">확인</b>. 새로 넣으려면 <b class="btn">+ 항목</b>.</li>
+          <li>카드를 누르면 오른쪽에 미리보기 → <b class="btn">사이트 적용</b>.</li>
+        </ol>
+      </div></details>
+      <details><summary>학과 대표 화면(표지 이미지·소개·영문 이름)을 바꿀 때</summary><div>
+        <p><span class="where">사이트 편집 › 학과 대표 화면</span> → 학과 고르기 → <b class="btn">수정</b> 팝업에서 고치고 <b class="btn">확인</b> → <b class="btn">사이트 적용</b>.</p>
+      </div></details>
+      <details><summary>홈페이지 아래쪽 메뉴의 위치·순서·이름을 바꿀 때</summary><div>
+        <p><span class="where">사이트 편집 › 하단 메뉴</span>에서 메뉴를 끌어 왼쪽·오른쪽과 순서를 바꾸고, 이름은 <b class="btn">수정</b>. → <b class="btn">사이트 적용</b>. (회색 글자 = 꺼진 메뉴)</p>
+      </div></details>
+
+      <h2>이럴 땐</h2>
+      <details><summary>"반영하지 않은 다른 변경이 있어 멈췄습니다"가 뜰 때</summary><div>
+        <p>예전 관리 화면 등에서 고치고 아직 공개하지 않은 변경이 있다는 뜻입니다. 화면 위쪽 빨간 안내의 <b class="btn">같이 반영</b>을 누른 뒤 다시 하세요.</p>
+      </div></details>
+      <details><summary>실수로 바꿨을 때</summary><div>
+        <ul><li>방금 바꾼 것만: 오른쪽 아래 <b class="btn">취소</b>.</li><li>임시 저장한 것까지 모두: <b class="btn">되돌리기</b>.</li></ul>
+      </div></details>
+      <details><summary>이미지를 올릴 때</summary><div>
+        <ul>
+          <li>이미지(또는 "이미지 없음")를 누르면 고르기 창이 뜹니다. 파일을 고르거나 끌어다 놓으세요. PNG·JPG·WEBP.</li>
+          <li>커리큘럼 이미지는 올리기 전에 홈페이지 카드에 보일 부분을 고릅니다: <b>마우스 휠</b>로 확대·축소, <b>끌어서</b> 위치 이동 → <b class="btn">이 부분으로 첨부</b>. 크게 보기에서는 원본 전체가 보입니다.</li>
+        </ul>
+      </div></details>
+    </section>
+
+    <!-- ===================== 강사 ===================== -->
+    <section id="teacher" aria-labelledby="tab-teacher" hidden>
+      <h2>먼저 알아 두기</h2>
+      <div class="basics">
+        <ul>
+          <li>쓰고 나면 <b>오른쪽 아래</b>에 창이 뜹니다. <b class="btn">임시 저장</b> = 나만 보관(나중에 이어 쓰기), <b class="btn">학과장에게 제출</b> = 학과장에게 보내기, <b class="btn">취소</b> = 방금 쓴 것 되돌리기.</li>
+          <li>제출한 내용은 <b>학과장이 확정해야</b> 홈페이지에 나옵니다.</li>
+          <li>화면이 예전 모양이면 <b>Ctrl + Shift + R</b>로 새로고침하세요.</li>
+        </ul>
+      </div>
+
+      <h2>커리큘럼</h2>
+      <details><summary>수업 커리큘럼을 처음 쓸 때</summary><div>
+        <ol>
+          <li><span class="where">내 커리큘럼</span> 위쪽에서 <b>수업 구분</b> "일반 수업" → <b>학과</b> → <b>과목</b>을 고릅니다.</li>
+          <li>왼쪽 1~4단계에 수업 내용을 씁니다(4단계를 모두 써야 제출됩니다).</li>
+          <li>단계마다 설명 이미지를 넣습니다(아래 "이미지를 넣을 때").</li>
+          <li>오른쪽 <b>준비물</b>을 적습니다.</li>
+          <li>오른쪽 아래 <b class="btn">학과장에게 제출</b>.</li>
+        </ol>
+      </div></details>
+      <details><summary>방학 특강 커리큘럼을 쓸 때</summary><div>
+        <p><b>수업 구분</b>을 "방학 특강"으로 → <b>방학 특강</b>(예: 2026년 겨울방학특강) → <b>과목</b>을 고른 뒤 똑같이 씁니다. 학과장이 특강에 넣은 과목만 나옵니다.</p>
+      </div></details>
+      <details><summary>단계 이미지를 넣을 때</summary><div>
+        <ul>
+          <li>단계 카드의 이미지 칸("설명 이미지 없음 · 눌러서 올리기")이나 <b class="btn">이미지 수정</b>을 누르고 파일을 고르거나 끌어다 놓습니다.</li>
+          <li>컴퓨터의 이미지를 <b>단계 카드 위에 바로 끌어다 놓아도</b> 됩니다.</li>
+          <li>홈페이지 카드에 보일 부분 고르기: <b>마우스 휠</b>로 확대·축소, <b>끌어서</b> 위치 → <b class="btn">이 부분으로 첨부</b>.</li>
+          <li>빼려면 <b class="btn">이미지 빼기</b>.</li>
+        </ul>
+      </div></details>
+      <details><summary>다 못 쓰고 나중에 이어서 쓸 때</summary><div>
+        <p>오른쪽 아래 <b class="btn">임시 저장</b>. 다음에 같은 과목을 고르면 그대로 이어집니다. 다른 과목으로 넘어가면 쓰던 내용은 자동으로 임시 저장됩니다.</p>
+      </div></details>
+      <details><summary>쓰던 내용을 버리고 싶을 때</summary><div>
+        <ul><li>방금 쓴 것만: <b class="btn">취소</b>.</li><li>임시 저장한 것까지: <b class="btn">되돌리기</b>(지금 제출·공개된 내용으로 돌아갑니다).</li></ul>
+      </div></details>
+      <details><summary>제출한 뒤 다시 고치고 싶을 때</summary><div>
+        <p>같은 과목을 다시 고르고 고친 뒤 <b class="btn">학과장에게 제출</b>하면 됩니다. 학과장이 확정하기 전까지 홈페이지는 예전 내용 그대로입니다.</p>
+      </div></details>
+
+      <h2>준비물</h2>
+      <details><summary>준비물을 여러 개 적을 때</summary><div>
+        <ol>
+          <li><b class="btn">+ 준비물</b>을 누르면 한 줄이 생깁니다.</li>
+          <li>왼쪽에서 분류(교재·준비물·사용 프로그램·AI 도구)를 고르고 내용을 씁니다. AI 도구는 링크도 적을 수 있습니다.</li>
+          <li>더 있으면 다시 <b class="btn">+ 준비물</b>. 필요 없는 줄은 <b class="btn">빼기</b>.</li>
+        </ol>
+      </div></details>
+      <details><summary>다른 과목에 적었던 준비물을 다시 쓸 때</summary><div>
+        <p><b class="btn">+ 준비물</b> 옆 <b>내 준비물에서 불러오기</b>를 열고 고릅니다. 임시 저장·제출할 때 적은 준비물이 여기에 모입니다.</p>
+      </div></details>
+
+      <h2>프로필</h2>
+      <details><summary>경력·한마디·사진을 바꿀 때</summary><div>
+        <ol>
+          <li><span class="where">내 프로필</span>에서 이름·경력·수강생에게 한마디를 고칩니다.</li>
+          <li>사진은 사진 칸을 누르거나 끌어다 놓고, "본인 사진을 쓰는 것에 동의합니다"를 체크합니다.</li>
+          <li><b class="btn">학과장에게 제출</b>. 홈페이지용 프로필 사진은 학과장이 검수할 때 AI로 만듭니다.</li>
+        </ol>
+      </div></details>
+
+      <h2>이럴 땐</h2>
+      <details><summary>"연결된 강사 정보가 없습니다" / "연결된 학과가 없습니다"가 뜰 때</summary><div>
+        <p>계정이 강사 정보나 학과와 아직 연결되지 않았습니다. 학과장에게 연결을 요청하세요.</p>
+      </div></details>
+      <details><summary>내 과목이 목록에 없을 때</summary><div>
+        <p>일반 수업은 학과장이 학과에 넣은 과목, 방학 특강은 그 특강에 넣은 과목만 나옵니다. 학과장에게 과목 추가를 요청하세요.</p>
+      </div></details>
+      <details><summary>제출이 안 될 때("내용을 채워주세요")</summary><div>
+        <p>1~4단계 중 비어 있는 단계가 있습니다. 네 단계를 모두 쓰고 다시 제출하세요.</p>
+      </div></details>
+    </section>
+  </main>
+
+  <script>
+    // #head / #teacher 로 편을 고른다(주소로 바로 열기 가능)
+    function show() {
+      var id = location.hash === '#teacher' ? 'teacher' : 'head';
+      ['head', 'teacher'].forEach(function (k) {
+        document.getElementById(k).hidden = k !== id;
+        document.getElementById('tab-' + k).classList.toggle('on', k === id);
+        document.getElementById('tab-' + k).setAttribute('aria-current', k === id ? 'page' : 'false');
+      });
+    }
+    window.addEventListener('hashchange', show);
+    show();
+  </script>
+</body>
+</html>

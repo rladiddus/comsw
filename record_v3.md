@@ -241,3 +241,4 @@
 - 2026-11-23 changes.track load: write 후 t.saved = read()(기준과 같으면 drop). mine go() = stashAll 후 이동.
 - 2026-11-23 mine.mjs .mine-body(2.2fr | 320px+).
 - 2026-11-23 .navlabel 스타일(--soft 바탕, 800).
+- 2026-11-23 admin-v4/help.html 추가(#head/#teacher), index.html #helpLink(target _blank), app.mjs 역할별 링크. 기능 바꾸면 help.html 동기화.

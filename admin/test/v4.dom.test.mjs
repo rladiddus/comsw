@@ -1008,3 +1008,13 @@ test("내 커리큘럼: 예전 형식 임시 저장(쉼표 준비물)을 불러�
   assert.equal(mine.payload.steps[0].written, "고친 내용");
   assert.ok(saved.some((r) => r.target === "prep-library"), "준비물은 '내 준비물'에도 모임");
 });
+
+test("사용방법: 메뉴 바 아래 링크(새 탭), 강사는 강사 편으로", async () => {
+  const { readFileSync } = await import("node:fs");
+  const html = readFileSync(new URL("../../admin-v4/index.html", import.meta.url), "utf8");
+  assert.match(html, /id="helpLink"[^>]*href="\.\/help\.html"[^>]*target="_blank"[^>]*rel="noopener"/);
+  const help = readFileSync(new URL("../../admin-v4/help.html", import.meta.url), "utf8");
+  assert.match(help, /id="head"/);
+  assert.match(help, /id="teacher"/);
+  assert.ok((help.match(/<summary>/g) ?? []).length >= 30, "상황별 설명");
+});

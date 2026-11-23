@@ -49,6 +49,8 @@ export function startApp({ role, email, uid, displayName }) {
   $("#appView").hidden = false;
   $("#userName").textContent = displayName || email;
   $("#userRole").textContent = roleLabel(role);
+  // 사용방법(새 탭): 강사는 강사 편부터
+  $("#helpLink").href = role === "teacher" ? "./help.html#teacher" : "./help.html#head";
   window.addEventListener("hashchange", route);
   window.addEventListener("beforeunload", (e) => { if (unsaved()) e.preventDefault(); });
   route();

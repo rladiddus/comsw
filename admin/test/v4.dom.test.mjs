@@ -1143,3 +1143,30 @@ test("강사 정보 담당 과목: 고른 과목만 알약(× 빼기), [과목 �
   assert.deepEqual(chips(), []);
   document.querySelectorAll("dialog").forEach((d) => d.remove());
 });
+
+test("떠 있는 창 옮기기: 버튼 아닌 곳을 끌면 옮겨지고 위치 기억, 제목 두 번 누르면 원래 자리", async () => {
+  document.querySelectorAll("dialog").forEach((d) => d.remove());
+  const page = await open("prep");
+  [...page.querySelectorAll("tr.pick")].find((tr) => tr.textContent.includes("캐드1, 캐드2")).click();
+  await flush();
+  const dlg = [...document.querySelectorAll("dialog.modal")].at(-1);
+  type(dlg.querySelector("input[aria-label='내용']"), "자");
+  await flush();
+  const bar = document.querySelector(".change-bar");
+  const M = dom.window.MouseEvent;
+  bar.querySelector(".bar-title").dispatchEvent(new M("pointerdown", { bubbles: true, button: 0, clientX: 10, clientY: 10 }));
+  bar.dispatchEvent(new M("pointermove", { bubbles: true, clientX: 210, clientY: 110 }));
+  bar.dispatchEvent(new M("pointerup", { bubbles: true }));
+  assert.equal(bar.style.left, "200px");
+  assert.equal(bar.style.top, "100px");
+  assert.deepEqual(JSON.parse(dom.window.localStorage.getItem("comsw_v4_bar_pos")), { x: 200, y: 100 });
+  bar.querySelector("button").dispatchEvent(new M("pointerdown", { bubbles: true, button: 0, clientX: 0, clientY: 0 }));
+  bar.dispatchEvent(new M("pointermove", { bubbles: true, clientX: 500, clientY: 500 }));
+  assert.equal(bar.style.left, "200px", "버튼을 누를 땐 안 움직임");
+  bar.querySelector(".bar-title").dispatchEvent(new M("dblclick", { bubbles: true }));
+  assert.equal(bar.style.left, "");
+  assert.equal(dom.window.localStorage.getItem("comsw_v4_bar_pos"), null);
+  barBtn("취소").click();
+  await flush();
+  document.querySelectorAll("dialog").forEach((d) => d.remove());
+});

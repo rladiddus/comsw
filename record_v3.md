@@ -247,3 +247,4 @@
 - 2026-11-23 20261123010000 실행 확인, help.html 보강.
 - 2026-11-23 .form-field input:not([type=checkbox]) 등, .check-chip/.check-list :has(:checked).
 - 2026-11-23 instructors subjectPicker, .pick-chip.
+- 2026-11-23 changes.movable(bar)·place, localStorage comsw_v4_bar_pos.

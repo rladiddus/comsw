@@ -177,6 +177,10 @@ dialog.modal.modal-mid { width: min(860px, calc(100vw - 32px)); }
 dialog.modal.modal-small { width: min(420px, calc(100vw - 32px)); height: fit-content; } /* auto면 브라우저가 화면 높이로 늘림 */
 .change-bar { position: fixed; right: 20px; bottom: 20px; z-index: 50; width: min(360px, calc(100vw - 32px)); background: var(--paper); border: 1px solid var(--green); border-radius: 8px; padding: 14px 16px; box-shadow: 0 6px 24px rgb(0 0 0 / .15); display: grid; gap: 8px; }
 .change-bar .fail { margin: 0; }
+.change-bar { cursor: move; touch-action: none; user-select: none; }
+.change-bar button { cursor: pointer; }
+.change-bar.moving { box-shadow: 0 10px 34px rgb(0 0 0 / .28); opacity: .96; }
+.change-bar .bar-title .drag-handle { color: var(--sub); font-weight: 400; }
 /* 썸네일 영역 고르기 창(admin/js/image-crop.mjs) */
 .crop-dialog { width: min(560px, calc(100vw - 24px)); max-height: calc(100dvh - 24px); overflow: auto; margin: auto; padding: 22px; border: 1px solid var(--line); border-radius: 10px; background: var(--paper); color: var(--text); }
 .crop-dialog::backdrop { background: rgb(0 0 0 / .45); }

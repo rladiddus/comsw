@@ -73,7 +73,7 @@ if (typeof document !== "undefined") {
 }
 
 function draw() {
-  bar ??= h("div", { class: "change-bar", role: "region", "aria-label": "바뀐 설정" });
+  if (!bar) { bar = h("div", { class: "change-bar", role: "region", "aria-label": "바뀐 설정" }); movable(bar); }
   // 팝업이 열려 있으면 바깥은 누를 수 없어 창을 맨 위 팝업 안으로 옮긴다
   const top = [...document.querySelectorAll("dialog[open]:not(.blocker)")].at(-1) ?? document.body;
   if (bar.parentElement !== top) top.append(bar);
@@ -93,9 +93,50 @@ function draw() {
   const cancel = allSaved ? null : h("button", { type: "button", class: "btn", onclick: () => run(cancel, msg, cancelAll) }, "취소");
   bar.hidden = false;
   bar.replaceChildren(
-    h("b", {}, allSaved ? "임시 저장한 변경이 있습니다" : "바뀐 설정이 있습니다"),
+    h("b", { class: "bar-title", title: "끌어서 옮길 수 있습니다(두 번 누르면 원래 자리)" }, h("span", { class: "drag-handle", "aria-hidden": "true" }, "⠿ "), allSaved ? "임시 저장한 변경이 있습니다" : "바뀐 설정이 있습니다"),
     h("span", { class: "muted" }, dirty.map((t) => t.title).filter(Boolean).join(", ")),
     msg, h("div", { class: "actions" }, cancel, first, apply));
+}
+
+// 창 옮기기(2026-11-23 사용자 요청): 버튼이 아닌 곳을 끌면 옮겨지고, 위치는 이 브라우저에 기억. 제목을 두 번 누르면 원래 자리(오른쪽 아래).
+const POS_KEY = "comsw_v4_bar_pos";
+function place(el, x, y) {
+  const win = el.ownerDocument.defaultView;
+  const w = el.offsetWidth || 360, hgt = el.offsetHeight || 140;
+  const left = Math.max(8, Math.min(x, (win?.innerWidth ?? 1200) - w - 8));
+  const top = Math.max(8, Math.min(y, (win?.innerHeight ?? 800) - hgt - 8));
+  Object.assign(el.style, { left: `${left}px`, top: `${top}px`, right: "auto", bottom: "auto" });
+  return { x: left, y: top };
+}
+function movable(el) {
+  const win = el.ownerDocument.defaultView;
+  if (!win) return;
+  const store = (() => { try { return win.localStorage; } catch { return null; } })();
+  try { const p = JSON.parse(store?.getItem(POS_KEY) ?? "null"); if (p) setTimeout(() => place(el, p.x, p.y)); } catch { /* 기억 못 해도 기본 자리 */ }
+  let drag = null;
+  el.addEventListener("pointerdown", (e) => {
+    if (e.button !== 0 || e.target.closest("button, a, input, select, textarea")) return;
+    const r = el.getBoundingClientRect();
+    drag = { dx: e.clientX - r.left, dy: e.clientY - r.top };
+    el.setPointerCapture?.(e.pointerId);
+    el.classList.add("moving");
+  });
+  el.addEventListener("pointermove", (e) => { if (drag) place(el, e.clientX - drag.dx, e.clientY - drag.dy); });
+  const end = () => {
+    if (!drag) return;
+    drag = null;
+    el.classList.remove("moving");
+    try { store?.setItem(POS_KEY, JSON.stringify({ x: parseFloat(el.style.left), y: parseFloat(el.style.top) })); } catch { /* 없음 */ }
+  };
+  el.addEventListener("pointerup", end);
+  el.addEventListener("pointercancel", end);
+  el.addEventListener("dblclick", (e) => {
+    if (!e.target.closest(".bar-title")) return;
+    Object.assign(el.style, { left: "", top: "", right: "", bottom: "" });
+    try { store?.removeItem(POS_KEY); } catch { /* 없음 */ }
+  });
+  // 창 크기가 바뀌어 화면 밖으로 나가지 않게
+  win.addEventListener("resize", () => { if (el.style.left) place(el, parseFloat(el.style.left), parseFloat(el.style.top)); });
 }
 
 async function run(btn, msg, work) {

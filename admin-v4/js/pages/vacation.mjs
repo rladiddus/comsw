@@ -2,7 +2,7 @@
 // 과목 생성에서 만든 과목은 '방학 특강 과목'(is_vacation) — 학과·과목의 일반 과목과 이름이 같아도 다른 과목이고, 여기서만 넣을 수 있다.
 // 특강 설정(이름·홈페이지 노출·과목 구성)을 바꾸면 오른쪽 아래 창 [임시 저장]/[사이트 적용]. 커리큘럼은 [수정]으로 고치고 같은 창으로 반영.
 import * as data from "../data.mjs";
-import { h, head, box, tabs, pill, fill, empty, note, busy, publishBanner, toggleSwitch } from "../ui.mjs";
+import { h, head, box, tabs, pill, fill, empty, note, busy, publishBanner, toggleSwitch, modal } from "../ui.mjs";
 import { commonEditor } from "./common-editor.mjs";
 import { track, canSwitch, untrack, unsaved } from "../changes.mjs";
 
@@ -27,15 +27,19 @@ export async function render({ main }) {
     const out = h("div");
     const banner = await publishBanner(data.unpublished);
     const draw = () => {
-      const opts = [...cat.vacations.map((v) => [v.id, `${v.name}${v.id === shown ? " (홈페이지)" : ""}`]), ["new", "+ 새 방학 특강"], ["create", "과목 생성"]];
+      const opts = [...cat.vacations.map((v) => [v.id, v.name]), ["create", "과목 생성"]];
       pick = opts.some(([v]) => v === pick) ? pick : opts[0][0];
-      const top = tabs(opts, pick, (id) => { if (!canSwitch()) return; if (editor) untrack(editor.trackId); editor = null; pane = null; pick = id; open = null; edits.clear(); msg.replaceChildren(); draw(); }, "chips");
+      const tabRow = tabs(opts, pick, (id) => { if (!canSwitch()) return; if (editor) untrack(editor.trackId); editor = null; pane = null; pick = id; open = null; edits.clear(); msg.replaceChildren(); draw(); }, "chips");
+      // [+ 새 방학 특강]은 학과 추가처럼 팝업(이름 받아 바로 만들기)
+      tabRow.insertBefore(h("button", { type: "button", class: "add-chip", onclick: () => namePopup(null) }, "+ 새 방학 특강"), tabRow.lastElementChild);
+      const top = tabRow;
       if (pick === "create") {
         out.replaceChildren(banner, msg, top, h("div", { style: "height:14px" }), createBox());
         return;
       }
       const v = cat.vacations.find((x) => x.id === pick);
-      const ekey = v?.id ?? "new";
+      if (!v) { out.replaceChildren(banner, msg, top, h("div", { style: "height:14px" }), box(null, note("방학 특강이 없습니다. [+ 새 방학 특강]으로 만들어주세요."))); return; }
+      const ekey = v.id;
       // 특강 설정: 바꾸면 떠 있는 창. 화면을 다시 그려도 지금 편집 상태(edits)를 쓴다.
       if (!edits.has(ekey)) {
         const base = { name: v?.name ?? "", subjects: cat.vacLinks.filter((l) => l.set_id === v?.id).map((l) => l.subject_id).sort(), show: v ? v.id === shown : false };
@@ -52,13 +56,13 @@ export async function render({ main }) {
         });
       }
       const st = edits.get(ekey);
-      const name = h("input", { value: st.name, "aria-label": "특강 이름", placeholder: "예: 2026 겨울방학특강", style: "width:100%", oninput: (e) => { st.name = e.target.value; } });
-      // 공개 = 홈페이지 방학 특강 페이지에 이 특강(제목 오른쪽 스위치)
+      // 제목 옆 [이름 수정](학과명 수정과 같은 팝업, 바로 반영), 오른쪽 '공개' 스위치(오른쪽 아래 창으로 반영)
       const settingsBox = box(null,
-        h("div", { class: "row" }, h("h3", { style: "margin:0" }, v ? `${v.name} 설정` : "새 방학 특강"),
+        h("div", { class: "row" },
+          h("div", { class: "actions" }, h("h3", { style: "margin:0" }, `${v.name} 설정`),
+            h("button", { type: "button", class: "btn", onclick: () => namePopup(v) }, "이름 수정")),
           h("div", { class: "actions" }, h("span", {}, "공개"),
-            toggleSwitch(st.show, "홈페이지 방학 특강 페이지에 이 특강 공개", (next) => { st.show = next; draw(); }))),
-        h("label", { class: "step", style: "display:block;margin-top:10px" }, h("b", {}, "특강 이름"), name));
+            toggleSwitch(st.show, "홈페이지 방학 특강 페이지에 이 특강 공개", (next) => { st.show = next; draw(); }))));
       // 왼쪽: 이 특강 과목(넣기·빼기)
       const count = (sid) => new Set(rows.filter((r) => r.set_id === v?.id && r.subject_id === sid).map((r) => r.instructor_id)).size;
       const linked = (sid) => cat.vacLinks.some((l) => l.set_id === v?.id && l.subject_id === sid);
@@ -77,6 +81,30 @@ export async function render({ main }) {
       // 오른쪽: 고른 과목의 이 특강 공통 커리큘럼(학과·과목 팝업과 같은 모양, [수정]으로 고침)
       out.replaceChildren(banner, msg, top, h("div", { style: "height:14px" }), settingsBox,
         h("div", { class: "side-list vac-body" }, left, rightPane(v, open ? byId.get(open) : null, linked)));
+    };
+    // 특강 이름: 새로 만들기·이름 수정 팝업(학과 추가·학과명 수정과 같은 방식, 바로 반영). 과목·공개는 공개 중인 그대로 둔다.
+    const namePopup = (v) => {
+      const popMsg = h("div");
+      const input = h("input", { value: v?.name ?? "", "aria-label": "방학 특강 이름", placeholder: "예: 2027년 여름방학특강", style: "width:100%;padding:9px 10px;border:1px solid var(--line);border-radius:5px" });
+      const ok = h("button", { type: "button", class: "btn primary" }, v ? "수정" : "추가");
+      const pop = modal(v ? "방학 특강 이름 수정" : "새 방학 특강", h("section", { class: "box", style: "margin:0" }, popMsg,
+        h("label", { class: "step", style: "display:block" }, h("b", {}, "방학 특강 이름"), input),
+        h("p", { class: "muted" }, v ? "바꾸면 사이트 전체에서 새 이름이 보입니다(바로 반영)." : "추가하면 바로 만들어지고, 과목을 넣어 구성할 수 있습니다(공개는 꺼진 채로)."),
+        h("div", { class: "actions" }, ok)));
+      pop.dlg.classList.add("modal-small");
+      ok.onclick = () => busy(ok, popMsg, async () => {
+        const name = input.value.trim();
+        if (!name) throw new Error("방학 특강 이름을 입력해주세요");
+        pick = await data.call("comsw_v4_save_vacation", {
+          p_id: v?.id ?? null, p_name: name,
+          p_subjects: v ? cat.vacLinks.filter((l) => l.set_id === v.id).map((l) => l.subject_id) : [],
+          p_show: v ? v.id === shown : false,
+        });
+        pop.close();
+        edits.clear();
+        render({ main });
+      });
+      input.focus();
     };
     let editor = null;
     let pane = null; // 같은 과목이면 다시 그려도 같은 편집기(고치던 내용 유지)

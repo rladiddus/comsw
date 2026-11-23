@@ -723,3 +723,29 @@ test("방학 특강: 설정 제목 오른쪽 '공개' 스위치로 켜고 끄기
   await flush();
   assert.equal(calls.find(([n]) => n === "comsw_v4_save_vacation")[1].p_show, before !== "true");
 });
+
+test("방학 특강: 탭에 '(홈페이지)' 없음, [이름 수정]·[+ 새 방학 특강]은 학과명 수정처럼 팝업으로 바로 반영", async () => {
+  document.querySelectorAll("dialog").forEach((d) => d.remove());
+  const fake = db();
+  const calls = [];
+  fake.rpc = async (name, args) => { calls.push([name, args]); return { data: name === "comsw_v4_unpublished" ? false : "v1", error: null }; };
+  const main = await open("vacation", undefined, fake);
+  [...main.querySelectorAll("button")].find((b) => b.textContent.startsWith("2026 겨울")).click();
+  await flush();
+  assert.ok(!main.textContent.includes("(홈페이지)"));
+  assert.ok(!main.querySelector("input[aria-label='특강 이름']"), "설정 칸의 이름 입력 없음");
+  [...main.querySelectorAll("button")].find((b) => b.textContent === "이름 수정").click();
+  let dlg = document.querySelector("dialog.modal");
+  assert.match(dlg.textContent, /방학 특강 이름 수정/);
+  type(dlg.querySelector("input[aria-label='방학 특강 이름']"), "2026 겨울특강");
+  [...dlg.querySelectorAll("button")].find((b) => b.textContent === "수정").click();
+  await flush();
+  assert.deepEqual(calls.find(([n]) => n === "comsw_v4_save_vacation")[1], { p_id: "v1", p_name: "2026 겨울특강", p_subjects: ["s1"], p_show: false });
+  calls.length = 0;
+  [...main.querySelectorAll("button")].find((b) => b.textContent === "+ 새 방학 특강").click();
+  dlg = [...document.querySelectorAll("dialog.modal")].at(-1);
+  type(dlg.querySelector("input[aria-label='방학 특강 이름']"), "2027 여름");
+  [...dlg.querySelectorAll("button")].find((b) => b.textContent === "추가").click();
+  await flush();
+  assert.deepEqual(calls.find(([n]) => n === "comsw_v4_save_vacation")[1], { p_id: null, p_name: "2027 여름", p_subjects: [], p_show: false });
+});

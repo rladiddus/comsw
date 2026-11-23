@@ -226,3 +226,4 @@
 - 2026-11-20 subjects unique(name, is_vacation)(이름만 unique 제약은 찾아서 삭제), comsw_v4_create_subject(name, vacation) — 방특은 sort_order null. confirm_prep 일반 과목만. data.general(cat). vacation.mjs 재작성(pane 캐시로 편집기 유지). 20261120070000 실행 대기.
 - 2026-11-20 060000·070000 실행 확인.
 - 2026-11-20 vacation.mjs 공개 = toggleSwitch(st.show).
+- 2026-11-23 vacation.mjs namePopup(v) — save_vacation에 공개 중인 과목·공개 그대로 넘겨 이름만 바꿈.

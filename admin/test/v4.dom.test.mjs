@@ -1226,3 +1226,11 @@ test("이번 제출이 1단계여도 학과장이 원래 문구를 고치고 [+ 
   assert.deepEqual(args.p_steps.map((x) => [x.id ?? null, x.written]), [["c1", "고친 1"], [null, "새 2"], [null, "새 3"], [null, "새 4"]]);
   document.querySelectorAll("dialog").forEach((d) => d.remove());
 });
+
+test("미리보기: 구글 드라이브 링크는 드라이브 보기 화면(iframe)이 아니라 썸네일 사진", async () => {
+  const { media } = await import("../../admin-v4/js/ui.mjs");
+  const el = media("https://drive.google.com/file/d/ABC123/view?usp=sharing");
+  assert.equal(el.querySelector("iframe"), null);
+  assert.equal(el.querySelector("img").getAttribute("src"), "https://drive.google.com/thumbnail?id=ABC123&sz=w1000");
+  assert.ok(media("https://img/1.png").querySelector("img"));
+});

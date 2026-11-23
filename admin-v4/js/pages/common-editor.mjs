@@ -2,6 +2,7 @@
 // 4단계가 아닌 강사 자료는 단계를 4묶음으로 나눠 넣고, 그 강사 이미지는 어느 단계에서든 후보(사용자 결정 2026-11-19).
 // 바꾸면 떠 있는 창: [임시 저장](공개 안 됨) / [사이트 적용](그 과목만 공개). AI는 버튼으로만, 결과는 고칠 수 있는 초안.
 import * as data from "../data.mjs";
+import { driveThumbnail } from "../../../admin/js/drive.mjs";
 import { h, box, pill, media, busy, note, fail, empty } from "../ui.mjs";
 import { curriculumUnits, stepState, STEPS } from "../rules.mjs";
 import { track } from "../changes.mjs";
@@ -80,7 +81,7 @@ export function commonEditor(subject, cat, current, { msg, reload, set = null, e
             const on = c.r.media_url === s.image_url;
             return h("button", { type: "button", "aria-pressed": String(on), title: `${nameOf.get(c.u.instructor_id)} ${c.r.step_label}${on ? " (다시 누르면 빼기)" : ""}`,
               onclick: () => { s.image_url = on ? "" : c.r.media_url; draw(); } },
-            h("img", { src: c.r.media_url, alt: `${nameOf.get(c.u.instructor_id)} ${c.r.step_label}`, class: "thumb" }),
+            h("img", { src: driveThumbnail(c.r.media_url), alt: `${nameOf.get(c.u.instructor_id)} ${c.r.step_label}`, class: "thumb" }), // 드라이브 링크도 사진으로
             c.u.approved.length !== STEPS ? h("span", { class: "muted" }, ` ${c.r.step_label} 자료`) : null);
           }) : h("span", { class: "muted" }, "강사를 체크하면 후보 이미지가 나옵니다")),
           h("div", { class: "step-foot" }, h("h4", {}, "내용"),

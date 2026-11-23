@@ -1,5 +1,6 @@
 // V4 화면 부품. 글자는 늘 textContent로 넣는다(DB 글을 HTML로 해석하지 않음).
 import { mediaPreview } from "../../admin/js/media-preview.mjs";
+import { driveThumbnail } from "../../admin/js/drive.mjs";
 
 // h("div", {class: "box", onclick}, 자식…) — 자식은 글자·노드·배열·null
 export function h(tag, attrs = {}, ...kids) {
@@ -42,7 +43,14 @@ export function table(cols, rows, { onPick, selected } = {}) {
     }, cols.map(([, f]) => h("td", {}, f(r))))))));
 }
 
-export const media = (url) => h("div", { class: "media" }, url ? mediaPreview(url) : h("span", { class: "muted" }, "이미지 없음"));
+// 구글 드라이브 링크(예전 자료)는 드라이브 보기 화면을 끼우지 않고 홈페이지처럼 사진(썸네일)으로 보인다
+const driveImage = (url) => {
+  const img = h("img", { src: driveThumbnail(url), alt: "미리보기", loading: "lazy" });
+  img.addEventListener("error", () => img.replaceWith(h("span", { class: "muted" }, "드라이브 이미지를 불러오지 못했습니다(공유 설정 확인)")));
+  return img;
+};
+export const media = (url) => h("div", { class: "media" }, !url ? h("span", { class: "muted" }, "이미지 없음")
+  : /drive\.google\.com/i.test(url) ? driveImage(url) : mediaPreview(url));
 
 export function dl(pairs) {
   return h("dl", { class: "dl" }, pairs.flatMap(([k, v]) => [h("dt", {}, k), h("dd", {}, v ?? "—")]));

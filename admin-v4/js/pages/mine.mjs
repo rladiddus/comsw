@@ -7,7 +7,20 @@ import { curriculumUnits, deptOrder, stepState, STEPS } from "../rules.mjs";
 import { track, check, canSwitch } from "../changes.mjs";
 
 const LABELS = Array.from({ length: STEPS }, (_, i) => `${i + 1}단계`);
-const MAT = [["textbook", "교재"], ["supplies", "준비물"], ["tools", "사용 프로그램"], ["ai", "AI 도구(한 줄에 하나, 이름 | 링크)"]];
+// 준비물 분류(저장 칸 이름). 화면은 '한 줄 = 분류 하나 + 내용' 목록, 저장은 예전처럼 분류별 칸(줄바꿈으로 이음, AI는 '이름 | 링크').
+export const MAT = [["textbook", "교재"], ["supplies", "준비물"], ["tools", "사용 프로그램"], ["ai", "AI 도구"]];
+export function parseMat(m = {}) {
+  return MAT.flatMap(([cat]) => String(m[cat] ?? "").split(cat === "ai" ? /[\n\r]+/ : /[,\n\r]+/).map((x) => x.trim()).filter(Boolean).map((line) => {
+    if (cat !== "ai") return { cat, content: line, link: "" };
+    const [name, ...rest] = line.split("|");
+    return { cat, content: name.trim(), link: rest.join("|").trim() };
+  }));
+}
+export function serializeMat(items) {
+  return Object.fromEntries(MAT.map(([cat]) => [cat, items.filter((i) => i.cat === cat && i.content.trim())
+    .map((i) => (cat === "ai" && i.link.trim() ? `${i.content.trim()} | ${i.link.trim()}` : i.content.trim())).join("\n")]));
+}
+const matKey = (i) => `${i.cat}|${i.content.replace(/\s/g, "").toLowerCase()}`;
 let state = { dept: null, scope: "general", subject: null };
 const editors = new Map(); // `${set}|${subject}` → { steps, mat, unit } 지금 편집 중
 
@@ -24,6 +37,20 @@ export async function render({ main, session }) {
       data.instructorSubjects(me.id), data.materials((q) => q.eq("instructor_id", me.id)),
     ]);
     let rows = await data.curricula((q) => q.eq("instructor_id", me.id).order("sort_order", { nullsFirst: false }));
+    // 내 준비물(재사용 목록): 본인 저장함(curriculum/prep-library) + 내가 낸 모든 과목 준비물. 임시 저장·제출할 때 자동으로 더한다.
+    let library = [];
+    try { library = (await data.teacherDraft(me.id, "curriculum", "prep-library"))?.payload?.items ?? []; } catch { library = []; }
+    const remember = async (items) => {
+      const seen = new Set(library.map(matKey));
+      const add = items.filter((i) => i.content.trim() && !seen.has(matKey(i)) && seen.add(matKey(i))).map((i) => ({ cat: i.cat, content: i.content.trim(), link: i.link?.trim() ?? "" }));
+      if (!add.length) return;
+      library = [...library, ...add];
+      await data.saveTeacherDraft(me.id, "curriculum", "prep-library", { items: library }).catch(() => {});
+    };
+    const libraryAll = () => {
+      const seen = new Set();
+      return [...library, ...mats.flatMap((m) => parseMat(m))].filter((i) => !seen.has(matKey(i)) && seen.add(matKey(i)));
+    };
     const depts = cat.departments.filter((d) => myDepts.some((l) => l.department_id === d.id));
     if (!depts.length) return box(null, note("연결된 학과가 없습니다. 학과장에게 소속 학과 연결을 요청해주세요."));
     const subjects = data.live(cat.subjects);
@@ -47,19 +74,20 @@ export async function render({ main, session }) {
       // 기준 = 지금 제출(또는 검수 완료)된 내용. 임시 저장한 것이 있으면 track이 불러와 채운다.
       const baseline = {
         steps: LABELS.map((l) => ({ written: byLabel(l)?.written ?? "", media_url: byLabel(l)?.media_url ?? "" })),
-        mat: Object.fromEntries(MAT.map(([k]) => [k, m[k] ?? ""])),
+        mat: serializeMat(parseMat(m)),
       };
       const ed = { ...JSON.parse(JSON.stringify(baseline)), unit };
+      ed.items = parseMat(ed.mat);
       editors.set(key, ed);
       track({
         id: key, slot: "mine", title: `${sub.name} 커리큘럼`, baseline, applyLabel: "학과장에게 제출",
         store: {
           load: async () => (await data.teacherDraft(me.id, "curriculum", key))?.payload ?? null,
-          save: (x) => data.saveTeacherDraft(me.id, "curriculum", key, x),
+          save: async (x) => { await data.saveTeacherDraft(me.id, "curriculum", key, x); await remember(parseMat(x.mat)); },
           drop: () => data.dropTeacherDraft(me.id, "curriculum", key),
         },
-        read: () => ({ steps: ed.steps, mat: ed.mat }),
-        write: (x) => { ed.steps = x.steps; ed.mat = x.mat; draw(); },
+        read: () => ({ steps: ed.steps, mat: serializeMat(ed.items) }),
+        write: (x) => { ed.steps = x.steps; ed.items = parseMat(x.mat); draw(); },
         apply: async (x) => {
           const missing = x.steps.map((st, i) => (st.written.trim() ? null : LABELS[i])).filter(Boolean);
           if (missing.length) throw new Error(`${missing.join(", ")} 내용을 채워주세요. 4단계를 모두 써야 제출할 수 있습니다.`);
@@ -69,6 +97,7 @@ export async function render({ main, session }) {
           });
         },
         onApplied: async () => {
+          await remember(ed.items);
           rows = await data.curricula((q) => q.eq("instructor_id", me.id).order("sort_order", { nullsFirst: false }));
           editors.delete(key);
           msg.replaceChildren(note(`${sub.name}: 제출했습니다. 학과장이 확정하면 홈페이지에 나옵니다.`));
@@ -135,12 +164,42 @@ export async function render({ main, session }) {
           h("div", { class: "row" }, h("h3", {}, `${sub.name} · ${set.is_vacation ? set.name : "일반 수업"}`), h("div", { class: "actions" }, status)),
           old ? note(`예전 자료가 ${old.length}단계입니다(${stepState(old.length).label}). 아래 참고 자료를 보고 4단계로 새로 써서 제출해주세요. 확정 전까지 예전 공개 내용은 그대로입니다.`) : null,
           h("div", { class: "steps" }, ed.steps.map(card))),
-        box("준비물", h("p", { class: "muted" }, "쉼표나 줄바꿈으로 나눠 적어주세요. 학과장이 과목 공통 준비물로 정리합니다."),
-          h("div", { class: "steps" }, MAT.map(([k, label]) => h("label", { class: "step" }, h("b", {}, label),
-            h("textarea", { rows: 3, value: ed.mat[k] ?? "", style: "width:100%", oninput: (e) => { ed.mat[k] = e.target.value; } }))))),
+        matBox(ed),
         h("p", { class: "muted" }, "고치면 오른쪽 아래 창에서 [임시 저장] 또는 [학과장에게 제출]을 누르세요."),
         old ? box(`참고: 예전 ${old.length}단계`, h("div", { class: "steps" }, old.map((r) => h("div", { class: "step" },
           h("b", {}, r.step_label), h("p", {}, r.written || "—"), r.media_url ? media(r.media_url) : null)))) : null);
+    }
+
+    // 준비물: 한 줄에 분류(드롭다운) 하나 + 내용(AI 도구는 링크도). [+ 준비물], [빼기], 내 준비물에서 불러오기.
+    function matBox(ed) {
+      const list = h("div", { class: "mat-list" });
+      const drawList = () => {
+        list.replaceChildren(...(ed.items.length ? ed.items.map((it, n) => h("div", { class: "mat-row" },
+          h("select", { "aria-label": `준비물 ${n + 1} 분류`, onchange: (e) => { it.cat = e.target.value; drawList(); } },
+            MAT.map(([c, l]) => h("option", { value: c, selected: c === it.cat }, l))),
+          h("input", { value: it.content, "aria-label": `준비물 ${n + 1} 내용`, placeholder: it.cat === "ai" ? "예: ChatGPT" : it.cat === "tools" ? "예: Photoshop" : it.cat === "textbook" ? "예: 멘토시리즈 포토샵" : "예: 마우스",
+            oninput: (e) => { it.content = e.target.value; } }),
+          it.cat === "ai" ? h("input", { value: it.link, "aria-label": `준비물 ${n + 1} 링크`, placeholder: "https:// (선택)", oninput: (e) => { it.link = e.target.value; } }) : h("span"),
+          h("button", { type: "button", class: "btn danger small", onclick: () => { ed.items.splice(n, 1); drawList(); } }, "빼기")))
+          : [h("p", { class: "muted" }, "준비물이 없습니다. [+ 준비물]로 하나씩 더하세요.")]));
+        const have = new Set(ed.items.map(matKey));
+        const lib = libraryAll().filter((i) => !have.has(matKey(i)));
+        load.replaceChildren(h("option", { value: "" }, lib.length ? `내 준비물에서 불러오기 (${lib.length})` : "내 준비물 없음"),
+          ...lib.map((i, k) => h("option", { value: String(k) }, `${MAT.find(([c]) => c === i.cat)?.[1]} · ${i.content}`)));
+        load.disabled = !lib.length;
+        load._lib = lib;
+      };
+      const load = h("select", { "aria-label": "내 준비물에서 불러오기", onchange: (e) => {
+        const i = load._lib?.[Number(e.target.value)];
+        if (i) { ed.items.push({ ...i }); drawList(); }
+      } });
+      drawList();
+      return box("준비물",
+        h("p", { class: "muted" }, "분류를 고르고 하나씩 적어주세요(여러 개 가능). 적은 준비물은 '내 준비물'에 모여 다른 과목에서 불러올 수 있습니다. 학과장이 과목 공통 준비물로 정리합니다."),
+        list,
+        h("div", { class: "actions", style: "margin-top:10px" },
+          h("button", { type: "button", class: "btn", onclick: () => { ed.items.push({ cat: "supplies", content: "", link: "" }); drawList(); list.querySelector(".mat-row:last-child input")?.focus(); } }, "+ 준비물"),
+          load));
     }
 
     await draw();

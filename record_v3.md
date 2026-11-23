@@ -234,3 +234,4 @@
 - 2026-11-23 changes.cancelAll().
 - 2026-11-23 courses 전체 과목 filterBar.
 - 2026-11-23 vacation createBox into 선택 → create_subject 후 save_vacation(공개 구성+새 id).
+- 2026-11-23 mine.mjs parseMat/serializeMat export, matBox, remember(library).

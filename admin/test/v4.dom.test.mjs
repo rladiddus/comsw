@@ -916,3 +916,28 @@ test("방학 특강 과목 생성: 넣을 특강을 고르면 만들자마자 �
   assert.deepEqual(calls.filter(([n]) => n !== "comsw_v4_unpublished").map(([n]) => n), ["comsw_v4_create_subject", "comsw_v4_save_vacation"]);
   assert.deepEqual(calls.find(([n]) => n === "comsw_v4_save_vacation")[1].p_subjects, ["s1", "s-new"]);
 });
+
+test("내 커리큘럼 준비물: 한 줄 = 분류(드롭다운)+내용, 여러 개, 저장은 분류별 칸 그대로, 내 준비물에서 불러오기", async () => {
+  const { parseMat, serializeMat } = await import("../../admin-v4/js/pages/mine.mjs");
+  const items = parseMat({ textbook: "멘토 포토샵", supplies: "마우스, 이어폰", tools: "Photoshop", ai: "ChatGPT | https://chat.openai.com" });
+  assert.deepEqual(items.map((i) => [i.cat, i.content, i.link]), [["textbook", "멘토 포토샵", ""], ["supplies", "마우스", ""], ["supplies", "이어폰", ""], ["tools", "Photoshop", ""], ["ai", "ChatGPT", "https://chat.openai.com"]]);
+  assert.deepEqual(serializeMat(items), { textbook: "멘토 포토샵", supplies: "마우스\n이어폰", tools: "Photoshop", ai: "ChatGPT | https://chat.openai.com" });
+  assert.deepEqual(serializeMat([{ cat: "supplies", content: "  ", link: "" }]).supplies, "", "빈 줄은 저장 안 함");
+
+  const fake = db();
+  const extra = { instructor_subject_materials: [{ instructor_id: "i1", subject_id: "s2", supplies: "삼각자", textbook: "", tools: "AutoCAD", ai: "" }] };
+  const local = fakeSupabase({ ...extra });
+  const from0 = fake.from.bind(fake);
+  fake.from = (t) => (t in extra ? local.from(t) : from0(t));
+  const main = await open("mine", { uid: "u1", role: "teacher" }, fake);
+  assert.ok(!main.querySelector("textarea[aria-label='교재']"), "예전 4칸 입력 없음");
+  [...main.querySelectorAll("button")].find((b) => b.textContent === "+ 준비물").click();
+  const sel = main.querySelector("select[aria-label='준비물 1 분류']");
+  sel.value = "tools"; sel.dispatchEvent(new dom.window.Event("change", { bubbles: true }));
+  type(main.querySelector("input[aria-label='준비물 1 내용']"), "Illustrator");
+  const load = main.querySelector("select[aria-label='내 준비물에서 불러오기']");
+  const opts = [...load.options].slice(1).map((o) => o.textContent);
+  assert.deepEqual(opts, ["준비물 · 삼각자", "사용 프로그램 · AutoCAD"], "다른 과목에 냈던 준비물");
+  load.value = "1"; load.dispatchEvent(new dom.window.Event("change", { bubbles: true }));
+  assert.deepEqual([...main.querySelectorAll(".mat-row input[aria-label$='내용']")].map((i) => i.value), ["Illustrator", "AutoCAD"]);
+});

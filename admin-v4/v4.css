@@ -128,11 +128,9 @@ dialog.modal .side-list .step .media img { aspect-ratio: 4 / 3; object-fit: cont
 .subject-chip:hover { border-color: var(--green); color: var(--green); }
 .add-chip { border: 1px dashed var(--green) !important; color: var(--green); background: transparent !important; }
 .drag-list { display: grid; gap: 0; }
-.drag-row { display: flex; align-items: center; gap: 10px; padding: 8px 6px; border-top: 2px solid transparent; border-bottom: 2px solid transparent; border-radius: 4px; cursor: grab; }
+.drag-row { position: relative; display: flex; align-items: center; gap: 10px; padding: 8px 6px; border-top: 2px solid transparent; border-bottom: 2px solid transparent; border-radius: 4px; cursor: grab; }
 .drag-row:hover { background: var(--bg); }
 .drag-row.dragging { opacity: .4; }
-.drag-row.drop-before { border-top: 3px dashed var(--red); }
-.drag-row.drop-after { border-bottom: 3px dashed var(--red); }
 /* 학과 구성 표(= 공개 학과 커리큘럼) */
 .dept-head, .dept-row { display: grid; grid-template-columns: 44px minmax(150px, 1.1fr) 110px minmax(220px, 3fr) minmax(150px, 1.4fr) 120px auto; gap: 10px; align-items: center; }
 .dept-head { padding: 6px; font-size: 12px; font-weight: 700; color: var(--sub); border-bottom: 1px solid var(--line); }
@@ -149,13 +147,11 @@ dialog.modal .side-list .step .media img { aspect-ratio: 4 / 3; object-fit: cont
 .drag-handle { color: var(--sub); }
 /* 로드맵: 과목 상자 가로 사슬, 경계 위 [+] */
 .rm-chain { display: flex; flex-wrap: wrap; align-items: center; row-gap: 14px; margin-top: 12px; }
-.rm-subject { min-width: 140px; padding: 16px 30px; border: 1px solid var(--green); border-radius: 6px; background: var(--paper); text-align: center; font-weight: 600; white-space: nowrap; }
+.rm-subject { position: relative; min-width: 140px; padding: 16px 30px; border: 1px solid var(--green); border-radius: 6px; background: var(--paper); text-align: center; font-weight: 600; white-space: nowrap; }
 .rm-plus { position: relative; z-index: 1; width: 28px; height: 28px; margin: 0 -14px; padding: 0; border: 1px dashed var(--green); border-radius: 4px; background: var(--paper); color: var(--green); font-size: 16px; line-height: 1; cursor: pointer; }
 .rm-plus[aria-pressed="true"] { border-style: solid; background: var(--green); color: var(--paper); }
 .rm-subject { cursor: grab; }
 .rm-subject.dragging { opacity: .4; }
-.rm-subject.drop-before { border-left: 3px dashed var(--red); }
-.rm-subject.drop-after { border-right: 3px dashed var(--red); }
 .rm-sync { display: inline-flex; align-items: center; gap: 4px; font-size: 12px; color: var(--sub); cursor: pointer; }
 .rm-label { display: block; white-space: pre-line; min-height: 2.8em; } /* 두 줄 높이 고정 → 글 상자 위치 같게 */
 /* 공통 4단계: 단계마다 한 줄(왼쪽 대표 이미지, 오른쪽 내용 + 후보) */
@@ -206,19 +202,32 @@ dialog.modal.modal-small { width: min(420px, calc(100vw - 32px)); height: fit-co
 /* 사이트 편집 */
 .site-field { display: grid; gap: 6px; margin: 12px 0; }
 .site-field .media { max-width: 420px; }
-.site-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 10px; }
+.site-cards { max-height: calc(100vh - 330px); overflow-y: auto; padding: 2px 4px 2px 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 10px; }
 .site-card { cursor: pointer; display: grid; gap: 6px; align-content: start; }
 .site-card.on { border-color: var(--green); box-shadow: inset 0 0 0 1px var(--green); }
 .site-card .media img { aspect-ratio: 16 / 10; object-fit: cover; }
 /* 하단 메뉴: 왼쪽 | ● | 오른쪽 */
-.menu-bar { display: grid; grid-template-columns: 1fr auto 1fr; gap: 14px; align-items: end; }
+.menu-bar { display: grid; grid-template-columns: 1fr auto 1fr; gap: 14px; align-items: stretch; }
+.menu-bar > div:not(.menu-center) { display: flex; flex-direction: column; }
+.menu-bar .menu-zone { flex: 1; }
 .menu-zone { display: flex; flex-wrap: wrap; gap: 8px; min-height: 64px; padding: 10px; border: 1px dashed var(--line); border-radius: 8px; align-items: center; }
 .menu-zone.left { justify-content: flex-end; }
-.menu-center { font-size: 26px; color: var(--green); padding-bottom: 18px; }
-.menu-chip { display: flex; align-items: center; gap: 6px; padding: 8px 10px; border: 1px solid var(--line); border-radius: 999px; background: var(--paper); cursor: grab; border-left-width: 1px; border-right-width: 1px; }
+.menu-center { font-size: 26px; color: var(--green); align-self: center; padding-top: 22px; }
+.menu-chip { position: relative; display: flex; align-items: center; gap: 6px; padding: 8px 10px; border: 1px solid var(--line); border-radius: 999px; background: var(--paper); cursor: grab; border-left-width: 1px; border-right-width: 1px; }
 .menu-chip.dragging { opacity: .4; }
-.menu-chip.drop-before { border-left: 3px dashed var(--red); }
-.menu-chip.drop-after { border-right: 3px dashed var(--red); }
+.menu-chip.off b { color: var(--sub); font-weight: 400; } /* 꺼진 메뉴는 회색 글자 */
+.menu-chip .btn.small { padding: 2px 7px; font-size: 11px; }
+/* 끌어 놓을 자리: 모양(알약·모서리)을 따라가지 않고 실제 경계에 곧은 점선 */
+.menu-chip.drop-before::before, .menu-chip.drop-after::after, .rm-subject.drop-before::before, .rm-subject.drop-after::after {
+  content: ""; position: absolute; top: -4px; bottom: -4px; border-left: 3px dashed var(--red); pointer-events: none; }
+.menu-chip.drop-before::before { left: -7px; }
+.menu-chip.drop-after::after { right: -8px; }
+.rm-subject.drop-before::before { left: -3px; }
+.rm-subject.drop-after::after { right: -4px; }
+.drag-row.drop-before::before, .drag-row.drop-after::after {
+  content: ""; position: absolute; left: 0; right: 0; border-top: 3px dashed var(--red); pointer-events: none; }
+.drag-row.drop-before::before { top: -2px; }
+.drag-row.drop-after::after { bottom: -2px; }
 .btn.small { padding: 4px 9px; font-size: 12px; }
 .actions.end { justify-content: flex-end; }
 .img-pick { display: block; width: 100%; padding: 0; border: 0; background: none; cursor: pointer; border-radius: 6px; }

@@ -74,7 +74,7 @@ export async function render({ main }) {
 }
 
 // 고치기 팝업: fields = [{key, label, type: image|text|line|video|switch}]. [확인]하면 onOk(바뀐 값). 이미지는 pickImage(주소는 안 보임).
-function editPopup(title, fields, values, onOk) {
+function editPopup(title, fields, values, onOk, { small = false } = {}) {
   const v = clone(values);
   const body = h("section", { class: "box", style: "margin:0" });
   const draw = () => body.replaceChildren(...fields.map((f) => {
@@ -93,7 +93,7 @@ function editPopup(title, fields, values, onOk) {
   draw();
   const ok = h("button", { type: "button", class: "btn primary" }, "확인");
   const pop = modal(title, h("div", { class: "modal-body" }, h("div", { class: "modal-main" }, body)), { actions: [ok] });
-  pop.dlg.classList.add("modal-fit", "modal-mid");
+  pop.dlg.classList.add("modal-fit", small ? "modal-small" : "modal-mid");
   ok.onclick = () => { onOk(v); pop.close(); };
 }
 
@@ -156,10 +156,10 @@ function menuEditor(menus, trackTab) {
     if (from !== s) side(from).forEach((x, i) => { x.sort_order = i; });
     drawBar(); check();
   };
-  const rename = (m) => editPopup(`'${m.name}' 메뉴 이름 수정`, [{ key: "label", label: "보이는 이름", type: "line", placeholder: m.name, hint: `비우면 원래 이름(${m.name})이 보입니다. 누르면 가는 페이지는 그대로입니다.` }], m, (x) => { m.label = x.label; drawBar(); check(); });
+  const rename = (m) => editPopup(`'${m.name}' 메뉴 이름 수정`, [{ key: "label", label: "보이는 이름", type: "line", placeholder: m.name, hint: `비우면 원래 이름(${m.name})이 보입니다. 누르면 가는 페이지는 그대로입니다.` }], m, (x) => { m.label = x.label; drawBar(); check(); }, { small: true });
   const chip = (m, s, i) => {
     const el = h("div", {
-      class: "menu-chip", draggable: "true", title: `이동: ${m.name} · 끌어서 옮기기`,
+      class: `menu-chip${m.is_active === false ? " off" : ""}`, draggable: "true", title: `이동: ${m.name}${m.is_active === false ? " · 꺼진 메뉴" : ""} · 끌어서 옮기기`,
       ondragstart: (e) => { dragId = m.id; el.classList.add("dragging"); e.dataTransfer?.setData("text/plain", m.id); },
       ondragend: () => { dragId = null; el.classList.remove("dragging"); clearMarks(); },
       ondragover: (e) => {
@@ -178,7 +178,7 @@ function menuEditor(menus, trackTab) {
         place(id, s, fromSame ? at - 1 : at);
       },
     },
-    h("span", { class: "drag-handle", "aria-hidden": "true" }, "⠿"), h("b", {}, m.label || m.name), m.is_active === false ? pill("꺼짐", "neutral") : null,
+    h("span", { class: "drag-handle", "aria-hidden": "true" }, "⠿"), h("b", {}, m.label || m.name),
     h("button", { type: "button", class: "btn small", onclick: () => rename(m) }, "수정"));
     return el;
   };

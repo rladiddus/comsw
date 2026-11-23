@@ -2,7 +2,7 @@
 // 과목을 누르면 팝업(강사 팝업과 같은 크기): 왼쪽 강사 넣기·빼기, 오른쪽 공통 4단계(문구·대표 이미지). 바꾸면 떠 있는 창으로 저장·적용.
 // 학과 추가·이름 수정, 과목 삭제·복원은 팝업에서 눌러 바로 반영.
 import * as data from "../data.mjs";
-import { h, head, box, table, tabs, pill, fill, note, fail, busy, publishBanner, modal } from "../ui.mjs";
+import { h, head, box, table, tabs, pill, fill, note, fail, busy, publishBanner, modal, filterBar, hasText } from "../ui.mjs";
 import { baseName, deptOrder, stepState } from "../rules.mjs";
 import { deptLayout } from "./dept-layout.mjs";
 import { commonEditor } from "./common-editor.mjs";
@@ -120,13 +120,30 @@ export async function render({ main, params = [] }) {
             : box(null, fail("학과가 없습니다. [+ 학과 추가]로 만들어주세요.")),
         ];
       } else if (state.tab === "subjects") {
-        view = [box(`과목 ${subjects.length}개 · 과목을 누르면 공통 커리큘럼 팝업`, table([
-          ["과목", (s) => h("span", { class: "subject-chip" }, s.name)],
-          ["준비물 기준", (s) => (baseName(s.name) === s.name ? "—" : baseName(s.name))],
-          ["학과", (s) => deptsOf(s.id).join(", ") || pill("학과 없음", "neutral")],
-          ["방학 특강", (s) => vacsOf(s.id).join(", ") || "—"],
-          ["공통", stepPill],
-        ], subjects, { onPick: (s) => openSubject(s, { withDelete: true }) }))];
+        // 거르기: 과목(검색), 학과(드롭다운), 방학 특강(On/Off). 목록만 다시 그린다.
+        const deptOpts = cat.departments.map((d) => d.name);
+        const listBox = h("section", { class: "box" });
+        const filter = filterBar([
+          { key: "name", label: "과목" },
+          { key: "dept", label: "학과", options: [["", "전체 학과"], ["-", "학과 없음"], ...deptOpts.map((d) => [d, d])] },
+          { key: "vac", label: "방학 특강", options: [["", "전체"], ["on", "On"], ["off", "Off"]] },
+        ], () => drawList());
+        const drawList = () => {
+          const f = filter.values;
+          const now = subjects.filter((s) => hasText(s.name, f.name)
+            && (!f.dept || (f.dept === "-" ? !deptsOf(s.id).length : deptsOf(s.id).includes(f.dept)))
+            && (!f.vac || (f.vac === "on") === vacsOf(s.id).length > 0));
+          listBox.replaceChildren(h("h3", {}, `${now.length === subjects.length ? `과목 ${subjects.length}개` : `과목 ${now.length}개 (전체 ${subjects.length}개)`} · 과목을 누르면 공통 커리큘럼 팝업`),
+            now.length ? table([
+              ["과목", (s) => h("span", { class: "subject-chip" }, s.name)],
+              ["준비물 기준", (s) => (baseName(s.name) === s.name ? "—" : baseName(s.name))],
+              ["학과", (s) => deptsOf(s.id).join(", ") || pill("학과 없음", "neutral")],
+              ["방학 특강", (s) => vacsOf(s.id).join(", ") || "—"],
+              ["공통", stepPill],
+            ], now, { onPick: (s) => openSubject(s, { withDelete: true }) }) : h("p", { class: "muted" }, "조건에 맞는 과목이 없습니다"));
+        };
+        drawList();
+        view = [filter.el, listBox];
       } else if (state.tab === "create") {
         // 일반 과목 만들기(방학 특강 과목과 이름이 같아도 다른 과목). 만든 뒤 학과 구성에서 학과에 넣는다.
         const m = h("div");

@@ -232,3 +232,4 @@
 - 2026-11-23 site.mjs 재작성: editPopup(fields), listEditor 카드, menuEditor(place). 메뉴 순서 = 양쪽 모두 왼→오 sort_order 0..
 - 2026-11-23 drop 표시 = ::before/::after 곧은 점선(position relative). editPopup small 옵션.
 - 2026-11-23 changes.cancelAll().
+- 2026-11-23 courses 전체 과목 filterBar.

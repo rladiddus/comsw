@@ -883,3 +883,21 @@ test("떠 있는 창 [취소]: 방금 바꾼 것만 되돌림(임시 저장 전�
   await flush();
   document.querySelectorAll("dialog").forEach((d) => d.remove());
 });
+
+test("학과·과목 전체 과목 거르기: 과목 검색, 학과 드롭다운, 방학 특강 On/Off", async () => {
+  document.querySelectorAll("dialog").forEach((d) => d.remove());
+  const main = await open("courses");
+  [...main.querySelectorAll(".tabs button")].find((b) => b.textContent === "전체 과목").click();
+  const names = () => [...main.querySelectorAll("tr.pick .subject-chip")].map((x) => x.textContent);
+  assert.equal(names().length, 3);
+  type(main.querySelector("input[aria-label='과목 검색']"), "캐드");
+  assert.deepEqual(names(), ["캐드1", "캐드2"]);
+  type(main.querySelector("input[aria-label='과목 검색']"), "");
+  const sel = (label, v) => { const s = main.querySelector(`select[aria-label='${label} 거르기']`); s.value = v; s.dispatchEvent(new dom.window.Event("change", { bubbles: true })); };
+  sel("방학 특강", "on");
+  assert.deepEqual(names(), ["캐드1"]);
+  sel("방학 특강", "off");
+  sel("학과", "시각학과");
+  assert.deepEqual(names(), ["아트 드로잉"]);
+  assert.match(main.textContent, /과목 1개 \(전체 3개\)/);
+});

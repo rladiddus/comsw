@@ -344,3 +344,4 @@ dialog.blocker p { margin: 14px 0 0; font-weight: 700; font-size: 15px; }
 .prompt-box { margin: 0; overflow: auto; }
 .prompt-text { width: 100%; margin: 10px 0; line-height: 1.7; resize: vertical; }
 .prompt-text[readonly] { background: var(--bg); }
+.step-col .step-foot p { white-space: pre-line; }

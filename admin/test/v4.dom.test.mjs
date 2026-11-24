@@ -467,7 +467,7 @@ test("과목 팝업: 체크한 단계만 AI로 문구, [공통 준비물]은 메
   [...dlg.querySelectorAll("button")].find((b) => b.textContent === "AI 공통 정리").click();
   await flush();
   assert.equal(asked, 0, "끈 단계는 AI를 부르지 않음");
-  assert.equal(dlg.querySelector("textarea[aria-label='1단계 공통 문구']").value, "");
+  assert.equal(dlg.querySelector("textarea[aria-label='1단계 공통 문구']").value, "검수본");
   configureServices({});
 
   const before = location.hash;
@@ -1531,4 +1531,85 @@ test("AI 사용량: 종류를 누르면 프롬프트 팝업 — 지금 글 보�
   await flush();
   assert.deepEqual(saves().at(-1), { key: "ai_prompt_roadmap", value: null });
   p.btn("닫기").click();
+});
+
+test("공통 4단계 초안 채우기: 한 명이면 그 강사 글·이미지, 여럿이면 글은 모두·이미지는 먼저 작성한 강사(없으면 다음)", async () => {
+  const { fillFrom } = await import("../../admin-v4/js/pages/common-editor.mjs");
+  const unit = (who, day, n, img = () => true) => ({ key: who, approved: Array.from({ length: n }, (_, i) => ({ summary: `${who}${i + 1}`, media_url: img(i) ? `https://x/${who}${i + 1}` : null, updated_at: `2026-11-${day}T00:00:00Z` })) });
+  const a = unit("가", "20", 4, (i) => i !== 1), b = unit("나", "10", 4, (i) => i !== 0);
+  assert.deepEqual(fillFrom([a])[0], { summary: "가1", image_url: "https://x/가1" });
+  assert.deepEqual(fillFrom([a, b]).map((s) => s.summary), ["나1\n가1", "나2\n가2", "나3\n가3", "나4\n가4"]);
+  assert.deepEqual(fillFrom([a, b]).map((s) => s.image_url), ["https://x/가1", "https://x/나2", "https://x/나3", "https://x/나4"], "먼저 작성한 '나', 없으면 '가'");
+  assert.equal(fillFrom([unit("다", "01", 8)])[0].summary, "다1\n다2", "8단계는 둘씩 묶음");
+  assert.deepEqual(fillFrom([])[0], { summary: "", image_url: "" });
+});
+
+test("과목 팝업: 공통이 비면 강사 자료 초안이 바로 보이고(창은 안 뜸), [수정]→[사이트 적용]으로 그대로 반영, 체크를 바꾸면 초안만 다시 채움", async () => {
+  document.querySelectorAll("dialog").forEach((d) => d.remove());
+  const fake = db();
+  const calls = [];
+  fake.rpc = async (name, args) => { calls.push([name, args]); return { data: name === "comsw_v4_unpublished" ? false : null, error: null }; };
+  const row = (who, n, day) => ({ id: `${who}${n}`, instructor_id: who, set_id: "set1", subject_id: "s1", step_label: `${n}단계`, summary: `${who}글${n}`, media_url: `https://x/${who}${n}.png`, status: "approved", sort_order: n, updated_at: `2026-11-${day}T00:00:0${n}Z` });
+  const local = fakeSupabase({
+    instructors: [{ id: "i1", name: "김강사" }, { id: "i2", name: "이강사" }],
+    instructor_curricula: [1, 2, 3, 4].flatMap((n) => [row("i1", n, "20"), row("i2", n, "10")]),
+  });
+  const base = fake.from.bind(fake);
+  fake.from = (t) => (["instructors", "instructor_curricula"].includes(t) ? local.from(t) : base(t));
+  const main = await open("courses", undefined, fake);
+  [...main.querySelectorAll(".tabs button")].find((b) => b.textContent === "전체 과목").click();
+  [...main.querySelectorAll("tr.pick")].find((tr) => tr.textContent.includes("캐드1")).click();
+  await flush();
+  const dlg = document.querySelector("dialog.modal");
+  const btn = (t) => [...dlg.querySelectorAll("button")].find((b) => b.textContent === t);
+  assert.match(dlg.textContent, /강사 2명의 내용으로 채운 초안입니다\(아직 홈페이지에 공개되지 않음\)/);
+  assert.match(dlg.querySelector(".step").textContent, /i2글1\ni1글1/);
+  assert.equal(dlg.querySelector(".step img").getAttribute("src"), "https://x/i21.png", "먼저 작성한 강사 이미지");
+  await flush();
+  assert.ok(document.querySelector(".change-bar")?.hidden !== false, "열기만 하면 창 없음");
+  btn("수정").click();
+  await flush();
+  const areas = () => [...dlg.querySelectorAll("textarea")];
+  type(areas()[3], "직접 쓴 4");
+  const check = (name) => [...dlg.querySelectorAll(".side-list label")].find((l) => l.textContent.includes(name)).querySelector("input");
+  check("이강사").click();
+  await flush();
+  assert.deepEqual(areas().map((a) => a.value), ["i1글1", "i1글2", "i1글3", "직접 쓴 4"], "자동으로 채운 칸만 다시");
+  barBtn("사이트 적용").click();
+  await flush();
+  const [, args] = calls.find(([n]) => n === "comsw_v4_confirm_common");
+  assert.deepEqual(args.p_steps.map((s) => [s.summary, s.image_url]), [["i1글1", "https://x/i11.png"], ["i1글2", "https://x/i12.png"], ["i1글3", "https://x/i13.png"], ["직접 쓴 4", "https://x/i14.png"]]);
+  assert.deepEqual(args.p_sources.map((s) => s.id), ["i11", "i12", "i13", "i14"]);
+  document.querySelectorAll("dialog").forEach((d) => d.remove());
+});
+
+test("과목 팝업: 공통이 이미 있으면 덮지 않고, [강사 내용 가져오기]는 체크한 단계만 바꿈", async () => {
+  document.querySelectorAll("dialog").forEach((d) => d.remove());
+  const fake = db();
+  fake.rpc = async (name) => ({ data: name === "comsw_v4_unpublished" ? false : null, error: null });
+  const local = fakeSupabase({
+    subject_weeks: [1, 2, 3, 4].map((n) => ({ id: `x${n}`, subject_id: "s1", week_label: `${n}단계`, summary: `공개${n}`, image_url: "", sort_order: n })),
+    instructor_curricula: [1, 2, 3, 4].map((n) => ({ id: `c${n}`, instructor_id: "i1", set_id: "set1", subject_id: "s1", step_label: `${n}단계`, summary: `강사글${n}`, media_url: `https://x/${n}.png`, status: "approved", sort_order: n, updated_at: "2026-11-20T00:00:00Z" })),
+  });
+  const base = fake.from.bind(fake);
+  fake.from = (t) => (["subject_weeks", "instructor_curricula"].includes(t) ? local.from(t) : base(t));
+  const main = await open("courses", undefined, fake);
+  [...main.querySelectorAll(".tabs button")].find((b) => b.textContent === "전체 과목").click();
+  [...main.querySelectorAll("tr.pick")].find((tr) => tr.textContent.includes("캐드1")).click();
+  await flush();
+  const dlg = document.querySelector("dialog.modal");
+  const btn = (t) => [...dlg.querySelectorAll("button")].find((b) => b.textContent === t);
+  assert.ok(!/초안/.test(dlg.textContent));
+  btn("수정").click();
+  await flush();
+  assert.deepEqual([...dlg.querySelectorAll("textarea")].map((a) => a.value), ["공개1", "공개2", "공개3", "공개4"]);
+  assert.ok(document.querySelector(".change-bar")?.hidden !== false, "[수정]만으로는 바뀐 설정 없음");
+  dlg.querySelector("input[aria-label='1단계 AI로 문구 만들기']").click();
+  btn("강사 내용 가져오기").click();
+  await flush();
+  assert.deepEqual([...dlg.querySelectorAll("textarea")].map((a) => a.value), ["공개1", "강사글2", "강사글3", "강사글4"]);
+  assert.ok(barBtn("사이트 적용"));
+  barBtn("취소").click();
+  await flush();
+  document.querySelectorAll("dialog").forEach((d) => d.remove());
 });

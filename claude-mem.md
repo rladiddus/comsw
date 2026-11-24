@@ -167,3 +167,4 @@
 - V4 과정내용 AI는 공통 4단계를 n묶음으로 나눠 n줄(줄 수는 화면에서만, 저장 안 함).
 - V4 과정내용 AI 재료 = 공통 단계(몇 단계든) 먼저, 없으면 적힌 글.
 - V4 강사 프로필 검수 사진 탭: 홈페이지 = instructors.photo_url, 강사업로드 = source_asset(비공개), AI 수정 = draft.photo_url. 확정은 draft.photo_url이 있을 때만 사진을 바꿈.
+- V4 팝업은 모두 <dialog>라 뒤 화면 스크롤 잠금은 CSS 한 줄(html:has(dialog[open])). AI 예산 한도 3,000원은 SQL comsw_reserve_ai/comsw_ai_budget에 고정, AI 사진 1장 예약 2,800원(policy 아닌 handler profile).

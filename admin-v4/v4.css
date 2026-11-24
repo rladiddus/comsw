@@ -15,6 +15,10 @@
 * { box-sizing: border-box; }
 [hidden] { display: none !important; }
 html, body { margin: 0; }
+/* 팝업이 떠 있으면 뒤 화면은 스크롤 안 됨(모든 페이지). 스크롤 막대 자리는 늘 비워 둬 화면이 옆으로 흔들리지 않게 */
+html { scrollbar-gutter: stable; }
+html:has(dialog[open]) { overflow: hidden; }
+dialog { overscroll-behavior: contain; }
 body { font: 14px/1.65 "Malgun Gothic", system-ui, sans-serif; color: var(--text); background: var(--bg); }
 button, input, textarea, select { font: inherit; color: inherit; }
 button { cursor: pointer; }

@@ -5,7 +5,7 @@ import * as data from "../data.mjs";
 import { h, head, box, table, tabs, pill, fill, note, fail, busy, publishBanner, modal, filterBar, hasText, toggleSwitch } from "../ui.mjs";
 import { baseName, curriculumUnits, deptOrder, stepState } from "../rules.mjs";
 import { deptLayout, moveItem } from "./dept-layout.mjs";
-import { commonEditor, fillFrom } from "./common-editor.mjs";
+import { assignedFirst, commonEditor, fillFrom } from "./common-editor.mjs";
 import { prepEditor } from "./prep.mjs";
 import { canSwitch, unsaved, untrack, track } from "../changes.mjs";
 
@@ -21,17 +21,19 @@ export async function render({ main, params = [] }) {
   await fill(body, async () => {
     const cat = await data.catalog();
     const subjects = data.general(cat); // 일반 과목만(방학 특강 과목은 방학 특강 메뉴)
-    const [weeks, approved] = await Promise.all([
+    const [weeks, approved, isubs] = await Promise.all([
       data.weeks(),
       data.curricula((q) => q.eq("status", "approved").order("id")), // 페이지로 나눠 읽어도 겹치지 않게 id 순서
+      data.all("instructor_subjects"),
     ]);
     const general = weeks.filter((w) => !w.set_id);
     const stepsOf = (id) => general.filter((w) => w.subject_id === id).sort((x, y) => (x.sort_order ?? 0) - (y.sort_order ?? 0));
     // 적용한 공통이 없는 과목 → 강사 자료 초안(과목 팝업에 보이는 것과 같은 4단계, 저장하지 않음)
     const vacIds = new Set(cat.vacations.map((v) => v.id));
     const units = curriculumUnits(approved).filter((u) => !vacIds.has(u.set_id));
+    const mineOf = (id) => new Set(isubs.filter((x) => x.subject_id === id).map((x) => x.instructor_id));
     const drafts = new Map(subjects.filter((s) => !stepsOf(s.id).length)
-      .map((s) => [s.id, fillFrom(units.filter((u) => u.subject_id === s.id)).filter((x) => x.summary)]));
+      .map((s) => [s.id, fillFrom(assignedFirst(units.filter((u) => u.subject_id === s.id), mineOf(s.id))).filter((x) => x.summary)]));
     const draftOf = (id) => drafts.get(id) ?? [];
     const deptsOf = (id) => cat.links.filter((l) => l.subject_id === id).map((l) => cat.departments.find((d) => d.id === l.department_id)?.name).filter(Boolean);
     const vacsOf = (id) => cat.vacLinks.filter((l) => l.subject_id === id).map((l) => cat.vacations.find((v) => v.id === l.set_id)?.name).filter(Boolean);

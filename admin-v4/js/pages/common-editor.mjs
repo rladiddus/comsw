@@ -25,6 +25,13 @@ export function fillFrom(chosen) {
   });
 }
 
+// 처음 체크할 강사(일반 수업): 지금 담당인 강사만. 담당인 강사가 아무도 없으면 자료가 있는 강사 모두(초안이 비지 않게).
+// mine = 이 과목을 담당하는 강사 id
+export function assignedFirst(units, mine) {
+  const on = units.filter((u) => mine.has(u.instructor_id));
+  return on.length ? on : units;
+}
+
 export function commonEditor(subject, cat, current, { msg, reload, set = null, extraLeft = [], startEditing = true }) {
   // set이 있으면 그 방학 특강의 공통(그 특강 검수본만), 없으면 일반 수업 공통
   const target = set ? `${subject.id}|${set.id}` : subject.id;
@@ -40,19 +47,21 @@ export function commonEditor(subject, cat, current, { msg, reload, set = null, e
   (async () => {
     try {
       el.replaceChildren(h("div", { class: "muted" }, "강사 자료 불러오는 중..."));
-      const [rows, people, meta] = await Promise.all([
+      const [rows, people, meta, isubs] = await Promise.all([
         data.curricula((q) => q.eq("subject_id", subject.id).eq("status", "approved").order("sort_order", { nullsFirst: false })),
         data.instructors(),
         // 지난번 [사이트 적용] 때 고른 강사 자료(있으면 그 강사를 처음부터 체크)
         data.all(set ? "v4_vacation_meta" : "v4_common_meta", (q) => (set ? q.eq("set_id", set.id) : q).eq("subject_id", subject.id)).catch(() => []),
+        data.all("instructor_subjects", (q) => q.eq("subject_id", subject.id)),
       ]);
+      const mine = new Set(isubs.map((x) => x.instructor_id));
       const vac = new Set(cat.vacations.map((v) => v.id));
       const units = curriculumUnits(rows).filter((u) => (set ? u.set_id === set.id : !vac.has(u.set_id)) && u.approved.length);
       const nameOf = new Map(people.map((p) => [p.id, p.name]));
       const usedIds = new Set((meta[0]?.sources ?? []).map((x) => x.id));
-      // 처음 체크: V4로 반영한 기록이 있으면 그때 쓴 강사, 없으면 검수 완료 강사 모두(2026-11-20 사용자 요청)
+      // 처음 체크: V4로 반영한 기록이 있으면 그때 쓴 강사, 없으면 검수 완료 강사(2026-11-20 사용자 요청, 일반 수업은 담당 강사 먼저 2026-11-24)
       const used = units.filter((u) => u.approved.some((r) => usedIds.has(r.id)));
-      const baseline = { picked: (used.length ? used : units).map((u) => u.key), steps: Array.from({ length: STEPS }, (_, i) => ({ summary: current[i]?.summary ?? "", image_url: current[i]?.image_url ?? "" })) };
+      const baseline = { picked: (used.length ? used : set ? units : assignedFirst(units, mine)).map((u) => u.key), steps: Array.from({ length: STEPS }, (_, i) => ({ summary: current[i]?.summary ?? "", image_url: current[i]?.image_url ?? "" })) };
       let st = JSON.parse(JSON.stringify(baseline));
       const picked = () => units.filter((u) => st.picked.includes(u.key));
       // 공통이 비어 있으면 강사 자료로 초안. 체크를 바꾸면 빈칸과 자동으로 채운 칸만 다시 채운다(사람이 고친 글·고른 이미지는 그대로)
@@ -85,7 +94,7 @@ export function commonEditor(subject, cat, current, { msg, reload, set = null, e
           const s2 = stepState(u.approved.length);
           return h("label", { style: "display:flex;gap:8px;align-items:center;margin:4px 0" },
             h("input", { type: "checkbox", checked: has(u.key), disabled: !editing, onchange: (e) => { st.picked = e.target.checked ? [...st.picked, u.key] : st.picked.filter((k) => k !== u.key); refill(); draw(); } }),
-            nameOf.get(u.instructor_id) ?? "—", " ", pill(s2.label, s2.kind), " ", h("span", { class: "muted" }, `이미지 ${u.approved.filter((r) => r.media_url).length}장`));
+            nameOf.get(u.instructor_id) ?? "—", " ", pill(s2.label, s2.kind), set || mine.has(u.instructor_id) ? null : pill("담당 아님", "neutral"), " ", h("span", { class: "muted" }, `이미지 ${u.approved.filter((r) => r.media_url).length}장`));
         })) : empty("검수 완료된 강사 자료가 없습니다(강사 메뉴에서 먼저 확정해주세요)");
         // [강사 내용 가져오기]: 체크한 단계를 체크한 강사의 글로 바꾼다(이미지는 비었거나 고른 강사 것이 아닐 때만)
         const bringBtn = h("button", { type: "button", class: "btn", disabled: !chosen.length || !aiOn.some(Boolean), title: "체크한 단계의 내용을 체크한 강사의 글로 바꿉니다", onclick: () => {

@@ -1555,10 +1555,11 @@ test("과목 팝업: 공통이 비면 강사 자료 초안이 바로 보이고(�
   const row = (who, n, day) => ({ id: `${who}${n}`, instructor_id: who, set_id: "set1", subject_id: "s1", step_label: `${n}단계`, summary: `${who}글${n}`, media_url: `https://x/${who}${n}.png`, status: "approved", sort_order: n, updated_at: `2026-11-${day}T00:00:0${n}Z` });
   const local = fakeSupabase({
     instructors: [{ id: "i1", name: "김강사" }, { id: "i2", name: "이강사" }],
+    instructor_subjects: [{ instructor_id: "i1", subject_id: "s1" }, { instructor_id: "i2", subject_id: "s1" }],
     instructor_curricula: [1, 2, 3, 4].flatMap((n) => [row("i1", n, "20"), row("i2", n, "10")]),
   });
   const base = fake.from.bind(fake);
-  fake.from = (t) => (["instructors", "instructor_curricula"].includes(t) ? local.from(t) : base(t));
+  fake.from = (t) => (["instructors", "instructor_subjects", "instructor_curricula"].includes(t) ? local.from(t) : base(t));
   const main = await open("courses", undefined, fake);
   [...main.querySelectorAll(".tabs button")].find((b) => b.textContent === "전체 과목").click();
   [...main.querySelectorAll("tr.pick")].find((tr) => tr.textContent.includes("캐드1")).click();
@@ -1648,4 +1649,75 @@ test("학과 구성: 공통을 적용하기 전이면 강사 자료 초안으로
   const now = [...main.querySelectorAll(".dept-row")].find((r) => r.querySelector(".subject-chip").textContent === "캐드1");
   assert.equal(now.querySelector("textarea").value, "01 하나\n02 둘\n03 셋\n04 넷");
   configureServices({});
+});
+
+test("강사 커리큘럼 탭: 담당에서 뺀 일반 과목은 맨 아래 '담당 아님', 담당에 넣으면 위로, 검수할 제출·방학 특강은 그대로", async () => {
+  const row = (set, subject, status = "approved") => ({ id: `${set}${subject}${status}`, instructor_id: "i1", set_id: set, subject_id: subject, step_label: "1단계", summary: "글", status, sort_order: 0 });
+  const openTab = async (mine, rows) => {
+    document.querySelectorAll("dialog").forEach((d) => d.remove());
+    const fake = db();
+    const local = fakeSupabase({ instructor_subjects: mine.map((s) => ({ instructor_id: "i1", subject_id: s })), instructor_curricula: rows });
+    const base = fake.from.bind(fake);
+    fake.from = (t) => (["instructor_subjects", "instructor_curricula"].includes(t) ? local.from(t) : base(t));
+    const main = await open("instructors", undefined, fake);
+    main.querySelector("tr.pick").click();
+    await flush();
+    const dlg = document.querySelector("dialog.modal");
+    [...dlg.querySelectorAll(".tabs button")].find((b) => b.textContent === "커리큘럼").click();
+    return dlg;
+  };
+  const list = (dlg) => [...dlg.querySelector(".picks").children].map((x) => x.textContent.trim());
+  const rows = [row("set1", "s1"), row("set1", "s2"), row("v1", "s1")];
+  let dlg = await openTab(["s2"], rows);
+  assert.deepEqual(list(dlg), ["캐드2 · 일반", "캐드1 · 2026 겨울", "담당 아님 1개 강사 소개에 안 나옴", "캐드1 · 일반"]);
+  [...dlg.querySelectorAll(".picks button")].at(-1).click();
+  assert.match(dlg.textContent, /담당 과목이 아니라서 홈페이지 강사 소개에 나오지 않습니다/);
+  dlg = await openTab(["s1", "s2"], rows);
+  assert.ok(!/담당 아님/.test(dlg.textContent), "담당에 넣으면 돌아옴");
+  dlg = await openTab(["s2"], [...rows, row("set1", "s1", "pending")]);
+  assert.ok(!/담당 아님/.test(list(dlg).join()), "검수할 제출이 있으면 아래로 내리지 않음");
+  document.querySelectorAll("dialog").forEach((d) => d.remove());
+});
+
+test("공통 초안: 담당 강사만 처음 체크, 담당 강사 자료가 없으면 모두", async () => {
+  const { assignedFirst } = await import("../../admin-v4/js/pages/common-editor.mjs");
+  const a = { instructor_id: "i1" }, b = { instructor_id: "i2" };
+  assert.deepEqual(assignedFirst([a, b], new Set(["i2"])), [b]);
+  assert.deepEqual(assignedFirst([a, b], new Set(["i9"])), [a, b]);
+  document.querySelectorAll("dialog").forEach((d) => d.remove());
+  const fake = db();
+  fake.rpc = async (name) => ({ data: name === "comsw_v4_unpublished" ? false : null, error: null });
+  const row = (who, n) => ({ id: `${who}${n}`, instructor_id: who, set_id: "set1", subject_id: "s1", step_label: `${n}단계`, summary: `${who}글${n}`, status: "approved", sort_order: n });
+  const local = fakeSupabase({
+    instructors: [{ id: "i1", name: "김강사" }, { id: "i2", name: "이강사" }],
+    instructor_subjects: [{ instructor_id: "i2", subject_id: "s1" }],
+    instructor_curricula: [1, 2, 3, 4].flatMap((n) => [row("i1", n), row("i2", n)]),
+  });
+  const base = fake.from.bind(fake);
+  fake.from = (t) => (["instructors", "instructor_subjects", "instructor_curricula"].includes(t) ? local.from(t) : base(t));
+  const main = await open("courses", undefined, fake);
+  [...main.querySelectorAll(".tabs button")].find((x) => x.textContent === "전체 과목").click();
+  [...main.querySelectorAll("tr.pick")].find((tr) => tr.textContent.includes("캐드1")).click();
+  await flush();
+  const dlg = document.querySelector("dialog.modal");
+  const label = (n) => [...dlg.querySelectorAll(".side-list label")].find((l) => l.textContent.includes(n));
+  assert.equal(label("김강사").querySelector("input").checked, false);
+  assert.match(label("김강사").textContent, /담당 아님/);
+  assert.equal(label("이강사").querySelector("input").checked, true);
+  assert.match(dlg.querySelector(".step").textContent, /i2글1/);
+  assert.ok(!/i1글1/.test(dlg.querySelector(".step").textContent));
+  document.querySelectorAll("dialog").forEach((d) => d.remove());
+});
+
+test("학생 사이트 강사 단계 크게 보기: 담당 과목의 단계만 넘겨 봄(PC·태블릿)", async () => {
+  const { readFileSync } = await import("node:fs");
+  for (const file of ["Curriculum_full.html", "Curriculum_full_tablet.html"]) {
+    const src = readFileSync(new URL(`../../${file}`, import.meta.url), "utf8");
+    const fn = src.match(/async function getAllInstructorCurriculumFromSupabase[\s\S]*?return \{ items: items \};\s*\}/)[0];
+    const run = new Function("fetchSupabaseRowsForSheet", "getSupabaseSourceId", "curriculumMatchKey", "buildInstructorCurriculumRecords", "getInstructorListFromSupabase", `${fn}; return getAllInstructorCurriculumFromSupabase("건축학과", "김강사");`);
+    const rec = (instructor, subjectName) => ({ instructor, subjectName, title: "1단계" });
+    const out = await run(async () => [], () => "", (x) => x.replace(/\s+/g, ""), () => [rec("김강사", "캐드 1"), rec("김강사", "뺀 과목"), rec("이강사", "캐드1")],
+      async () => [{ name: "김강사", subjects: ["캐드1"] }, { name: "이강사", subjects: ["뺀 과목"] }]);
+    assert.deepEqual(out.items.map((x) => x.subjectName), ["캐드 1"], file);
+  }
 });

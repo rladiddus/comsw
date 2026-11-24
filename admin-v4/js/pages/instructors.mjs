@@ -197,7 +197,11 @@ function instructorUnits(person, submitted, assignments, departmentLinks, cat) {
     return { key: `${person.id}|${a.subject_id}|${set?.id ?? "unlinked"}|0`, instructor_id: person.id,
       subject_id: a.subject_id, set_id: set?.id ?? null, vacation: false, approved: [], pending: [] };
   });
-  return [...existing, ...placeholders];
+  // 담당에서 뺀 과목(일반)의 자료는 지우지 않고 '담당 아님'으로 맨 아래. 검수할 제출이 있으면 그대로 위에. 방학 특강은 담당과 상관없음.
+  const mine = new Set(assigned.map((a) => a.subject_id));
+  const vacs = new Set(cat.vacations.map((v) => v.id));
+  for (const u of existing) u.off = !u.vacation && !vacs.has(u.set_id) && !u.pending.length && !mine.has(u.subject_id);
+  return [...existing.filter((u) => !u.off), ...placeholders, ...existing.filter((u) => u.off)];
 }
 // 가장 긴 이름이 한 줄에 다 보이는 왼쪽 칸 너비(px): 글자 폭 + '이번 제출' 표시 + 안쪽 여백·스크롤 막대
 function widestTitle(titles) {
@@ -215,16 +219,20 @@ function curriculum(p, cat, { msg, reload, again, editBtn, aiHead }) {
   const setName = new Map(cat.sets.map((s) => [s.id, s.name]));
   const unitTitle = (u) => unitTitleOf(u, cat);
   const sel = p.units.find((u) => u.key === keep.unit) ?? p.units.find((u) => u.pending.length) ?? p.units[0];
-  const picks = h("div", { class: "picks" }, p.units.map((u) => h("button", { type: "button", "aria-pressed": String(u === sel), title: unitTitle(u),
-    onclick: () => { if (!canSwitch()) return; keep.unit = u.key; again(); } }, unitTitle(u), " ", u.pending.length ? pill("이번 제출") : null)));
+  const pickBtn = (u) => h("button", { type: "button", "aria-pressed": String(u === sel), title: unitTitle(u),
+    onclick: () => { if (!canSwitch()) return; keep.unit = u.key; again(); } }, unitTitle(u), " ", u.pending.length ? pill("이번 제출") : null);
+  const off = p.units.filter((u) => u.off);
+  const picks = h("div", { class: "picks" }, p.units.filter((u) => !u.off).map(pickBtn),
+    off.length ? h("div", { class: "picks-off" }, h("b", {}, `담당 아님 ${off.length}개`), h("span", { class: "muted" }, " 강사 소개에 안 나옴")) : null, off.map(pickBtn));
   return h("div", { class: "side-list" }, box("과목", picks), [sel].map((u) => {
     if (!u.pending.length && !u.approved.length) return newCurriculum(p, u, cat, { msg, reload, again, editBtn });
     const now = u.pending.length ? u.pending : u.approved;
     const st = stepState(now.length);
     const vac = cat.vacations.some((v) => v.id === u.set_id);
     const title = `${subj.get(u.subject_id) ?? "(삭제된 과목)"} · ${vac ? setName.get(u.set_id) : "일반"}`;
-    const top = h("div", { class: "row" }, h("h3", {}, title),
-      h("div", { class: "actions" }, pill(u.pending.length ? "이번 제출(검수 전)" : "검수 완료", u.pending.length ? "" : "neutral"), pill(st.label, st.kind)));
+    const top = h("div", {}, h("div", { class: "row" }, h("h3", {}, title),
+      h("div", { class: "actions" }, u.off ? pill("담당 아님", "neutral") : null, pill(u.pending.length ? "이번 제출(검수 전)" : "검수 완료", u.pending.length ? "" : "neutral"), pill(st.label, st.kind))),
+      u.off ? note("담당 과목이 아니라서 홈페이지 강사 소개에 나오지 않습니다(자료는 보관). 프로필의 [정보 수정]에서 담당 과목에 넣으면 다시 나옵니다.") : null);
     const editing = !u.pending.length && keep.edit === u.key;
     // 팝업 위쪽 [수정]: 검수 완료일 때만(보기 ↔ 고치기)
     if (editBtn) {

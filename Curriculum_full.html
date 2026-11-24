@@ -4687,9 +4687,15 @@
       const rows = await fetchSupabaseRowsForSheet(deptName, getSupabaseSourceId('instructorCurriculum'));
       const items = [];
       const targetInst = curriculumMatchKey(instructorName);
+      // 크게 보기(이전·다음)도 담당 과목만: 과목 버튼에 없는(담당에서 뺀) 과목은 넘겨도 나오지 않게 (2026-11-24)
+      const mine = {};
+      (await getInstructorListFromSupabase(deptName)).forEach(function(inst) {
+        if (curriculumMatchKey(inst.name) !== targetInst) return;
+        inst.subjects.forEach(function(s) { mine[curriculumMatchKey(s)] = true; });
+      });
 
       buildInstructorCurriculumRecords(rows).forEach(function(record) {
-        if (curriculumMatchKey(record.instructor) !== targetInst) return;
+        if (curriculumMatchKey(record.instructor) !== targetInst || !mine[curriculumMatchKey(record.subjectName)]) return;
         items.push({
           subjectName: record.subjectName,
           week: {

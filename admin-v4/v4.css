@@ -135,6 +135,7 @@ dialog.modal .side-list .step .media img { aspect-ratio: 4 / 3; object-fit: cont
 .side-list { display: grid; grid-template-columns: var(--picks, 240px) minmax(0, 1fr); gap: 16px; align-items: start; }
 .side-list .picks { display: grid; gap: 6px; }
 .side-list .picks button { text-align: left; border: 1px solid var(--line); background: var(--paper); border-radius: 5px; padding: 8px 10px; font-size: 13px; }
+.side-list .picks-off { margin-top: 10px; padding-top: 12px; border-top: 1px solid var(--line); font-size: 13px; }
 .side-list .picks button[aria-pressed="true"] { border-color: var(--green); box-shadow: inset 3px 0 0 var(--lime); font-weight: 700; color: var(--green); }
 
 .subject-chip { display: inline-block; border: 1px solid var(--line); background: var(--paper); border-radius: 5px; padding: 5px 10px; font-size: 13px; color: var(--text); text-decoration: none; cursor: pointer; }

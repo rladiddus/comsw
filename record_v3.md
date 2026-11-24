@@ -264,3 +264,4 @@
 - 2026-11-24 instructors shownPop(모듈 단위)로 다시 열 때 예전 dialog 제거, reload를 기다림.
 - 2026-11-24 courses·vacation·instructors editBtn 글자 '돌아가기'.
 - 2026-11-24 common-editor fillFrom(강사 자료 → 4단계 초안), touched(보기에서는 tracker read = baseline), bringBtn.
+- 2026-11-24 courses draftOf(적용한 공통이 없는 과목만 fillFrom) → dept-layout materialOf(steps, text, draft)·stepPill.

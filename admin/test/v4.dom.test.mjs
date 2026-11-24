@@ -1312,6 +1312,9 @@ test("과정내용 줄 수: AI가 줄 수를 어기면 묶음마다 다시 받�
   const { materialOf } = await import("../../admin-v4/js/pages/dept-layout.mjs");
   assert.deepEqual(materialOf([{ summary: "가" }, { summary: " " }, { written: "나" }], "01 글"), ["가", "나"], "공통 단계가 먼저(빈 단계 빼고)");
   assert.deepEqual(materialOf([], "01 하나\n02 둘"), ["하나", "둘"], "공통 단계가 없으면 적힌 글");
+  assert.deepEqual(materialOf([], "01 글", [{ summary: "초1" }, { summary: "" }]), ["초1"], "적용한 공통이 없으면 강사 자료 초안이 적힌 글보다 먼저");
+  assert.deepEqual(materialOf([{ summary: "가" }], "01 글", [{ summary: "초1" }]), ["가"], "적용한 공통이 초안보다 먼저");
+  assert.deepEqual(materialOf([], "", [{ summary: "가1\n나1" }]), ["가1 / 나1"], "강사 여럿의 글은 한 단계로");
   const asked = [];
   const ai = async (kind, text) => { asked.push(kind); return kind === "department" ? "01 하나\n02 둘" : `정리 ${text.replace(/[-\s]+/g, "")}`; };
   assert.equal(await aiLines("캐드", t(4), 4, ai), "01 정리 s1\n02 정리 s2\n03 정리 s3\n04 정리 s4");
@@ -1612,4 +1615,37 @@ test("과목 팝업: 공통이 이미 있으면 덮지 않고, [강사 내용 �
   barBtn("취소").click();
   await flush();
   document.querySelectorAll("dialog").forEach((d) => d.remove());
+});
+
+test("학과 구성: 공통을 적용하기 전이면 강사 자료 초안으로 [AI 정리]·2·3·4 숫자·'초안 4단계 · 적용 전' 표시, 방학 특강 자료는 안 씀", async () => {
+  document.querySelectorAll("dialog").forEach((d) => d.remove());
+  const { configureServices } = await import("../../admin/js/services.mjs");
+  const asked = [];
+  configureServices({ summarize: async (...args) => { asked.push(args); return { text: "01 하나\n02 둘\n03 셋\n04 넷" }; } });
+  const fake = db();
+  fake.rpc = async (name) => ({ data: name === "comsw_v4_unpublished" ? false : null, error: null });
+  const row = (set, n, text) => ({ id: `${set}${n}`, instructor_id: "i1", set_id: set, subject_id: "s1", step_label: `${n}단계`, summary: `${text}${n}`, status: "approved", sort_order: n, updated_at: "2026-11-20T00:00:00Z" });
+  const vac = "v1"; // 방학 특강
+  const local = fakeSupabase({
+    subject_weeks: [],
+    instructor_curricula: [1, 2, 3, 4].flatMap((n) => [row("set1", n, "일반글"), row(vac, n, "방학글")]),
+  });
+  const base = fake.from.bind(fake);
+  fake.from = (t) => (["subject_weeks", "instructor_curricula"].includes(t) ? local.from(t) : base(t));
+  const main = await open("courses", undefined, fake);
+  [...main.querySelectorAll(".tabs button")].find((b) => b.textContent === "학과 구성").click();
+  const line = [...main.querySelectorAll(".dept-row")].find((r) => r.querySelector(".subject-chip").textContent === "캐드1");
+  assert.match(line.querySelector(".dept-name").textContent, /초안 4단계 · 적용 전/);
+  assert.equal(line.querySelector(".dept-count").hidden, false);
+  assert.ok(document.querySelector(".change-bar")?.hidden !== false, "초안은 '바뀐 설정'이 아님");
+  for (const c of main.querySelectorAll(".dept-ai")) if (c.checked !== (c.getAttribute("aria-label") === "캐드1 AI 정리")) c.click();
+  [...main.querySelectorAll("button")].find((b) => b.textContent === "AI 정리").click();
+  await flush();
+  await flush();
+  assert.equal(asked.length, 1);
+  assert.match(String(asked[0].map((x) => x?.text ?? x)), /1단계: 일반글1\n2단계: 일반글2\n3단계: 일반글3\n4단계: 일반글4/);
+  assert.ok(!JSON.stringify(asked).includes("방학글"));
+  const now = [...main.querySelectorAll(".dept-row")].find((r) => r.querySelector(".subject-chip").textContent === "캐드1");
+  assert.equal(now.querySelector("textarea").value, "01 하나\n02 둘\n03 셋\n04 넷");
+  configureServices({});
 });

@@ -32,7 +32,7 @@ export function groupSteps(texts, n) {
 export const plainLines = (text) => String(text ?? "").split("\n").map((l) => l.trim().replace(/^(?:0\d[.):]?\s+|\d{1,2}[.):]\s+|\d{1,2}단계\s*:?\s*)/, "")).filter(Boolean);
 const numbered = (lines) => lines.map((l, i) => `${String(i + 1).padStart(2, "0")} ${l}`).join("\n");
 // 과정내용 AI 정리: n묶음을 n줄로. AI가 줄 수를 어기면 묶음마다 한 문장씩 다시 받아 꼭 n줄로 맞춘다.
-// texts = 정리할 글(공통 단계 문구, 없으면 과정내용에 적힌 줄). 글 수가 n보다 적으면 나눌 수 없다.
+// texts = 정리할 글(materialOf). 글 수가 n보다 적으면 나눌 수 없다.
 export async function aiLines(name, texts, n, ai) {
   if (texts.length < n) throw new Error(`정리할 내용이 ${texts.length}개라 ${n}줄로 나눌 수 없습니다. 더 작은 숫자를 골라주세요`);
   const groups = groupSteps(texts, n);
@@ -41,20 +41,20 @@ export async function aiLines(name, texts, n, ai) {
   const each = await Promise.all(groups.map((g) => ai("common", g.map((t) => `- ${t}`).join("\n"))));
   return numbered(each.map((t) => plainLines(t).join(" ")));
 }
-// AI 재료: 공통 단계(몇 단계든)가 있으면 그 문구, 없으면 과정내용에 적힌 줄
-export function materialOf(steps, text) {
-  const fromSteps = steps.map((w) => (w.summary || w.written || "").trim()).filter(Boolean);
-  return fromSteps.length ? fromSteps : plainLines(text);
+// AI 재료: 적용한 공통 단계(몇 단계든) → 강사 자료 초안(적용 전) → 과정내용에 적힌 줄
+export function materialOf(steps, text, draft = []) {
+  const texts = (list) => list.map((w) => (w.summary || w.written || "").trim().split(/\s*\n\s*/).join(" / ")).filter(Boolean); // 강사 여럿의 글(줄바꿈)은 한 줄로
+  return [texts(steps), texts(draft), plainLines(text)].find((x) => x.length) ?? [];
 }
 const infoOf = (s) => ({ duration: s.duration ?? "", dept_curriculum: s.dept_curriculum ?? "", program: s.program ?? "", level: s.level ?? "" });
 
-export function deptLayout(dept, ordered, allSubjects, { reload, stepPill, openSubject, rename, stepsOf = () => [], msg, activeSwitch = null }) {
+export function deptLayout(dept, ordered, allSubjects, { reload, stepPill, openSubject, rename, stepsOf = () => [], draftOf = () => [], msg, activeSwitch = null }) {
   let list = [...ordered];
   const listEl = h("div", { class: "drag-list" });
   const add = h("select", { "aria-label": "넣을 과목" });
   const aiOn = new Set(); // AI 정리할 과목(체크)
   const lineCount = new Map(); // 과목 id → AI 정리 줄 수(화면에서만, 저장 안 함)
-  const material = (id) => materialOf(stepsOf(id), info[id].dept_curriculum);
+  const material = (id) => materialOf(stepsOf(id), info[id].dept_curriculum, draftOf(id));
   const countOf = (id) => { if (!lineCount.has(id)) lineCount.set(id, lineCountOf(info[id].dept_curriculum)); return lineCount.get(id); };
   let dragFrom = null;
   // 과목 정보: 기준 = DB, 처음 상태 = DB + 과정내용이 비어 있고 공통 4단계가 있으면 그 줄로 채움
@@ -73,7 +73,7 @@ export function deptLayout(dept, ordered, allSubjects, { reload, stepPill, openS
     const targets = list.filter((s) => aiOn.has(s.id));
     const ready = targets.filter((s) => material(s.id).length);
     if (!targets.length) throw new Error("AI로 정리할 과목을 체크해주세요");
-    if (!ready.length) throw new Error("체크한 과목에 정리할 내용이 없습니다. 과목을 눌러 공통 커리큘럼을 정리하거나 과정내용을 써주세요");
+    if (!ready.length) throw new Error("체크한 과목에 정리할 내용이 없습니다. 강사 커리큘럼을 확정하거나, 과목을 눌러 공통 커리큘럼을 정리하거나, 과정내용을 써주세요");
     // 한 과목이 실패해도 나머지 결과는 살린다
     const outs = await Promise.allSettled(ready.map((s) => aiLines(s.name, material(s.id), countOf(s.id), data.ai)));
     ready.forEach((s, n) => { if (outs[n].status === "fulfilled") info[s.id].dept_curriculum = outs[n].value; });
@@ -87,7 +87,7 @@ export function deptLayout(dept, ordered, allSubjects, { reload, stepPill, openS
   const draw = () => {
     listEl.replaceChildren(header, ...(list.length ? list.map((s, i) => {
       const f = info[s.id];
-      // 줄 수 2·3·4: 정리할 내용(공통 단계 또는 과정내용 글)이 있으면 늘 보임. 글을 쓰고 지우면 바로 나타나고 사라짐
+      // 줄 수 2·3·4: 정리할 내용(공통 단계·강사 자료 초안·과정내용 글)이 있으면 늘 보임. 글을 쓰고 지우면 바로 나타나고 사라짐
       const countEl = h("span", { class: "dept-count", hidden: !material(s.id).length, role: "group", "aria-label": `${s.name} AI 정리 줄 수` }, LINE_COUNTS.map((n) => h("button", {
         type: "button", "aria-pressed": String(countOf(s.id) === n), title: `[AI 정리]를 ${n}줄로(01~0${n})`,
         onclick: (e) => { lineCount.set(s.id, n); for (const b of e.currentTarget.parentElement.children) b.setAttribute("aria-pressed", String(b === e.currentTarget)); },
@@ -166,6 +166,6 @@ export function deptLayout(dept, ordered, allSubjects, { reload, stepPill, openS
         h("button", { type: "button", class: "btn", onclick: rename }, "학과명 수정"),
         activeSwitch ? h("span", { class: "actions", title: "끄면 홈페이지에서 이 학과를 숨깁니다" }, h("span", { class: "muted" }, "공개"), activeSwitch) : null),
       h("div", { class: "actions" }, h("span", { class: "pill neutral" }, "이 순서 = 학과별 커리큘럼·로드맵 순서"), aiBtn)),
-    note("손잡이(⠿)를 끌어서 순서를 바꿉니다. 기간·과정내용·프로그램·학습수준은 공개 '학과 커리큘럼'에 나오고, 같은 과목을 쓰는 모든 학과에 함께 바뀝니다. 과정내용은 직접 쓰거나 체크한 과목만 [AI 정리](공통 단계, 없으면 적힌 글을 칸 오른쪽 아래에서 고른 2·3·4줄로). 과목 이름을 누르면 공통 커리큘럼이 열립니다."),
+    note("손잡이(⠿)를 끌어서 순서를 바꿉니다. 기간·과정내용·프로그램·학습수준은 공개 '학과 커리큘럼'에 나오고, 같은 과목을 쓰는 모든 학과에 함께 바뀝니다. 과정내용은 직접 쓰거나 체크한 과목만 [AI 정리](공통 단계, 없으면 강사 자료 초안, 그것도 없으면 적힌 글을 칸 오른쪽 아래에서 고른 2·3·4줄로). 과목 이름을 누르면 공통 커리큘럼이 열립니다."),
     listEl, h("div", { class: "actions", style: "margin-top:12px" }, add));
 }

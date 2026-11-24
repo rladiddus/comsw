@@ -3,9 +3,9 @@
 // 학과 추가·이름 수정, 과목 삭제·복원은 팝업에서 눌러 바로 반영.
 import * as data from "../data.mjs";
 import { h, head, box, table, tabs, pill, fill, note, fail, busy, publishBanner, modal, filterBar, hasText, toggleSwitch } from "../ui.mjs";
-import { baseName, deptOrder, stepState } from "../rules.mjs";
+import { baseName, curriculumUnits, deptOrder, stepState } from "../rules.mjs";
 import { deptLayout, moveItem } from "./dept-layout.mjs";
-import { commonEditor } from "./common-editor.mjs";
+import { commonEditor, fillFrom } from "./common-editor.mjs";
 import { prepEditor } from "./prep.mjs";
 import { canSwitch, unsaved, untrack, track } from "../changes.mjs";
 
@@ -21,15 +21,29 @@ export async function render({ main, params = [] }) {
   await fill(body, async () => {
     const cat = await data.catalog();
     const subjects = data.general(cat); // 일반 과목만(방학 특강 과목은 방학 특강 메뉴)
-    const weeks = await data.weeks();
+    const [weeks, approved] = await Promise.all([
+      data.weeks(),
+      data.curricula((q) => q.eq("status", "approved").order("id")), // 페이지로 나눠 읽어도 겹치지 않게 id 순서
+    ]);
     const general = weeks.filter((w) => !w.set_id);
     const stepsOf = (id) => general.filter((w) => w.subject_id === id).sort((x, y) => (x.sort_order ?? 0) - (y.sort_order ?? 0));
+    // 적용한 공통이 없는 과목 → 강사 자료 초안(과목 팝업에 보이는 것과 같은 4단계, 저장하지 않음)
+    const vacIds = new Set(cat.vacations.map((v) => v.id));
+    const units = curriculumUnits(approved).filter((u) => !vacIds.has(u.set_id));
+    const drafts = new Map(subjects.filter((s) => !stepsOf(s.id).length)
+      .map((s) => [s.id, fillFrom(units.filter((u) => u.subject_id === s.id)).filter((x) => x.summary)]));
+    const draftOf = (id) => drafts.get(id) ?? [];
     const deptsOf = (id) => cat.links.filter((l) => l.subject_id === id).map((l) => cat.departments.find((d) => d.id === l.department_id)?.name).filter(Boolean);
     const vacsOf = (id) => cat.vacLinks.filter((l) => l.subject_id === id).map((l) => cat.vacations.find((v) => v.id === l.set_id)?.name).filter(Boolean);
     const out = h("div");
     const msg = h("div");
     const banner = await publishBanner(data.unpublished);
-    const stepPill = (s) => { const st = stepState(stepsOf(s.id).length); return pill(st.label, st.kind); };
+    const stepPill = (s) => {
+      const draft = draftOf(s.id).length;
+      if (draft) return pill(`초안 ${draft}단계 · 적용 전`, "neutral");
+      const st = stepState(stepsOf(s.id).length);
+      return pill(st.label, st.kind);
+    };
 
     // 과목 팝업: 왼쪽 강사, 오른쪽 공통 4단계. 전체 과목에서 열면 [과목 삭제]도.
     const openSubject = (s, { withDelete = false } = {}) => {
@@ -175,7 +189,7 @@ export async function render({ main, params = [] }) {
         view = [
           deptChips(),
           h("div", { style: "height:14px" }),
-          dept ? deptLayout(dept, ordered, subjects, { msg, reload, stepPill, stepsOf, openSubject: (id) => openSubject(subjects.find((x) => x.id === id)), rename: () => deptPopup(dept),
+          dept ? deptLayout(dept, ordered, subjects, { msg, reload, stepPill, stepsOf, draftOf, openSubject: (id) => openSubject(subjects.find((x) => x.id === id)), rename: () => deptPopup(dept),
             activeSwitch: toggleSwitch(deptMeta.active[dept.id] !== false, `${dept.name} 홈페이지 공개`, (next) => { deptMeta.active[dept.id] = next; draw(); }) })
             : box(null, fail("학과가 없습니다. [+ 학과 추가]로 만들어주세요.")),
         ];

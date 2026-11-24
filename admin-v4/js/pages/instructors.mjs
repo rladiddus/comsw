@@ -1,6 +1,6 @@
 // 강사: 목록(홈페이지 노출 스위치·이번 제출) → 강사를 누르면 팝업(프로필 / 커리큘럼: 왼쪽 과목, 오른쪽 내용). 이번 제출만 보고, AI는 버튼으로만, [확정] = 그 한 건만 공개.
 import * as data from "../data.mjs";
-import { h, head, box, table, tabs, pill, media, dl, fill, empty, note, busy, publishBanner, modal, toggleSwitch, pickImage, filterBar, hasText } from "../ui.mjs";
+import { h, head, box, table, tabs, pill, media, dl, fill, empty, note, busy, publishBanner, modal, toggleSwitch, pickImage, filterBar, hasText, sourcePhoto } from "../ui.mjs";
 import { curriculumUnits, stepState } from "../rules.mjs";
 import { track, isTracked, unsaved, untrack, check, canSwitch } from "../changes.mjs";
 
@@ -111,7 +111,7 @@ function profile(p, { msg, reload }) {
     h("div", { class: "profile-photo" }, h("h4", {}, "사진"), media(p.photo_url)));
   const f = { career: d.career ?? "", message: d.message ?? "" };
   const area = (k, rows) => h("textarea", { rows, value: f[k], style: "width:100%", oninput: (e) => { f[k] = e.target.value; } });
-  const photoBtn = h("button", { type: "button", class: "btn" }, "AI 프로필 사진 만들기");
+  const photoBtn = h("button", { type: "button", class: "btn" }, d.photo_url ? "AI 프로필 사진 다시 만들기" : "AI 프로필 사진 만들기");
   photoBtn.onclick = () => busy(photoBtn, msg, async () => {
     if (!d.source_asset_id) throw new Error("강사가 올린 본인 사진이 없습니다");
     const { getServices } = await import("../../../admin/js/services.mjs");
@@ -120,17 +120,31 @@ function profile(p, { msg, reload }) {
   });
   const ok = h("button", { type: "button", class: "btn primary" }, "확정");
   ok.onclick = () => busy(ok, msg, async () => {
-    if (!confirm(`${p.name} 프로필을 확정할까요? 홈페이지에 바로 반영됩니다(노출 설정은 그대로).`)) return;
+    const same = d.photo_url ? "" : "\n\n사진은 바뀌지 않습니다(지금 홈페이지 사진 그대로)."
+      + (d.source_asset_id ? " 강사가 올린 사진을 쓰려면 [취소]를 누르고 [AI 프로필 사진 만들기]를 먼저 하세요." : "");
+    if (!confirm(`${p.name} 프로필을 확정할까요? 홈페이지에 바로 반영됩니다(노출 설정은 그대로).${same}`)) return;
     await data.call("comsw_v4_confirm_profile", { p_instructor: p.id, p_updated_at: d.updated_at, p_career: f.career, p_message: f.message });
     reload();
   });
+  // 사진 탭: 홈페이지(지금 공개) / 강사업로드(비공개 원본) / AI 수정(확정되면 공개). AI 사진이 있으면 그 탭부터.
+  const photoBox = h("div", { class: "profile-photo" });
+  let source; // 원본은 탭을 처음 열 때 한 번만 불러온다
+  const drawPhoto = (tab) => {
+    const [pic, text] = tab === "home" ? [media(p.photo_url), p.photo_url ? "지금 홈페이지에 나오는 사진입니다." : "홈페이지에 나오는 사진이 없습니다."]
+      : tab === "source" ? (d.source_asset_id
+        ? [source ??= sourcePhoto(() => data.profileSource(d.source_asset_id)), d.source_consent === false ? "강사가 사진 사용에 동의하지 않아 AI 사진을 만들 수 없습니다." : "강사가 올린 원본입니다(홈페이지에는 나오지 않음). AI 사진은 이 사진으로 만듭니다."]
+        : [media(""), "이번 제출에 강사가 올린 사진이 없습니다."])
+      : [media(d.photo_url), d.photo_url ? "AI로 만든 사진입니다. 확정하면 홈페이지 사진이 이 사진으로 바뀝니다."
+        : d.source_asset_id ? "아직 만들지 않았습니다. 만들지 않고 확정하면 지금 홈페이지 사진 그대로입니다." : "강사가 올린 사진이 없어 만들 수 없습니다."];
+    photoBox.replaceChildren(tabs([["home", "홈페이지"], ["source", "강사업로드"], ["ai", "AI 수정"]], tab, drawPhoto, "photo-tabs"),
+      pic, h("p", { class: "muted" }, text), ...(d.source_asset_id ? [photoBtn] : []));
+  };
+  drawPhoto(d.photo_url ? "ai" : "home");
   return h("div", { class: "profile-wrap" },
     note("이번 제출입니다. 고친 문구로 확정하며, 확정 전에는 홈페이지에 공개되지 않습니다. 강사 원문은 기록에 남습니다."),
     h("div", { class: "profile-grid" },
       h("div", { class: "profile-text" }, dl([["이름", d.name]]), h("h4", {}, "경력"), area("career", 6), h("h4", {}, "한마디"), area("message", 3)),
-      h("div", { class: "profile-photo" }, h("h4", {}, "사진(확정되면 공개)"), media(d.photo_url || p.photo_url),
-        h("p", { class: "muted" }, d.photo_url ? "AI로 만든 사진입니다." : d.source_asset_id ? "강사가 본인 사진을 올렸습니다. AI 사진을 만든 뒤 확정하세요." : "새 사진 없음(지금 사진 그대로)."),
-        d.source_asset_id ? photoBtn : null)),
+      photoBox),
     h("div", { class: "actions" }, ok));
 }
 

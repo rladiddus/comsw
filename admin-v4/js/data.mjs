@@ -92,6 +92,13 @@ export async function upload(file, kind = "curriculum") {
   const up = await svc.upload(await shrinkImage(file, kind), kind); // { id, url }
   return { ...up, url: up.url + fragment };
 }
+// 강사가 올린 본인 사진(비공개 원본): 학과장·관리자와 올린 본인만. 사진 내용(data:)으로 받는다.
+export async function profileSource(assetId) {
+  const { getServices } = await import("../../admin/js/services.mjs");
+  const svc = getServices();
+  if (!svc.source) throw new Error("다시 로그인해주세요");
+  return (await svc.source(assetId)).dataUrl;
+}
 export async function ai(kind, text) {
   const { getServices } = await import("../../admin/js/services.mjs");
   const svc = getServices();

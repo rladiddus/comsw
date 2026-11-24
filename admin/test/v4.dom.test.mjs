@@ -1319,3 +1319,83 @@ test("과정내용 줄 수: AI가 줄 수를 어기면 묶음마다 다시 받�
   assert.equal(await aiLines("모션", t(6), 2, ai), "01 하나\n02 둘");
   await assert.rejects(aiLines("캐드", t(2), 4, ai), /2개라 4줄로 나눌 수 없습니다/);
 });
+
+test("강사 프로필 검수: 사진 탭 홈페이지·강사업로드·AI 수정, AI 사진 없이 확정하면 사진이 그대로라고 알림", async () => {
+  document.querySelectorAll("dialog").forEach((d) => d.remove());
+  const { configureServices } = await import("../../admin/js/services.mjs");
+  const asked = [];
+  configureServices({ source: async (id) => { asked.push(id); return { dataUrl: "data:image/png;base64,AA" }; } });
+  const openWith = async (draft) => {
+    document.querySelectorAll("dialog").forEach((d) => d.remove());
+    const fake = db();
+    const local = fakeSupabase({
+      instructors: [{ id: "i1", name: "김강사", is_listed: true, account_uid: "u1", photo_url: "https://x.test/home.webp" }],
+      instructor_profile_drafts: [{ instructor_id: "i1", name: "김강사", status: "pending", updated_at: "t1", ...draft }],
+    });
+    const from0 = fake.from.bind(fake);
+    fake.from = (t) => (["instructors", "instructor_profile_drafts"].includes(t) ? local.from(t) : from0(t));
+    const main = await open("instructors", undefined, fake);
+    if (!document.querySelector("dialog.modal")) main.querySelector("tr.pick").click();
+    await flush();
+    const dlg = document.querySelector("dialog.modal");
+    [...dlg.querySelectorAll(".tabs button")].find((b) => b.textContent === "프로필").click();
+    await flush();
+    return dlg;
+  };
+  const tab = (dlg, t) => [...dlg.querySelectorAll(".photo-tabs button")].find((b) => b.textContent === t);
+  const img = (dlg) => dlg.querySelector(".profile-photo .media img")?.getAttribute("src") ?? null;
+
+  let dlg = await openWith({ source_asset_id: "a1", source_consent: true, photo_url: null });
+  assert.deepEqual([...dlg.querySelectorAll(".photo-tabs button")].map((b) => b.textContent), ["홈페이지", "강사업로드", "AI 수정"]);
+  assert.equal(img(dlg), "https://x.test/home.webp");
+  assert.deepEqual(asked, [], "원본은 탭을 열 때만 불러옴");
+  tab(dlg, "강사업로드").click();
+  await flush();
+  assert.equal(img(dlg), "data:image/png;base64,AA");
+  tab(dlg, "AI 수정").click();
+  assert.equal(img(dlg), null);
+  assert.match(dlg.querySelector(".profile-photo").textContent, /아직 만들지 않았습니다/);
+  tab(dlg, "강사업로드").click();
+  await flush();
+  assert.deepEqual(asked, ["a1"], "한 번만 불러옴");
+  const prev = globalThis.confirm;
+  let said = "";
+  globalThis.confirm = (t) => { said = t; return false; };
+  const ok = () => [...dlg.querySelectorAll("button")].find((b) => b.textContent === "확정").click();
+  ok(); await flush();
+  assert.match(said, /사진은 바뀌지 않습니다[\s\S]*AI 프로필 사진 만들기/);
+
+  dlg = await openWith({ source_asset_id: "a1", source_consent: true, photo_url: "https://x.test/ai.png" });
+  assert.equal(tab(dlg, "AI 수정").getAttribute("aria-pressed"), "true", "AI 사진이 있으면 그 탭부터");
+  assert.equal(img(dlg), "https://x.test/ai.png");
+  ok(); await flush();
+  assert.doesNotMatch(said, /사진은 바뀌지 않습니다/);
+  globalThis.confirm = prev;
+  configureServices({});
+  document.querySelectorAll("dialog").forEach((d) => d.remove());
+});
+
+test("내 프로필: 확정 전에는 제출한 사진이 보이고, 글만 고쳐 다시 제출해도 사진이 빠지지 않음", async () => {
+  const { configureServices } = await import("../../admin/js/services.mjs");
+  configureServices({ source: async () => ({ dataUrl: "data:image/png;base64,BB" }) });
+  const submit = async (status) => {
+    const fake = db();
+    const calls = [];
+    const local = fakeSupabase({ instructor_profile_drafts: [{ instructor_id: "i1", name: "김강사", career: "경력", status, source_asset_id: "a1", source_consent: true }] });
+    const from0 = fake.from.bind(fake);
+    fake.from = (t) => (t === "instructor_profile_drafts" ? local.from(t) : from0(t));
+    fake.rpc = async (n, a) => { calls.push([n, a]); return { data: null, error: null }; };
+    const main = await open("profile", { uid: "u1", role: "teacher" }, fake);
+    await flush();
+    const src = main.querySelector(".photo-drop img")?.getAttribute("src") ?? null;
+    type(main.querySelector(".form-field textarea"), "새 경력");
+    await flush();
+    barBtn("학과장에게 제출").click();
+    await flush();
+    const a = calls.find(([n]) => n === "comsw_save_my_profile")[1];
+    return [src, a.p_career, a.p_source_asset_id, a.p_source_consent];
+  };
+  assert.deepEqual(await submit("pending"), ["data:image/png;base64,BB", "새 경력", "a1", true]);
+  assert.deepEqual(await submit("approved"), [null, "새 경력", null, false], "확정된 뒤에는 새로 올린 사진만");
+  configureServices({});
+});

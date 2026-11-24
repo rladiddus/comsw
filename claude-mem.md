@@ -166,3 +166,4 @@
 - V4 AI 끝말은 지시문 + rules.trimEnding 두 겹(사람이 쓴 글에는 안 씀). site_settings ai_prompt_*가 있으면 기본 지시문보다 우선.
 - V4 과정내용 AI는 공통 4단계를 n묶음으로 나눠 n줄(줄 수는 화면에서만, 저장 안 함).
 - V4 과정내용 AI 재료 = 공통 단계(몇 단계든) 먼저, 없으면 적힌 글.
+- V4 강사 프로필 검수 사진 탭: 홈페이지 = instructors.photo_url, 강사업로드 = source_asset(비공개), AI 수정 = draft.photo_url. 확정은 draft.photo_url이 있을 때만 사진을 바꿈.

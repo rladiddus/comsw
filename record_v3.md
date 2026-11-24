@@ -256,3 +256,4 @@
 - 2026-11-24 PROMPTS.week·common 수정(재배포 대기), data.ai가 trimEnding 적용.
 - 2026-11-24 dept-layout aiLines/groupSteps/plainLines/lineCountOf, .dept-count.
 - 2026-11-24 dept-layout materialOf(steps, text), groupSteps(texts, n), courses는 stepsOf 그대로 넘김.
+- 2026-11-24 instructors.profile .photo-tabs(home/source/ai), ui.sourcePhoto, data.profileSource(comsw-tools source). profile.mjs kept(대기 제출의 source_asset_id) 같이 제출.

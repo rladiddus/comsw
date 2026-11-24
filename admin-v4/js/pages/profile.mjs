@@ -1,7 +1,7 @@
 // 내 프로필(강사): 사진·경력·한마디. 본인(로그인 UID와 연결된 강사) 것만.
 // 바꾸면 떠 있는 창: [임시 저장] = 본인 저장함, [학과장에게 제출] = 기존 comsw_save_my_profile(대기 프로필). AI 사진은 학과장이 검수 때 만든다.
 import * as data from "../data.mjs";
-import { h, head, box, pill, media, fill, note, fail } from "../ui.mjs";
+import { h, head, box, pill, media, sourcePhoto, fill, note, fail } from "../ui.mjs";
 import { track, check } from "../changes.mjs";
 
 export async function render({ main, session }) {
@@ -16,9 +16,11 @@ export async function render({ main, session }) {
     const baseline = { name: from.name, career: from.career ?? "", message: from.message ?? "", asset: null, consent: false };
     const f = { ...baseline };
     let preview = "";
+    // 제출하고 아직 확정 전인 본인 사진: 화면에 보이고, 글만 고쳐 다시 제출해도 빠지지 않게 같이 보낸다
+    const kept = sent?.status === "pending" ? sent.source_asset_id ?? null : null;
     const msg = h("div");
     // 사진: 누르면 파일 고르기, 사진 칸에 끌어다 놓아도 됨(숨은 파일 칸)
-    const shown = () => (preview || sent?.photo_url || me.photo_url ? media(preview || sent?.photo_url || me.photo_url) : h("div", { class: "media" }, h("span", { class: "muted" }, "사진 없음 · 눌러서 올리기")));
+    const shown = () => (!preview && kept ? sourcePhoto(() => data.profileSource(kept), "제출한 사진") : preview || sent?.photo_url || me.photo_url ? media(preview || sent?.photo_url || me.photo_url) : h("div", { class: "media" }, h("span", { class: "muted" }, "사진 없음 · 눌러서 올리기")));
     const file = h("input", { type: "file", hidden: true, accept: "image/png,image/jpeg,image/webp", "aria-label": "본인 사진" });
     const photo = h("button", { type: "button", class: "img-pick", title: "눌러서 사진 올리기(끌어다 놓아도 됩니다)", "aria-label": "본인 사진 올리기", onclick: () => file.click() }, shown());
     file.onchange = async () => {
@@ -53,7 +55,7 @@ export async function render({ main, session }) {
       apply: async (x) => {
         if (!x.name.trim()) throw new Error("이름을 입력해주세요");
         if (x.asset && !x.consent) throw new Error("본인 사진 사용 동의에 체크해주세요");
-        await data.call("comsw_save_my_profile", { p_name: x.name.trim(), p_career: x.career, p_message: x.message, p_source_asset_id: x.asset, p_source_consent: !!x.consent });
+        await data.call("comsw_save_my_profile", { p_name: x.name.trim(), p_career: x.career, p_message: x.message, p_source_asset_id: x.asset ?? kept, p_source_consent: x.asset ? !!x.consent : !!kept || !!x.consent });
       },
       onApplied: () => { msg.replaceChildren(note("제출했습니다. 학과장이 확정하면 홈페이지에 나옵니다.")); render({ main, session }); },
     });
@@ -64,6 +66,7 @@ export async function render({ main, session }) {
         form, h("p", { class: "muted" }, "고치면 오른쪽 아래 창에서 [임시 저장] 또는 [학과장에게 제출]을 누르세요.")),
       box("사진", h("div", { class: "photo-drop" }, photo, file),
         h("div", { class: "actions", style: "margin-top:8px" }, h("button", { type: "button", class: "btn small", onclick: () => file.click() }, "사진 올리기")),
+        kept ? note("제출한 사진입니다. 학과장이 확정하면 이 사진으로 만든 프로필 사진이 홈페이지에 나옵니다. 다른 사진을 올리면 바뀝니다.") : null,
         h("label", { class: "consent" }, consent, "프로필 사진을 만드는 데 본인 사진을 쓰는 것에 동의합니다"),
         h("p", { class: "muted" }, "올린 사진은 학과장만 보고, 홈페이지용 프로필 사진은 학과장이 검수 때 만듭니다.")))];
   });

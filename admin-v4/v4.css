@@ -119,7 +119,12 @@ dialog.modal { --ph: min(340px, calc(100vh - 340px)); }
 .profile-text { max-height: calc(var(--ph) + 34px); overflow: auto; }
 .profile-photo .media { background: none; min-height: 0; display: block; }
 .profile-photo .media img { width: auto; max-width: 100%; max-height: var(--ph); object-fit: contain; display: block; }
-.profile-wrap .profile-photo .media img { max-height: calc(var(--ph) - 90px); }
+.profile-wrap .profile-photo { width: 340px; max-width: 100%; }
+.profile-wrap .profile-photo .media { display: flex; align-items: center; justify-content: center; height: calc(var(--ph) - 90px); }
+.profile-wrap .profile-photo .media img { max-height: 100%; margin: 0 auto; }
+.photo-tabs { display: flex; gap: 6px; margin-bottom: 12px; }
+.photo-tabs button { flex: 1; padding: 5px 8px; border: 0; border-radius: 4px; background: var(--soft); color: var(--green); font-size: 13px; white-space: nowrap; }
+.photo-tabs button[aria-pressed="true"] { background: var(--green); color: #fff; font-weight: 700; }
 dialog.modal .side-list .steps { grid-template-columns: repeat(4, minmax(0, 1fr)); }
 /* 팝업 공통 4단계: 대표 이미지를 4:3으로(세로 스크롤 없게), 잘리지 않게 contain */
 dialog.modal .side-list .step .media img { aspect-ratio: 4 / 3; object-fit: contain; }

@@ -52,6 +52,14 @@ const driveImage = (url) => {
 export const media = (url) => h("div", { class: "media" }, !url ? h("span", { class: "muted" }, "이미지 없음")
   : /drive\.google\.com/i.test(url) ? driveImage(url) : mediaPreview(url));
 
+// 강사가 올린 본인 사진 칸: 불러오는 동안·실패를 칸 안에 알린다(load = 사진 내용을 주는 함수)
+export function sourcePhoto(load, alt = "강사가 올린 사진") {
+  const el = h("div", { class: "media" }, h("span", { class: "muted" }, "사진 불러오는 중..."));
+  load().then((src) => el.replaceChildren(h("img", { src, alt })))
+    .catch((err) => { console.error(err); el.replaceChildren(h("span", { class: "muted" }, `사진을 불러오지 못했습니다: ${err?.message ?? err}`)); });
+  return el;
+}
+
 export function dl(pairs) {
   return h("dl", { class: "dl" }, pairs.flatMap(([k, v]) => [h("dt", {}, k), h("dd", {}, v ?? "—")]));
 }

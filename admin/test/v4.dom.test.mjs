@@ -1437,7 +1437,55 @@ test("AI 사용량: 사용액·한도·종류별·작업 기록, 관리자만 [�
   await flush();
   assert.deepEqual(calls.find(([n]) => n === "comsw_set_ai_limit")[1], { p_limit: 20000 });
   assert.equal(document.querySelector("dialog.modal"), null);
+  assert.match(main.textContent, /공통 4단계 정리0건0원/, "안 쓴 종류도 보임");
   const { stuck } = await import("../../admin-v4/js/pages/usage.mjs");
   const at = Date.parse("2026-11-24T05:11:00Z");
   assert.deepEqual(["2026-11-24T05:00:00Z", "2026-11-24T05:05:00Z"].map((t) => stuck({ status: "reserved", created_at: t }, at)), [true, false]);
+});
+
+test("AI 사용량: 종류를 누르면 프롬프트 팝업 — 지금 글 보기, [수정]→[저장], [기본 프롬프트로]는 저장값을 비움", async () => {
+  document.querySelectorAll("dialog").forEach((d) => d.remove());
+  const { PROMPTS } = await import("../../supabase/functions/comsw-tools/policy.mjs");
+  const fake = fakeSupabase({ comsw_ai_jobs: [], site_settings: [{ key: "ai_prompt_roadmap", value: "직접 쓴 글" }] });
+  fake.rpc = async () => ({ data: { month: "2026-11", used: 0, limit: 3000, remaining: 3000 }, error: null });
+  const saves = () => fake.calls.filter(([k, t]) => k === "upsert" && t === "site_settings").map((c) => c[2]);
+  const main = await open("usage", { uid: "u1", role: "head" }, fake);
+  const pop = async (name) => {
+    [...main.querySelectorAll("tr.pick")].find((tr) => tr.firstChild.textContent === name).click();
+    await flush();
+    const dlg = [...document.querySelectorAll("dialog.modal")].at(-1);
+    return { dlg, area: dlg.querySelector("textarea"), btn: (t) => [...dlg.querySelectorAll("button")].find((b) => b.textContent === t) };
+  };
+  assert.deepEqual([...main.querySelectorAll("tr.pick")].map((tr) => tr.firstChild.textContent).sort(), ["강사 단계 문구", "공통 4단계 정리", "과정내용 정리", "로드맵 문구", "프로필 사진"]);
+
+  let p = await pop("프로필 사진");
+  assert.equal(p.area.value, PROMPTS.profile, "저장한 글이 없으면 기본");
+  assert.equal(p.area.readOnly, true, "보기로 열림");
+  assert.match(p.dlg.textContent, /기본 프롬프트/);
+  p.btn("수정").click();
+  type(p.area, "  새 사진 지시  ");
+  const prev = globalThis.confirm;
+  globalThis.confirm = () => false;
+  p.btn("닫기").click();
+  assert.ok(p.dlg.isConnected, "저장 안 한 글이 있으면 묻는다");
+  globalThis.confirm = prev;
+  p.btn("저장").click();
+  await flush();
+  assert.deepEqual(saves().at(-1), { key: "ai_prompt_profile", value: "새 사진 지시" });
+  assert.equal(p.area.readOnly, true);
+  assert.match(p.dlg.textContent, /직접 저장한 프롬프트[\s\S]*/);
+  p.btn("닫기").click();
+
+  p = await pop("로드맵 문구");
+  assert.equal(p.area.value, "직접 쓴 글", "지금 적용된 글");
+  p.btn("수정").click();
+  type(p.area, " ");
+  p.btn("저장").click();
+  await flush();
+  assert.equal(saves().length, 1, "빈 글은 저장 안 함");
+  p.btn("기본 프롬프트로").click();
+  p.btn("저장").click();
+  await flush();
+  assert.deepEqual(saves().at(-1), { key: "ai_prompt_roadmap", value: null });
+  p.btn("닫기").click();
 });

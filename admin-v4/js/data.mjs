@@ -115,6 +115,12 @@ export async function ai(kind, text) {
   return out;
 }
 
+// AI 프롬프트(종류별). 저장한 글이 없으면(null) 서버의 기본 프롬프트를 쓴다. 다음 AI 작업부터 적용, 홈페이지 공개와 상관없음.
+export async function savePrompt(kind, value) {
+  const { error } = await db.from("site_settings").upsert({ key: `ai_prompt_${kind}`, value });
+  if (error) throw new Error(error.message);
+}
+
 // 강사 작성 저장함(본인만). [저장]은 여기까지 — 검수·공개와 상관없다.
 export async function teacherDraft(instructorId, kind, target) {
   const { data, error } = await db.from("v4_teacher_drafts").select("*")

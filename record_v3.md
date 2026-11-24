@@ -259,3 +259,4 @@
 - 2026-11-24 instructors.profile .photo-tabs(home/source/ai), ui.sourcePhoto, data.profileSource(comsw-tools source). profile.mjs kept(대기 제출의 source_asset_id) 같이 제출.
 - 2026-11-24 v4.css html:has(dialog[open]) overflow hidden, scrollbar-gutter stable.
 - 2026-11-24 V4 pages/usage.mjs, SQL comsw_private.ai_limit·comsw_set_ai_limit·comsw_release_ai, reserve/finish/budget 교체. handler profile 예약 0.25*fx. (SQL·comsw-tools 실행 대기)
+- 2026-11-24 usage.promptPopup → data.savePrompt(site_settings ai_prompt_<kind>, 기본과 같으면 null). 20261124010000 실행 확인.

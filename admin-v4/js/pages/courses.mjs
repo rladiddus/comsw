@@ -56,7 +56,7 @@ export async function render({ main, params = [] }) {
       const st = stepState(steps.length);
       // [수정]: 보기 ↔ 고치기. 고치면 오른쪽 아래 창에서 [임시 저장]/[되돌리기]/[사이트 적용]
       const editBtn = h("button", { type: "button", class: "btn primary" }, "수정");
-      const sync = () => { editBtn.textContent = editor.isEditing() ? "수정 끝" : "수정"; renameBtn.hidden = !editor.isEditing(); };
+      const sync = () => { editBtn.textContent = editor.isEditing() ? "돌아가기" : "수정"; renameBtn.hidden = !editor.isEditing(); };
       editor.onEditing = sync;
       editBtn.onclick = () => {
         if (editor.isEditing() && unsaved(editor.trackId) && !confirm("임시 저장하지 않은 바뀐 설정이 있습니다. 수정을 끝내면 화면은 보기로 바뀌고, 바꾼 내용은 오른쪽 아래 창에 남습니다. 계속할까요?")) return;

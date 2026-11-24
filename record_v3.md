@@ -262,3 +262,4 @@
 - 2026-11-24 usage.promptPopup → data.savePrompt(site_settings ai_prompt_<kind>, 기본과 같으면 null). 20261124010000 실행 확인.
 - 2026-11-24 comsw_v4_confirm_profile에 p_photo_url(20261124020000, 실행 확인). instructors.profile chosen/publicUrl(원본 = profileSource → upload image).
 - 2026-11-24 instructors shownPop(모듈 단위)로 다시 열 때 예전 dialog 제거, reload를 기다림.
+- 2026-11-24 courses·vacation·instructors editBtn 글자 '돌아가기'.

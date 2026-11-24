@@ -125,7 +125,7 @@ export async function render({ main }) {
       const cur = vsteps.filter((x) => x.set_id === v.id && x.subject_id === sub.id).map((x) => ({ summary: x.summary, image_url: x.image_url ?? "" }));
       editor = commonEditor(sub, cat, cur.length === 4 ? cur : [], { msg, reload: () => render({ main }), set: v, startEditing: false });
       const editBtn = h("button", { type: "button", class: "btn primary" }, "수정");
-      const sync = () => { editBtn.textContent = editor.isEditing() ? "수정 끝" : "수정"; };
+      const sync = () => { editBtn.textContent = editor.isEditing() ? "돌아가기" : "수정"; };
       editor.onEditing = sync;
       editBtn.onclick = () => {
         if (editor.isEditing() && unsaved(editor.trackId) && !confirm("임시 저장하지 않은 바뀐 설정이 있습니다. 수정을 끝내도 바꾼 내용은 오른쪽 아래 창에 남습니다. 계속할까요?")) return;

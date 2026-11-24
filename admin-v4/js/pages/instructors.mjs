@@ -229,7 +229,7 @@ function curriculum(p, cat, { msg, reload, again, editBtn, aiHead }) {
     // 팝업 위쪽 [수정]: 검수 완료일 때만(보기 ↔ 고치기)
     if (editBtn) {
       editBtn.hidden = !!u.pending.length;
-      editBtn.textContent = editing ? "수정 끝" : "수정";
+      editBtn.textContent = editing ? "돌아가기" : "수정";
       editBtn.onclick = () => {
         const id = `curriculum:${u.key}`;
         if (editing) {

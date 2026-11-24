@@ -255,3 +255,4 @@
 - 2026-11-23 ui.media drive → driveThumbnail img, common-editor 후보 img도.
 - 2026-11-24 PROMPTS.week·common 수정(재배포 대기), data.ai가 trimEnding 적용.
 - 2026-11-24 dept-layout aiLines/groupSteps/plainLines/lineCountOf, .dept-count.
+- 2026-11-24 dept-layout materialOf(steps, text), groupSteps(texts, n), courses는 stepsOf 그대로 넘김.

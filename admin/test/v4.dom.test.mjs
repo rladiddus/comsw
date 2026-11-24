@@ -685,7 +685,12 @@ test("학과 구성 표: 기간(개월 숫자)·과정내용(비면 공통 4단�
   lv.value = "★★★☆☆"; lv.dispatchEvent(new dom.window.Event("change", { bubbles: true }));
   main.querySelector("input[aria-label='캐드2 AI 정리']").click(); // 캐드2는 AI 제외
   const counts = main.querySelectorAll(".dept-count");
-  assert.equal(counts.length, 1, "공통 단계가 있는 캐드1만 줄 수 고르기");
+  assert.deepEqual([...counts].map((c) => c.hidden), [false, true], "내용이 있는 캐드1만 줄 수 고르기");
+  const c2 = main.querySelector("textarea[aria-label='캐드2 과정내용']");
+  type(c2, "직접 쓴 글");
+  assert.equal(counts[1].hidden, false, "공통 단계가 없어도 글을 쓰면 나타남");
+  type(c2, "");
+  assert.equal(counts[1].hidden, true);
   assert.equal(counts[0].querySelector("[aria-pressed=true]").textContent, "4", "처음 = 지금 줄 수");
   [...counts[0].children].find((b) => b.textContent === "2").click();
   [...main.querySelectorAll("button")].find((b) => b.textContent === "AI 정리").click();
@@ -1299,12 +1304,18 @@ test("과정내용 줄 수: AI가 줄 수를 어기면 묶음마다 다시 받�
   const { aiLines, plainLines, lineCountOf, groupSteps } = await import("../../admin-v4/js/pages/dept-layout.mjs");
   assert.deepEqual(plainLines("01 가\n2. 나\n3단계: 다\n3D 모델링 실습"), ["가", "나", "다", "3D 모델링 실습"]);
   assert.deepEqual([lineCountOf("01 가\n02 나"), lineCountOf("01 가\n02 나\n03 다"), lineCountOf(""), lineCountOf("한 줄")], [2, 3, 4, 4]);
-  const steps = [1, 2, 3, 4].map((n) => ({ summary: `s${n}` }));
-  assert.deepEqual(groupSteps(steps, 2), [["s1", "s2"], ["s3", "s4"]]);
-  assert.deepEqual(groupSteps(steps, 3), [["s1", "s2"], ["s3"], ["s4"]]);
+  const t = (n) => Array.from({ length: n }, (_, i) => `s${i + 1}`);
+  assert.deepEqual(groupSteps(t(4), 2), [["s1", "s2"], ["s3", "s4"]]);
+  assert.deepEqual(groupSteps(t(4), 3), [["s1", "s2"], ["s3"], ["s4"]]);
+  assert.deepEqual(groupSteps(t(6), 4), [["s1", "s2"], ["s3"], ["s4", "s5"], ["s6"]], "6단계도 4줄로");
+  assert.deepEqual(groupSteps(t(6), 2), [["s1", "s2", "s3"], ["s4", "s5", "s6"]]);
+  const { materialOf } = await import("../../admin-v4/js/pages/dept-layout.mjs");
+  assert.deepEqual(materialOf([{ summary: "가" }, { summary: " " }, { written: "나" }], "01 글"), ["가", "나"], "공통 단계가 먼저(빈 단계 빼고)");
+  assert.deepEqual(materialOf([], "01 하나\n02 둘"), ["하나", "둘"], "공통 단계가 없으면 적힌 글");
   const asked = [];
   const ai = async (kind, text) => { asked.push(kind); return kind === "department" ? "01 하나\n02 둘" : `정리 ${text.replace(/[-\s]+/g, "")}`; };
-  assert.equal(await aiLines("캐드", steps, 4, ai), "01 정리 s1\n02 정리 s2\n03 정리 s3\n04 정리 s4");
+  assert.equal(await aiLines("캐드", t(4), 4, ai), "01 정리 s1\n02 정리 s2\n03 정리 s3\n04 정리 s4");
   assert.deepEqual(asked, ["department", "common", "common", "common", "common"]);
-  await assert.rejects(aiLines("캐드", [{ summary: "a" }, { summary: "" }, { summary: "b" }, { summary: "c" }], 4, ai), /비어 있는 단계/);
+  assert.equal(await aiLines("모션", t(6), 2, ai), "01 하나\n02 둘");
+  await assert.rejects(aiLines("캐드", t(2), 4, ai), /2개라 4줄로 나눌 수 없습니다/);
 });

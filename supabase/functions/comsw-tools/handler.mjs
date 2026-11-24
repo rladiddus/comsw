@@ -219,11 +219,7 @@ export function createHandler(
         try {
           const { output, usage } = await work();
           const cost = usageCost(usage, fx, kind === "profile");
-          if (cost > reserve) {
-            throw new Error(
-              "AI 비용 상한을 확인해야 합니다. 관리자에게 문의해주세요",
-            );
-          }
+          // 잡아 둔 금액보다 더 들었어도 결과는 쓰고, 든 금액 그대로 적는다.
           await result(
             admin.rpc("comsw_finish_ai", {
               p_id: reservation.id,
@@ -322,7 +318,7 @@ export function createHandler(
           await withBudget(
             "profile",
             crypto.randomUUID(),
-            Math.min(3000, Math.ceil(1.4 * fx)),
+            Math.min(3000, Math.ceil(0.25 * fx)),
             async () => {
               const image = await preparePortrait(bytes, false);
               const form = new FormData();

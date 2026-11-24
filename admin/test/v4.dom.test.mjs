@@ -39,9 +39,9 @@ test("학과 순서: 학과별 순서가 있으면 그것, 없으면 과목 순�
   assert.deepEqual(rules.deptOrder([{ subject_id: "a", sort_order: 5 }, { subject_id: "b", sort_order: 0 }], subjects).map((s) => s.id), ["b", "a"]);
 });
 
-test("메뉴: 관리 7개 + 강사 2개, 선생님은 강사 2개만", () => {
+test("메뉴: 관리 8개 + 강사 2개, 선생님은 강사 2개만", () => {
   const ids = (role) => menusFor(role).flatMap(([, l]) => l.map(([id]) => id));
-  assert.deepEqual(ids("head"), ["instructors", "courses", "roadmap", "vacation", "prep", "seminars", "site", "mine", "profile"]);
+  assert.deepEqual(ids("head"), ["instructors", "courses", "roadmap", "vacation", "prep", "seminars", "site", "usage", "mine", "profile"]);
   assert.deepEqual(ids("teacher"), ["mine", "profile"]);
   assert.deepEqual(ids("guest"), []);
 });
@@ -1398,4 +1398,46 @@ test("내 프로필: 확정 전에는 제출한 사진이 보이고, 글만 고�
   assert.deepEqual(await submit("pending"), ["data:image/png;base64,BB", "새 경력", "a1", true]);
   assert.deepEqual(await submit("approved"), [null, "새 경력", null, false], "확정된 뒤에는 새로 올린 사진만");
   configureServices({});
+});
+
+test("AI 사용량: 사용액·한도·종류별·작업 기록, 관리자만 [한도 바꾸기]·실패한 작업 [사용액에서 빼기]", async () => {
+  globalThis.confirm = () => true;
+  document.querySelectorAll("dialog").forEach((d) => d.remove());
+  const calls = [];
+  const fake = fakeSupabase({ comsw_ai_jobs: [
+    { id: "j1", kind: "profile", status: "failed", budget_krw: 2800, month: "2026-11", created_at: "2026-11-24T05:00:00Z" },
+    { id: "j2", kind: "profile", status: "completed", budget_krw: 120, month: "2026-11", created_at: "2026-11-23T05:00:00Z" },
+    { id: "j3", kind: "week", status: "completed", budget_krw: 11, month: "2026-11", created_at: "2026-11-22T05:00:00Z" },
+    { id: "j4", kind: "week", status: "completed", budget_krw: 9, month: "2026-10", created_at: "2026-10-22T05:00:00Z" },
+  ] });
+  fake.rpc = async (n, a) => { calls.push([n, a]); return { data: n === "comsw_ai_budget" ? { month: "2026-11", used: 2931, limit: 3000, remaining: 69 } : null, error: null }; };
+  let main = await open("usage", { uid: "u1", role: "head" }, fake);
+  assert.match(main.textContent, /2,931원[\s\S]*69원[\s\S]*3,000원/);
+  assert.match(main.textContent, /프로필 사진2건2,920원120원1건/, "종류별: 평균은 성공한 것만");
+  assert.match(main.textContent, /작업 기록 4건 · 2,940원/);
+  assert.ok(![...main.querySelectorAll("button")].some((b) => /한도 바꾸기|사용액에서 빼기/.test(b.textContent)), "학과장은 보기만");
+  const sel = main.querySelector("select[aria-label='달 거르기']");
+  sel.value = "2026-10"; sel.dispatchEvent(new dom.window.Event("change", { bubbles: true }));
+  assert.match(main.textContent, /작업 기록 1건 · 9원/);
+
+  main = await open("usage", { uid: "u1", role: "admin" }, fake);
+  const btn = (t, root = main) => [...root.querySelectorAll("button")].filter((b) => b.textContent === t);
+  assert.equal(btn("사용액에서 빼기").length, 1, "실패한 작업만");
+  btn("사용액에서 빼기")[0].click();
+  await flush();
+  assert.deepEqual(calls.find(([n]) => n === "comsw_release_ai")[1], { p_id: "j1" });
+  btn("한도 바꾸기")[0].click();
+  const dlg = document.querySelector("dialog.modal");
+  type(dlg.querySelector("input"), "-1");
+  btn("저장", dlg)[0].click();
+  await flush();
+  assert.ok(!calls.some(([n]) => n === "comsw_set_ai_limit"), "잘못된 금액은 막음");
+  type(dlg.querySelector("input"), "20000");
+  btn("저장", dlg)[0].click();
+  await flush();
+  assert.deepEqual(calls.find(([n]) => n === "comsw_set_ai_limit")[1], { p_limit: 20000 });
+  assert.equal(document.querySelector("dialog.modal"), null);
+  const { stuck } = await import("../../admin-v4/js/pages/usage.mjs");
+  const at = Date.parse("2026-11-24T05:11:00Z");
+  assert.deepEqual(["2026-11-24T05:00:00Z", "2026-11-24T05:05:00Z"].map((t) => stuck({ status: "reserved", created_at: t }, at)), [true, false]);
 });

@@ -1,4 +1,4 @@
-// 역할별 메뉴(관리 7 + 강사 2). 메뉴 숨김은 보기 정리일 뿐, 권한은 DB가 다시 확인한다.
+// 역할별 메뉴(관리 8 + 강사 2). 메뉴 숨김은 보기 정리일 뿐, 권한은 DB가 다시 확인한다.
 import { canManage } from "../../admin/js/roles.mjs";
 
 const page = (file) => () => import(`./pages/${file}.mjs`);
@@ -12,6 +12,7 @@ export const ADMIN_MENUS = [
   ["prep", "준비물", page("prep")],
   ["seminars", "특강·세미나", page("seminars")],
   ["site", "사이트 편집", page("site")],
+  ["usage", "AI 사용량", page("usage")],
 ];
 export const TEACHER_MENUS = [
   ["mine", "내 커리큘럼", page("mine")],

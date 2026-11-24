@@ -1,4 +1,4 @@
-// V4 화면 틀: 역할별 메뉴(관리 7 + 강사 2), 주소 #/메뉴 로 이동. 권한은 DB가 다시 확인하고, 메뉴 숨김은 보기 정리일 뿐이다.
+// V4 화면 틀: 역할별 메뉴(관리 8 + 강사 2), 주소 #/메뉴 로 이동. 권한은 DB가 다시 확인하고, 메뉴 숨김은 보기 정리일 뿐이다.
 import { roleLabel } from "../../admin/js/roles.mjs";
 import { menusFor } from "./menus.mjs";
 import { auth } from "../../admin/js/firebase.mjs";

@@ -22,7 +22,7 @@ export async function mountAiSettings(container, supabase, { plain = false } = {
       setState(
         `이미지 저장소 ${status.storage ? "연결됨" : "설정 필요"} · AI ${
           status.ai ? "연결됨" : "설정 필요"
-        } · ${status.budget.month} 사용·예약 ${status.budget.used.toLocaleString()}원 / 3,000원`,
+        } · ${status.budget.month} 사용·예약 ${status.budget.used.toLocaleString()}원 / ${status.budget.limit.toLocaleString()}원`,
       );
     } catch (e) {
       setState(e.message, true);

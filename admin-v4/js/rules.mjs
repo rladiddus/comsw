@@ -2,6 +2,24 @@
 
 export const STEPS = 4; // 강사별·공통 커리큘럼 모두 과목당 4단계 고정
 
+// AI 결과 끝의 '~교육', '~제안', '~교육 진행' 같은 말 떼기(2026-11-24 사용자 요청). 줄마다. 사람이 쓴 글에는 쓰지 않는다.
+// '프로젝트 진행'처럼 교육·제안이 없는 끝말은 그대로. 떼고 나면 두 낱말이 안 남을 때도 그대로 둔다.
+export function trimEnding(text) {
+  const tail = /\s+\S*(?:교육|제안)(?:\s*(?:진행|실시|추진|제공|제안|과정|프로그램))?$/;
+  return String(text ?? "").split("\n").map((line) => {
+    const start = line.trim().replace(/[.。]+$/, "");
+    let cur = start;
+    while (tail.test(cur)) {
+      cur = cur.replace(tail, "");
+      const linked = cur.replace(/\s+(?:및|등|등의|위한|통한|대한|관련)$/, "");
+      // '역량 강화를 위한 교육' → '역량 강화'
+      if (linked !== cur) cur = linked.replace(/([가-힣]{2,})[을를]$/, "$1");
+      cur = cur.replace(/[,·/\s]+$/, "");
+    }
+    return cur === start || cur.split(/\s+/).length < 2 ? line.trim() : cur;
+  }).join("\n");
+}
+
 // 기준 과목: 이름 맨 끝 숫자(개월 나눔)만 뗀다. "캐드1"·"라이노 1" → "캐드"·"라이노", "3D맥스"는 그대로.
 export function baseName(name) {
   const s = String(name ?? "").trim();

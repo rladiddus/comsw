@@ -1,6 +1,8 @@
 // V4가 DB를 읽는 곳. 화면(pages)은 supabase를 직접 부르지 않고 여기 함수만 쓴다.
 // 1단계: 읽기만. select("*")라 2단계 SQL로 생기는 칸(deleted_at, 학과별 sort_order 등)도 있으면 그대로 따라온다.
 // 연결(로그인 토큰을 쓰는 supabase)은 app.mjs가 시작할 때 넣는다(테스트는 가짜 DB).
+import { trimEnding } from "./rules.mjs";
+
 let db = null;
 export const useDb = (client) => { db = client; };
 
@@ -100,7 +102,8 @@ export async function ai(kind, text) {
     if (/요약 권한이 없습니다/.test(err?.message ?? "")) throw new Error("AI 서버 업데이트 전입니다. 관리자에게 comsw-tools 배포를 요청해주세요");
     throw err;
   });
-  const out = String(res?.text ?? "").trim();
+  const raw = String(res?.text ?? "").trim();
+  const out = ["week", "common", "department"].includes(kind) ? trimEnding(raw) : raw;
   if (!out) throw new Error("AI 결과가 비어 있습니다");
   return out;
 }

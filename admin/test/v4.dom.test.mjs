@@ -1271,3 +1271,22 @@ test("미리보기: 구글 드라이브 링크는 드라이브 보기 화면(ifr
   assert.equal(el.querySelector("img").getAttribute("src"), "https://drive.google.com/thumbnail?id=ABC123&sz=w1000");
   assert.ok(media("https://img/1.png").querySelector("img"));
 });
+
+test("AI 결과 끝의 '~교육'·'~제안' 떼기: 실제로 나왔던 문장, 다른 끝말·사람이 쓸 만한 문장은 그대로", async () => {
+  const cut = rules.trimEnding;
+  for (const [from, to] of [
+    ["생성형 AI 개념과 원리, 기본 기능 교육 진행", "생성형 AI 개념과 원리, 기본 기능"],
+    ["AI 활용 정보 검색 및 자료 조사와 검증 교육 추진", "AI 활용 정보 검색 및 자료 조사와 검증"],
+    ["프롬프트 응용을 위한 질문 개선과 템플릿 제작 방안 제안", "프롬프트 응용을 위한 질문 개선과 템플릿 제작 방안"],
+    ["블렌딩 모드와 레이어 스타일 활용 타이포 배너 제작 교육 제안", "블렌딩 모드와 레이어 스타일 활용 타이포 배너 제작"],
+    ["인터페이스 이해와 파일 관리, 레이어 조작 전문교육 실시", "인터페이스 이해와 파일 관리, 레이어 조작"],
+    ["영상 편집 실무 역량 강화를 위한 교육.", "영상 편집 실무 역량 강화"],
+    ["01 도구 사용법 교육\n02 배너 제작 실습", "01 도구 사용법\n02 배너 제작 실습"],
+  ]) assert.equal(cut(from), to);
+  for (const keep of ["마스크 활용 영상 합성과 색보정 실습", "완성도 향상에 중점 두어 프로젝트 진행", "디지털 교육", "기획 제안서 작성법", ""]) assert.equal(cut(keep), keep);
+  const { configureServices } = await import("../../admin/js/services.mjs");
+  configureServices({ summarize: async () => ({ text: "레이어 마스크 활용 합성 교육 제안" }) });
+  assert.equal(await data.ai("week", "원문"), "레이어 마스크 활용 합성");
+  assert.equal(await data.ai("roadmap", "원문"), "레이어 마스크 활용 합성 교육 제안", "로드맵 요약은 그대로");
+  configureServices({});
+});

@@ -98,3 +98,33 @@ test("작성 저장함: 본인 것만 쓰고 읽음, 학과장은 읽기만", as
   await as(db, null);
   assert.equal((await db.query(`select count(*)::int n from v4_teacher_drafts`)).rows[0].n, 1, "학과장은 지우지 못함");
 });
+
+test("프로필 확정 사진: 고른 주소만 공개, 고르지 않으면 AI 사진이 있어도 지금 사진 그대로, 이상한 주소는 막음", async () => {
+  const { db, i1 } = await setup();
+  const draft = async () => {
+    await as(db, "authenticated", T1);
+    await db.query(`select comsw_save_my_profile('김강사', '경력', '한마디', null, false)`);
+    await as(db, null);
+    await db.query(`update instructor_profile_drafts set photo_url = 'https://x.test/ai.png' where instructor_id = $1`, [i1]);
+    return (await db.query(`select updated_at from instructor_profile_drafts where instructor_id = $1`, [i1])).rows[0].updated_at.toISOString();
+  };
+  const confirm = async (at, url) => { await as(db, "authenticated", HEAD); await db.query(`select comsw_v4_confirm_profile($1, $2, null, null, $3)`, [i1, at, url]); };
+  const photos = async () => {
+    await as(db, null);
+    return (await db.query(`select i.photo_url a, d.photo_url b from instructors i join instructor_profile_drafts d on d.instructor_id = i.id where i.id = $1`, [i1])).rows[0];
+  };
+  await as(db, null);
+  await db.query(`update instructors set photo_url = 'https://x.test/home.webp' where id = $1`, [i1]);
+  await as(db, "authenticated", HEAD);
+  await db.query(`select comsw_publish()`);
+  let at = await draft();
+  await assert.rejects(confirm(at, "javascript:alert(1)"), /사진 주소/);
+  await confirm(at, null);
+  assert.deepEqual(await photos(), { a: "https://x.test/home.webp", b: null });
+  at = await draft();
+  await confirm(at, "https://x.test/public.webp");
+  assert.deepEqual(await photos(), { a: "https://x.test/public.webp", b: "https://x.test/public.webp" });
+  at = await draft();
+  await as(db, "authenticated", T1);
+  await assert.rejects(db.query(`select comsw_v4_confirm_profile($1, $2, null, null, null)`, [i1, at]), /권한/);
+});

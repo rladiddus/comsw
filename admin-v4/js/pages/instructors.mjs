@@ -118,26 +118,47 @@ function profile(p, { msg, reload }) {
     await getServices().generateProfile(p.id);
     reload();
   });
+  // 강사 원본(비공개): 탭을 처음 열 때 한 번만 불러오고, 실패하면 다음에 다시
+  let loaded = null;
+  const loadSource = () => (loaded ??= data.profileSource(d.source_asset_id).catch((err) => { loaded = null; throw err; }));
+  let chosen = null; // 공개할 사진: 'source' | 'ai' | null(지금 홈페이지 사진 그대로). [확정] 때 반영
+  let sourceUrl = null; // 원본을 공개용으로 올린 주소(확정이 실패해 다시 눌러도 또 올리지 않게)
+  const publicUrl = async () => {
+    if (chosen === "ai") return d.photo_url;
+    if (chosen !== "source") return null;
+    if (!sourceUrl) {
+      const blob = await (await fetch(await loadSource())).blob();
+      sourceUrl = (await data.upload(new File([blob], `profile.${blob.type.split("/")[1]}`, { type: blob.type }), "image")).url;
+    }
+    return sourceUrl;
+  };
   const ok = h("button", { type: "button", class: "btn primary" }, "확정");
   ok.onclick = () => busy(ok, msg, async () => {
-    const same = d.photo_url ? "" : "\n\n사진은 바뀌지 않습니다(지금 홈페이지 사진 그대로)."
-      + (d.source_asset_id ? " 강사가 올린 사진을 쓰려면 [취소]를 누르고 [AI 프로필 사진 만들기]를 먼저 하세요." : "");
-    if (!confirm(`${p.name} 프로필을 확정할까요? 홈페이지에 바로 반영됩니다(노출 설정은 그대로).${same}`)) return;
-    await data.call("comsw_v4_confirm_profile", { p_instructor: p.id, p_updated_at: d.updated_at, p_career: f.career, p_message: f.message });
+    const what = chosen === "source" ? "사진: 강사가 올린 원본을 그대로 공개합니다. 원본을 공개해도 되는지 강사에게 확인한 뒤 확정해주세요."
+      : chosen === "ai" ? "사진: AI로 만든 사진을 공개합니다."
+      : "사진은 바뀌지 않습니다(지금 홈페이지 사진 그대로)." + (d.source_asset_id ? " 바꾸려면 [취소]를 누르고 강사업로드·AI 수정 탭에서 [이 사진으로 공개]를 누르세요." : "");
+    if (!confirm(`${p.name} 프로필을 확정할까요? 홈페이지에 바로 반영됩니다(노출 설정은 그대로).\n\n${what}`)) return;
+    await data.call("comsw_v4_confirm_profile", { p_instructor: p.id, p_updated_at: d.updated_at, p_career: f.career, p_message: f.message, p_photo_url: await publicUrl() });
     reload();
   });
-  // 사진 탭: 홈페이지(지금 공개) / 강사업로드(비공개 원본) / AI 수정(확정되면 공개). AI 사진이 있으면 그 탭부터.
+  // 사진 탭: 홈페이지(지금 공개) / 강사업로드(비공개 원본) / AI 수정. 뒤의 둘은 [이 사진으로 공개]로 공개할 사진을 고른다(다시 누르면 고르지 않음).
   const photoBox = h("div", { class: "profile-photo" });
-  let source; // 원본은 탭을 처음 열 때 한 번만 불러온다
+  let source;
   const drawPhoto = (tab) => {
+    const has = tab === "source" ? !!d.source_asset_id : tab === "ai" ? !!d.photo_url : false;
+    const refused = tab === "source" && d.source_consent === false;
+    const on = has && chosen === tab;
     const [pic, text] = tab === "home" ? [media(p.photo_url), p.photo_url ? "지금 홈페이지에 나오는 사진입니다." : "홈페이지에 나오는 사진이 없습니다."]
-      : tab === "source" ? (d.source_asset_id
-        ? [source ??= sourcePhoto(() => data.profileSource(d.source_asset_id)), d.source_consent === false ? "강사가 사진 사용에 동의하지 않아 AI 사진을 만들 수 없습니다." : "강사가 올린 원본입니다(홈페이지에는 나오지 않음). AI 사진은 이 사진으로 만듭니다."]
+      : tab === "source" ? (has
+        ? [source ??= sourcePhoto(loadSource), refused ? "강사가 사진 사용에 동의하지 않아 쓸 수 없습니다." : "강사가 올린 원본입니다."]
         : [media(""), "이번 제출에 강사가 올린 사진이 없습니다."])
-      : [media(d.photo_url), d.photo_url ? "AI로 만든 사진입니다. 확정하면 홈페이지 사진이 이 사진으로 바뀝니다."
-        : d.source_asset_id ? "아직 만들지 않았습니다. 만들지 않고 확정하면 지금 홈페이지 사진 그대로입니다." : "강사가 올린 사진이 없어 만들 수 없습니다."];
-    photoBox.replaceChildren(tabs([["home", "홈페이지"], ["source", "강사업로드"], ["ai", "AI 수정"]], tab, drawPhoto, "photo-tabs"),
-      pic, h("p", { class: "muted" }, text), ...(d.source_asset_id ? [photoBtn] : []));
+      : [media(d.photo_url), has ? "AI로 만든 사진입니다." : d.source_asset_id ? "아직 만들지 않았습니다." : "강사가 올린 사진이 없어 만들 수 없습니다."];
+    const state = !has || refused ? "" : on ? " [확정]하면 이 사진이 홈페이지에 공개됩니다." : " 홈페이지에 쓰려면 [이 사진으로 공개]를 누르세요.";
+    const pub = has ? h("button", { type: "button", class: on ? "btn primary" : "btn", "aria-pressed": String(on), disabled: refused,
+      onclick: () => { chosen = on ? null : tab; drawPhoto(tab); } }, on ? "✓ 이 사진으로 공개" : "이 사진으로 공개") : null;
+    photoBox.replaceChildren(
+      tabs([["home", "홈페이지"], ["source", "강사업로드"], ["ai", "AI 수정"]].map(([v, l]) => [v, chosen === v ? `✓ ${l}` : l]), tab, drawPhoto, "photo-tabs"),
+      pic, h("p", { class: "muted" }, text + state), h("div", { class: "actions" }, d.source_asset_id ? photoBtn : null, pub));
   };
   drawPhoto(d.photo_url ? "ai" : "home");
   return h("div", { class: "profile-wrap" },

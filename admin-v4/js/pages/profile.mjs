@@ -66,8 +66,8 @@ export async function render({ main, session }) {
         form, h("p", { class: "muted" }, "고치면 오른쪽 아래 창에서 [임시 저장] 또는 [학과장에게 제출]을 누르세요.")),
       box("사진", h("div", { class: "photo-drop" }, photo, file),
         h("div", { class: "actions", style: "margin-top:8px" }, h("button", { type: "button", class: "btn small", onclick: () => file.click() }, "사진 올리기")),
-        kept ? note("제출한 사진입니다. 학과장이 확정하면 이 사진으로 만든 프로필 사진이 홈페이지에 나옵니다. 다른 사진을 올리면 바뀝니다.") : null,
-        h("label", { class: "consent" }, consent, "프로필 사진을 만드는 데 본인 사진을 쓰는 것에 동의합니다"),
-        h("p", { class: "muted" }, "올린 사진은 학과장만 보고, 홈페이지용 프로필 사진은 학과장이 검수 때 만듭니다.")))];
+        kept ? note("제출한 사진입니다. 학과장이 이 사진 또는 AI로 다듬은 사진을 골라 확정하면 홈페이지에 나옵니다. 다른 사진을 올리면 바뀝니다.") : null,
+        h("label", { class: "consent" }, consent, "본인 사진을 홈페이지 프로필 사진으로 쓰는 것(그대로 공개하거나 AI로 다듬어 공개)에 동의합니다"),
+        h("p", { class: "muted" }, "올린 사진은 확정 전까지 학과장·관리자만 봅니다. 학과장이 올린 사진 그대로 또는 AI로 다듬은 사진 중 하나를 골라 공개합니다.")))];
   });
 }

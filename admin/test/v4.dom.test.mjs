@@ -1320,11 +1320,13 @@ test("과정내용 줄 수: AI가 줄 수를 어기면 묶음마다 다시 받�
   await assert.rejects(aiLines("캐드", t(2), 4, ai), /2개라 4줄로 나눌 수 없습니다/);
 });
 
-test("강사 프로필 검수: 사진 탭 홈페이지·강사업로드·AI 수정, AI 사진 없이 확정하면 사진이 그대로라고 알림", async () => {
+test("강사 프로필 검수: 사진 탭 홈페이지·강사업로드·AI 수정, [이 사진으로 공개]로 고른 사진만 확정 때 공개", async () => {
   document.querySelectorAll("dialog").forEach((d) => d.remove());
   const { configureServices } = await import("../../admin/js/services.mjs");
   const asked = [];
-  configureServices({ source: async (id) => { asked.push(id); return { dataUrl: "data:image/png;base64,AA" }; } });
+  const calls = [], uploads = [];
+  configureServices({ source: async (id) => { asked.push(id); return { dataUrl: "data:image/png;base64,AA" }; },
+    upload: async (file, kind) => { uploads.push([kind, file.type]); return { id: "m1", url: "https://x.test/public.webp" }; } });
   const openWith = async (draft) => {
     document.querySelectorAll("dialog").forEach((d) => d.remove());
     const fake = db();
@@ -1334,6 +1336,7 @@ test("강사 프로필 검수: 사진 탭 홈페이지·강사업로드·AI 수�
     });
     const from0 = fake.from.bind(fake);
     fake.from = (t) => (["instructors", "instructor_profile_drafts"].includes(t) ? local.from(t) : from0(t));
+    fake.rpc = async (n, a) => { calls.push([n, a]); return { data: null, error: null }; };
     const main = await open("instructors", undefined, fake);
     if (!document.querySelector("dialog.modal")) main.querySelector("tr.pick").click();
     await flush();
@@ -1360,16 +1363,37 @@ test("강사 프로필 검수: 사진 탭 홈페이지·강사업로드·AI 수�
   assert.deepEqual(asked, ["a1"], "한 번만 불러옴");
   const prev = globalThis.confirm;
   let said = "";
-  globalThis.confirm = (t) => { said = t; return false; };
-  const ok = () => [...dlg.querySelectorAll("button")].find((b) => b.textContent === "확정").click();
-  ok(); await flush();
-  assert.match(said, /사진은 바뀌지 않습니다[\s\S]*AI 프로필 사진 만들기/);
+  globalThis.confirm = (t) => { said = t; return true; };
+  const btn = (t) => [...dlg.querySelectorAll("button")].find((x) => x.textContent === t);
+  const confirmed = async () => { calls.length = 0; btn("확정").click(); await flush(); await flush(); return calls.find(([n]) => n === "comsw_v4_confirm_profile")?.[1].p_photo_url; };
+  tab(dlg, "홈페이지").click();
+  assert.ok(!btn("이 사진으로 공개"), "홈페이지 탭에는 버튼 없음");
+  assert.equal(await confirmed(), null, "고르지 않으면 그대로");
+  assert.match(said, /사진은 바뀌지 않습니다[\s\S]*이 사진으로 공개/);
 
   dlg = await openWith({ source_asset_id: "a1", source_consent: true, photo_url: "https://x.test/ai.png" });
   assert.equal(tab(dlg, "AI 수정").getAttribute("aria-pressed"), "true", "AI 사진이 있으면 그 탭부터");
   assert.equal(img(dlg), "https://x.test/ai.png");
-  ok(); await flush();
-  assert.doesNotMatch(said, /사진은 바뀌지 않습니다/);
+  btn("이 사진으로 공개").click();
+  btn("✓ 이 사진으로 공개").click();
+  assert.equal(btn("이 사진으로 공개").getAttribute("aria-pressed"), "false", "다시 누르면 고르지 않음");
+  btn("이 사진으로 공개").click();
+  assert.ok(tab(dlg, "✓ AI 수정"), "고른 탭에 표시");
+  assert.equal(await confirmed(), "https://x.test/ai.png");
+  assert.match(said, /AI로 만든 사진을 공개/);
+
+  dlg = await openWith({ source_asset_id: "a1", source_consent: true, photo_url: "https://x.test/ai.png" });
+  tab(dlg, "강사업로드").click();
+  await flush();
+  btn("이 사진으로 공개").click();
+  assert.equal(await confirmed(), "https://x.test/public.webp", "원본은 공개용으로 올린 주소로");
+  assert.deepEqual(uploads, [["image", "image/png"]]);
+  assert.match(said, /강사가 올린 원본을 그대로 공개합니다[\s\S]*강사에게 확인/);
+
+  dlg = await openWith({ source_asset_id: "a1", source_consent: false, photo_url: null });
+  tab(dlg, "강사업로드").click();
+  await flush();
+  assert.equal(btn("이 사진으로 공개").disabled, true, "동의하지 않은 사진은 못 씀");
   globalThis.confirm = prev;
   configureServices({});
   document.querySelectorAll("dialog").forEach((d) => d.remove());

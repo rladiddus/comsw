@@ -1325,6 +1325,7 @@ test("강사 프로필 검수: 사진 탭 홈페이지·강사업로드·AI 수�
   const { configureServices } = await import("../../admin/js/services.mjs");
   const asked = [];
   const calls = [], uploads = [];
+  let fresh = null;
   configureServices({ source: async (id) => { asked.push(id); return { dataUrl: "data:image/png;base64,AA" }; },
     upload: async (file, kind) => { uploads.push([kind, file.type]); return { id: "m1", url: "https://x.test/public.webp" }; } });
   const openWith = async (draft) => {
@@ -1335,7 +1336,7 @@ test("강사 프로필 검수: 사진 탭 홈페이지·강사업로드·AI 수�
       instructor_profile_drafts: [{ instructor_id: "i1", name: "김강사", status: "pending", updated_at: "t1", ...draft }],
     });
     const from0 = fake.from.bind(fake);
-    fake.from = (t) => (["instructors", "instructor_profile_drafts"].includes(t) ? local.from(t) : from0(t));
+    fake.from = (t) => (["instructors", "instructor_profile_drafts"].includes(t) ? (fresh ?? local).from(t) : from0(t));
     fake.rpc = async (n, a) => { calls.push([n, a]); return { data: null, error: null }; };
     const main = await open("instructors", undefined, fake);
     if (!document.querySelector("dialog.modal")) main.querySelector("tr.pick").click();
@@ -1389,6 +1390,24 @@ test("강사 프로필 검수: 사진 탭 홈페이지·강사업로드·AI 수�
   assert.equal(await confirmed(), "https://x.test/public.webp", "원본은 공개용으로 올린 주소로");
   assert.deepEqual(uploads, [["image", "image/png"]]);
   assert.match(said, /강사가 올린 원본을 그대로 공개합니다[\s\S]*강사에게 확인/);
+
+  // 확정·저장 뒤: 예전 팝업이 밑에 남지 않고, 새로 읽은 사진이 바로 보인다
+  const after = fakeSupabase({
+    instructors: [{ id: "i1", name: "김강사", is_listed: true, account_uid: "u1", photo_url: "https://x.test/new.webp" }],
+    instructor_profile_drafts: [],
+  });
+  dlg = await openWith({ source_asset_id: "a1", source_consent: true, photo_url: "https://x.test/ai.png" });
+  btn("이 사진으로 공개").click();
+  fresh = after;
+  btn("확정").click();
+  for (let n = 0; n < 6; n++) await flush();
+  const left = [...document.querySelectorAll("dialog.modal")];
+  assert.equal(left.length, 1, "팝업은 하나만");
+  assert.equal(left[0].querySelector(".profile-photo img").getAttribute("src"), "https://x.test/new.webp");
+  left[0].querySelector(".modal-head button").click();
+  await flush();
+  assert.equal(document.querySelector("dialog.modal"), null, "닫으면 예전 팝업이 남지 않음");
+  fresh = null;
 
   dlg = await openWith({ source_asset_id: "a1", source_consent: false, photo_url: null });
   tab(dlg, "강사업로드").click();

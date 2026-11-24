@@ -170,4 +170,5 @@
 - V4 팝업은 모두 <dialog>라 뒤 화면 스크롤 잠금은 CSS 한 줄(html:has(dialog[open])). AI 예산 한도 3,000원은 SQL comsw_reserve_ai/comsw_ai_budget에 고정, AI 사진 1장 예약 2,800원(policy 아닌 handler profile).
 - AI 한도는 comsw_private.ai_limit(20261124010000, 실행 대기), 바꾸기·빼기는 관리자만. AI 사진 예약 500원(comsw-tools 재배포 대기).
 - V4 AI 프롬프트 보기·수정은 [AI 사용량] 종류 팝업(site_settings ai_prompt_*). 20261124010000 운영 실행 완료.
-- V4 프로필 확정 사진은 학과장이 [이 사진으로 공개]로 고른 것만(p_photo_url, SQL 20261124020000 실행 대기).
+- V4 프로필 확정 사진은 학과장이 [이 사진으로 공개]로 고른 것만(p_photo_url, SQL 20261124020000 운영 실행 확인).
+- V4 강사 팝업은 다시 불러와도 하나만(shownPop).

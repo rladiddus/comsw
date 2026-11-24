@@ -7,6 +7,7 @@ import { track, isTracked, unsaved, untrack, check, canSwitch } from "../changes
 let keep = { id: null, tab: "profile", unit: null, edit: null };
 const work = new Map(); // 과목 단위(unit.key)마다 고치는 중인 { summary: {줄 id: 문구}, media: {줄 id: 이미지} }
 let redrawPop = null;
+let shownPop = null; // 떠 있는 강사 팝업. 다시 불러온 뒤 새 팝업을 열 때 예전 것(예전 사진·내용)을 걷는다
 
 export async function render({ main }) {
   const reload = () => render({ main });
@@ -74,11 +75,15 @@ export async function render({ main }) {
       };
       again();
       pop?.close();
+      // 다시 불러오기 전 팝업은 묻지 않고 걷기만 한다(고치던 커리큘럼 work와 보던 강사 keep은 그대로 이어 감)
+      shownPop?.close?.();
+      shownPop?.remove();
       pop = modal(p.name, inner, {
         beforeClose: () => !p.units.some((u) => unsaved(`curriculum:${u.key}`)) || confirm("임시 저장하지 않은 바뀐 내용이 있습니다. 닫으면 사라집니다. 닫을까요?"),
-        onClose: () => { for (const u of p.units) { untrack(`curriculum:${u.key}`); work.delete(u.key); } keep.id = null; keep.edit = null; pop = null; redrawPop = null; },
+        onClose: () => { for (const u of p.units) { untrack(`curriculum:${u.key}`); work.delete(u.key); } keep.id = null; keep.edit = null; pop = null; shownPop = null; redrawPop = null; },
         actions: [infoBtn, aiHead, editBtn],
       });
+      shownPop = pop.dlg;
       // 모든 강사 팝업이 같은 너비: 왼쪽 과목 칸 = 가장 긴 과목 이름이 다 보이는 너비, 오른쪽 = 단계 4개
       pop.dlg.style.setProperty("--picks", `${picksWidth}px`);
       pop.dlg.style.width = `min(calc(100vw - 32px), ${picksWidth + 16 + 900}px)`;
@@ -116,7 +121,7 @@ function profile(p, { msg, reload }) {
     if (!d.source_asset_id) throw new Error("강사가 올린 본인 사진이 없습니다");
     const { getServices } = await import("../../../admin/js/services.mjs");
     await getServices().generateProfile(p.id);
-    reload();
+    await reload(); // 새로 불러올 때까지 '처리 중...'
   });
   // 강사 원본(비공개): 탭을 처음 열 때 한 번만 불러오고, 실패하면 다음에 다시
   let loaded = null;
@@ -139,7 +144,7 @@ function profile(p, { msg, reload }) {
       : "사진은 바뀌지 않습니다(지금 홈페이지 사진 그대로)." + (d.source_asset_id ? " 바꾸려면 [취소]를 누르고 강사업로드·AI 수정 탭에서 [이 사진으로 공개]를 누르세요." : "");
     if (!confirm(`${p.name} 프로필을 확정할까요? 홈페이지에 바로 반영됩니다(노출 설정은 그대로).\n\n${what}`)) return;
     await data.call("comsw_v4_confirm_profile", { p_instructor: p.id, p_updated_at: d.updated_at, p_career: f.career, p_message: f.message, p_photo_url: await publicUrl() });
-    reload();
+    await reload();
   });
   // 사진 탭: 홈페이지(지금 공개) / 강사업로드(비공개 원본) / AI 수정. 뒤의 둘은 [이 사진으로 공개]로 공개할 사진을 고른다(다시 누르면 고르지 않음).
   const photoBox = h("div", { class: "profile-photo" });
@@ -412,7 +417,7 @@ function instructorForm(p, { cat, links, isubs, reload }) {
     if (!confirm(`${f.name.trim()} 강사 정보를 저장할까요? 홈페이지에 바로 반영됩니다.`)) return;
     await data.call("comsw_v4_save_instructor", { p_id: p?.id ?? null, p: { ...f, name: f.name.trim() } });
     pop.close();
-    reload();
+    await reload();
   });
 }
 

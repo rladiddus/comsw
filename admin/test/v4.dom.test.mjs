@@ -667,7 +667,7 @@ test("학과 구성 표: 기간(개월 숫자)·과정내용(비면 공통 4단�
   assert.equal(linesFromSteps([{ summary: "가" }, { written: "나" }]), "01 가\n02 나");
   const { configureServices } = await import("../../admin/js/services.mjs");
   const asked = [];
-  configureServices({ summarize: async (kind, text) => { asked.push([kind, text]); return { text: "01 AI 한 줄" }; } });
+  configureServices({ summarize: async (kind, text) => { asked.push([kind, text]); return { text: "01 AI 하나\n02 AI 둘" }; } });
   const fake = db();
   const base = fake.from.bind(fake);
   const extra = { subject_weeks: [1, 2, 3, 4].map((n) => ({ id: `x${n}`, subject_id: "s1", week_label: `${n}단계`, summary: `요약${n}`, sort_order: n })) };
@@ -684,16 +684,20 @@ test("학과 구성 표: 기간(개월 숫자)·과정내용(비면 공통 4단�
   const lv = main.querySelector("select[aria-label='캐드2 학습수준']");
   lv.value = "★★★☆☆"; lv.dispatchEvent(new dom.window.Event("change", { bubbles: true }));
   main.querySelector("input[aria-label='캐드2 AI 정리']").click(); // 캐드2는 AI 제외
+  const counts = main.querySelectorAll(".dept-count");
+  assert.equal(counts.length, 1, "공통 단계가 있는 캐드1만 줄 수 고르기");
+  assert.equal(counts[0].querySelector("[aria-pressed=true]").textContent, "4", "처음 = 지금 줄 수");
+  [...counts[0].children].find((b) => b.textContent === "2").click();
   [...main.querySelectorAll("button")].find((b) => b.textContent === "AI 정리").click();
   await flush();
   assert.deepEqual(asked.map(([k]) => k), ["department"], "체크한(공통 4단계 있는) 캐드1만");
-  assert.match(asked[0][1], /1단계: 요약1/);
-  assert.equal(main.querySelector("textarea[aria-label='캐드1 과정내용']").value, "01 AI 한 줄");
+  assert.match(asked[0][1], /모두 2줄로 정리\n1단계: 요약1 \/ 요약2\n2단계: 요약3 \/ 요약4/);
+  assert.equal(main.querySelector("textarea[aria-label='캐드1 과정내용']").value, "01 AI 하나\n02 AI 둘");
   await flush();
   barBtn("사이트 적용").click();
   await flush();
   const [, args] = calls.find(([n]) => n === "comsw_v4_save_subject_info");
-  assert.deepEqual(args.p_items.map((x) => [x.id, x.duration, x.dept_curriculum, x.level]), [["s1", "2개월", "01 AI 한 줄", ""], ["s2", "", "", "★★★☆☆"]]);
+  assert.deepEqual(args.p_items.map((x) => [x.id, x.duration, x.dept_curriculum, x.level]), [["s1", "2개월", "01 AI 하나\n02 AI 둘", ""], ["s2", "", "", "★★★☆☆"]]);
   configureServices({});
 });
 
@@ -1289,4 +1293,18 @@ test("AI 결과 끝의 '~교육'·'~제안' 떼기: 실제로 나왔던 문장, 
   assert.equal(await data.ai("week", "원문"), "레이어 마스크 활용 합성");
   assert.equal(await data.ai("roadmap", "원문"), "레이어 마스크 활용 합성 교육 제안", "로드맵 요약은 그대로");
   configureServices({});
+});
+
+test("과정내용 줄 수: AI가 줄 수를 어기면 묶음마다 다시 받아 꼭 그 줄 수로, 번호는 다시 매김", async () => {
+  const { aiLines, plainLines, lineCountOf, groupSteps } = await import("../../admin-v4/js/pages/dept-layout.mjs");
+  assert.deepEqual(plainLines("01 가\n2. 나\n3단계: 다\n3D 모델링 실습"), ["가", "나", "다", "3D 모델링 실습"]);
+  assert.deepEqual([lineCountOf("01 가\n02 나"), lineCountOf("01 가\n02 나\n03 다"), lineCountOf(""), lineCountOf("한 줄")], [2, 3, 4, 4]);
+  const steps = [1, 2, 3, 4].map((n) => ({ summary: `s${n}` }));
+  assert.deepEqual(groupSteps(steps, 2), [["s1", "s2"], ["s3", "s4"]]);
+  assert.deepEqual(groupSteps(steps, 3), [["s1", "s2"], ["s3"], ["s4"]]);
+  const asked = [];
+  const ai = async (kind, text) => { asked.push(kind); return kind === "department" ? "01 하나\n02 둘" : `정리 ${text.replace(/[-\s]+/g, "")}`; };
+  assert.equal(await aiLines("캐드", steps, 4, ai), "01 정리 s1\n02 정리 s2\n03 정리 s3\n04 정리 s4");
+  assert.deepEqual(asked, ["department", "common", "common", "common", "common"]);
+  await assert.rejects(aiLines("캐드", [{ summary: "a" }, { summary: "" }, { summary: "b" }, { summary: "c" }], 4, ai), /비어 있는 단계/);
 });

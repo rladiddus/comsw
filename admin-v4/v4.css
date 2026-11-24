@@ -146,7 +146,10 @@ dialog.modal .side-list .step .media img { aspect-ratio: 4 / 3; object-fit: cont
 .dept-row textarea { width: 100%; padding: 6px 8px; border: 1px solid var(--line); border-radius: 6px; font: inherit; font-size: 13px; resize: vertical; }
 .dept-row select { width: 100%; padding: 6px; border: 1px solid var(--line); border-radius: 5px; letter-spacing: 1px; }
 .dept-text { position: relative; }
-.dept-text textarea { padding-right: 28px; }
+.dept-text textarea { padding-right: 112px; } /* 오른쪽 아래 줄 수·체크와 글자가 겹치지 않게 */
+.dept-count { position: absolute; right: 34px; bottom: 7px; display: flex; gap: 2px; }
+.dept-count button { width: 22px; padding: 0 0 1px; border: 0; border-bottom: 2px solid transparent; background: none; font-size: 13px; color: var(--sub); }
+.dept-count button[aria-pressed="true"] { border-bottom-color: var(--green); color: var(--green); font-weight: 700; }
 .dept-text .dept-ai { position: absolute; right: 8px; bottom: 10px; }
 .drag-handle { color: var(--sub); }
 /* 로드맵: 과목 상자 가로 사슬, 경계 위 [+] */

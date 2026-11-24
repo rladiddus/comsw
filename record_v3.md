@@ -254,3 +254,4 @@
 - 2026-11-23 20261123030000 실행(함수 교체라 바깥 확인 불가, 사용자 확인).
 - 2026-11-23 ui.media drive → driveThumbnail img, common-editor 후보 img도.
 - 2026-11-24 PROMPTS.week·common 수정(재배포 대기), data.ai가 trimEnding 적용.
+- 2026-11-24 dept-layout aiLines/groupSteps/plainLines/lineCountOf, .dept-count.

@@ -5,6 +5,7 @@
 import * as data from "../data.mjs";
 import { h, box, note, fail, busy } from "../ui.mjs";
 import { track } from "../changes.mjs";
+import { subjectPicker } from "../subject-picker.mjs";
 
 export const LEVELS = ["★☆☆☆☆", "★★☆☆☆", "★★★☆☆", "★★★★☆", "★★★★★"];
 
@@ -48,10 +49,9 @@ export function materialOf(steps, text, draft = []) {
 }
 const infoOf = (s) => ({ duration: s.duration ?? "", dept_curriculum: s.dept_curriculum ?? "", program: s.program ?? "", level: s.level ?? "" });
 
-export function deptLayout(dept, ordered, allSubjects, { reload, stepPill, openSubject, rename, stepsOf = () => [], draftOf = () => [], msg, activeSwitch = null }) {
+export function deptLayout(dept, ordered, allSubjects, { cat, reload, stepPill, openSubject, rename, stepsOf = () => [], draftOf = () => [], msg, activeSwitch = null }) {
   let list = [...ordered];
   const listEl = h("div", { class: "drag-list" });
-  const add = h("select", { "aria-label": "넣을 과목" });
   const aiOn = new Set(); // AI 정리할 과목(체크)
   const lineCount = new Map(); // 과목 id → AI 정리 줄 수(화면에서만, 저장 안 함)
   const material = (id) => materialOf(stepsOf(id), info[id].dept_curriculum, draftOf(id));
@@ -137,14 +137,15 @@ export function deptLayout(dept, ordered, allSubjects, { reload, stepPill, openS
       h("button", { type: "button", class: "btn danger", onclick: () => { list.splice(i, 1); draw(); } }, "이 학과에서 빼기"));
       return row;
     }) : [h("p", { class: "muted" }, "과목이 없습니다")]));
-    const rest = allSubjects.filter((s) => !list.includes(s)).sort((a, b) => a.name.localeCompare(b.name, "ko"));
-    add.replaceChildren(h("option", { value: "" }, "과목 넣기…"), ...rest.map((s) => h("option", { value: s.id }, s.name)));
-  };
-  add.onchange = () => {
-    const s = allSubjects.find((x) => x.id === add.value);
-    if (s) { list.push(s); aiOn.add(s.id); draw(); }
   };
   const byId = new Map(allSubjects.map((x) => [x.id, x]));
+  // [과목 추가]: 팝업에서 체크하면 맨 뒤에 넣고, 체크를 풀면 뺀다. 나머지 순서는 그대로
+  const add = h("button", { type: "button", class: "btn", onclick: () => subjectPicker(`${dept.name} 과목 고르기`, cat,
+    [...allSubjects].sort((a, b) => a.name.localeCompare(b.name, "ko")), list.map((s) => s.id), (ids) => {
+      for (const id of ids) if (!list.some((s) => s.id === id)) aiOn.add(id);
+      list = ids.map((id) => byId.get(id));
+      draw();
+    }) }, "과목 추가");
   track({
     id: `layout:${dept.id}`, slot: "dept-layout", title: `${dept.name} 과목 구성`, baseline: ordered.map((x) => x.id),
     read: () => list.map((x) => x.id), write: (ids) => { list = ids.map((id) => byId.get(id)).filter(Boolean); draw(); },
@@ -164,8 +165,8 @@ export function deptLayout(dept, ordered, allSubjects, { reload, stepPill, openS
     h("div", { class: "row" },
       h("div", { class: "actions" }, h("h3", { style: "margin:0" }, `${dept.name} · 과목 ${ordered.length}개`),
         h("button", { type: "button", class: "btn", onclick: rename }, "학과명 수정"),
-        activeSwitch ? h("span", { class: "actions", title: "끄면 홈페이지에서 이 학과를 숨깁니다" }, h("span", { class: "muted" }, "공개"), activeSwitch) : null),
+        activeSwitch ? h("span", { class: "actions", title: "끄면 홈페이지에서 이 학과를 숨깁니다" }, h("span", { class: "muted" }, "공개"), activeSwitch) : null, add),
       h("div", { class: "actions" }, h("span", { class: "pill neutral" }, "이 순서 = 학과별 커리큘럼·로드맵 순서"), aiBtn)),
     note("손잡이(⠿)를 끌어서 순서를 바꿉니다. 기간·과정내용·프로그램·학습수준은 공개 '학과 커리큘럼'에 나오고, 같은 과목을 쓰는 모든 학과에 함께 바뀝니다. 과정내용은 직접 쓰거나 체크한 과목만 [AI 정리](공통 단계, 없으면 강사 자료 초안, 그것도 없으면 적힌 글을 칸 오른쪽 아래에서 고른 2·3·4줄로). 과목 이름을 누르면 공통 커리큘럼이 열립니다."),
-    listEl, h("div", { class: "actions", style: "margin-top:12px" }, add));
+    listEl);
 }

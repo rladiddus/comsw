@@ -1753,3 +1753,30 @@ test("학생 사이트 강사 소개: 과목 버튼은 보고 있는 학과의 �
     assert.match(src, /function openPanel\(dept\) \{\s*closeInstructorLightbox\(true\);/);
   }
 });
+
+test("학과 구성 [과목 추가]: 공개 스위치 오른쪽 버튼 → 과목 고르기 팝업에서 체크·검색, [확인]하면 맨 뒤에 들어가고 체크를 풀면 빠짐", async () => {
+  document.querySelectorAll("dialog").forEach((d) => d.remove());
+  const fake = db();
+  const main = await open("courses", undefined, fake);
+  [...main.querySelectorAll(".tabs button")].find((b) => b.textContent === "학과 구성").click();
+  const names = () => [...main.querySelectorAll(".dept-row .subject-chip")].map((x) => x.textContent);
+  const btn = () => [...main.querySelectorAll("button")].find((b) => b.textContent === "과목 추가");
+  const before = names();
+  assert.ok(!main.querySelector("select[aria-label='넣을 과목']"), "드롭다운 없음");
+  assert.ok(btn().previousElementSibling.querySelector("[role='switch']"), "공개 스위치 바로 오른쪽");
+  const rows = () => [...document.querySelectorAll("dialog.modal tr.pick")];
+  const okBtn = () => [...document.querySelectorAll("dialog.modal button")].find((b) => b.textContent === "확인");
+  btn().click();
+  assert.match(document.querySelector("dialog.modal").textContent, /과목 고르기/);
+  assert.equal(rows().filter((r) => r.querySelector("input").checked).length, before.length, "이 학과 과목은 체크되어 있음");
+  const other = rows().find((r) => !r.querySelector("input").checked);
+  const name = other.children[1].textContent;
+  other.click();
+  okBtn().click();
+  assert.deepEqual(names(), [...before, name]);
+  assert.equal(document.querySelector("dialog.modal"), null);
+  btn().click();
+  rows().find((r) => r.children[1].textContent === name).click();
+  okBtn().click();
+  assert.deepEqual(names(), before, "체크를 풀면 빠지고 나머지 순서는 그대로");
+});

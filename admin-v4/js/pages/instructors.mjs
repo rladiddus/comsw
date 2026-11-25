@@ -2,6 +2,7 @@
 import * as data from "../data.mjs";
 import { h, head, box, table, tabs, pill, media, dl, fill, empty, note, busy, publishBanner, modal, toggleSwitch, pickImage, filterBar, hasText, sourcePhoto } from "../ui.mjs";
 import { curriculumUnits, stepState } from "../rules.mjs";
+import { subjectPicker } from "../subject-picker.mjs";
 import { track, isTracked, unsaved, untrack, check, canSwitch } from "../changes.mjs";
 
 let keep = { id: null, tab: "profile", unit: null, edit: null };
@@ -414,7 +415,7 @@ function instructorForm(p, { cat, links, isubs, reload }) {
           h("div", { class: "actions" }, h("span", {}, "홈페이지 노출"), toggleSwitch(f.is_listed, "홈페이지 노출", (next) => { f.is_listed = next; }))),
         h("div", { class: "form-field" }, h("b", {}, "학과"), deptBox),
         h("div", { class: "form-field" }, h("div", { class: "row" }, h("b", {}, "담당 과목"),
-          h("button", { type: "button", class: "btn small", onclick: () => subjectPicker(cat, subjects, f.subjects, (ids) => { f.subjects = ids; drawSubjects(); }) }, "과목 검색")), subjList),
+          h("button", { type: "button", class: "btn small", onclick: () => subjectPicker("담당 과목 고르기", cat, subjects, f.subjects, (ids) => { f.subjects = ids; drawSubjects(); }) }, "과목 검색")), subjList),
         field("경력", h("textarea", { rows: 6, value: f.career, "aria-label": "경력", oninput: (e) => { f.career = e.target.value; } })),
         field("수강생에게 한마디", h("textarea", { rows: 3, value: f.message, "aria-label": "한마디", oninput: (e) => { f.message = e.target.value; } }))),
       h("div", {}, h("b", {}, "사진"), photo, h("p", { class: "muted" }, "사진을 누르면 파일을 고르거나 끌어다 놓을 수 있습니다."))))));
@@ -427,39 +428,4 @@ function instructorForm(p, { cat, links, isubs, reload }) {
     pop.close();
     await reload();
   });
-}
-
-// 담당 과목 고르기 팝업: 학과·과목 › 전체 과목과 같은 거르기(과목 검색 · 학과 · 방학 특강 On/Off), 줄을 눌러 체크 → [확인]
-function subjectPicker(cat, subjects, chosen, onOk) {
-  const pick = new Set(chosen);
-  const deptName = new Map(cat.departments.map((d) => [d.id, d.name]));
-  const deptsOf = (id) => cat.links.filter((l) => l.subject_id === id).map((l) => deptName.get(l.department_id)).filter(Boolean);
-  const vacsOf = (id) => cat.vacLinks.filter((l) => l.subject_id === id).map((l) => cat.vacations.find((v) => v.id === l.set_id)?.name).filter(Boolean);
-  const listBox = h("div", { class: "picker-list" });
-  const count = h("b");
-  const filter = filterBar([
-    { key: "name", label: "과목" },
-    { key: "dept", label: "학과", options: [["", "전체 학과"], ["-", "학과 없음"], ...cat.departments.map((d) => [d.name, d.name])] },
-    { key: "vac", label: "방학 특강", options: [["", "전체"], ["on", "On"], ["off", "Off"]] },
-  ], () => draw());
-  const draw = () => {
-    const f = filter.values;
-    const now = subjects.filter((s) => hasText(s.name, f.name)
-      && (!f.dept || (f.dept === "-" ? !deptsOf(s.id).length : deptsOf(s.id).includes(f.dept)))
-      && (!f.vac || (f.vac === "on") === vacsOf(s.id).length > 0));
-    count.textContent = `고른 과목 ${pick.size}개`;
-    listBox.replaceChildren(now.length ? table([
-      ["", (s) => h("input", { type: "checkbox", checked: pick.has(s.id), "aria-label": `${s.name} 고르기`, tabindex: "-1" })],
-      ["과목", (s) => s.name],
-      ["학과", (s) => deptsOf(s.id).join(", ") || "—"],
-      ["방학 특강", (s) => vacsOf(s.id).join(", ") || "—"],
-    ], now, { onPick: (s) => { if (pick.has(s.id)) pick.delete(s.id); else pick.add(s.id); draw(); } }) : h("p", { class: "muted" }, "조건에 맞는 과목이 없습니다"));
-  };
-  draw();
-  const ok = h("button", { type: "button", class: "btn primary" }, "확인");
-  const pop = modal("담당 과목 고르기", h("div", { class: "modal-body" }, filter.el, h("div", { class: "row", style: "margin-bottom:8px" }, count, h("span", { class: "muted" }, "줄을 누르면 고르거나 뺍니다")),
-    h("div", { class: "modal-main" }, listBox)), { actions: [ok] });
-  pop.dlg.classList.add("modal-mid");
-  // 고른 순서: 원래 있던 것 먼저, 새로 고른 것은 뒤에
-  ok.onclick = () => { onOk([...chosen.filter((id) => pick.has(id)), ...[...pick].filter((id) => !chosen.includes(id))]); pop.close(); };
 }

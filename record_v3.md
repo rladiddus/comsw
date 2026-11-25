@@ -276,3 +276,4 @@
 - 2026-11-25 comsw-chat reasoning.effort low, MAX_OUTPUT 4000.
 - 2026-11-25 comsw-chat PROMPT 4·5·7번 보완(경력 그대로, 학과 이름, 문의 안내는 서버가 붙임).
 - 2026-11-25 comsw-chat PROMPT "ask_mentor 정하기", AI가 쓴 멘토 문장은 떼고 서버가 한 번만 붙임.
+- 2026-11-25 subjectPicker를 instructors.mjs에서 admin-v4/js/subject-picker.mjs로 옮겨 강사·학과 구성이 같이 씀(title 인자 추가), deptLayout에 cat 전달.

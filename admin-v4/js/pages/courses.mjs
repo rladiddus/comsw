@@ -191,7 +191,7 @@ export async function render({ main, params = [] }) {
         view = [
           deptChips(),
           h("div", { style: "height:14px" }),
-          dept ? deptLayout(dept, ordered, subjects, { msg, reload, stepPill, stepsOf, draftOf, openSubject: (id) => openSubject(subjects.find((x) => x.id === id)), rename: () => deptPopup(dept),
+          dept ? deptLayout(dept, ordered, subjects, { cat, msg, reload, stepPill, stepsOf, draftOf, openSubject: (id) => openSubject(subjects.find((x) => x.id === id)), rename: () => deptPopup(dept),
             activeSwitch: toggleSwitch(deptMeta.active[dept.id] !== false, `${dept.name} 홈페이지 공개`, (next) => { deptMeta.active[dept.id] = next; draw(); }) })
             : box(null, fail("학과가 없습니다. [+ 학과 추가]로 만들어주세요.")),
         ];

@@ -111,7 +111,7 @@ test("답변: 커리큘럼을 재료로, 저장 안 함, 실제 금액으로 정
   assert.deepEqual(await res.json(), { reply: "시각편집학과의 AI포토샵 수업을 추천합니다." });
   const ai = calls.find(([n]) => n === "responses")[1];
   assert.equal(ai.store, false);
-  assert.deepEqual([ai.model, ai.reasoning, "temperature" in ai], ["gpt-6-luna", { effort: "none" }, false]);
+  assert.deepEqual([ai.model, ai.reasoning, "temperature" in ai], ["gpt-6-luna", { effort: "low" }, false]);
   assert.ok(ai.instructions.startsWith(PROMPT) && ai.instructions.includes("## AI포토샵"));
   const [, reserved, head] = calls.find(([n]) => n === "comsw_chat_reserve");
   assert.equal(head.apikey, "service");

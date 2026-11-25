@@ -1,6 +1,6 @@
 // 홈페이지 AI 챗봇: 홈페이지에 게시된 자료(사이트에 적용했고 숨기지 않은 것)만 재료로 답한다. 대화는 저장하지 않는다.
 const MODEL = "gpt-6-luna"; // 관리 화면 AI와 같은 모델·같은 키
-const MAX_OUTPUT = 1200; // 과목 3개를 추천해도 잘리지 않게
+const MAX_OUTPUT = 4000; // 생각하는 양까지 포함한 상한(과목 3개를 추천해도 잘리지 않게)
 const MENTOR = "멘토님께 문의해주세요";
 const HIDE = /AI\s*크리에이터|AI\s*시각편집/i; // 사용자가 챗봇에서 빼 달라고 한 과목(2026-11-25)
 const OFF = `지금은 AI 상담을 이용할 수 없습니다. ${MENTOR}.`;
@@ -286,7 +286,7 @@ export function createChatHandler({ env, fetcher = fetch }) {
           instructions,
           input,
           max_output_tokens: MAX_OUTPUT,
-          reasoning: { effort: "none" }, // 생각하기 끄기(빠르고 저렴하게)
+          reasoning: { effort: "low" }, // 짧게 생각하고 답하기(2026-11-25 사용자 결정)
           store: false,
           text: {
             format: {

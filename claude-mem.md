@@ -183,3 +183,4 @@
 - 챗봇에서 뺄 과목은 comsw-chat/handler.mjs HIDE. AI크리에이터 아트웍은 2026-11-25 현재 홈페이지(학과 커리큘럼 아트웍학과·로드맵)에는 보이지만 사용자 요청으로 챗봇에서 뺌.
 - chat-widget.js를 고치면 14개 페이지의 ?v= 번호도 올리기.
 - AI 문구·챗봇 모델은 gpt-6-luna(2026-11-25, 생각하기 끔). 되돌릴 때는 gpt-4.1-mini로(2027-01-14까지만) 바꾸고 policy TEXT_RATE 0.6/2.4, chatCost 0.4/0.1/1.6도 같이.
+- 생각하기(reasoning.effort): 챗봇 low, 문구 생성 none(2026-11-25 사용자 결정). low 이상이면 MAX_OUTPUT에 생각하는 양까지 들어감.

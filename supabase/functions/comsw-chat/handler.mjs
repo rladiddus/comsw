@@ -1,5 +1,5 @@
 // 홈페이지 AI 챗봇: 홈페이지에 게시된 자료(사이트에 적용했고 숨기지 않은 것)만 재료로 답한다. 대화는 저장하지 않는다.
-const MODEL = "gpt-4.1-mini"; // 관리 화면 AI와 같은 모델·같은 키
+const MODEL = "gpt-6-luna"; // 관리 화면 AI와 같은 모델·같은 키
 const MAX_OUTPUT = 1200; // 과목 3개를 추천해도 잘리지 않게
 const MENTOR = "멘토님께 문의해주세요";
 const HIDE = /AI\s*크리에이터|AI\s*시각편집/i; // 사용자가 챗봇에서 빼 달라고 한 과목(2026-11-25)
@@ -189,11 +189,11 @@ export function chatInput(body) {
   return out;
 }
 
-// gpt-4.1-mini 1백만 토큰 단가(입력 0.4 · 캐시 0.1 · 출력 1.6달러). 환율을 높게(기본 2,000원) 잡아 여유를 둔다.
+// gpt-6-luna 1백만 토큰 단가(입력은 캐시에 담는 값 0.125 · 캐시 0.01 · 출력 0.5달러). 환율을 높게(기본 2,000원) 잡아 여유를 둔다.
 export function chatCost(usage, fx) {
   if (!Number.isFinite(usage?.input_tokens) || !Number.isFinite(usage?.output_tokens)) throw new Error("사용량 없음");
   const cached = Math.min(usage.input_tokens, Number(usage.input_tokens_details?.cached_tokens) || 0);
-  return Math.max(1, Math.ceil(((usage.input_tokens - cached) * 0.4 + cached * 0.1 + usage.output_tokens * 1.6) / 1e6 * fx));
+  return Math.max(1, Math.ceil(((usage.input_tokens - cached) * 0.125 + cached * 0.01 + usage.output_tokens * 0.5) / 1e6 * fx));
 }
 
 // 네트워크를 주입하여 실제 외부 서비스 없이 검사한다.
@@ -286,7 +286,7 @@ export function createChatHandler({ env, fetcher = fetch }) {
           instructions,
           input,
           max_output_tokens: MAX_OUTPUT,
-          temperature: 0.2,
+          reasoning: { effort: "none" }, // 생각하기 끄기(빠르고 저렴하게)
           store: false,
           text: {
             format: {

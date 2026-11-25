@@ -82,10 +82,10 @@ test("MIME 위장 파일은 서버에서 거절", () => {
   );
 });
 test("토큰 비용 예약은 한글 원문과 출력 상한을 포함하고 응답 누락은 정산하지 않음", () => {
-  assert.ok(summaryReservation("요약", "한글".repeat(100), 2000) > 1);
+  assert.equal(summaryReservation("요약", "한글".repeat(2000), 2000), 5, "한글은 바이트로 넉넉히 + 출력 512토큰");
   assert.ok(usageCost({ input_tokens: 100, output_tokens: 100 }, 2000) > 0);
   assert.equal(usageCost({ input_tokens: 250, output_tokens: 35 }, 2000), 1, "짧은 문구는 1원");
-  assert.equal(usageCost({ input_tokens: 1e6, output_tokens: 1e6 }, 2000), 6000, "글: 실제 요금(0.4+1.6달러)의 1.5배");
+  assert.equal(usageCost({ input_tokens: 1e6, output_tokens: 1e6 }, 2000), 1800, "글: 실제 요금(0.1+0.5달러)의 1.5배");
   assert.equal(usageCost({ input_tokens: 1e6, output_tokens: 1e6 }, 2000, true), 76000, "사진 계산은 그대로");
   assert.throws(() => usageCost({}, 2000), /사용량/);
 });

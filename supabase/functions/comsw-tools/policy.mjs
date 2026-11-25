@@ -51,8 +51,8 @@ export function safeFilename(name) {
     -120,
   );
 }
-// 1백만 토큰 단가(달러). 글: gpt-4.1-mini 실제 요금(0.4·1.6)의 1.5배. 모델을 바꾸면 같이 고친다.
-const TEXT_RATE = { input: 0.6, output: 2.4 };
+// 1백만 토큰 단가(달러). 글: gpt-6-luna 실제 요금(0.1·0.5)의 1.5배. 모델을 바꾸면 같이 고친다.
+const TEXT_RATE = { input: 0.15, output: 0.75 };
 const IMAGE_RATE = { input: 8, output: 30 };
 export function summaryReservation(prompt, text, fx) {
   // UTF-8 바이트 수는 토큰 수의 상한.

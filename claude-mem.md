@@ -182,4 +182,4 @@
 - 챗봇 AI는 OpenAI API 유지(ChatGPT 구독 로그인은 이미지 미지원·계정 공유 금지로 제외, 2026-11-25). 지시문은 comsw-chat/handler.mjs PROMPT, 고치면 함수 재배포 필요.
 - 챗봇에서 뺄 과목은 comsw-chat/handler.mjs HIDE. AI크리에이터 아트웍은 2026-11-25 현재 홈페이지(학과 커리큘럼 아트웍학과·로드맵)에는 보이지만 사용자 요청으로 챗봇에서 뺌.
 - chat-widget.js를 고치면 14개 페이지의 ?v= 번호도 올리기.
-- **gpt-4.1-mini는 2027-01-14 종료**. 그 전에 comsw-tools/handler.mjs(문구)·comsw-chat/handler.mjs(챗봇) 모델을 gpt-6-luna 등으로 바꾸고 policy TEXT_RATE·chatCost 단가도 같이 고쳐야 함(사용자에게 다시 알리기).
+- AI 문구·챗봇 모델은 gpt-6-luna(2026-11-25, 생각하기 끔). 되돌릴 때는 gpt-4.1-mini로(2027-01-14까지만) 바꾸고 policy TEXT_RATE 0.6/2.4, chatCost 0.4/0.1/1.6도 같이.

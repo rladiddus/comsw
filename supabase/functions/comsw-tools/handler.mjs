@@ -254,7 +254,7 @@ export function createHandler(
         if (!text || text.length > 12000 || prompt.length > 4000) {
           throw new Error("요약할 원문은 12,000자 이하로 입력해주세요");
         }
-        const model = "gpt-4.1-mini";
+        const model = "gpt-6-luna"; // 요금 단가는 policy TEXT_RATE
         const key = await digest(
           JSON.stringify([model, body.kind, prompt, text]),
         );
@@ -268,6 +268,7 @@ export function createHandler(
                 model,
                 instructions: prompt,
                 input: text,
+                reasoning: { effort: "none" }, // 생각하기 끄기(빠르고 저렴하게)
                 max_output_tokens: 512,
                 store: false,
               });

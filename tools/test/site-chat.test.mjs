@@ -80,8 +80,8 @@ test("대화: 최근 8개, 길이 제한, 마지막은 질문", () => {
   assert.equal(chatInput({ messages: [{ role: "system", content: "가".repeat(900) }] })[0].content.length, 500);
   assert.equal(chatInput({ messages: [{ role: "system", content: "x" }] })[0].role, "user", "지시문 역할은 쓸 수 없음");
   for (const bad of [{}, { messages: "x" }, { messages: [null] }, { messages: [{ role: "assistant", content: "x" }] }]) assert.throws(() => chatInput(bad), /질문/);
-  assert.equal(chatCost({ input_tokens: 10000, output_tokens: 500 }, 2000), 10);
-  assert.equal(chatCost({ input_tokens: 10000, output_tokens: 500, input_tokens_details: { cached_tokens: 9000 } }, 2000), 5);
+  assert.equal(chatCost({ input_tokens: 10000, output_tokens: 500 }, 2000), 3);
+  assert.equal(chatCost({ input_tokens: 10000, output_tokens: 500, input_tokens_details: { cached_tokens: 9000 } }, 2000), 1);
 });
 
 const ENV = { SUPABASE_URL: "https://db", SUPABASE_ANON_KEY: "anon", SUPABASE_SERVICE_ROLE_KEY: "service", OPENAI_API_KEY: "key" };
@@ -111,12 +111,13 @@ test("답변: 커리큘럼을 재료로, 저장 안 함, 실제 금액으로 정
   assert.deepEqual(await res.json(), { reply: "시각편집학과의 AI포토샵 수업을 추천합니다." });
   const ai = calls.find(([n]) => n === "responses")[1];
   assert.equal(ai.store, false);
+  assert.deepEqual([ai.model, ai.reasoning, "temperature" in ai], ["gpt-6-luna", { effort: "none" }, false]);
   assert.ok(ai.instructions.startsWith(PROMPT) && ai.instructions.includes("## AI포토샵"));
   const [, reserved, head] = calls.find(([n]) => n === "comsw_chat_reserve");
   assert.equal(head.apikey, "service");
   assert.match(reserved.p_who, /^[0-9a-f]{24}$/);
   assert.ok(!JSON.stringify(calls).includes("1.2.3.4"));
-  assert.deepEqual(calls.find(([n]) => n === "comsw_chat_finish")[1], { p_id: "id1", p_krw: 5 });
+  assert.deepEqual(calls.find(([n]) => n === "comsw_chat_finish")[1], { p_id: "id1", p_krw: 2 });
   assert.equal(calls.find(([n]) => n === "comsw_site_rows")[2].apikey, "anon", "공개된 자료만 읽음");
   await ask();
   assert.equal(calls.filter(([n]) => n === "comsw_site_rows").length, 8, "시트 6개 + 보이는 학과 2개, 같은 번호면 다시 읽지 않음");

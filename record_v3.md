@@ -268,3 +268,4 @@
 - 2026-11-24 instructorUnits u.off, common-editor assignedFirst(courses 초안도 같은 함수), Curriculum_full(_tablet) getAllInstructorCurriculumFromSupabase 담당 과목 거르기.
 - 2026-11-25 Curriculum_full(·_tablet) getInstructorListFromSupabase가 전체수업 B열로 학과 과목만 남김(학과 이름 정확히 일치), openPanel에서 closeInstructorLightbox(true), .instructor-close-btn 오른쪽 위 고정.
 - 2026-11-25 assets/js/chat-widget.js(Shadow DOM, head에서 불러와 window capture로 키·휠 차단), supabase/functions/comsw-chat(handler.mjs: buildCatalog·chatInput·chatCost), 마이그레이션 20261125010000(chat_calls, comsw_chat_reserve/finish/budget, comsw_set_chat_limit), usage.mjs chatBox. 테스트 tools/test/site-chat, admin/test/chat-widget. ChatGPT 구독 로그인 방식은 불가로 안내.
+- 2026-11-25 comsw-chat PROMPT 교체, MAX_OUTPUT 700→1200.

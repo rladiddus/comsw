@@ -179,3 +179,4 @@
 - 학생 사이트 강사 소개 과목 버튼 = 담당 과목 ∩ 보고 있는 학과의 과목(학과 구성). 어느 학과에도 없는 과목은 강사 소개에 안 나옴.
 - 홈페이지 챗봇: comsw-chat(로그인 없음, 공개 스냅샷만 읽음). 요금은 comsw_private.chat_calls로 comsw_ai_jobs와 따로. 접속 주소는 저장하지 않고 날마다 바뀌는 익명 번호만.
 - 학생 사이트에 새 페이지를 만들면 supabase-config.js 다음 줄에 chat-widget.js도 넣기(테스트가 14개 페이지를 셈).
+- 챗봇 AI는 OpenAI API 유지(ChatGPT 구독 로그인은 이미지 미지원·계정 공유 금지로 제외, 2026-11-25). 지시문은 comsw-chat/handler.mjs PROMPT, 고치면 함수 재배포 필요.

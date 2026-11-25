@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { as, freshDb } from "./pg.mjs";
-import { buildCatalog, chatCost, chatInput, createChatHandler, PROMPT } from "../../supabase/functions/comsw-chat/handler.mjs";
+import { buildCatalog, tailOf, chatCost, chatInput, createChatHandler, PROMPT } from "../../supabase/functions/comsw-chat/handler.mjs";
 
 const lesson = (dept, name, step, text, extra = {}) => {
   const v = Array(26).fill("");
@@ -16,13 +16,55 @@ const LESSONS = [
   lesson("AI", "AI자동화", "", "", { content: "01 자동화\n02 실습" }),
 ];
 
+const menu = (name, on, extra = "") => ["", "", "", "", name, on, "", "", extra];
+const SITE = {
+  lessons: [...LESSONS, lesson("시각편집", "AI크리에이터 시각편집", "1단계", "숨김")],
+  instructors: [
+    ["김하나", "시각편집학과, AI학과", "AI포토샵, AI자동화, AI크리에이터 시각편집", "2020 전시\n2021 수상", "즐겁게"],
+    ["박두리", "숨긴학과", "비밀수업", "비밀경력", ""],
+  ],
+  prep: [["포토샵", "교재명", "멘토 포토샵", "https://x", "", "28,000원"], ["", "준비물", "이어폰", "", "", ""], ["AI크리에이터 시각편집", "AI 툴", "미드저니", "", "", ""]],
+  roadmap: [["시각편집학과", "AI포토샵", "AI크리에이터 아트웍", ""], ["시각편집학과", "", "", ""], ["시각편집학과", "문구", "", ""]],
+  seminars: [["", "옛 특강", "소주제", "2026년 8월 5일 11:00-13:00", "김하나", "J강의장", "16", "0"], ["", "새 특강", "", "2027년 1월 3일", "김하나", "", "10", "0"]],
+  curricula: {
+    시각편집학과: [["김하나", "AI포토샵", "1단계", "", "하나의 합성"], ["김하나", "뺀 과목", "1단계", "", "담당 아님"]],
+    AI학과: [["김하나", "AI자동화", "1단계", "", "하나의 자동화"]],
+  },
+};
+
 test("재료: 보이는 학과의 과목만, 단계가 없으면 과정내용, 학과 이름은 정확히", () => {
-  const text = buildCatalog(LESSONS, { name: "겨울특강", rows: [["강사이름", "웹툰특강", "1단계", "", "콘티"]] });
+  const { text } = buildCatalog({ lessons: LESSONS });
   assert.match(text, /- 시각편집학과: 시각편집학과 소개/);
   assert.match(text, /## AI포토샵\n학과: 시각편집학과\n기간 1개월 · 난이도 ★★ · 프로그램 Photoshop\n내용: 1단계 합성 \/ 2단계 보정/);
   assert.match(text, /## AI자동화\n학과: AI학과[\s\S]*내용: 01 자동화 \/ 02 실습/);
-  assert.match(text, /# 방학 특강\(겨울특강\)\n- 웹툰특강: 1단계 콘티/);
-  assert.ok(!/숨긴학과|비밀수업|AI자격증|강사이름/.test(text), "숨긴 학과, 어느 보이는 학과에도 없는 과목, 강사 이름은 빠짐");
+  assert.ok(!/숨긴학과|비밀수업|AI자격증/.test(text), "숨긴 학과, 어느 보이는 학과에도 없는 과목은 빠짐");
+});
+
+test("재료: 강사(담당은 그 학과 과목만·경력)·준비물·로드맵·특강, 숨긴 강사와 빼 달라고 한 과목은 어디에도 없음", () => {
+  const site = buildCatalog(SITE);
+  assert.match(site.text, /## AI포토샵[\s\S]*?담당 선생님: 김하나\n/);
+  assert.match(site.text, /## 김하나 선생님\n시각편집학과 담당: AI포토샵\nAI학과 담당: AI자동화\n경력: 2020 전시 \/ 2021 수상\n한마디: 즐겁게/);
+  assert.match(site.text, /# 준비물\n- 포토샵: 교재 멘토 포토샵\(28,000원\), 준비물 이어폰/);
+  assert.match(site.text, /# 로드맵\(배우는 순서\)\n- 시각편집학과: AI포토샵\n/);
+  const now = Date.parse("2026-11-25T03:00:00Z");
+  const tail = tailOf(site, [{ role: "user", content: "특강 있어?" }], now);
+  assert.match(tail, /# 오늘: 2026-11-25[\s\S]*지난 특강: 옛 특강 \(소주제\)[\s\S]*예정 특강: 새 특강/);
+  assert.ok(!tail.includes("하나의 합성"), "선생님 이름이 나오지 않으면 수업 내용은 안 붙임");
+  const named = tailOf(site, [{ role: "user", content: "김하나 선생님 수업은?" }], now);
+  assert.match(named, /## 김하나 선생님\(시각편집학과, AI학과\)\n- 시각편집학과 AI포토샵: 1단계 하나의 합성\n- AI학과 AI자동화: 1단계 하나의 자동화/);
+  assert.ok(!/박두리|비밀|AI크리에이터|담당 아님/.test(site.text + named));
+});
+
+test("재료: 메뉴에서 끈 페이지의 내용은 빠짐(방학 특강은 켰을 때만)", () => {
+  const off = buildCatalog({ ...SITE, menu: ["강사별 커리큘럼", "수업별 준비물", "전체 수업", "특강/세미나"].map((n) => menu(n, "false")) });
+  assert.ok(!/# 강사|# 준비물|# 로드맵|선생님/.test(off.text));
+  assert.deepEqual([off.teachers.length, off.seminars.length], [0, 0]);
+  assert.match(off.text, /## AI포토샵/);
+  const none = buildCatalog({ ...SITE, menu: ["학과 커리큘럼", "학과별 자료", "전체 수업"].map((n) => menu(n, "false")) });
+  assert.ok(!none.text.includes("## AI포토샵"));
+  const vacation = [["강사이름", "웹툰특강", "1단계", "", "콘티"]];
+  assert.match(buildCatalog({ ...SITE, vacation, menu: [menu("방학 특강", "true", "겨울특강")] }).text, /# 방학 특강\(겨울특강\)\n- 웹툰특강: 1단계 콘티/);
+  assert.ok(!buildCatalog({ ...SITE, vacation, menu: [menu("방학 특강", "false", "겨울특강")] }).text.includes("웹툰특강"));
 });
 
 test("대화: 최근 8개, 길이 제한, 마지막은 질문", () => {
@@ -70,7 +112,7 @@ test("답변: 커리큘럼을 재료로, 저장 안 함, 실제 금액으로 정
   assert.deepEqual(calls.find(([n]) => n === "comsw_chat_finish")[1], { p_id: "id1", p_krw: 5 });
   assert.equal(calls.find(([n]) => n === "comsw_site_rows")[2].apikey, "anon", "공개된 자료만 읽음");
   await ask();
-  assert.equal(calls.filter(([n]) => n === "comsw_site_rows").length, 2, "같은 번호면 다시 읽지 않음");
+  assert.equal(calls.filter(([n]) => n === "comsw_site_rows").length, 8, "시트 6개 + 보이는 학과 2개, 같은 번호면 다시 읽지 않음");
 });
 
 test("없는 내용이면 '멘토님께 문의해주세요'를 한 번만 덧붙임", async () => {

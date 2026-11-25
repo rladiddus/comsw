@@ -180,3 +180,4 @@
 - 홈페이지 챗봇: comsw-chat(로그인 없음, 공개 스냅샷만 읽음). 요금은 comsw_private.chat_calls로 comsw_ai_jobs와 따로. 접속 주소는 저장하지 않고 날마다 바뀌는 익명 번호만.
 - 학생 사이트에 새 페이지를 만들면 supabase-config.js 다음 줄에 chat-widget.js도 넣기(테스트가 14개 페이지를 셈).
 - 챗봇 AI는 OpenAI API 유지(ChatGPT 구독 로그인은 이미지 미지원·계정 공유 금지로 제외, 2026-11-25). 지시문은 comsw-chat/handler.mjs PROMPT, 고치면 함수 재배포 필요.
+- 챗봇에서 뺄 과목은 comsw-chat/handler.mjs HIDE. AI크리에이터 아트웍은 2026-11-25 현재 홈페이지(학과 커리큘럼 아트웍학과·로드맵)에는 보이지만 사용자 요청으로 챗봇에서 뺌.

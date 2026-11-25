@@ -3,3 +3,7 @@ project_id = "comsw"
 [functions.comsw-tools]
 # Firebase RS256 토큰은 함수 본문에서 issuer/audience/서명/역할을 확인한다.
 verify_jwt = false
+
+[functions.comsw-chat]
+# 홈페이지 챗봇(로그인 없음). 허용 사이트·횟수·금액은 함수와 DB에서 확인한다.
+verify_jwt = false

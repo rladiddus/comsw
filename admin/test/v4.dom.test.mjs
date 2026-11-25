@@ -1450,13 +1450,14 @@ test("AI 사용량: 사용액·한도·종류별·작업 기록, 관리자만 [�
   globalThis.confirm = () => true;
   document.querySelectorAll("dialog").forEach((d) => d.remove());
   const calls = [];
+  let chatReady = false;
   const fake = fakeSupabase({ comsw_ai_jobs: [
     { id: "j1", kind: "profile", status: "failed", budget_krw: 2800, month: "2026-11", created_at: "2026-11-24T05:00:00Z" },
     { id: "j2", kind: "profile", status: "completed", budget_krw: 120, month: "2026-11", created_at: "2026-11-23T05:00:00Z" },
     { id: "j3", kind: "week", status: "completed", budget_krw: 11, month: "2026-11", created_at: "2026-11-22T05:00:00Z" },
     { id: "j4", kind: "week", status: "completed", budget_krw: 9, month: "2026-10", created_at: "2026-10-22T05:00:00Z" },
   ] });
-  fake.rpc = async (n, a) => { calls.push([n, a]); return { data: n === "comsw_ai_budget" ? { month: "2026-11", used: 2931, limit: 3000, remaining: 69 } : null, error: null }; };
+  fake.rpc = async (n, a) => { calls.push([n, a]); return { data: n === "comsw_ai_budget" ? { month: "2026-11", used: 2931, limit: 3000, remaining: 69 } : n === "comsw_chat_budget" && chatReady ? { used: 120, count: 1234, limit: 3000 } : null, error: null }; };
   let main = await open("usage", { uid: "u1", role: "head" }, fake);
   assert.match(main.textContent, /2,931원[\s\S]*69원[\s\S]*3,000원/);
   assert.match(main.textContent, /프로필 사진2건2,920원120원1건/, "종류별: 평균은 성공한 것만");
@@ -1482,8 +1483,17 @@ test("AI 사용량: 사용액·한도·종류별·작업 기록, 관리자만 [�
   btn("저장", dlg)[0].click();
   await flush();
   assert.deepEqual(calls.find(([n]) => n === "comsw_set_ai_limit")[1], { p_limit: 20000 });
+  assert.match(main.textContent, /홈페이지 AI 챗봇[\s\S]*SQL 실행/, "챗봇 SQL 전에도 화면은 열림");
   assert.equal(document.querySelector("dialog.modal"), null);
   assert.match(main.textContent, /공통 4단계 정리0건0원/, "안 쓴 종류도 보임");
+  chatReady = true;
+  main = await open("usage", { uid: "u1", role: "admin" }, fake);
+  assert.match(main.textContent, /이번 달 질문 1,234번 · 사용액 120원 · 한 달 한도 3,000원/);
+  btn("챗봇 한도 바꾸기")[0].click();
+  type(document.querySelector("dialog.modal input"), "5000");
+  btn("저장", document.querySelector("dialog.modal"))[0].click();
+  await flush();
+  assert.deepEqual(calls.find(([n]) => n === "comsw_set_chat_limit")[1], { p_limit: 5000 });
   const { stuck } = await import("../../admin-v4/js/pages/usage.mjs");
   const at = Date.parse("2026-11-24T05:11:00Z");
   assert.deepEqual(["2026-11-24T05:00:00Z", "2026-11-24T05:05:00Z"].map((t) => stuck({ status: "reserved", created_at: t }, at)), [true, false]);

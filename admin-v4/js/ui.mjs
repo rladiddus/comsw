@@ -104,9 +104,8 @@ export async function publishBanner(check) {
     await (await import("./data.mjs")).publishPending();
     el.replaceChildren(note("반영했습니다. 이제 V4의 확정·사이트 적용을 쓸 수 있습니다."));
   });
-  el.append(h("div", { class: "fail", role: "alert" },
-    "기존 관리 화면에서 고치고 아직 홈페이지에 반영하지 않은 변경이 있습니다. 그 변경이 모르게 섞여 공개되지 않도록 V4의 확정·삭제가 멈춥니다. 맞는 변경이면 [같이 반영]을 눌러주세요.",
-    h("div", { class: "actions", style: "margin-top:8px" }, btn)), msg);
+  el.append(h("div", { class: "fail apply-notice", role: "alert" },
+    h("span", {}, "기존 관리 화면에서 고치고 아직 홈페이지에 반영하지 않은 변경이 있습니다. 그 변경이 모르게 섞여 공개되지 않도록 V4의 확정·삭제가 멈춥니다. 맞는 변경이면 [같이 반영]을 눌러주세요."), btn), msg);
   return el;
 }
 

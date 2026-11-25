@@ -3,9 +3,9 @@
 // 한 단계 이름: 끝 숫자만 다르면 'AI웹툰 1~6', 아니면 줄바꿈(사용자 결정 2026-11-19). 요약은 직접 쓰거나 [AI 요약](버튼으로만).
 // 바꾸면 떠 있는 창 [임시 저장] / [사이트 적용](이 학과 로드맵만 공개, 예전 단계는 보관).
 import * as data from "../data.mjs";
-import { h, head, box, tabs, fill, empty, note, fail, busy, publishBanner } from "../ui.mjs";
+import { h, head, box, tabs, fill, empty, note, busy, publishBanner } from "../ui.mjs";
 import { deptOrder, roadmapLabel } from "../rules.mjs";
-import { track, canSwitch } from "../changes.mjs";
+import { track, canSwitch, applyNotice } from "../changes.mjs";
 import { moveItem } from "./dept-layout.mjs";
 
 let pick = null;
@@ -150,7 +150,9 @@ export async function render({ main }) {
             custom ? h("div", { class: "actions" }, h("span", { class: "pill warn" }, "학과·과목의 순서와 다릅니다"),
               h("button", { type: "button", class: "btn", onclick: () => reorder([...deptIds]) }, "학과·과목의 순서와 동기화"))
               : h("span", { class: "pill neutral" }, "학과·과목 순서")),
-          trk && !matches ? fail("홈페이지 로드맵이 아래 순서·묶음과 다릅니다. 확인한 뒤 [사이트 적용]하면 이대로 바뀝니다.") : null,
+          !list.length || matches ? null
+            : trk ? applyNotice("홈페이지 로드맵이 아래 순서·묶음과 다릅니다. 아래 내용이 맞으면 [이대로 사이트 적용]을 누르세요.", `roadmap:${dept.id}`, { msg })
+            : applyNotice("이 학과는 아직 홈페이지에 로드맵이 없습니다. 아래 내용으로 만들려면 [이대로 사이트 적용]을 누르세요.", `roadmap:${dept.id}`, { msg, kind: "note" }),
           note("과목을 끌어서 로드맵 순서를 바꿉니다(학과·과목 순서는 그대로). 과목 사이 [+]를 켜면 두 과목이 한 단계로 묶입니다."),
           list.length ? chain : empty("이 학과에 과목이 없습니다")),
         groups.length ? box("로드맵 단계(홈페이지에 보이는 모양)", note("이름 끝 숫자만 다른 과목은 '이름 1~6'으로, 다른 과목은 줄을 나눠 보여 줍니다."),

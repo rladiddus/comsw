@@ -88,6 +88,9 @@ tr.pick:hover td, tr.pick[aria-selected="true"] td { background: var(--soft); }
 .empty { padding: 26px 12px; text-align: center; color: var(--sub); font-size: 13px; }
 .note { padding: 11px 13px; background: var(--soft); font-size: 12px; color: var(--green); border-radius: 5px; margin-bottom: 14px; }
 .fail { padding: 11px 13px; border: 1px solid var(--red); color: var(--red); border-radius: 5px; margin-bottom: 14px; font-size: 13px; }
+.apply-notice { display: flex; align-items: center; justify-content: space-between; gap: 12px; } /* 안내 오른쪽 버튼 */
+.apply-notice > .btn { flex: none; white-space: nowrap; }
+@media (max-width: 640px) { .apply-notice { flex-wrap: wrap; } }
 .steps { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 12px; }
 .step { border: 1px solid var(--line); border-radius: 6px; padding: 12px; min-width: 0; overflow-wrap: anywhere; } /* 글자가 칸 밖으로 안 나가게 */
 .step b { display: block; font-size: 12px; color: var(--green); margin-bottom: 4px; }

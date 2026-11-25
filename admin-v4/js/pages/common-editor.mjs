@@ -6,7 +6,7 @@ import * as data from "../data.mjs";
 import { driveThumbnail } from "../../../admin/js/drive.mjs";
 import { h, box, pill, media, busy, note, fail, empty } from "../ui.mjs";
 import { curriculumUnits, stepState, STEPS } from "../rules.mjs";
-import { track } from "../changes.mjs";
+import { track, applyNotice } from "../changes.mjs";
 
 // i번째(0부터) 단계가 n개 중이면 4묶음 중 몇 번째인가
 export const bucket = (i, n) => (n === STEPS ? i : Math.min(STEPS - 1, Math.floor((i * STEPS) / n)));
@@ -107,7 +107,11 @@ export function commonEditor(subject, cat, current, { msg, reload, set = null, e
           draw();
         } }, "강사 내용 가져오기");
         const isDraft = blank && chosen.length && JSON.stringify(st.steps) === JSON.stringify(auto);
-        const draftNote = isDraft ? note(`강사 ${chosen.length}명의 내용으로 채운 초안입니다(아직 홈페이지에 공개되지 않음). ${editing ? "" : "[수정]을 누르고 "}${chosen.length > 1 ? "[AI 공통 정리]로 글을 정리한 뒤 " : "확인한 뒤 "}오른쪽 아래 [사이트 적용]을 누르세요.`) : null;
+        const draftText = `강사 ${chosen.length}명의 내용으로 채운 초안입니다(아직 홈페이지에 공개되지 않음). `;
+        const aiTip = chosen.length > 1 ? "[AI 공통 정리]로 글을 정리한 뒤 " : "";
+        const draftNote = !isDraft ? null
+          : editing ? note(`${draftText}${aiTip || "확인한 뒤 "}오른쪽 아래 [사이트 적용]을 누르세요.`)
+          : applyNotice(`${draftText}이대로 공개하려면 [이대로 사이트 적용], 고치려면 [수정]을 누르${aiTip ? "고 [AI 공통 정리]로 글을 정리하" : ""}세요.`, `common:${target}`, { msg, kind: "note", state: () => st });
         const aiBtn = h("button", { type: "button", class: "btn", disabled: !chosen.length || !aiOn.some(Boolean) }, "AI 공통 정리");
         aiBtn.onclick = () => busy(aiBtn, msg, async () => {
           const parts = Array.from({ length: STEPS }, () => []);

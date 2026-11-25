@@ -1574,15 +1574,26 @@ test("과목 팝업: 공통이 비면 강사 자료 초안이 바로 보이고(�
   [...main.querySelectorAll(".tabs button")].find((b) => b.textContent === "전체 과목").click();
   [...main.querySelectorAll("tr.pick")].find((tr) => tr.textContent.includes("캐드1")).click();
   await flush();
-  const dlg = document.querySelector("dialog.modal");
+  let dlg = document.querySelector("dialog.modal");
   const btn = (t) => [...dlg.querySelectorAll("button")].find((b) => b.textContent === t);
   assert.match(dlg.textContent, /강사 2명의 내용으로 채운 초안입니다\(아직 홈페이지에 공개되지 않음\)/);
   assert.match(dlg.querySelector(".step").textContent, /i2글1\ni1글1/);
   assert.equal(dlg.querySelector(".step img").getAttribute("src"), "https://x/i21.png", "먼저 작성한 강사 이미지");
   await flush();
   assert.ok(document.querySelector(".change-bar")?.hidden !== false, "열기만 하면 창 없음");
+  btn("이대로 사이트 적용").click();
+  await flush();
+  const now = calls.find(([n]) => n === "comsw_v4_confirm_common")?.[1];
+  assert.deepEqual(now?.p_sources.map((x) => x.id).sort(), ["i11", "i12", "i13", "i14", "i21", "i22", "i23", "i24"], "보기에서 [수정] 없이 초안 그대로 반영");
+  assert.equal(now.p_steps[0].summary, "i2글1\ni1글1");
+  calls.length = 0;
+  await flush();
+  [...main.querySelectorAll("tr.pick")].find((tr) => tr.textContent.includes("캐드1")).click();
+  await flush();
+  dlg = document.querySelector("dialog.modal");
   btn("수정").click();
   await flush();
+  assert.ok(!btn("이대로 사이트 적용"), "수정 중에는 오른쪽 아래 창으로");
   const areas = () => [...dlg.querySelectorAll("textarea")];
   type(areas()[3], "직접 쓴 4");
   const check = (name) => [...dlg.querySelectorAll(".side-list label")].find((l) => l.textContent.includes(name)).querySelector("input");
@@ -1779,4 +1790,38 @@ test("학과 구성 [과목 추가]: 공개 스위치 오른쪽 버튼 → 과�
   rows().find((r) => r.children[1].textContent === name).click();
   okBtn().click();
   assert.deepEqual(names(), before, "체크를 풀면 빠지고 나머지 순서는 그대로");
+});
+
+test("로드맵 [이대로 사이트 적용]: 바꾼 것이 없어도 홈페이지와 다르면 안내 오른쪽 버튼으로 반영, 취소하면 그대로, 같으면 안내 없음", async () => {
+  document.querySelectorAll("dialog").forEach((d) => d.remove());
+  const fake = db();
+  const calls = [];
+  fake.rpc = async (name, args) => { calls.push([name, args]); return { data: false, error: null }; };
+  const extra = {
+    roadmap_tracks: [{ id: "t1", department_id: "d1", name: "학과" }],
+    roadmap_steps: [{ id: "st1", track_id: "t1", position: 1, summary: "캐드1 문구" }],
+    roadmap_step_subjects: [{ step_id: "st1", subject_id: "s1", sort_order: 1 }],
+  };
+  const base = fake.from.bind(fake);
+  fake.from = (t) => (t in extra ? fakeSupabase({ ...extra }).from(t) : base(t));
+  let main = await open("roadmap", undefined, fake);
+  const notice = () => main.querySelector(".fail.apply-notice");
+  assert.match(notice().textContent, /홈페이지 로드맵이 아래 순서·묶음과 다릅니다/);
+  await flush();
+  assert.ok(document.querySelector(".change-bar")?.hidden !== false, "열기만 하면 창 없음");
+  assert.equal(notice().lastElementChild.textContent, "이대로 사이트 적용", "안내 오른쪽");
+  globalThis.confirm = () => false;
+  notice().lastElementChild.click();
+  await flush();
+  assert.ok(!calls.some(([n]) => n === "comsw_v4_save_roadmap"), "확인 창에서 취소하면 그대로");
+  globalThis.confirm = () => true;
+  notice().lastElementChild.click();
+  await flush();
+  const [, args] = calls.find(([n]) => n === "comsw_v4_save_roadmap");
+  assert.deepEqual(args.p_groups.map((g) => g.subjects), [["s1"], ["s2"]]);
+  assert.equal(args.p_groups[0].summary, "캐드1 문구", "공개 중이던 문구는 그대로");
+  extra.roadmap_steps.push({ id: "st2", track_id: "t1", position: 2, summary: "" });
+  extra.roadmap_step_subjects.push({ step_id: "st2", subject_id: "s2", sort_order: 1 });
+  main = await open("roadmap", undefined, fake);
+  assert.equal(main.querySelector(".apply-notice"), null, "같으면 안내 없음");
 });

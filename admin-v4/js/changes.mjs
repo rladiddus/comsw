@@ -3,7 +3,7 @@
 // [사이트 적용] = 그때 홈페이지에 반영(강사 화면은 [학과장에게 제출]). 다시 기준과 같아지면 창이 사라진다.
 // 화면은 track({...})으로 편집기 하나를 등록한다. 입력·클릭이 있으면 알아서 다시 비교한다.
 import * as data from "./data.mjs";
-import { h, fail } from "./ui.mjs";
+import { h, fail, busy } from "./ui.mjs";
 
 const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
 let trackers = [];
@@ -175,11 +175,21 @@ export async function applyTracked(id) {
   if (!t || same(t.read(), t.baseline)) throw new Error("바뀐 내용이 없습니다");
   await applyList([t]);
 }
-async function applyList(dirty) {
+// 홈페이지와 다르다는 안내 + 오른쪽 [이대로 사이트 적용](2026-11-25 사용자 요청). 이 화면에서 바꾼 것이 없어 떠 있는 창이 안 뜰 때도 지금 보이는 내용을 반영한다.
+// state: 반영할 설정(없으면 편집기의 지금 내용), kind: fail(빨강)·note(초록). "홈페이지와 다름"을 알리는 새 화면도 이걸 쓴다.
+export function applyNotice(text, id, { msg, kind = "fail", state } = {}) {
+  const btn = h("button", { type: "button", class: "btn primary", onclick: () => busy(btn, msg, async () => {
+    const t = trackers.find((x) => x.id === id);
+    if (!t) throw new Error("화면을 새로 불러온 뒤 다시 눌러주세요");
+    await applyList([t], state?.());
+  }) }, "이대로 사이트 적용");
+  return h("div", { class: `${kind} apply-notice`, role: kind === "fail" ? "alert" : "note" }, h("span", {}, text), btn);
+}
+async function applyList(dirty, state) {
   const what = dirty.map((t) => t.title).filter(Boolean).join(", ");
   if (!confirm(`${what || "바뀐 설정"}을(를) ${dirty[0].applyLabel === "사이트 적용" ? "홈페이지에 반영" : dirty[0].applyLabel}할까요?`)) return;
   for (const t of dirty) {
-    await t.apply(clone(t.read()));
+    await t.apply(clone(state ?? t.read()));
     await t.store.drop().catch(() => {});
     t.saved = null;
     t.baseline = clone(t.read());

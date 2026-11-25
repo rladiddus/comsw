@@ -274,3 +274,4 @@
 - 2026-11-25 comsw-tools policy TEXT_RATE(0.6/2.4)·IMAGE_RATE(8/30).
 - 2026-11-25 comsw-tools/comsw-chat model gpt-6-luna, reasoning.effort none, temperature 뺌(지원 확인 안 됨). TEXT_RATE 0.15/0.75, chatCost 0.125/0.01/0.5.
 - 2026-11-25 comsw-chat reasoning.effort low, MAX_OUTPUT 4000.
+- 2026-11-25 comsw-chat PROMPT 4·5·7번 보완(경력 그대로, 학과 이름, 문의 안내는 서버가 붙임).

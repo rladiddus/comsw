@@ -84,6 +84,9 @@ test("MIME 위장 파일은 서버에서 거절", () => {
 test("토큰 비용 예약은 한글 원문과 출력 상한을 포함하고 응답 누락은 정산하지 않음", () => {
   assert.ok(summaryReservation("요약", "한글".repeat(100), 2000) > 1);
   assert.ok(usageCost({ input_tokens: 100, output_tokens: 100 }, 2000) > 0);
+  assert.equal(usageCost({ input_tokens: 250, output_tokens: 35 }, 2000), 1, "짧은 문구는 1원");
+  assert.equal(usageCost({ input_tokens: 1e6, output_tokens: 1e6 }, 2000), 6000, "글: 실제 요금(0.4+1.6달러)의 1.5배");
+  assert.equal(usageCost({ input_tokens: 1e6, output_tokens: 1e6 }, 2000, true), 76000, "사진 계산은 그대로");
   assert.throws(() => usageCost({}, 2000), /사용량/);
 });
 test("공개 이미지는 Firebase에 1년 캐시로 올리고 공개 링크 반환", async () => {

@@ -271,3 +271,4 @@
 - 2026-11-25 comsw-chat PROMPT 교체, MAX_OUTPUT 700→1200.
 - 2026-11-25 comsw-chat buildCatalog({lessons,menu,instructors,prep,roadmap,seminars,vacation,curricula}) → {text,teachers,seminars}, tailOf(오늘·특강·이름이 나온 선생님 커리큘럼, 8,000자까지). 채용정보는 넣지 않음(학과별 자료 메뉴 꺼짐).
 - 2026-11-25 comsw-chat linkOf·keepKnownLinks, chat-widget 링크 표시(?v=2).
+- 2026-11-25 comsw-tools policy TEXT_RATE(0.6/2.4)·IMAGE_RATE(8/30).

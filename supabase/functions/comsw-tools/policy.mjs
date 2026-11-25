@@ -51,20 +51,24 @@ export function safeFilename(name) {
     -120,
   );
 }
+// 1백만 토큰 단가(달러). 글: gpt-4.1-mini 실제 요금(0.4·1.6)의 1.5배. 모델을 바꾸면 같이 고친다.
+const TEXT_RATE = { input: 0.6, output: 2.4 };
+const IMAGE_RATE = { input: 8, output: 30 };
 export function summaryReservation(prompt, text, fx) {
-  // UTF-8 바이트 수는 토큰 수의 상한. 고정 모델에 실제 단가보다 높은 보수적 단가를 적용한다.
+  // UTF-8 바이트 수는 토큰 수의 상한.
   const bytes = new TextEncoder().encode(`${prompt}\n${text}`).length;
-  return Math.max(1, Math.ceil((bytes * 5 + 512 * 30) / 1e6 * fx));
+  return Math.max(1, Math.ceil((bytes * TEXT_RATE.input + 512 * TEXT_RATE.output) / 1e6 * fx));
 }
 export function usageCost(usage, fx, image = false) {
   if (
     !Number.isFinite(usage?.input_tokens) ||
     !Number.isFinite(usage?.output_tokens)
   ) throw new Error("AI 사용량을 확인하지 못했습니다");
-  // 현재 일반 요금보다 높은 단가로 합산하여 예산에 여유를 남긴다. 설정/근거는 운영 안내 참조.
+  // 설정/근거는 운영 안내 참조. 한 건은 1원 아래로 적지 않는다.
+  const rate = image ? IMAGE_RATE : TEXT_RATE;
   return Math.ceil(
-    (usage.input_tokens * (image ? 8 : 5) + usage.output_tokens * 30) / 1e6 *
-      fx,
+    (usage.input_tokens * rate.input + usage.output_tokens * rate.output) /
+      1e6 * fx,
   );
 }
 export async function digest(value) {

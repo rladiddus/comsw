@@ -11,7 +11,7 @@ const deptKey = (v) => clean(v).replace(/학과$/, "").replace(/\s+/g, "").toLow
 export const PROMPT = `너는 SBS아카데미 컴퓨터아트학원 수원점 홈페이지에서 수업을 안내하는 친절한 상담원이다. 처음 배우는 사람도 편하게 느끼도록 다정한 "~해요", "~예요" 말투로 답한다. 아래 [홈페이지 자료]만 근거로 답한다.
 
 지킬 것
-1. [홈페이지 자료]에 적힌 내용만 말한다. 자료에는 학과, 과목(커리큘럼), 로드맵, 강사(담당 과목·경력), 준비물(교재·AI 툴), 특강이 있다. 없는 내용(수강료, 할인, 개강일, 수업 시간표, 취업률, 환불, 강사 연락처 등)은 추측하거나 일반 상식으로 채우지 않는다.
+1. [홈페이지 자료]에 적힌 내용만 말한다. 자료에는 학과, 과목(커리큘럼), 로드맵, 강사(담당 과목·경력), 준비물(교재·가격·구매 링크·AI 툴), 특강이 있다. 없는 내용(수강료, 할인, 개강일, 수업 시간표, 취업률, 환불, 강사 연락처 등)은 추측하거나 일반 상식으로 채우지 않는다.
 2. 질문의 일부라도 자료로 답할 수 없으면 아는 부분만 답하고 ask_mentor를 true로 한다. 전혀 답할 수 없으면 아쉽지만 확인할 수 없는 내용이라고 부드럽게 말하고 ask_mentor를 true로 한다. 이때 "자료", "제공된 정보" 같은 말 대신 "제가 안내해 드릴 수 있는 내용에는 없어요"처럼 말한다.
 3. 물어본 수업이 과목 목록에 없으면 그 수업은 없다고 다정하게 말하고, 어떤 수업을 원하는지 묻는다(배우고 싶은 분야, 만들고 싶은 것, 경험 가운데 한두 가지를 예를 들어 묻기). 이름이나 분야가 비슷한 과목이 있으면 1~2개 이름만 먼저 귀띔해도 된다. 이때 ask_mentor는 false로 한다. 사용자가 답하면 앞선 대화와 합쳐 알맞은 과목을 찾아 추천한다.
 4. 과목이 실제로 있는지는 "# 과목"으로만 판단한다. 로드맵이나 준비물에만 나오는 이름은 수업으로 추천하지 않는다. 내용이 "아직 등록되지 않음"인 과목은 더 알맞은 과목이 있으면 추천하지 않는다. 학과와 과목 이름은 적힌 그대로 쓰고, 그 과목이 속한 학과만 말한다.
@@ -32,11 +32,24 @@ OOO학과의 OOO 수업을 추천합니다.
 - 과목이 둘 이상이면 끝에 어떤 사람에게 어느 과목이 맞는지 한 문장으로 견준다.
 - 마지막 줄은 경험이나 목표를 묻는 다정한 질문 한 문장으로 끝낸다.
 
-쓰는 법: 800자 안으로, 짧은 문장과 줄바꿈으로 읽기 쉽게 쓴다. 전문 용어는 쉬운 말로 풀되 [홈페이지 자료]에 없는 사실을 보태지 않는다. 마크다운 기호(**, #, 표)와 링크는 쓰지 않는다.`;
+쓰는 법: 800자 안으로, 짧은 문장과 줄바꿈으로 읽기 쉽게 쓴다. 전문 용어는 쉬운 말로 풀되 [홈페이지 자료]에 없는 사실을 보태지 않는다. 마크다운 기호(**, #, 표)는 쓰지 않는다. 링크(구매 링크, AI 툴 주소)는 물어볼 때만 [홈페이지 자료]에 적힌 주소를 한 글자도 바꾸지 않고 그대로 한 줄에 쓰고, 주소 앞뒤에 다른 기호를 붙이지 않는다. 적힌 링크가 없으면 없다고 말하고 ask_mentor를 true로 한다.`;
 
 const line = (t) => clean(t).replace(/\s*[\r\n]+\s*/g, " / ");
 const split = (v) => clean(v).split(/[,;/\r\n]+/).map(clean).filter(Boolean);
 const subjectKey = (v) => clean(v).replace(/[～]/g, "~").replace(/\s+/g, "").toLowerCase();
+// 준비물 링크: 홈페이지와 같게 http(s)만, 형식이 없으면 https://를 붙임
+const linkOf = (v) => {
+  const u = clean(v);
+  return /^https?:\/\//i.test(u) ? u : !u || /^[a-z][a-z0-9+.-]*:/i.test(u) || /\s/.test(u) ? "" : `https://${u}`;
+};
+// 답변에 자료에 없는 주소가 섞이면 지운다(지어낸 링크 막기).
+export function keepKnownLinks(reply, text) {
+  const known = new Set(text.match(/https?:\/\/\S+/g) ?? []);
+  return reply.replace(/https?:\/\/[^\s<>"'()\[\]가-힣]+/g, (u) => {
+    const bare = u.replace(/[.,;:!?]+$/, "");
+    return known.has(u) ? u : known.has(bare) ? bare : "";
+  });
+}
 const PREP = [["교재", /^교재/], ["준비물", /^준비물/], ["AI 툴", /^AI\s*(툴|도구|tool)/i]];
 
 // 홈페이지 자료 시트들 → AI가 읽을 글(text)과 강사별 커리큘럼(teachers). 메뉴에서 끈 페이지와 숨긴 학과·강사는 뺀다.
@@ -123,9 +136,9 @@ export function buildCatalog({ lessons, menu = [], instructors = [], prep = [], 
       const label = PREP.find(([, re]) => re.test(kind))?.[0];
       if (!name || !label || !clean(v[2]) || HIDE.test(name)) continue;
       const extra = clean(v[5]);
-      byName.set(name, [...(byName.get(name) ?? []), `${label} ${line(v[2])}${extra ? `(${line(extra)})` : ""}`]);
+      byName.set(name, [...(byName.get(name) ?? []), `${label} ${line(v[2])}${extra ? `(${line(extra)})` : ""}${linkOf(v[3]) ? ` ${linkOf(v[3])} ` : ""}`.trim()]);
     }
-    if (byName.size) out.push("", "# 준비물", ...[...byName].map(([n, list]) => `- ${n}: ${list.join(", ")}`));
+    if (byName.size) out.push("", "# 준비물", ...[...byName].map(([n, list]) => `- ${n}: ${list.join(" , ")}`));
   }
   const special = menu.find((v) => clean(v[4]).replace(/\s+/g, "") === "방학특강" && isOn(v[5]) && clean(v[8]));
   if (special && vacation.length) {
@@ -299,7 +312,7 @@ export function createChatHandler({ env, fetcher = fetch }) {
       await finish(chatCost(data.usage, fx));
       const text = (data.output || []).flatMap((o) => o.content || []).filter((c) => c.type === "output_text").map((c) => c.text).join("");
       const { answer, ask_mentor } = JSON.parse(text);
-      let reply = clean(answer);
+      let reply = clean(keepKnownLinks(clean(answer), site.text));
       if (!reply) throw new Error("빈 답변");
       if (ask_mentor && !reply.includes(MENTOR)) reply += `\n\n${MENTOR}.`;
       return send({ reply });

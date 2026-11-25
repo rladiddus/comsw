@@ -270,3 +270,4 @@
 - 2026-11-25 assets/js/chat-widget.js(Shadow DOM, head에서 불러와 window capture로 키·휠 차단), supabase/functions/comsw-chat(handler.mjs: buildCatalog·chatInput·chatCost), 마이그레이션 20261125010000(chat_calls, comsw_chat_reserve/finish/budget, comsw_set_chat_limit), usage.mjs chatBox. 테스트 tools/test/site-chat, admin/test/chat-widget. ChatGPT 구독 로그인 방식은 불가로 안내.
 - 2026-11-25 comsw-chat PROMPT 교체, MAX_OUTPUT 700→1200.
 - 2026-11-25 comsw-chat buildCatalog({lessons,menu,instructors,prep,roadmap,seminars,vacation,curricula}) → {text,teachers,seminars}, tailOf(오늘·특강·이름이 나온 선생님 커리큘럼, 8,000자까지). 채용정보는 넣지 않음(학과별 자료 메뉴 꺼짐).
+- 2026-11-25 comsw-chat linkOf·keepKnownLinks, chat-widget 링크 표시(?v=2).

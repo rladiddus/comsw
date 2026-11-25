@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { as, freshDb } from "./pg.mjs";
-import { buildCatalog, tailOf, chatCost, chatInput, createChatHandler, PROMPT } from "../../supabase/functions/comsw-chat/handler.mjs";
+import { buildCatalog, keepKnownLinks, tailOf, chatCost, chatInput, createChatHandler, PROMPT } from "../../supabase/functions/comsw-chat/handler.mjs";
 
 const lesson = (dept, name, step, text, extra = {}) => {
   const v = Array(26).fill("");
@@ -23,7 +23,7 @@ const SITE = {
     ["김하나", "시각편집학과, AI학과", "AI포토샵, AI자동화, AI크리에이터 시각편집", "2020 전시\n2021 수상", "즐겁게"],
     ["박두리", "숨긴학과", "비밀수업", "비밀경력", ""],
   ],
-  prep: [["포토샵", "교재명", "멘토 포토샵", "https://x", "", "28,000원"], ["", "준비물", "이어폰", "", "", ""], ["AI크리에이터 시각편집", "AI 툴", "미드저니", "", "", ""]],
+  prep: [["포토샵", "교재명", "멘토 포토샵", "https://book.kr/a?b=1", "", "28,000원"], ["", "준비물", "이어폰", "javascript:alert(1)", "", ""], ["", "AI 툴", "GPT", "chatgpt.com", "", ""], ["AI크리에이터 시각편집", "AI 툴", "미드저니", "", "", ""]],
   roadmap: [["시각편집학과", "AI포토샵", "AI크리에이터 아트웍", ""], ["시각편집학과", "", "", ""], ["시각편집학과", "문구", "", ""]],
   seminars: [["", "옛 특강", "소주제", "2026년 8월 5일 11:00-13:00", "김하나", "J강의장", "16", "0"], ["", "새 특강", "", "2027년 1월 3일", "김하나", "", "10", "0"]],
   curricula: {
@@ -44,7 +44,8 @@ test("재료: 강사(담당은 그 학과 과목만·경력)·준비물·로드�
   const site = buildCatalog(SITE);
   assert.match(site.text, /## AI포토샵[\s\S]*?담당 선생님: 김하나\n/);
   assert.match(site.text, /## 김하나 선생님\n시각편집학과 담당: AI포토샵\nAI학과 담당: AI자동화\n경력: 2020 전시 \/ 2021 수상\n한마디: 즐겁게/);
-  assert.match(site.text, /# 준비물\n- 포토샵: 교재 멘토 포토샵\(28,000원\), 준비물 이어폰/);
+  assert.match(site.text, /# 준비물\n- 포토샵: 교재 멘토 포토샵\(28,000원\) https:\/\/book\.kr\/a\?b=1 , 준비물 이어폰 , AI 툴 GPT https:\/\/chatgpt\.com\n?/);
+  assert.ok(!site.text.includes("javascript:"));
   assert.match(site.text, /# 로드맵\(배우는 순서\)\n- 시각편집학과: AI포토샵\n/);
   const now = Date.parse("2026-11-25T03:00:00Z");
   const tail = tailOf(site, [{ role: "user", content: "특강 있어?" }], now);
@@ -65,6 +66,12 @@ test("재료: 메뉴에서 끈 페이지의 내용은 빠짐(방학 특강은 �
   const vacation = [["강사이름", "웹툰특강", "1단계", "", "콘티"]];
   assert.match(buildCatalog({ ...SITE, vacation, menu: [menu("방학 특강", "true", "겨울특강")] }).text, /# 방학 특강\(겨울특강\)\n- 웹툰특강: 1단계 콘티/);
   assert.ok(!buildCatalog({ ...SITE, vacation, menu: [menu("방학 특강", "false", "겨울특강")] }).text.includes("웹툰특강"));
+});
+
+test("답변의 링크: 자료에 있는 주소만 남기고 지어낸 주소는 지움", () => {
+  const text = "교재 https://book.kr/a?b=1 , 다른 글";
+  assert.equal(keepKnownLinks("구매: https://book.kr/a?b=1", text), "구매: https://book.kr/a?b=1");
+  assert.equal(keepKnownLinks("https://book.kr/a?b=1. 또는 https://fake.kr/x", text), "https://book.kr/a?b=1 또는 ");
 });
 
 test("대화: 최근 8개, 길이 제한, 마지막은 질문", () => {

@@ -7,7 +7,7 @@ const ROOT = new URL("../../", import.meta.url);
 const CODE = readFileSync(new URL("assets/js/chat-widget.js", ROOT), "utf8");
 const flush = async () => { for (let i = 0; i < 8; i++) await new Promise((r) => setTimeout(r, 0)); };
 
-function page(store = {}, reply = async () => ({ ok: true, status: 200, json: async () => ({ reply: "<b>추천</b>합니다." }) })) {
+function page(store = {}, reply = async () => ({ ok: true, status: 200, json: async () => ({ reply: "<b>추천</b>합니다. https://book.kr/a?b=1" }) })) {
   const dom = new JSDOM("<!doctype html><body></body>", { url: "https://x/comsw/item.html", runScripts: "outside-only" });
   const w = dom.window;
   for (const [k, v] of Object.entries(store)) w.sessionStorage.setItem(k, v);
@@ -40,7 +40,9 @@ test("아이콘 → 채팅창 → 질문·답변(글자로만) → 닫으면 아
   await flush();
   assert.equal(p.sent[0][0], "https://db/functions/v1/comsw-chat");
   assert.deepEqual(p.sent[0][1].messages, [{ role: "user", content: "AI로 이미지를 만드는 수업을 알려줘" }]);
-  assert.equal(p.texts().at(-1), "<b>추천</b>합니다.");
+  assert.equal(p.texts().at(-1), "<b>추천</b>합니다. https://book.kr/a?b=1");
+  const link = p.root.querySelector(".msg a");
+  assert.deepEqual([link.href, link.target, link.rel], ["https://book.kr/a?b=1", "_blank", "noopener noreferrer"]);
   assert.equal(p.root.querySelector(".msg b"), null, "답변을 HTML로 읽지 않음");
   p.$(".x").click();
   assert.ok(p.$(".win").hidden && !p.$(".icon").hidden);

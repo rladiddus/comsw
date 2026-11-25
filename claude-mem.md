@@ -181,3 +181,4 @@
 - 학생 사이트에 새 페이지를 만들면 supabase-config.js 다음 줄에 chat-widget.js도 넣기(테스트가 14개 페이지를 셈).
 - 챗봇 AI는 OpenAI API 유지(ChatGPT 구독 로그인은 이미지 미지원·계정 공유 금지로 제외, 2026-11-25). 지시문은 comsw-chat/handler.mjs PROMPT, 고치면 함수 재배포 필요.
 - 챗봇에서 뺄 과목은 comsw-chat/handler.mjs HIDE. AI크리에이터 아트웍은 2026-11-25 현재 홈페이지(학과 커리큘럼 아트웍학과·로드맵)에는 보이지만 사용자 요청으로 챗봇에서 뺌.
+- chat-widget.js를 고치면 14개 페이지의 ?v= 번호도 올리기.

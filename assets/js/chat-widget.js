@@ -42,7 +42,7 @@
     + '.msg{max-width:86%;padding:10px 13px;border-radius:14px;font-size:15px;line-height:1.55;white-space:pre-wrap;overflow-wrap:anywhere;word-break:keep-all;user-select:text;-webkit-user-select:text}'
     + '.assistant{align-self:flex-start;background:#fff;border-bottom-left-radius:4px;box-shadow:0 1px 3px rgba(0,0,0,.08)}'
     + '.user{align-self:flex-end;background:#5b3fe0;color:#fff;border-bottom-right-radius:4px}'
-    + '.wait{color:#5f6072}.err{background:#fff1f0;color:#a4241b}'
+    + '.assistant a{color:#2451c7;text-decoration:underline;word-break:break-all}.user a{color:#fff}.wait{color:#5f6072}.err{background:#fff1f0;color:#a4241b}'
     + 'form{flex:none;display:flex;gap:8px;align-items:flex-end;padding:10px 12px 6px;background:#fff;border-top:1px solid #e4e5f0}'
     + 'textarea{flex:1;height:44px;max-height:110px;padding:10px 12px;border:1px solid #c9cbdd;border-radius:12px;font-size:16px;line-height:1.4;color:#1b1b2b;background:#fff;resize:none}'
     + '.send{flex:none;height:44px;padding:0 16px;border:0;border-radius:12px;background:#5b3fe0;color:#fff;font-size:15px;font-weight:700;cursor:pointer}'
@@ -132,7 +132,15 @@
   function bubble(role, text, extra) {
     var el = document.createElement('div');
     el.className = 'msg ' + role + (extra ? ' ' + extra : '');
-    el.textContent = text; // 글자로만 넣는다(HTML로 읽지 않음)
+    // 글자로만 넣는다(HTML로 읽지 않음). http(s) 주소만 새 창으로 열리는 링크로.
+    text.split(/(https?:\/\/[^\s<>"'()\[\]가-힣]+)/).forEach(function(part, i) {
+      if (i % 2 === 0) { el.append(part); return; }
+      var a = document.createElement('a');
+      a.href = a.textContent = part;
+      a.target = '_blank';
+      a.rel = 'noopener noreferrer';
+      el.append(a);
+    });
     log.append(el);
     log.scrollTop = log.scrollHeight;
     return el;

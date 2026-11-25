@@ -128,7 +128,7 @@
 - V4 강사 커리큘럼: 검수(pending)는 confirm_curriculum, 검수 완료 수정은 edit_curriculum. 이미지는 없는 단계만 올리기.
 - 2026-11-20 기준 V4 운영 SQL 20261120020000~050000 실행 확인.
 - V4 이미지 바꾸기 팝업은 ui.pickImage 재사용.
-- 학생용 정비 모드: index.html MAINTENANCE 상수. 미리보기는 index2.html. 정비 끝나면 false로 바꾸고 배포.
+- 학생용 정비 모드: index.html MAINTENANCE 상수. 미리보기는 index2.html. 2026-11-25 정비 끝(false). 다시 켤 때 true로 바꾸고 배포.
 - 커리큘럼 이미지 썸네일 = 주소 뒤 #crop=x,y,w,h(원본 대비). 고르기 창 admin/js/image-crop.mjs, 공개 쪽 assets/js/media-crop.js.
 - V4 학과 구성 표 = 공개 학과 커리큘럼 칸(subjects.duration·dept_curriculum·program(tools)·level). 과목 정보는 모든 학과 공유.
 - V4 원칙: 반영은 오른쪽 아래 창. 팝업에는 [수정]만(사이트 적용 버튼 두지 않음).

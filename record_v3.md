@@ -278,3 +278,4 @@
 - 2026-11-25 comsw-chat PROMPT "ask_mentor 정하기", AI가 쓴 멘토 문장은 떼고 서버가 한 번만 붙임.
 - 2026-11-25 subjectPicker를 instructors.mjs에서 admin-v4/js/subject-picker.mjs로 옮겨 강사·학과 구성이 같이 씀(title 인자 추가), deptLayout에 cat 전달.
 - 2026-11-25 changes.mjs applyNotice(text, id, {msg, kind, state}): 안내+버튼 공용, applyList(dirty, state)로 지금 보이는 설정 반영. roadmap·common-editor 사용, publishBanner는 .apply-notice 모양만.
+- 2026-11-25 index.html MAINTENANCE false. 정비 코드와 index2.html은 다음 정비 때 쓰도록 남김.

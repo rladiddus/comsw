@@ -128,6 +128,9 @@ test("없는 내용이면 '멘토님께 문의해주세요'를 한 번만 덧붙
   assert.equal(one.reply, "수강료는 확인할 수 없습니다.\n\n멘토님께 문의해주세요.");
   const two = await (await setup({ answer: { answer: "확인할 수 없습니다. 멘토님께 문의해주세요.", ask_mentor: true } }).ask()).json();
   assert.equal(two.reply.match(/멘토님께/g).length, 1);
+  assert.equal(two.reply, "확인할 수 없습니다.\n\n멘토님께 문의해주세요.");
+  const three = await (await setup({ answer: { answer: "강태안 선생님이 담당해요. 멘토님께 문의해주세요.", ask_mentor: false } }).ask()).json();
+  assert.equal(three.reply, "강태안 선생님이 담당해요.", "다 답했으면 안 붙임");
 });
 
 test("막기: 다른 사이트·주소 없는 요청·잘못된 질문, 한도·오류 안내(내부 오류는 숨김)", async () => {

@@ -275,3 +275,4 @@
 - 2026-11-25 comsw-tools/comsw-chat model gpt-6-luna, reasoning.effort none, temperature 뺌(지원 확인 안 됨). TEXT_RATE 0.15/0.75, chatCost 0.125/0.01/0.5.
 - 2026-11-25 comsw-chat reasoning.effort low, MAX_OUTPUT 4000.
 - 2026-11-25 comsw-chat PROMPT 4·5·7번 보완(경력 그대로, 학과 이름, 문의 안내는 서버가 붙임).
+- 2026-11-25 comsw-chat PROMPT "ask_mentor 정하기", AI가 쓴 멘토 문장은 떼고 서버가 한 번만 붙임.

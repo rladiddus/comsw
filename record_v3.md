@@ -266,3 +266,4 @@
 - 2026-11-24 common-editor fillFrom(강사 자료 → 4단계 초안), touched(보기에서는 tracker read = baseline), bringBtn.
 - 2026-11-24 courses draftOf(적용한 공통이 없는 과목만 fillFrom) → dept-layout materialOf(steps, text, draft)·stepPill.
 - 2026-11-24 instructorUnits u.off, common-editor assignedFirst(courses 초안도 같은 함수), Curriculum_full(_tablet) getAllInstructorCurriculumFromSupabase 담당 과목 거르기.
+- 2026-11-25 Curriculum_full(·_tablet) getInstructorListFromSupabase가 전체수업 B열로 학과 과목만 남김(학과 이름 정확히 일치), openPanel에서 closeInstructorLightbox(true), .instructor-close-btn 오른쪽 위 고정.

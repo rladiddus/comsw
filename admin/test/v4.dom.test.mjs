@@ -1721,3 +1721,25 @@ test("학생 사이트 강사 단계 크게 보기: 담당 과목의 단계만 �
     assert.deepEqual(out.items.map((x) => x.subjectName), ["캐드 1"], file);
   }
 });
+
+test("학생 사이트 강사 소개: 과목 버튼은 보고 있는 학과의 과목만(PC·태블릿), 다른 학과를 고르면 강사 상세 닫힘", async () => {
+  const { readFileSync } = await import("node:fs");
+  for (const file of ["Curriculum_full.html", "Curriculum_full_tablet.html"]) {
+    const src = readFileSync(new URL(`../../${file}`, import.meta.url), "utf8");
+    const pick = (re) => src.match(re)[0];
+    const code = [/function normalizeText\(v\)[\s\S]*?\n    \}/, /function splitMultiValue[\s\S]*?\n    \}/, /function curriculumMatchKey[\s\S]*?\n    \}/,
+      /async function getInstructorListFromSupabase[\s\S]*?return instructors;\s*\}/].map(pick).join("\n");
+    const lesson = (dept, name) => ["", dept, name, "1단계"];
+    const sheets = {
+      강사페이지: [["최강사", "모션그래픽학과, CG학과, AI학과", "CG1, 2D 모션1, AI자격증, 학과없음", "", "", ""], ["박강사", "CG학과", "CG1", "", "", ""]],
+      전체: [lesson("CG", "CG1"), lesson("모션그래픽, CG", "2D모션1"), lesson("디자인·IT·AI 자격증", "AI자격증")],
+    };
+    const run = (dept) => new Function("fetchSupabaseRowsForSheet", "getRawValues", "convertDriveUrl", "INSTRUCTOR_SHEET_NAME", "CURRICULUM_SHEET_NAME",
+      `${code}; return getInstructorListFromSupabase(${JSON.stringify(dept)});`)(async (s) => sheets[s], (r) => r, (x) => x, "강사페이지", "전체");
+    const subjects = async (dept) => Object.fromEntries((await run(dept)).map((x) => [x.name, x.subjects]));
+    assert.deepEqual(await subjects("모션그래픽학과"), { 최강사: ["2D 모션1"] }, file);
+    assert.deepEqual(await subjects("CG학과"), { 최강사: ["CG1", "2D 모션1"], 박강사: ["CG1"] }, file);
+    assert.deepEqual(await subjects("AI학과"), { 최강사: [] }, "'디자인·IT·AI 자격증'은 AI학과가 아님");
+    assert.match(src, /function openPanel\(dept\) \{\s*closeInstructorLightbox\(true\);/);
+  }
+});

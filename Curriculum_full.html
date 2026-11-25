@@ -1955,16 +1955,21 @@
                 transform 0.4s cubic-bezier(0.4, 0, 0.2, 1),
                 background 0.2s ease;
   }
+  /* 닫기(X): 오른쪽 위에 항상 보임 (2026-11-25) */
   .instructor-close-btn {
+    top: 30px;
+    bottom: auto;
     right: 30px;
-    font-size: 22px;
+    font-size: 26px;
     font-weight: 900;
+    opacity: 1;
+    pointer-events: auto;
+    transform: none;
   }
   .instructor-expand-btn {
-    right: 90px;             /* 닫기 버튼(30+48) + 12px gap */
+    right: 30px;
   }
-  .instructor-expand-btn.visible,
-  .instructor-close-btn.visible {
+  .instructor-expand-btn.visible {
     opacity: 1;
     pointer-events: auto;
     transform: translateY(0);
@@ -2630,7 +2635,10 @@
       const closeBtn = document.createElement('button');
       closeBtn.className = 'instructor-close-btn';
       closeBtn.id = 'instructor-close-btn';
+      closeBtn.type = 'button';
       closeBtn.textContent = '×';
+      closeBtn.title = '닫기';
+      closeBtn.setAttribute('aria-label', '강사 소개 닫기');
       closeBtn.addEventListener('click', function(e) {
         e.stopPropagation();
         closeInstructorLightbox(true);  // 🎯 force=true: 라이트박스 통째로 닫음
@@ -2648,18 +2656,14 @@
         const y = e.clientY - rect.top;
         const inRightBottom = (x > rect.width - HOVER_CORNER) && (y > rect.height - HOVER_CORNER);
         const expandBtn = lb.querySelector('.instructor-expand-btn');
-        const closeBtn = lb.querySelector('.instructor-close-btn');
         if (inRightBottom) {
           expandBtn.classList.add('visible');
-          closeBtn.classList.add('visible');
         } else {
           expandBtn.classList.remove('visible');
-          closeBtn.classList.remove('visible');
         }
       });
       lb.addEventListener('mouseleave', function() {
         lb.querySelector('.instructor-expand-btn').classList.remove('visible');
-        lb.querySelector('.instructor-close-btn').classList.remove('visible');
       });
     }
   }
@@ -4634,6 +4638,14 @@
       const rows = await fetchSupabaseRowsForSheet(INSTRUCTOR_SHEET_NAME);
       const targetDeptKey = normalizeText(deptName).replace(/\s+/g, '');
       const instructors = [];
+      // 과목 버튼은 이 학과의 과목(전체수업 B열 = 학과 구성)만: 강사가 여러 학과에 있어도 다른 학과 과목은 안 나옴 (2026-11-25)
+      const deptKeyOf = function(v) { return curriculumMatchKey(normalizeText(v).replace(/학과$/, '')); };
+      const inDept = {};
+      (await fetchSupabaseRowsForSheet(CURRICULUM_SHEET_NAME)).forEach(function(row) {
+        const values = getRawValues(row);
+        if (splitMultiValue(values[1]).map(deptKeyOf).indexOf(deptKeyOf(deptName)) === -1) return;
+        inDept[curriculumMatchKey(values[2])] = true;
+      });
 
       rows.forEach(function(row) {
         const values = getRawValues(row);
@@ -4653,7 +4665,7 @@
         instructors.push({
           name: name,
           depts: depts,
-          subjects: subjects, // 2026-11-18: 담당 과목(수업 설정)과 같게. 커리큘럼이 없는 과목은 누르면 '준비 중입니다'
+          subjects: subjects.filter(function(s) { return inDept[curriculumMatchKey(s)]; }), // 2026-11-18: 담당 과목(수업 설정)과 같게. 커리큘럼이 없는 과목은 누르면 '준비 중입니다'
           career: career,
           message: message,
           img: img ? convertDriveUrl(img) : ''
@@ -5001,6 +5013,7 @@
     /* ============================================== */
     
     function openPanel(dept) {
+      closeInstructorLightbox(true); // 다른 학과를 고르면 열려 있던 강사 상세는 닫음 (2026-11-25)
       activeDeptName = dept.name;
       
       document.querySelectorAll('.dept-item').forEach(el => {

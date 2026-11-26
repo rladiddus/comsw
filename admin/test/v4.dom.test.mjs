@@ -1828,3 +1828,37 @@ test("로드맵 [이대로 사이트 적용]: 바꾼 것이 없어도 홈페이�
   main = await open("roadmap", undefined, fake);
   assert.equal(main.querySelector(".apply-notice"), null, "같으면 안내 없음");
 });
+
+test("로드맵 학과 탭: 이름(단계 수), 끌어서 순서를 바꾸면 [사이트 적용]으로 홈페이지 로드맵 순서 저장", async () => {
+  document.querySelectorAll("dialog").forEach((d) => d.remove());
+  const fake = db();
+  const calls = [];
+  fake.rpc = async (name, args) => { calls.push([name, args]); return { data: false, error: null }; };
+  const extra = {
+    roadmap_tracks: [{ id: "t1", department_id: "d1", name: "건축학과", sort_order: 1 }, { id: "t2", department_id: "d2", name: "시각학과", sort_order: 0 }],
+    roadmap_steps: [{ id: "st2", track_id: "t2", position: 1, summary: "" }],
+    roadmap_step_subjects: [{ step_id: "st2", subject_id: "s3", sort_order: 1 }],
+  };
+  const base = fake.from.bind(fake);
+  fake.from = (t) => (t in extra ? fakeSupabase({ ...extra }).from(t) : base(t));
+  const main = await open("roadmap", undefined, fake);
+  const chips = () => [...main.querySelectorAll(".dept-chips button")];
+  chips()[0].click();
+  assert.deepEqual(chips().map((b) => b.textContent), ["시각학과(1)", "건축학과(0)"], "로드맵 순서, 괄호는 단계 수");
+  chips()[1].click();
+  assert.match(main.textContent, /건축학과 · 과목 2개 → 로드맵 2단계/);
+  assert.equal(chips()[1].textContent, "건축학과(2)", "고른 학과는 지금 화면의 단계 수");
+  await flush();
+  assert.ok(document.querySelector(".change-bar")?.hidden !== false, "고르기만 하면 창 없음");
+  const Ev = dom.window.Event;
+  chips()[1].dispatchEvent(new Ev("dragstart", { bubbles: true }));
+  chips()[0].dispatchEvent(Object.assign(new Ev("dragover", { bubbles: true, cancelable: true }), { clientX: 0 }));
+  chips()[0].dispatchEvent(new Ev("drop", { bubbles: true, cancelable: true }));
+  await flush();
+  assert.deepEqual(chips().map((b) => b.textContent), ["건축학과(2)", "시각학과(1)"]);
+  globalThis.confirm = () => true;
+  barBtn("사이트 적용").click();
+  await flush();
+  assert.deepEqual(calls.find(([n]) => n === "comsw_v4_save_roadmap_order")?.[1], { p_departments: ["d1", "d2"] });
+  assert.ok(!calls.some(([n]) => n === "comsw_v4_save_roadmap"), "학과 순서만 바꾸면 그 학과 로드맵은 저장 안 함");
+});

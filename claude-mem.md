@@ -192,3 +192,4 @@
 - 홈페이지 로드맵은 roadmap_tracks 전부를 보여 줌(학과 연결 여부 상관없음). V4는 학과에 연결된 줄만 다룸. 지운 예전 줄은 comsw_private.roadmap_track_backup.
 - 로드맵 한 단계 이름 합치기는 페이지(mergeNumberedSubjectNames)와 V4 roadmapLabel이 같은 규칙. 공개 SQL v4_roadmap_label은 단일 숫자만 합침(범위는 페이지가 합침).
 - 강사별 커리큘럼 크게 보기: 이전·다음은 누른 과목의 단계만(2026-11-26 사용자 요청).
+- 홈페이지 로드맵 학과 순서는 roadmap_tracks.sort_order(V4 로드맵 탭 끌기), 학과 순서(departments.sort_order)와 따로. 5단계 이하 둘 연속이면 한 줄(roadmap.html groupIntoRows).

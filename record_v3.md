@@ -282,3 +282,4 @@
 - 2026-11-26 migration drop_unlinked_roadmaps: department_id null인 roadmap_tracks 보관 후 삭제, 실행 전 깨끗하면 site_snapshots 바로 공개. 테스트 tools/test/drop-unlinked-roadmaps.test.mjs.
 - 2026-11-26 roadmap(.html/_tablet) subject-name flex-shrink 0, max-height 없앰, fitRowHeights로 행 높이. mergeNumberedSubjectNames·roadmapLabel 범위(n~m) 합침, 하나면 그대로. 공개 SQL v4_roadmap_label은 그대로(페이지가 합침).
 - 2026-11-26 Curriculum_full(.html/_tablet) _showInstructorWeekLightbox에서 items를 누른 subjectName으로 거름. 테스트 tools/test/instructor-lightbox.test.mjs.
+- 2026-11-26 comsw_v4_save_roadmap_order(uuid[]) → roadmap_tracks.sort_order, 트리거 roadmap_track_last(겹치면 맨 아래). roadmap.mjs deptChips, track id roadmap-order.

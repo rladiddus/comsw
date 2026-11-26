@@ -2,10 +2,11 @@
 // 따로 바꾸면 'custom_order'로 공개되고, [학과·과목의 순서와 동기화]로 되돌린다. 과목 사이 [+]를 켜면 앞뒤 과목이 한 단계에 함께.
 // 한 단계 이름: 끝 숫자만 다르면 'AI웹툰 1~6', 아니면 줄바꿈(사용자 결정 2026-11-19). 요약은 직접 쓰거나 [AI 요약](버튼으로만).
 // 바꾸면 떠 있는 창 [임시 저장] / [사이트 적용](이 학과 로드맵만 공개, 예전 단계는 보관).
+// 학과 탭: 이름(단계 수), 끌어서(키보드 Alt+←/→) 홈페이지 로드맵의 위→아래 순서를 바꿈(2026-11-26, 학과 순서와는 따로).
 import * as data from "../data.mjs";
-import { h, head, box, tabs, fill, empty, note, busy, publishBanner } from "../ui.mjs";
+import { h, head, box, fill, empty, note, busy, publishBanner } from "../ui.mjs";
 import { deptOrder, roadmapLabel } from "../rules.mjs";
-import { track, canSwitch, applyNotice } from "../changes.mjs";
+import { track, unsaved, applyNotice } from "../changes.mjs";
 import { moveItem } from "./dept-layout.mjs";
 
 let pick = null;
@@ -28,8 +29,57 @@ export async function render({ main }) {
     const banner = await publishBanner(data.unpublished);
     let d = null; // 지금 학과 편집 상태 { dept, order: [과목 id], joins: [과목 사이 묶음], summaries }
     let dragFrom = null;
+    // 홈페이지 로드맵 학과 순서: 로드맵 줄 순서(sort_order), 줄이 없는 학과는 뒤에 학과 순서대로
+    const trackOfDept = (id) => rm.tracks.find((t) => t.department_id === id);
+    const stepCount = (id) => rm.steps.filter((s) => s.track_id === trackOfDept(id)?.id).length;
+    const pos = (id) => trackOfDept(id)?.sort_order ?? Infinity;
+    const orderBase = cat.departments.map((x, i) => [x.id, i]).sort((a, b) => pos(a[0]) - pos(b[0]) || a[1] - b[1]).map((x) => x[0]);
+    let deptOrderIds = [...orderBase];
+    let dragDept = null;
+    const deptChips = (liveCount) => {
+      const row = h("div", { class: "chips dept-chips", role: "group", "aria-label": "학과(끌어서 홈페이지 로드맵 순서 바꾸기)" });
+      const clear = () => row.querySelectorAll(".drop-before,.drop-after").forEach((x) => x.classList.remove("drop-before", "drop-after"));
+      const byId = new Map(cat.departments.map((x) => [x.id, x]));
+      const move = (from, to, focusId) => {
+        deptOrderIds = moveItem(deptOrderIds, from, to);
+        draw();
+        if (focusId) out.querySelector(`.dept-chips [data-dept="${focusId}"]`)?.focus();
+      };
+      deptOrderIds.forEach((id, i) => {
+        const x = byId.get(id);
+        if (!x) return;
+        const b = h("button", {
+          type: "button", draggable: "true", "data-dept": id, "aria-pressed": String(id === pick),
+          title: `${x.name} · 로드맵 ${id === pick ? liveCount : stepCount(id)}단계 · 끌어서(Alt+←/→) 홈페이지 로드맵 순서 바꾸기`,
+          onclick: () => {
+            if (id === pick) return;
+            // 학과 순서만 바꾼 것은 다른 탭으로 가도 그대로라 묻지 않는다
+            if (unsaved(`roadmap:${pick}`) && !confirm("임시 저장하지 않은 바뀐 설정이 있습니다. 바꾸면 사라집니다. 계속할까요?")) return;
+            pick = id; msg.replaceChildren(); draw();
+          },
+          onkeydown: (e) => {
+            if (!e.altKey || !["ArrowLeft", "ArrowRight"].includes(e.key)) return;
+            e.preventDefault();
+            const to = e.key === "ArrowLeft" ? i - 1 : i + 2;
+            if (to >= 0 && to <= deptOrderIds.length) move(i, to, id);
+          },
+          ondragstart: (e) => { dragDept = id; b.classList.add("dragging"); e.dataTransfer?.setData("text/plain", id); },
+          ondragend: () => { dragDept = null; b.classList.remove("dragging"); clear(); },
+          ondragover: (e) => { if (!dragDept) return; e.preventDefault(); const r = b.getBoundingClientRect(); clear(); b.classList.add(e.clientX > r.left + r.width / 2 ? "drop-after" : "drop-before"); },
+          ondrop: (e) => {
+            e.preventDefault();
+            if (!dragDept) return;
+            const from = deptOrderIds.indexOf(dragDept);
+            dragDept = null;
+            move(from, i + (b.classList.contains("drop-after") ? 1 : 0));
+          },
+        }, `${x.name}(${id === pick ? liveCount : stepCount(id)})`);
+        row.append(b);
+      });
+      return row;
+    };
     const draw = () => {
-      pick = cat.departments.some((d) => d.id === pick) ? pick : cat.departments[0]?.id;
+      pick = cat.departments.some((d) => d.id === pick) ? pick : deptOrderIds[0];
       const dept = cat.departments.find((d) => d.id === pick);
       if (!dept) return out.replaceChildren(empty("학과가 없습니다"));
       const deptIds = deptOrder(cat.links.filter((l) => l.department_id === dept.id), subjects).map((x) => x.id);
@@ -143,8 +193,8 @@ export async function render({ main }) {
           h("div", { class: "actions" }, aiBtn, syncBox));
       };
       out.replaceChildren(banner, msg,
-        tabs(cat.departments.map((x) => [x.id, x.name]), pick, (id) => { if (!canSwitch()) return; pick = id; msg.replaceChildren(); draw(); }, "chips"),
-        h("div", { style: "height:14px" }),
+        deptChips(groups.length),
+        h("p", { class: "muted", style: "margin:8px 0 14px" }, "탭을 끌어서 홈페이지 로드맵의 위→아래 순서를 바꿉니다(괄호는 단계 수). 단계가 5개 이하인 학과가 연달아 있으면 홈페이지에서는 한 줄에 두 학과가 나옵니다."),
         box(null,
           h("div", { class: "row" }, h("h3", {}, `${dept.name} · 과목 ${list.length}개 → 로드맵 ${groups.length}단계`),
             custom ? h("div", { class: "actions" }, h("span", { class: "pill warn" }, "학과·과목의 순서와 다릅니다"),
@@ -158,6 +208,13 @@ export async function render({ main }) {
         groups.length ? box("로드맵 단계(홈페이지에 보이는 모양)", note("이름 끝 숫자만 다른 과목은 '이름 1~6'으로, 다른 과목은 줄을 나눠 보여 줍니다."),
           h("div", { class: "steps" }, groups.map(card))) : null);
     };
+    track({
+      id: "roadmap-order", slot: "roadmap-order", title: "로드맵 학과 순서", baseline: orderBase,
+      read: () => deptOrderIds,
+      write: (x) => { if (Array.isArray(x) && x.length === orderBase.length && x.every((id) => orderBase.includes(id))) deptOrderIds = [...x]; draw(); },
+      apply: (x) => data.call("comsw_v4_save_roadmap_order", { p_departments: x }),
+      onApplied: () => render({ main }), // 그 학과 편집기는 그대로 두고(함께 적용할 수 있음) 새로 그림
+    });
     draw();
     return out;
   });

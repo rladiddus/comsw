@@ -361,8 +361,9 @@ dialog.blocker p { margin: 14px 0 0; font-weight: 700; font-size: 15px; }
 .fb-bar { height: 8px; border-radius: 4px; background: var(--line); overflow: hidden; }
 .fb-bar i { display: block; height: 100%; background: #f5a623; }
 .fb-stars { color: #f5a623; white-space: nowrap; letter-spacing: 1px; }
-.fb-talk { display: flex; flex-direction: column; gap: 10px; max-width: 640px; }
-.fb-msg { padding: 10px 12px; border-radius: 10px; background: var(--soft); }
+.fb-talk { display: flex; flex-direction: column; gap: 10px; }
+dialog.modal.modal-talk { width: min(760px, calc(100vw - 32px)); height: fit-content; max-height: calc(100vh - 32px); } /* 상담 평가 대화: 길면 .modal-main 안에서 스크롤 */
+.fb-msg { display: block; padding: 10px 12px; border-radius: 10px; background: var(--soft); } /* .user(위쪽 사용자 표시)의 가로 배치를 따르지 않게 */
 .fb-msg.assistant { background: #fff; border: 1px solid var(--line); }
 .fb-msg b { font-size: 12px; color: var(--sub); }
 .fb-msg p { margin: 4px 0 0; white-space: pre-line; line-height: 1.6; }

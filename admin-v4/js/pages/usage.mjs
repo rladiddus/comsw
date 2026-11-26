@@ -140,10 +140,13 @@ export function feedbackBox(list, month) {
   return box(`상담 평가 · 이번 달 평균 ${avg}점 · ${mine.length}건`, dist,
     h("p", { class: "muted" }, "방문자가 [상담 끝내기]나 채팅창 닫기에서 남긴 별점입니다. 최근 3개월만 보관합니다. 줄을 누르면 그 대화를 봅니다."), filter.el, rows);
 }
+// 대화 팝업: 내용만큼 높이(화면보다 길면 안에서 스크롤), 너비 760px
 function talkPopup(f) {
-  modal(`상담 평가 ${starsOf(f.stars)} · ${formatSeoul(f.created_at)}`, h("section", { class: "box fb-talk", style: "margin:0" },
-    f.comment ? note(`한마디: ${f.comment}`) : null,
-    ...f.messages.map((m) => h("div", { class: `fb-msg ${m.role}` }, h("b", {}, m.role === "user" ? "방문자" : "챗봇"), h("p", {}, m.content)))));
+  const pop = modal(`상담 평가 ${starsOf(f.stars)} · ${formatSeoul(f.created_at)}`, h("div", { class: "modal-body" }, h("div", { class: "modal-main" },
+    h("section", { class: "box fb-talk", style: "margin:0" },
+      f.comment ? note(`한마디: ${f.comment}`) : null,
+      ...f.messages.map((m) => h("div", { class: `fb-msg ${m.role}` }, h("b", {}, m.role === "user" ? "방문자" : "챗봇"), h("p", {}, m.content)))))));
+  pop.dlg.classList.add("modal-talk");
 }
 
 function limitPopup(rpc, now, help, reload) {

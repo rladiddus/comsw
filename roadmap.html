@@ -210,6 +210,9 @@
       position: absolute;
       top: 41px;        /* 막대 아래 (다이아몬드 점 아래) */
       min-height: 89px; /* 글이 길면 늘어나고 행 높이도 함께(fitRowHeights) */
+      cursor: pointer;  /* 누르면 과목 커리큘럼 팝업 */
+      border-radius: 10px;
+      transition: background 0.15s ease;
       z-index: 2;
       display: flex;
       flex-direction: column;
@@ -217,6 +220,8 @@
       text-align: center;
       padding-top: 3px;
     }
+    .subject-box:hover, .subject-box:focus-visible { background: rgba(0, 0, 0, 0.04); outline: none; }
+    .subject-box:hover .subject-name { color: #ff512f; }
     .subject-name {
       display: flex;
       flex-direction: column;
@@ -959,6 +964,12 @@
         // 과목 박스
         const box = document.createElement('div');
         box.className = 'subject-box';
+        // 과목 블록을 누르면 그 과목의 커리큘럼 팝업(학과 커리큘럼 페이지의 과목 팝업과 같은 모양, 2026-11-26)
+        box.title = '눌러서 커리큘럼 보기';
+        box.setAttribute('role', 'button');
+        box.tabIndex = 0;
+        box.addEventListener('click', function() { openSubjectCurriculum(dept.deptName, dept.engName || '', subj.name); });
+        box.addEventListener('keydown', function(e) { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openSubjectCurriculum(dept.deptName, dept.engName || '', subj.name); } });
         box.style.left  = boxLeft + 'px';
         box.style.width = boxW + 'px';
 
@@ -1058,6 +1069,17 @@
     /* ============================================== */
     /*  학과 커리큘럼 표 팝업                              */
     /* ============================================== */
+    // 과목 커리큘럼 팝업(assets/js/subject-popup.js): 전체수업 시트에서 그 학과·과목의 단계를 찾아 보여 준다
+    function openSubjectCurriculum(deptName, engName, label) {
+      if (!window.ComswSubjectPopup) return;
+      window.ComswSubjectPopup.loading();
+      fetchSupabaseRowsForSheet(CURRICULUM_SHEET_NAME)
+        .then(function(rows) {
+          window.ComswSubjectPopup.open({ deptName: deptName, engName: engName, label: label, rows: (rows || []).map(getRawValues) });
+        })
+        .catch(function(err) { window.ComswSubjectPopup.error('오류: ' + (err && err.message ? err.message : err)); });
+    }
+
     function openCurriculumPopup(deptName, initialEngName) {
       if (!deptName) return;
 
@@ -1304,6 +1326,7 @@
       }
     }
   </script>
+<script src="./assets/js/subject-popup.js?v=1"></script>
 <script src="./assets/js/footer-menu.js?v=roadmap-logo-restore-1"></script>
 </body>
 </html>

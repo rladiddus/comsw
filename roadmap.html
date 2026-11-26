@@ -968,8 +968,10 @@
         box.title = '눌러서 커리큘럼 보기';
         box.setAttribute('role', 'button');
         box.tabIndex = 0;
-        box.addEventListener('click', function() { openSubjectCurriculum(dept.deptName, dept.engName || '', subj.name); });
-        box.addEventListener('keydown', function(e) { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openSubjectCurriculum(dept.deptName, dept.engName || '', subj.name); } });
+        // 누른 과목부터 보이고, 좌우로 그 학과 로드맵의 모든 과목을 오간다
+        const openThis = function() { openSubjectCurriculum(dept.deptName, dept.engName || '', dept.subjects.map(function(x) { return x.name; }), s); };
+        box.addEventListener('click', openThis);
+        box.addEventListener('keydown', function(e) { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openThis(); } });
         box.style.left  = boxLeft + 'px';
         box.style.width = boxW + 'px';
 
@@ -1070,12 +1072,12 @@
     /*  학과 커리큘럼 표 팝업                              */
     /* ============================================== */
     // 과목 커리큘럼 팝업(assets/js/subject-popup.js): 전체수업 시트에서 그 학과·과목의 단계를 찾아 보여 준다
-    function openSubjectCurriculum(deptName, engName, label) {
+    function openSubjectCurriculum(deptName, engName, labels, index) {
       if (!window.ComswSubjectPopup) return;
       window.ComswSubjectPopup.loading();
       fetchSupabaseRowsForSheet(CURRICULUM_SHEET_NAME)
         .then(function(rows) {
-          window.ComswSubjectPopup.open({ deptName: deptName, engName: engName, label: label, rows: (rows || []).map(getRawValues) });
+          window.ComswSubjectPopup.open({ deptName: deptName, engName: engName, labels: labels, index: index, rows: (rows || []).map(getRawValues) });
         })
         .catch(function(err) { window.ComswSubjectPopup.error('오류: ' + (err && err.message ? err.message : err)); });
     }
@@ -1326,7 +1328,7 @@
       }
     }
   </script>
-<script src="./assets/js/subject-popup.js?v=1"></script>
+<script src="./assets/js/subject-popup.js?v=3"></script>
 <script src="./assets/js/footer-menu.js?v=roadmap-logo-restore-1"></script>
 </body>
 </html>

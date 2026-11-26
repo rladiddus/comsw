@@ -53,6 +53,25 @@ for (const page of ["roadmap.html", "roadmap_tablet.html"]) {
   test(`${page}: 과목 블록을 누르면 과목 팝업`, () => {
     const html = readFileSync(new URL(page, ROOT), "utf8");
     assert.match(html, /<script src="\.\/assets\/js\/subject-popup\.js\?v=\d+"><\/script>/);
-    assert.match(html, /box\.addEventListener\('click', function\(\) \{ openSubjectCurriculum\(dept\.deptName, dept\.engName \|\| '', subj\.name\); \}\);/);
+    assert.match(html, /openSubjectCurriculum\(dept\.deptName, dept\.engName \|\| '', dept\.subjects\.map\(function\(x\) \{ return x\.name; \}\), s\)/);
+    assert.match(html, /box\.addEventListener\('click', openThis\);/);
+    assert.match(html, /subject-popup\.js\?v=3/);
   });
 }
+
+test("팝업: 학과 전체 과목을 이어 붙이고 누른 과목 화면부터, ‹ › 버튼·좌우 방향키로 오감, 끝에서는 버튼이 꺼짐", () => {
+  const r = (name) => [1, 2, 3, 4].map((k) => row("시각편집", name, `${k}단계`, `${name}${k}`));
+  const data = [...r("AI베이직"), ...r("AI포토샵"), ...r("AI일러스트"), ...r("시각편집 포트폴리오")];
+  window.ComswSubjectPopup.open({ deptName: "시각편집학과", engName: "VISUAL", labels: ["AI베이직", "AI포토샵\nAI일러스트", "시각편집 포트폴리오"], index: 1, rows: data });
+  const doc = window.document;
+  const now = () => doc.querySelector(".sp-slide.active .sp-title").textContent;
+  assert.deepEqual([...doc.querySelectorAll(".sp-title")].map((t) => t.textContent), ["AI베이직", "AI포토샵", "AI일러스트", "시각편집 포트폴리오"]);
+  assert.equal(now(), "AI포토샵", "누른 과목부터");
+  doc.dispatchEvent(new window.KeyboardEvent("keydown", { key: "ArrowLeft" }));
+  assert.equal(now(), "AI베이직");
+  assert.ok(doc.querySelector(".sp-nav.prev").disabled, "맨 앞에서는 ‹ 꺼짐");
+  for (let i = 0; i < 3; i++) doc.querySelector(".sp-nav.next").click();
+  assert.equal(now(), "시각편집 포트폴리오");
+  assert.ok(doc.querySelector(".sp-nav.next").disabled, "맨 끝에서는 › 꺼짐");
+  window.ComswSubjectPopup.close();
+});

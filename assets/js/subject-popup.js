@@ -3,9 +3,11 @@
  * 과목 팝업과 같은 모양(단계 카드 + 이미지, 이미지를 누르면 크게 보기)으로 그 과목의 공통 커리큘럼을 보여 준다.
  * 한 단계에 묶인 과목(예: 'AI포토샵' + 'AI일러스트', 'AI웹툰 1~6')은 과목마다 슬라이드를 이어 붙인다(점·휠·화살표로 넘김).
  *
- * window.ComswSubjectPopup.open({ deptName, engName, label, rows })
+ * window.ComswSubjectPopup.open({ deptName, engName, labels, index, rows })
  *   rows: '컴수원_전체수업' 시트의 값 배열들(B 학과, C 과목, D 단계, F 내용, H 이미지)
- *   label: 로드맵 블록의 과목 이름(쉼표·줄바꿈으로 여러 개, 'AI웹툰 1~6'처럼 합친 이름도 됨)
+ *   labels: 그 학과 로드맵 블록 이름들(순서대로). 쉼표·줄바꿈으로 여러 과목, 'AI웹툰 1~6'처럼 합친 이름도 됨
+ *   index: 누른 블록 번호 → 그 과목 화면부터 보이고, ‹ › 버튼·좌우 방향키·밀기(태블릿)로 학과 전체 과목을 오간다(2026-11-26)
+ *   (예전처럼 label 하나만 줘도 된다)
  */
 (function() {
   'use strict';
@@ -43,8 +45,12 @@
     + '.sp-dots{position:absolute;bottom:3.5%;left:56.7%;transform:translateX(-50%);display:flex;gap:10px;z-index:20}'
     + '.sp-dot{width:8px;height:8px;border-radius:50%;background:rgba(0,0,0,.2);cursor:pointer;border:0;padding:0}'
     + '.sp-dot.active{background:#ff512f;transform:scale(1.3)}'
-    + '.sp-close{position:absolute;right:18px;bottom:18px;z-index:30;width:48px;height:48px;border:none;border-radius:50%;background:#2a2a2a;color:#f6f6f6;font-size:22px;font-weight:900;cursor:pointer;display:flex;align-items:center;justify-content:center}'
+    + '.sp-close{position:absolute;right:18px;top:18px;z-index:30;width:48px;height:48px;border:none;border-radius:50%;background:#2a2a2a;color:#f6f6f6;font-size:22px;font-weight:900;cursor:pointer;display:flex;align-items:center;justify-content:center}'
     + '.sp-close:hover{background:#444}'
+    + '.sp-nav{position:absolute;top:50%;transform:translateY(-50%);z-index:25;width:52px;height:52px;border:none;border-radius:50%;background:rgba(0,0,0,.08);color:#222;font-size:30px;line-height:1;cursor:pointer;display:flex;align-items:center;justify-content:center}'
+    + '.sp-nav:hover{background:rgba(0,0,0,.16)}'
+    + '.sp-nav:disabled{opacity:.25;cursor:default}'
+    + '.sp-nav.prev{left:14px}.sp-nav.next{right:14px}'
     + '.sp-msg{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);color:#999;font-size:20px}'
     + '#sp-lightbox{position:fixed;inset:0;z-index:1200;background:rgba(0,0,0,.7);backdrop-filter:blur(50px);-webkit-backdrop-filter:blur(50px);opacity:0;visibility:hidden;pointer-events:none;transition:opacity .3s ease,visibility 0s linear .3s}'
     + '#sp-lightbox.visible{opacity:1;visibility:visible;pointer-events:auto;transition:opacity .3s ease,visibility 0s linear 0s}'
@@ -84,12 +90,24 @@
     popup.setAttribute('role', 'dialog');
     popup.setAttribute('aria-modal', 'true');
     popup.innerHTML = '<div class="sp-panel"><div class="sp-view"><div class="sp-scale"></div><div class="sp-msg"></div></div>'
+      + '<button type="button" class="sp-nav prev" aria-label="이전 과목 화면">‹</button><button type="button" class="sp-nav next" aria-label="다음 과목 화면">›</button>'
       + '<div class="sp-dots"></div><button type="button" class="sp-close" aria-label="닫기" title="닫기">×</button></div>';
     document.body.appendChild(popup);
     scaleBox = popup.querySelector('.sp-scale');
     dotsBox = popup.querySelector('.sp-dots');
     msgBox = popup.querySelector('.sp-msg');
     popup.querySelector('.sp-close').addEventListener('click', close);
+    popup.querySelector('.sp-nav.prev').addEventListener('click', function() { go(current - 1); });
+    popup.querySelector('.sp-nav.next').addEventListener('click', function() { go(current + 1); });
+    // 태블릿: 좌우로 밀어서 넘기기
+    var touchX = null;
+    popup.addEventListener('touchstart', function(e) { touchX = e.touches.length === 1 ? e.touches[0].clientX : null; }, { passive: true });
+    popup.addEventListener('touchend', function(e) {
+      if (touchX == null || lightbox.classList.contains('visible')) return;
+      var dx = e.changedTouches[0].clientX - touchX;
+      touchX = null;
+      if (Math.abs(dx) > 50) go(current + (dx < 0 ? 1 : -1));
+    }, { passive: true });
     popup.addEventListener('click', function(e) { if (e.target === popup) close(); });
     popup.addEventListener('wheel', function(e) {
       if (!popup.classList.contains('visible') || slides.length <= 1 || Math.abs(e.deltaY) < 20) return;
@@ -197,8 +215,10 @@
   function build(engName, list) {
     slides = [];
     weeks = [];
+    var firstSlide = {};
     list.forEach(function(s) {
       var start = weeks.length;
+      firstSlide[s.name] = slides.length;
       s.weeks.forEach(function(w) { weeks.push({ subject: s.name, week: w }); });
       if (s.weeks.length <= 4) { slides.push(slideFor(engName, s, s.weeks, '', start)); return; }
       var chunks = [];
@@ -220,8 +240,14 @@
     });
     paintDots();
     fit();
+    return firstSlide;
   }
-  function paintDots() { [].forEach.call(dotsBox.children, function(d, i) { d.classList.toggle('active', i === current); }); }
+  function paintDots() {
+    [].forEach.call(dotsBox.children, function(d, i) { d.classList.toggle('active', i === current); });
+    popup.querySelector('.sp-nav.prev').disabled = current <= 0;
+    popup.querySelector('.sp-nav.next').disabled = current >= slides.length - 1;
+    popup.querySelectorAll('.sp-nav').forEach(function(b) { b.hidden = slides.length <= 1; });
+  }
   function go(i) {
     if (i < 0 || i >= slides.length || i === current) return;
     slides[current].classList.remove('active');
@@ -299,11 +325,17 @@
     },
     open: function(opts) {
       mount();
-      var list = resolve(opts.label, subjectsOf(opts.deptName, opts.rows || []));
+      var all = subjectsOf(opts.deptName, opts.rows || []);
+      var labels = opts.labels || [opts.label];
+      var index = opts.labels ? (opts.index || 0) : 0;
+      var list = [];
+      labels.forEach(function(l) { resolve(l, all).forEach(function(s) { if (list.indexOf(s) < 0) list.push(s); }); });
+      var picked = resolve(labels[index], all);
       popup.classList.add('visible');
-      if (!list.length) { message('해당 과목의 상세 커리큘럼이 없습니다.'); return; }
+      if (!picked.length) { message('해당 과목의 상세 커리큘럼이 없습니다.'); return; }
       msgBox.style.display = 'none';
-      build(opts.engName || '', list);
+      var firstSlide = build(opts.engName || '', list);
+      go(firstSlide[picked[0].name] || 0); // 누른 과목 화면부터
       popup.querySelector('.sp-close').focus();
     },
     error: function(text) { mount(); message(text); popup.classList.add('visible'); },

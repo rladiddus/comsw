@@ -680,15 +680,6 @@
       return supabaseSheetCache[cacheKey];
     }
 
-    function splitRoadmapSubjects(value) {
-      const text = normalizeText(value);
-      if (!text) return [];
-      return text
-        .split(/[,\n\r]+|\s+\/\s+/g)
-        .map(function(part) { return normalizeText(part).replace(/\s+/g, ' '); })
-        .filter(function(part) { return part.length > 0; });
-    }
-
     function buildDeptGroupsFromRoadmapRows(rawRows) {
       const groups = [];
       let current = null;
@@ -763,76 +754,46 @@
       }
     }
 
+    // 로드맵에서 학과 이름을 누르면 나오는 표 = 학과 커리큘럼 페이지(Curriculum_onepage)의 그 학과 표와 같게(2026-11-26).
+    // 학과·과목(학과 구성)이 바뀌면 두 곳이 함께 바뀐다. 로드맵 단계 이름('UIUX 1~2'처럼 합친 이름)으로 찾지 않는다.
+    function deptOrdOf(cell, deptName) {
+      try {
+        var m = JSON.parse(cell || '{}');
+        var key = String(deptName || '').replace(/학과$/, '').replace(/\s+/g, '');
+        for (var k in m) { if (k.replace(/\s+/g, '') === key && typeof m[k] === 'number') return m[k]; }
+      } catch (e) {}
+      return 1e9;
+    }
     async function loadCurriculumSimpleByDeptFromSupabase(deptName) {
-      const roadmapRows = await fetchSupabaseRowsForSheet(ROADMAP_SHEET_NAME);
       const curriculumRows = await fetchSupabaseRowsForSheet(CURRICULUM_SHEET_NAME);
-
       let engName = '';
       curriculumRows.forEach(function(row) {
         const values = getRawValues(row);
-        const dept = normalizeText(values[14]);    // O열
-        const eng = normalizeText(values[20]);     // U열
-        if (dept === deptName && eng) engName = eng;
+        if (normalizeText(values[14]) === deptName && normalizeText(values[20]) && !engName) engName = normalizeText(values[20]); // O열·U열
       });
-
-      const selectedSubjects = [];
-      const selectedSet = {};
-      const targetGroup = buildDeptGroupsFromRoadmapRows(roadmapRows)
-        .find(function(group) { return group.deptName === deptName; });
-
-      if (targetGroup && targetGroup.rows[0]) {
-        const values = targetGroup.rows[0].values;
-        for (let c = 1; c < values.length; c++) {
-          splitRoadmapSubjects(values[c]).forEach(function(subjectName) {
-            if (selectedSet[subjectName]) return;
-            selectedSet[subjectName] = true;
-            selectedSubjects.push(subjectName);
-          });
-        }
-      }
-
-      const rowsBySubject = {};
+      // B열은 학과명에서 '학과'를 뗀 이름들(', '로 이음)
+      const deptKey = normalizeText(deptName).replace(/학과$/, '').replace(/\s+/g, '');
+      const subjects = [];
+      const seen = {};
       curriculumRows.forEach(function(row) {
         const values = getRawValues(row);
-        const subjectName = normalizeText(values[2]); // C열
-        if (!subjectName) return;
-        if (!rowsBySubject[subjectName]) rowsBySubject[subjectName] = [];
-        rowsBySubject[subjectName].push(values);
-      });
-
-      // Supabase 동기화 시 fillMergedValues_()가 C/G/J/K/L 같은 병합 셀을 forward-fill하기
-      // 때문에, 원본 시트에서 한 과목이 4행 병합으로 표현되어 있으면 4행 모두 동일 값으로
-      // 저장되어 표 팝업에 4번 중복 표시되는 문제가 있다 (Apps Script 원본은 빈 셀 자연
-      // 스킵으로 1번만 보였음).
-      // → 같은 (name, duration, content, program, level) 키는 한 번만 push되도록 dedupe.
-      const subjects = [];
-      const seenKeys = {};
-      selectedSubjects.forEach(function(subjectName) {
-        const rows = rowsBySubject[subjectName] || [];
-        rows.forEach(function(values) {
-          const duration = normalizeText(values[6]);  // G열
-          const content = normalizeText(values[9]);   // J열
-          const program = normalizeText(values[10]);  // K열
-          const level = normalizeText(values[11]);    // L열
-          if (!duration && !content && !program && !level) return;
-          const dedupeKey = subjectName + '|' + duration + '|' + content + '|' + program + '|' + level;
-          if (seenKeys[dedupeKey]) return;
-          seenKeys[dedupeKey] = true;
-
-          subjects.push({
-            name: subjectName,
-            duration: duration,
-            content: content,
-            program: program,
-            level: level
-          });
+        const name = normalizeText(values[2]); // C열
+        if (!name || seen[name]) return;
+        const inDept = normalizeText(values[1]).split(',').some(function(d) { return d.replace(/\s+/g, '') === deptKey; });
+        if (!inDept) return;
+        seen[name] = true;
+        subjects.push({
+          name: name,
+          duration: normalizeText(values[6]),  // G열
+          content: normalizeText(values[9]),   // J열
+          program: normalizeText(values[10]),  // K열
+          level: normalizeText(values[11]),    // L열
+          ord: deptOrdOf(values[25], deptName)
         });
       });
-
-      return {
-        engName: engName,
-        subjects: subjects
-      };
+      subjects.forEach(function(s, i) { s.i = i; });
+      subjects.sort(function(a, b) { return (a.ord - b.ord) || (a.i - b.i); });
+      return { engName: engName, subjects: subjects };
     }
 
     /* ============================================== */

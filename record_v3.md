@@ -289,3 +289,4 @@
 - 2026-11-26 instructors.mjs 성별 select 뺌, f.gender는 원래 값 그대로 저장.
 - 2026-11-26 comsw_department_renamed에 roadmap_tracks.name 갱신 추가, 한 번 맞춤 + 깨끗하면 바로 공개. 테스트 tools/test/roadmap-track-dept-name.test.mjs.
 - 2026-11-26 comsw-chat levelOf·seriesOf, PROMPT "과목 소개할 때"(난이도·이어지는 과목·먼저 들으면 좋은 과목·자격증 연계). chat-widget .grip 높이 조절(state.h).
+- 2026-11-26 roadmap(.html/_tablet) loadCurriculumSimpleByDeptFromSupabase를 Curriculum_onepage getCurriculumSimpleByDeptFromSupabase와 같게(B열 학과, Z열 학과별 순서), splitRoadmapSubjects 삭제.

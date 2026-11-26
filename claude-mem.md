@@ -190,3 +190,4 @@
 - V4에서 "홈페이지와 다름"을 알리는 안내는 changes.mjs의 applyNotice로 만든다(안내 오른쪽 [이대로 사이트 적용], 사용자 결정 2026-11-25). 열기만 해서는 떠 있는 창을 띄우지 않는다.
 - 배포 확인은 설명 글(주석)에 없는 실제 코드 줄로(예: "var MAINTENANCE = false;"). 2026-11-25 주석을 보고 배포됐다고 잘못 본 적 있음.
 - 홈페이지 로드맵은 roadmap_tracks 전부를 보여 줌(학과 연결 여부 상관없음). V4는 학과에 연결된 줄만 다룸. 지운 예전 줄은 comsw_private.roadmap_track_backup.
+- 로드맵 한 단계 이름 합치기는 페이지(mergeNumberedSubjectNames)와 V4 roadmapLabel이 같은 규칙. 공개 SQL v4_roadmap_label은 단일 숫자만 합침(범위는 페이지가 합침).

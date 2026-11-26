@@ -135,6 +135,9 @@ test("로드맵: [+]로 묶으면 한 단계, 이름 끝 숫자만 다르면 '�
   const { roadmapLabel } = await import("../../admin-v4/js/rules.mjs");
   assert.equal(roadmapLabel(["AI웹툰1", "AI웹툰2", "AI웹툰3", "AI웹툰4", "AI웹툰5", "AI웹툰6"]), "AI웹툰 1~6");
   assert.equal(roadmapLabel(["AI포토샵", "AI일러스트"]), "AI포토샵\nAI일러스트");
+  assert.equal(roadmapLabel(["디지털 드로잉 1~2", "디지털 드로잉 3~4"]), "디지털 드로잉 1~4", "범위끼리도 합침");
+  assert.equal(roadmapLabel(["디지털 드로잉 5~6", "디지털 드로잉 7~12"]), "디지털 드로잉 5~12");
+  assert.equal(roadmapLabel(["캐드 1~2", "캐드3"]), "캐드 1~3");
   globalThis.confirm = () => true;
   const fake = db();
   const calls = [];

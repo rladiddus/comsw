@@ -209,7 +209,7 @@
     .subject-box {
       position: absolute;
       top: 41px;        /* 막대 아래 (다이아몬드 점 아래) */
-      height: 89px;
+      min-height: 89px; /* 글이 길면 늘어나고 행 높이도 함께(fitRowHeights) */
       z-index: 2;
       display: flex;
       flex-direction: column;
@@ -229,8 +229,7 @@
       letter-spacing: -0.02em;
       line-height: 1.2;
       width: 100%;
-      max-height: 56px;
-      overflow: hidden;
+      flex-shrink: 0;   /* 설명이 길어도 과목명이 눌려 잘리지 않게 */
     }
     .subject-name .name-part {
       display: block;
@@ -245,8 +244,6 @@
       letter-spacing: -0.02em;
       line-height: 1.4;
       width: 100%;
-      max-height: 56px;
-      overflow: hidden;
       white-space: pre-line;
       word-break: keep-all;
     }
@@ -873,34 +870,34 @@
       return [text];
     }
 
+    // 이름 끝 숫자(또는 '1~2' 범위)만 다른 과목은 한 이름으로: '디지털 드로잉 1~2' + '디지털 드로잉 3~4' → '디지털 드로잉 1~4'
+    // (2026-11-26 사용자 요청, 관리 화면 roadmapLabel과 같은 규칙). 하나뿐이면 적힌 그대로.
     function mergeNumberedSubjectNames(names) {
       const merged = [];
       const groups = {};
 
       names.forEach(function(name) {
-        const match = String(name).trim().match(/^(.*?)(\d+)$/);
+        const match = String(name).trim().match(/^(.*?)\s*(\d+)(?:\s*~\s*(\d+))?$/);
         if (!match) {
           merged.push({ type: 'plain', value: name });
           return;
         }
 
         const base = match[1].trim();
-        const num = Number(match[2]);
         const key = base || '__number_only__';
         if (!groups[key]) {
-          groups[key] = { type: 'numbered', base: base, nums: [] };
+          groups[key] = { type: 'numbered', base: base, nums: [], names: [] };
           merged.push(groups[key]);
         }
-        groups[key].nums.push(num);
+        groups[key].nums.push(Number(match[2]), Number(match[3] || match[2]));
+        groups[key].names.push(String(name).trim());
       });
 
       return merged.map(function(item) {
         if (item.type !== 'numbered') return item.value;
-        const nums = item.nums
-          .filter(function(num, index, arr) { return arr.indexOf(num) === index; })
-          .sort(function(a, b) { return a - b; });
-        if (nums.length === 1) return item.base + nums[0];
-        return item.base + nums[0] + '~' + nums[nums.length - 1];
+        if (item.names.length === 1) return item.names[0];
+        const lo = Math.min.apply(null, item.nums), hi = Math.max.apply(null, item.nums);
+        return (item.base ? item.base + ' ' : '') + (lo === hi ? lo : lo + '~' + hi);
       });
     }
 
@@ -1077,8 +1074,24 @@
         rowsContainer.appendChild(rowDiv);
       });
 
+      fitRowHeights();
+      // 웹 글꼴이 늦게 오면 글 높이가 바뀌므로 한 번 더
+      if (document.fonts && document.fonts.ready) document.fonts.ready.then(fitRowHeights);
+
       // 캔버스 자연 높이 갱신 후 스케일 재계산
       applyScale();
+    }
+
+    // 행 높이: 기본 130px, 과목명·설명이 길면 그 행만 내용만큼 늘린다(글자 잘림 방지, 2026-11-26)
+    function fitRowHeights() {
+      document.querySelectorAll('#dept-rows .dept-row').forEach(function(row) {
+        var h = ROW_HEIGHT;
+        row.querySelectorAll('.subject-box').forEach(function(b) {
+          h = Math.max(h, Math.ceil(b.offsetTop + b.offsetHeight) + 4);
+        });
+        row.style.height = h + 'px';
+        row.querySelectorAll('.dept-area').forEach(function(a) { a.style.height = h + 'px'; });
+      });
     }
 
     /* ============================================== */

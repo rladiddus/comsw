@@ -3014,6 +3014,8 @@
   }
 
   function _showInstructorWeekLightbox(items, subjectName, weekTitle) {
+    // 이전·다음은 누른 과목의 단계만(같은 강사의 다른 과목과 섞이지 않게, 2026-11-26)
+    items = (items || []).filter(function(it) { return it.subjectName === subjectName; });
     if (!items || items.length === 0) return;
     // 현재 클릭한 (subject, week) 인덱스 찾기
     const idx = items.findIndex(function(it) {

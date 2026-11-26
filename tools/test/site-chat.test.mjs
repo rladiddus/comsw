@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { as, freshDb } from "./pg.mjs";
-import { buildCatalog, levelOf, seriesOf, choicesOf, keepKnownLinks, tailOf, chatCost, chatInput, createChatHandler, PROMPT } from "../../supabase/functions/comsw-chat/handler.mjs";
+import { buildCatalog, levelOf, seriesOf, choicesOf, unescapeBreaks, keepKnownLinks, tailOf, chatCost, chatInput, createChatHandler, PROMPT } from "../../supabase/functions/comsw-chat/handler.mjs";
 
 const lesson = (dept, name, step, text, extra = {}) => {
   const v = Array(26).fill("");
@@ -53,6 +53,13 @@ test("재료: 난이도는 별 대신 5단계 중 몇, 번호만 다른 과목�
     "컴퓨터 활용 → 실무엑셀 → 모스 → 컴활2급 → 컴활1급", "전산회계1급 → 전산세무2급", "분야나 목적이 다르면",
     "SBS아카데미컴퓨터AIX학원 수원점", "김양연 부원장이 만들었어요", "031-546-3644", "경기도 수원시 팔달구 효원로 288 대원콤비프라자 8층", "수업과 관련 없는 내용은 말씀드릴 수 없어요", "원장님", "번호로 이어지는 과목끼리만 쓰고"]) assert.ok(PROMPT.includes(must), must);
   assert.ok(!PROMPT.includes("컴퓨터아트학원"), "옛 학원 이름 없음");
+});
+
+test("답변: AI가 글자로 쓴 \n은 실제 줄바꿈으로(채팅창에 \n이 보이지 않게)", async () => {
+  assert.equal(unescapeBreaks("하고 싶으시군요!\\n\\n추천해요.\\r\\n끝\\t"), "하고 싶으시군요!\n\n추천해요.\n끝 ");
+  assert.equal(unescapeBreaks("진짜 줄바꿈\n그대로"), "진짜 줄바꿈\n그대로");
+  const out = await (await setup({ answer: { answer: "제품디자인을 하고 싶으시군요!\\n\\n인테리어학과 과정을 추천해요.", ask_mentor: false, choices: [] } }).ask()).json();
+  assert.equal(out.reply, "제품디자인을 하고 싶으시군요!\n\n인테리어학과 과정을 추천해요.");
 });
 
 test("번호 고르기: 선택지는 2~3개 글자만(앞 번호·기호 떼고, 60자 넘으면 뺌), AI 형식에 choices, 답에 실어 보냄", async () => {

@@ -231,10 +231,13 @@ export function tailOf(catalog, input, now = Date.now()) {
 }
 
 // 화면이 보낸 대화: 마지막은 질문이어야 하고, 최근 8개만 쓴다.
+// AI가 줄바꿈을 글자 '\n'(역슬래시+n)으로 써 보낼 때가 있어 실제 줄바꿈으로 바꾼다(채팅창에 \n이 보이던 것, 2026-11-26)
+export const unescapeBreaks = (t) => String(t ?? "").replace(/\\r\\n|\\n|\\r/g, "\n").replace(/\\t/g, " ");
+
 // AI가 준 선택지: 글자만, 한 줄 60자 안, 2~3개(그 밖이면 보내지 않음)
 export function choicesOf(list) {
   const out = (Array.isArray(list) ? list : []).filter((x) => typeof x === "string")
-    .map((x) => clean(x).replace(/^[\s①②③④⑤\d.)\-·•]+/, "").replace(/\s+/g, " ")).filter((x) => x && x.length <= 60);
+    .map((x) => clean(unescapeBreaks(x)).replace(/^[\s①②③④⑤\d.)\-·•]+/, "").replace(/\s+/g, " ")).filter((x) => x && x.length <= 60);
   return out.length >= 2 ? out.slice(0, 3) : [];
 }
 
@@ -372,7 +375,7 @@ export function createChatHandler({ env, fetcher = fetch }) {
       await finish(chatCost(data.usage, fx));
       const text = (data.output || []).flatMap((o) => o.content || []).filter((c) => c.type === "output_text").map((c) => c.text).join("");
       const { answer, ask_mentor, choices } = JSON.parse(text);
-      let reply = clean(keepKnownLinks(clean(answer), site.text));
+      let reply = clean(keepKnownLinks(clean(unescapeBreaks(answer)), site.text));
       if (!reply) throw new Error("빈 답변");
       // AI가 스스로 쓴 끝 문장은 떼고, 필요할 때 한 줄 띄워 한 번만 붙인다.
       reply = reply.replace(/\s*멘토님께 문의해주세요[.!]?$/, "");

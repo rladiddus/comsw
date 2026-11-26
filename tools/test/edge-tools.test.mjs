@@ -179,7 +179,7 @@ test("상담 평가 정리(feedback): 학과장·관리자만, 4만 자까지, �
   const { summaryOptions, PROMPTS } = await import("../../supabase/functions/comsw-tools/policy.mjs");
   assert.deepEqual(summaryOptions("feedback"), { maxText: 40000, effort: "medium", outTokens: 8000 });
   assert.deepEqual(summaryOptions("week"), { maxText: 12000, effort: "none", outTokens: 512 });
-  for (const must of ["잘된 점", "아쉬운 점", "챗봇을 이렇게 고쳐 주세요", "~하게 해줘", "지어내지 마"]) assert.ok(PROMPTS.feedback.includes(must), must);
+  for (const must of ["잘된 점", "아쉬운 점", "챗봇을 이렇게 고쳐 주세요", "~하게 해줘", "지어내지 마", "■ 4. 챗봇을 이렇게 고쳐 주세요\n────────────", "   └ 이유:", "'…(이하 생략)'은 정리하려고 줄인 표시"]) assert.ok(PROMPTS.feedback.includes(must), must);
   const src = (await import("node:fs")).readFileSync(new URL("../../supabase/functions/comsw-tools/handler.mjs", import.meta.url), "utf8");
   assert.match(src, /\["week", "common", "department", "roadmap", "feedback"\]\.includes\(body\.kind\) \|\|\s*!member\.manager/);
   assert.match(src, /reasoning: \{ effort: opt\.effort \}/);

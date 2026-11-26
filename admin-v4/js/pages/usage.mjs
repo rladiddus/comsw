@@ -158,7 +158,7 @@ export function feedbackText(list, max = 38000) {
   let used = 0;
   for (const f of order) {
     const part = `\n[평가 ${used + 1}] 별점 ${f.stars} · ${formatSeoul(f.created_at)}${f.comment ? ` · 한마디: ${f.comment}` : ""}\n`
-      + f.messages.map((m) => `${m.role === "user" ? "방문자" : "챗봇"}: ${m.content.replace(/\s+/g, " ").slice(0, 400)}`).join("\n") + "\n";
+      + f.messages.map((m) => { const t = m.content.replace(/\s+/g, " "); return `${m.role === "user" ? "방문자" : "챗봇"}: ${t.length > 400 ? `${t.slice(0, 400)}…(이하 생략)` : t}`; }).join("\n") + "\n";
     if (text.length + part.length > max) break;
     text += part;
     used += 1;

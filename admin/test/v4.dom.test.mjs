@@ -1945,8 +1945,9 @@ test("상담 평가 [피드백 정리하기]: 거른 평가를 낮은 별점부�
   assert.match(text, /^평가 3건 · 평균 3\.3점 · 별점별 5점 1건, 4점 0건, 3점 1건, 2점 1건, 1점 0건/);
   assert.ok(text.indexOf("나쁜 질문") < text.indexOf("보통 질문") && text.indexOf("보통 질문") < text.indexOf("좋은 질문"), "낮은 별점부터");
   assert.match(text, /\[평가 1\] 별점 2 · .* · 한마디: 길어요\n방문자: 나쁜 질문\n챗봇: /);
-  assert.ok(text.split("\n").every((l) => l.length <= 420), "대화 한 줄 400자까지");
-  assert.equal(feedbackText([f(1, "", "a"), f(1, "", "b")], 500).used, 1, "넘치면 뒤 평가는 뺌");
+  assert.ok(text.split("\n").every((l) => l.length <= 430), "대화 한 줄 400자까지");
+  assert.match(text, /…\(이하 생략\)/, "줄였다는 표시(AI가 말이 끊긴 것으로 오해하지 않게)");
+  assert.equal(feedbackText([f(1, "", "a"), f(1, "", "b")], 700).used, 1, "넘치면 뒤 평가는 뺌");
 
   const list = [f(2, "길어요", "제품디자인"), f(5, "", "CG")].map((x, i) => ({ ...x, id: `f${i}`, created_at: new Date().toISOString() }));
   const fake = fakeSupabase({ comsw_ai_jobs: [] });

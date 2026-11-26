@@ -1968,3 +1968,37 @@ test("상담 평가 [피드백 정리하기]: 거른 평가를 낮은 별점부�
   assert.ok([...dlg.querySelectorAll("button")].some((b) => b.textContent === "복사"));
   document.querySelectorAll("dialog").forEach((d) => d.remove());
 });
+
+test("준비물 공개/비공개 탭: 공개 학과의 학과 구성에 없는 과목의 준비물은 비공개 탭(이유 표시), 누르면 내용·링크·이미지·가격을 보기만", async () => {
+  document.querySelectorAll("dialog").forEach((d) => d.remove());
+  const fake = db();
+  const extra = {
+    subjects: [{ id: "s1", name: "캐드1", sort_order: 0 }, { id: "s2", name: "캐드2", sort_order: 1 }, { id: "s3", name: "아트 드로잉", sort_order: 2 }, { id: "s7", name: "포토샵", sort_order: 7 }, { id: "s8", name: "숨은과목", sort_order: 8 }, { id: "s9", name: "빈과목", sort_order: 9 }],
+    departments: [{ id: "d1", name: "건축학과", sort_order: 0 }, { id: "d2", name: "시각학과", sort_order: 1 }, { id: "d9", name: "닫힌학과", sort_order: 9, is_active: false }],
+    subject_departments: [{ subject_id: "s1", department_id: "d1" }, { subject_id: "s2", department_id: "d1" }, { subject_id: "s3", department_id: "d2" }, { subject_id: "s8", department_id: "d9" }],
+    course_prep_items: [
+      { id: "p1", subject_id: "s1", category: "supply", content: "삼각자" },
+      { id: "p7", subject_id: "s7", category: "textbook", content: "멘토 포토샵", link_url: "https://book.kr/a", image_url: "https://img/a.png", extra: "28,000원" },
+      { id: "p8", subject_id: "s8", category: "ai", content: "GPT", link_url: "https://chatgpt.com" },
+    ],
+  };
+  const base = fake.from.bind(fake);
+  fake.from = (t) => (t in extra ? fakeSupabase({ ...extra }).from(t) : base(t));
+  const main = await open("prep", undefined, fake);
+  const chips = () => [...main.querySelectorAll(".chips button")];
+  const names = () => [...main.querySelectorAll("tr.pick .subject-chip")].map((x) => x.textContent);
+  chips().find((b) => b.textContent === "공개").click();
+  assert.ok(!names().includes("포토샵") && names().includes("캐드"), "공개 탭에는 학과 구성에 있는 과목만");
+  const hidden = chips().find((b) => b.textContent.startsWith("비공개"));
+  assert.equal(hidden.textContent, "비공개(3)");
+  hidden.click();
+  assert.deepEqual(names().sort(), ["빈과목", "숨은과목", "포토샵"], "준비물이 없어도 비공개");
+  assert.match(main.textContent, /포토샵—학과에 없음/);
+  assert.match(main.textContent, /숨은과목—비공개 학과에만 있음/);
+  [...main.querySelectorAll("tr.pick")].find((tr) => tr.textContent.includes("포토샵")).click();
+  const dlg = [...document.querySelectorAll("dialog.modal")].at(-1);
+  assert.match(dlg.textContent, /교재멘토 포토샵https:\/\/book\.kr\/ahttps:\/\/img\/a\.png28,000원포토샵/);
+  assert.equal(dlg.querySelector("a").getAttribute("target"), "_blank");
+  assert.equal(dlg.querySelector("input, textarea, select"), null, "보기만");
+  document.querySelectorAll("dialog").forEach((d) => d.remove());
+});

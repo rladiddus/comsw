@@ -45,6 +45,8 @@ test("아이콘 → 채팅창 → 질문·답변(글자로만) → 닫으면 아
   assert.deepEqual([link.href, link.target, link.rel], ["https://book.kr/a?b=1", "_blank", "noopener noreferrer"]);
   assert.equal(p.root.querySelector(".msg b"), null, "답변을 HTML로 읽지 않음");
   p.$(".x").click();
+  assert.ok(!p.$(".rate").hidden && !p.$(".win").hidden, "대화한 뒤 처음 닫으면 별점부터");
+  [...p.root.querySelectorAll(".rate button")].find((b) => b.textContent === "건너뛰기").click();
   assert.ok(p.$(".win").hidden && !p.$(".icon").hidden);
 
   const next = page({ comsw_chat: p.w.sessionStorage.getItem("comsw_chat") });
@@ -166,6 +168,59 @@ test("채팅창에서 누른 키는 페이지(슬라이드 넘기기)로 새지 
   await flush();
   assert.equal(p.sent.length, 1);
   key("Escape");
-  assert.ok(p.$(".win").hidden);
+  assert.ok(!p.$(".rate").hidden, "대화한 뒤 Esc도 별점부터");
+  key("Escape");
+  assert.ok(p.$(".win").hidden, "별점 창에서 Esc를 한 번 더 누르면 닫힘");
   assert.equal(leaked, 0);
+});
+
+test("상담 평가: [상담 끝내기]는 대화한 뒤에만, 별을 눌러 고르면 [보내기], 보내면 별점·대화를 서버로, 고마워요 → 새 상담", async () => {
+  const replies = [{ reply: "CG 과정이 궁금하시군요!" }, { ok: true }];
+  const p = page({}, async () => ({ ok: true, status: 200, json: async () => replies.shift() }));
+  p.$(".icon").click();
+  assert.ok(p.$(".end").hidden, "대화 전에는 없음");
+  p.$("textarea").value = "CG 알려줘";
+  p.$("form").dispatchEvent(new p.w.Event("submit", { cancelable: true }));
+  await flush();
+  assert.ok(!p.$(".end").hidden);
+  p.$(".end").click();
+  const send = () => p.root.querySelector(".rate-send");
+  const stars = () => [...p.root.querySelectorAll(".stars button")];
+  assert.ok(send().disabled, "별을 고르기 전에는 못 보냄");
+  stars()[3].click();
+  assert.deepEqual(stars().map((b) => b.classList.contains("on")), [true, true, true, true, false]);
+  assert.equal(p.root.querySelector(".word").textContent, "도움이 됐어요");
+  p.root.querySelector(".rate textarea").value = "좋아요";
+  send().click();
+  await flush();
+  const body = p.sent.at(-1)[1];
+  assert.deepEqual(body.feedback.stars, 4);
+  assert.equal(body.feedback.comment, "좋아요");
+  assert.deepEqual(body.feedback.messages.map((m) => m.role), ["user", "assistant"]);
+  assert.match(p.root.querySelector(".rate").textContent, /★★★★☆[\s\S]*의견 고마워요/);
+  [...p.root.querySelectorAll(".rate button")].find((b) => b.textContent === "새 상담 시작하기").click();
+  assert.equal(p.texts().length, 1, "처음 인사만 남음");
+  assert.ok(p.$(".end").hidden && p.$(".rate").hidden);
+  p.$(".x").click();
+  assert.ok(p.$(".win").hidden, "새 상담에서 대화가 없으면 바로 닫힘");
+});
+
+test("상담 평가: 닫을 때는 한 번만 묻고, [건너뛰기]하면 아무것도 보내지 않음", async () => {
+  const p = page();
+  p.$(".icon").click();
+  p.$("textarea").value = "질문";
+  p.$("form").dispatchEvent(new p.w.Event("submit", { cancelable: true }));
+  await flush();
+  const before = p.sent.length;
+  p.$(".x").click();
+  [...p.root.querySelectorAll(".rate button")].find((b) => b.textContent === "건너뛰기").click();
+  assert.ok(p.$(".win").hidden);
+  assert.equal(p.sent.length, before, "건너뛰면 저장 안 함");
+  p.$(".icon").click();
+  p.$(".x").click();
+  assert.ok(p.$(".win").hidden, "같은 상담에서는 다시 묻지 않음");
+  const again = page({ comsw_chat: p.w.sessionStorage.getItem("comsw_chat") });
+  again.$(".icon").click();
+  again.$(".x").click();
+  assert.ok(again.$(".win").hidden, "다른 페이지로 가도 다시 묻지 않음");
 });

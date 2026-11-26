@@ -291,3 +291,4 @@
 - 2026-11-26 comsw-chat levelOf·seriesOf, PROMPT "과목 소개할 때"(난이도·이어지는 과목·먼저 들으면 좋은 과목·자격증 연계). chat-widget .grip 높이 조절(state.h).
 - 2026-11-26 roadmap(.html/_tablet) loadCurriculumSimpleByDeptFromSupabase를 Curriculum_onepage getCurriculumSimpleByDeptFromSupabase와 같게(B열 학과, Z열 학과별 순서), splitRoadmapSubjects 삭제.
 - 2026-11-26 comsw-chat 응답 {reply, choices?}(choicesOf 2~3개), json_schema choices. chat-widget choiceBox·forAI([고를 것] 붙여 보냄)·msgs.picked.
+- 2026-11-26 comsw_private.chat_feedback, comsw_chat_feedback_add(service_role)·_list(admin/head). comsw-chat body.feedback → feedbackOf·maskPrivate. chat-widget openRating/thanks/resetChat, state.asked. usage.mjs feedbackBox·talkPopup.

@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { as, freshDb } from "./pg.mjs";
-import { buildCatalog, levelOf, seriesOf, choicesOf, unescapeBreaks, keepKnownLinks, tailOf, chatCost, chatInput, createChatHandler, PROMPT } from "../../supabase/functions/comsw-chat/handler.mjs";
+import { buildCatalog, levelOf, seriesOf, choicesOf, unescapeBreaks, maskPrivate, feedbackOf, keepKnownLinks, tailOf, chatCost, chatInput, createChatHandler, PROMPT } from "../../supabase/functions/comsw-chat/handler.mjs";
 
 const lesson = (dept, name, step, text, extra = {}) => {
   const v = Array(26).fill("");
@@ -60,6 +60,52 @@ test("답변: AI가 글자로 쓴 \n은 실제 줄바꿈으로(채팅창에 \n�
   assert.equal(unescapeBreaks("진짜 줄바꿈\n그대로"), "진짜 줄바꿈\n그대로");
   const out = await (await setup({ answer: { answer: "제품디자인을 하고 싶으시군요!\\n\\n인테리어학과 과정을 추천해요.", ask_mentor: false, choices: [] } }).ask()).json();
   assert.equal(out.reply, "제품디자인을 하고 싶으시군요!\n\n인테리어학과 과정을 추천해요.");
+});
+
+test("상담 평가: 별점 1~5만, 전화번호·이메일은 가리고, 질문이 있어야 함, 서버 전용 함수로 저장(AI는 안 부름)", async () => {
+  assert.equal(maskPrivate("제 번호는 010-1234-5678, 01012345678, 메일 a.b@x.co.kr 이고 031 546 3644"), "제 번호는 [전화번호], [전화번호], 메일 [이메일] 이고 [전화번호]");
+  assert.equal(maskPrivate("2026년 11월 26일 3개월"), "2026년 11월 26일 3개월", "날짜·숫자는 그대로");
+  assert.throws(() => feedbackOf({ stars: 0, messages: [{ role: "user", content: "q" }] }), /별점/);
+  assert.throws(() => feedbackOf({ stars: 6, messages: [{ role: "user", content: "q" }] }), /별점/);
+  assert.throws(() => feedbackOf({ stars: 3, messages: [{ role: "assistant", content: "안녕" }] }), /대화가 없습니다/);
+  const fb = feedbackOf({ stars: 4, comment: " 좋아요 010-1111-2222 ", messages: [{ role: "user", content: "a@b.com 으로 연락" }, { role: "assistant", content: "x".repeat(2000) }, { role: "hack", content: "q2" }, { content: 3 }] });
+  assert.deepEqual([fb.stars, fb.comment, fb.messages.map((m) => m.role), fb.messages[0].content, fb.messages[1].content.length], [4, "좋아요 [전화번호]", ["user", "assistant", "user"], "[이메일] 으로 연락", 1500]);
+  const s = setup();
+  const res = await s.ask(undefined, {});
+  assert.equal(res.status, 200);
+  const r2 = await s.handler(new Request("https://x/comsw-chat", { method: "POST", headers: { Origin: "https://rladiddus.github.io", "x-forwarded-for": "1.2.3.4" },
+    body: JSON.stringify({ feedback: { stars: 5, comment: "", messages: [{ role: "user", content: "CG 알려줘" }, { role: "assistant", content: "CG 과정이 궁금하시군요!" }] } }) }));
+  assert.deepEqual(await r2.json(), { ok: true });
+  const [, args] = s.calls.find(([n]) => n === "comsw_chat_feedback_add");
+  assert.equal(args.p_stars, 5);
+  assert.equal(args.p_messages.length, 2);
+  assert.ok(args.p_who && !String(args.p_who).includes("1.2.3.4"), "접속 주소는 익명 번호로");
+  assert.equal(s.calls.filter(([n]) => n === "responses").length, 1, "평가는 AI를 부르지 않음(앞 질문 1번만)");
+  const bad = await s.handler(new Request("https://x/comsw-chat", { method: "POST", headers: { Origin: "https://rladiddus.github.io" }, body: JSON.stringify({ feedback: { stars: 9, messages: [] } }) }));
+  assert.equal(bad.status, 400);
+  for (const must of ["세부 상담으로 넘어갈 때", "자세한 계획은 멘토님과 상담하면서 정하면 좋다고"]) assert.ok(PROMPT.includes(must), must);
+});
+
+test("상담 평가 DB: 서버만 저장, 학과장·관리자만 보기, 3개월 지난 것은 지움, 하루 횟수 제한", async () => {
+  const db = await freshDb();
+  await as(db, null);
+  const add = (who, stars, msgs = [{ role: "user", content: "q" }]) => db.query(`select comsw_chat_feedback_add($1, $2, '', $3)`, [who, stars, JSON.stringify(msgs)]);
+  await add("w1", 4);
+  await assert.rejects(add("w1", 7), /잘못된 요청/);
+  await assert.rejects(add("w1", 3, []), /잘못된 요청/);
+  await db.query(`insert into comsw_private.chat_feedback(who, stars, messages, created_at) values ('old', 1, '[]', now() - interval '4 months')`);
+  for (let i = 0; i < 10; i++) await add("w2", 5);
+  await assert.rejects(add("w2", 5), /너무 많습니다/);
+  assert.equal((await db.query(`select count(*)::int n from comsw_private.chat_feedback where who = 'old'`)).rows[0].n, 0, "3개월 지난 것은 지움");
+  await as(db, "anon");
+  await assert.rejects(add("w3", 5), /permission|권한/);
+  await as(db, "authenticated", { sub: "t", role: "authenticated", comsw_role: "teacher" });
+  await assert.rejects(db.query(`select comsw_chat_feedback_list()`), /권한/);
+  await assert.rejects(add("w3", 5), /permission|권한/);
+  await as(db, "authenticated", { sub: "h", role: "authenticated", comsw_role: "head" });
+  const list = (await db.query(`select comsw_chat_feedback_list() l`)).rows[0].l;
+  assert.equal(list.length, 11);
+  assert.ok(!("who" in list[0]), "익명 번호는 보내지 않음");
 });
 
 test("번호 고르기: 선택지는 2~3개 글자만(앞 번호·기호 떼고, 60자 넘으면 뺌), AI 형식에 choices, 답에 실어 보냄", async () => {

@@ -10,13 +10,14 @@
   var HELLO = '안녕하세요! 컴수원 수업을 안내해 드리는 AI입니다.\n배우고 싶은 것을 편하게 물어보세요.\n예) AI로 이미지를 만드는 수업을 알려줘';
   var FAIL = '지금은 답변을 받지 못했습니다. 잠시 뒤 다시 시도하거나 멘토님께 문의해주세요.';
 
-  var state = { open: false, r: 24, b: /_tablet\./.test(location.pathname) ? 200 : 110, h: 0, msgs: [] }; // h: 사용자가 정한 채팅창 높이(0이면 기본)
+  var state = { open: false, r: 24, b: /_tablet\./.test(location.pathname) ? 200 : 110, h: 0, msgs: [], asked: false }; // h: 사용자가 정한 채팅창 높이(0이면 기본)
   try {
     var saved = JSON.parse(sessionStorage.getItem(KEY) || 'null');
     if (saved && Array.isArray(saved.msgs)) {
       state.open = saved.open === true;
       if (isFinite(saved.r) && isFinite(saved.b)) { state.r = Number(saved.r); state.b = Number(saved.b); }
       if (isFinite(saved.h) && saved.h > 0) state.h = Number(saved.h);
+      state.asked = saved.asked === true; // 이번 상담에서 별점을 이미 물었나
       state.msgs = saved.msgs.filter(function(m) {
         if (m && !(Array.isArray(m.choices) && m.choices.every(function(c) { return typeof c === 'string'; }))) delete m.choices;
         return m && (m.role === 'user' || m.role === 'assistant') && typeof m.content === 'string';
@@ -24,7 +25,7 @@
     }
   } catch (e) {}
   function save() {
-    try { sessionStorage.setItem(KEY, JSON.stringify({ open: state.open, r: state.r, b: state.b, h: state.h, msgs: state.msgs.slice(-MAX_SAVED) })); } catch (e) {}
+    try { sessionStorage.setItem(KEY, JSON.stringify({ open: state.open, r: state.r, b: state.b, h: state.h, asked: state.asked, msgs: state.msgs.slice(-MAX_SAVED) })); } catch (e) {}
   }
 
   var CSS = ':host{all:initial}'
@@ -38,6 +39,24 @@
     + '.bar{flex:none;display:flex;align-items:center;gap:10px;padding:10px 10px 10px 14px;background:linear-gradient(90deg,#7c3aed,#2563eb);color:#fff;cursor:move;touch-action:none;user-select:none;-webkit-user-select:none}'
     + '.bar img{width:30px;height:30px;pointer-events:none}'
     + '.bar b{flex:1;font-size:16px;font-weight:700}'
+    + '.end{flex:none;border:1px solid rgba(255,255,255,.6);background:rgba(255,255,255,.14);color:#fff;border-radius:999px;padding:5px 10px;font-size:12.5px;font-weight:700;cursor:pointer}'
+    + '.end:hover{background:rgba(255,255,255,.3)}'
+    + '.rate{position:absolute;inset:0;z-index:3;display:flex;align-items:flex-end;background:rgba(27,27,43,.45)}'
+    + '.sheet{width:100%;background:#fff;border-radius:18px 18px 0 0;padding:20px 18px 18px;display:flex;flex-direction:column;gap:12px}'
+    + '.sheet h3{margin:0;font-size:17px;text-align:center}'
+    + '.sheet .sub{margin:-6px 0 0;text-align:center;color:#5f6072;font-size:13px;line-height:1.6}'
+    + '.stars{display:flex;justify-content:center;gap:6px}'
+    + '.stars button{border:0;background:none;padding:2px;font-size:36px;line-height:1;color:#c9cbdd;cursor:pointer}'
+    + '.stars button.on{color:#f5a623}'
+    + '.big{text-align:center;font-size:38px;letter-spacing:2px;color:#f5a623}'
+    + '.word{text-align:center;font-size:13px;font-weight:700;color:#5b3fe0;min-height:18px;margin-top:-6px}'
+    + '.sheet textarea{flex:none;width:100%;height:64px;max-height:none;font-size:14px}'
+    + '.privacy{margin:0;font-size:12px;line-height:1.5;color:#5f6072;background:#f6f6fb;border-radius:10px;padding:9px 11px}'
+    + '.sheet .row{display:flex;gap:8px}'
+    + '.skip{flex:none;padding:12px 14px;border:1px solid #c9cbdd;background:#fff;border-radius:12px;font-size:14px;color:#5f6072;cursor:pointer}'
+    + '.rate-send{flex:1;padding:12px;border:0;border-radius:12px;background:#5b3fe0;color:#fff;font-weight:700;font-size:14.5px;cursor:pointer}'
+    + '.rate-send:disabled{background:#c9c3ef;cursor:default}'
+    + '.rate-err{margin:0;color:#a4241b;font-size:13px;text-align:center}'
     + '.x{width:40px;height:40px;border:0;border-radius:50%;background:rgba(255,255,255,.18);color:#fff;font-size:22px;line-height:1;cursor:pointer}'
     + '.x:hover{background:rgba(255,255,255,.32)}'
     + '.log{flex:1;min-height:0;overflow-y:auto;overscroll-behavior:contain;padding:16px 14px;display:flex;flex-direction:column;gap:10px;background:#f4f5fb}'
@@ -71,14 +90,15 @@
   root.innerHTML = '<style>' + CSS + '</style>'
     + '<button type="button" class="icon" aria-label="AI 수업 상담 열기"><img alt="" draggable="false"></button>'
     + '<section class="win" role="dialog" aria-label="AI 수업 상담" hidden>'
-    + '<div class="bar"><img alt="" draggable="false"><b>AI 수업 상담</b><button type="button" class="x" aria-label="채팅창 닫기">×</button></div>'
+    + '<div class="bar"><img alt="" draggable="false"><b>AI 수업 상담</b><button type="button" class="end" hidden>상담 끝내기</button><button type="button" class="x" aria-label="채팅창 닫기">×</button></div>'
     + '<div class="log" role="log" aria-live="polite"></div>'
     + '<form><textarea rows="1" maxlength="500" placeholder="궁금한 수업을 물어보세요" aria-label="질문"></textarea><button type="submit" class="send">보내기</button></form>'
     + '<p class="tip">AI 답변은 틀릴 수 있습니다. 이름·연락처 같은 개인정보는 쓰지 마세요.</p>'
+    + '<div class="rate" hidden></div>'
     + '<button type="button" class="grip" aria-label="채팅창 높이 조절(위아래로 끌기, 키보드는 ↑↓)" title="끌어서 높이 조절"></button>'
     + '</section>';
   var $ = function(s) { return root.querySelector(s); };
-  var icon = $('.icon'), win = $('.win'), bar = $('.bar'), log = $('.log'), form = $('form'), input = $('textarea'), sendBtn = $('.send'), grip = $('.grip');
+  var icon = $('.icon'), win = $('.win'), bar = $('.bar'), log = $('.log'), form = $('form'), input = $('textarea'), sendBtn = $('.send'), grip = $('.grip'), endBtn = $('.end'), rate = $('.rate');
   root.querySelectorAll('img').forEach(function(img) { img.src = ICON; });
 
   // 자리: 화면 오른쪽 아래에서 떨어진 거리(r, b). 아이콘과 채팅창이 같은 모서리를 쓴다. 화면 밖으로는 안 나간다.
@@ -104,7 +124,8 @@
   function draggable(handle, el) {
     var from = null;
     handle.addEventListener('pointerdown', function(e) {
-      if (e.button || e.target.closest('.x')) return;
+      var btn = e.target.closest('button');
+      if (e.button || (btn && btn !== handle)) return; // 제목 줄의 버튼(상담 끝내기·닫기)은 끌기가 아님
       var box = el.getBoundingClientRect(), v = view();
       from = { id: e.pointerId, x: e.clientX, y: e.clientY, left: box.left - v.x, top: box.top - v.y, moved: false };
       handle.setPointerCapture(e.pointerId);
@@ -162,7 +183,13 @@
     if (open) log.scrollTop = log.scrollHeight;
     save();
   }
-  function close() { show(false); icon.focus(); }
+  // 닫기: 대화를 한 뒤 처음 닫을 때 한 번만 별점을 묻는다(2026-11-26). 별점 창이 떠 있으면 그대로 닫는다.
+  function close() {
+    if (!rate.hidden) { var done = rate.done; hideRate(); if (done) resetChat(); show(false); icon.focus(); return; }
+    if (talked() && !state.asked) { openRating(true); return; }
+    show(false);
+    icon.focus();
+  }
   icon.addEventListener('click', function() {
     if (icon._dragged) { icon._dragged = false; return; } // 옮긴 것이지 누른 것이 아님
     show(true);
@@ -253,6 +280,104 @@
     bubble(m.role, m.content);
     if (m.role === 'assistant' && m.choices) choiceBox(m, i === state.msgs.length - 1 && !m.picked);
   });
+  // 상담 끝내기·별점(2026-11-26): 별을 눌러 고르고 [보내기] → 별점·한마디·이번 대화를 서버에 저장. [건너뛰기]는 저장하지 않음.
+  var WORDS = ['', '아쉬웠어요', '조금 아쉬웠어요', '보통이에요', '도움이 됐어요', '아주 만족해요'];
+  function talked() { return state.msgs.some(function(m) { return m.role === 'user'; }); }
+  function syncEnd() { endBtn.hidden = !talked(); }
+  function hideRate() { rate.hidden = true; rate.done = false; rate.replaceChildren(); }
+  function resetChat() {
+    state.msgs = [];
+    state.asked = false;
+    liveChoices = null;
+    log.replaceChildren();
+    bubble('assistant', HELLO);
+    syncEnd();
+    save();
+  }
+  function el(tag, cls, text) { var x = document.createElement(tag); if (cls) x.className = cls; if (text != null) x.textContent = text; return x; }
+  function openRating(fromClose) {
+    state.asked = true;
+    save();
+    var picked = 0;
+    var sheet = el('div', 'sheet');
+    sheet.setAttribute('role', 'dialog');
+    sheet.setAttribute('aria-label', '상담 평가');
+    var stars = el('div', 'stars'), word = el('div', 'word'), note = el('textarea'), err = el('p', 'rate-err');
+    note.maxLength = 500;
+    note.placeholder = '더 좋아졌으면 하는 점이 있으면 적어 주세요(선택)';
+    note.setAttribute('aria-label', '한마디');
+    err.hidden = true;
+    var send = el('button', 'rate-send', '별점을 골라 주세요'), skip = el('button', 'skip', '건너뛰기');
+    send.type = skip.type = 'button';
+    send.disabled = true;
+    var buttons = [1, 2, 3, 4, 5].map(function(n) {
+      var b = el('button', '', '★');
+      b.type = 'button';
+      b.setAttribute('aria-label', n + '점');
+      b.setAttribute('aria-pressed', 'false');
+      b.addEventListener('mouseenter', function() { paint(n); });
+      b.addEventListener('click', function() {
+        picked = n;
+        paint(n);
+        buttons.forEach(function(x, i) { x.setAttribute('aria-pressed', String(i < n)); });
+        send.disabled = false;
+        send.textContent = '보내기';
+      });
+      stars.append(b);
+      return b;
+    });
+    stars.addEventListener('mouseleave', function() { paint(picked); });
+    function paint(n) { buttons.forEach(function(x, i) { x.classList.toggle('on', i < n); }); word.textContent = WORDS[n]; }
+    skip.addEventListener('click', function() {
+      hideRate();
+      if (fromClose) { show(false); icon.focus(); } else resetChat();
+    });
+    send.addEventListener('click', async function() {
+      if (!picked || send.disabled) return;
+      send.disabled = skip.disabled = true;
+      send.textContent = '보내는 중…';
+      err.hidden = true;
+      try {
+        var cfg = window.COMSW_SUPABASE_CONFIG;
+        var res = await fetch(cfg.url.replace(/\/+$/, '') + '/functions/v1/comsw-chat', {
+          method: 'POST',
+          headers: { apikey: cfg.anonKey, Authorization: 'Bearer ' + cfg.anonKey, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ feedback: { stars: picked, comment: note.value.trim(), messages: state.msgs.map(function(m) { return { role: m.role, content: m.content }; }) } }),
+          signal: AbortSignal.timeout(20000)
+        });
+        var data = await res.json().catch(function() { return {}; });
+        if (!res.ok || !data.ok) throw { say: data.error };
+        thanks(picked);
+      } catch (e) {
+        err.textContent = (e && e.say) || '평가를 보내지 못했어요. 잠시 뒤 다시 시도해주세요.';
+        err.hidden = false;
+        send.disabled = skip.disabled = false;
+        send.textContent = '다시 보내기';
+      }
+    });
+    var row = el('div', 'row');
+    row.append(skip, send);
+    sheet.append(el('h3', '', '상담은 어떠셨나요?'), el('p', 'sub', '별을 눌러 알려 주세요'), stars, word, note,
+      el('p', 'privacy', '평가를 보내면 이번 대화가 챗봇을 고치는 데 쓰여요. 전화번호·이메일은 가려서 저장하고, 3개월 뒤 지워요.'), err, row);
+    rate.replaceChildren(sheet);
+    rate.hidden = false;
+    buttons[0].focus();
+  }
+  function thanks(n) {
+    rate.done = true;
+    var sheet = el('div', 'sheet');
+    var again = el('button', 'rate-send', '새 상담 시작하기');
+    again.type = 'button';
+    again.addEventListener('click', function() { hideRate(); resetChat(); input.focus(); });
+    sheet.append(el('div', 'big', '★★★★★'.slice(0, n) + '☆☆☆☆☆'.slice(n)), el('h3', '', '의견 고마워요!'),
+      el('p', 'sub', '보내 주신 평가로 더 나은 상담을 준비할게요.\n궁금한 게 생기면 언제든 다시 물어보세요.'), again);
+    sheet.lastChild.previousSibling.style.whiteSpace = 'pre-line';
+    rate.replaceChildren(sheet);
+    again.focus();
+  }
+  endBtn.addEventListener('click', function() { if (talked()) openRating(false); });
+  syncEnd();
+
   // AI에게 보내는 대화: 선택지가 있던 답변에는 [고를 것] 번호를 붙여 "1번"이 무엇인지 알게 한다.
   function forAI(m) {
     return { role: m.role, content: m.choices ? m.content + '\n[고를 것] ' + m.choices.map(function(c, i) { return (i + 1) + '. ' + c; }).join(' / ') + ' / ' + (m.choices.length + 1) + '. 모두 처음이에요' : m.content };
@@ -284,6 +409,7 @@
       wait.remove();
       bubble('assistant', data.reply);
       if (answer.choices) choiceBox(answer, true);
+      syncEnd();
       save();
     } catch (e) {
       wait.remove();

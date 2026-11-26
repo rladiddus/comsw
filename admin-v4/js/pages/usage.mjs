@@ -42,9 +42,10 @@ export async function render({ main, session }) {
   const reload = () => render({ main, session });
   const admin = session.role === "admin";
   await fill(body, async () => {
-    const [budget, chat, jobs] = await Promise.all([
+    const [budget, chat, feedback, jobs] = await Promise.all([
       data.call("comsw_ai_budget"),
       data.call("comsw_chat_budget").catch(() => null), // 챗봇 SQL을 실행하기 전
+      data.call("comsw_chat_feedback_list").then((x) => (Array.isArray(x) ? x : null)).catch(() => null), // 상담 평가 SQL을 실행하기 전
       data.all("comsw_ai_jobs", (q) => q.order("created_at", { ascending: false })),
     ]);
     const msg = h("div");
@@ -69,7 +70,7 @@ export async function render({ main, session }) {
       admin: () => box(null, h("div", { class: "row" }, title, limitBtn), ...nums(budget.used, budget.limit, "관리 화면 AI"), cost),
       chat: () => box(null, h("div", { class: "row" }, title, chatBtn),
         ...(chat ? [...nums(chatUsed, chatLimit, "홈페이지 챗봇"), h("p", {}, `이번 달 질문 ${Number(chat.count).toLocaleString("ko-KR")}번`)] : [noChat]),
-        h("p", { class: "muted" }, "관리 화면 AI 한도와 따로 셉니다. 방문자가 많이 물어도 관리 화면 AI에는 영향이 없습니다. 대화 내용은 저장하지 않습니다.")),
+        h("p", { class: "muted" }, "관리 화면 AI 한도와 따로 셉니다. 방문자가 많이 물어도 관리 화면 AI에는 영향이 없습니다. 대화 내용은 방문자가 상담 평가(별점)를 보낸 경우에만 3개월 보관합니다(전화번호·이메일은 가림).")),
     };
     const page = h("div");
     const tabBar = h("div");
@@ -77,7 +78,7 @@ export async function render({ main, session }) {
     const draw = () => {
       tabBar.replaceChildren(tabs([["all", "전체"], ["admin", "관리 화면 AI"], ["chat", "홈페이지 챗봇"]], view, pickView, "chips"));
       // 종류별·작업 기록은 관리 화면 AI 것(챗봇은 대화를 남기지 않아 기록이 없음)
-      page.replaceChildren(SUMMARY[view](), ...(view === "chat" ? [] : [kindBox, filter.el, listBox]));
+      page.replaceChildren(SUMMARY[view](), ...(view === "chat" ? [feedbackBox(feedback, budget.month)] : [kindBox, filter.el, listBox]));
     };
 
     const kinds = byKind(jobs.filter((j) => j.month === budget.month));
@@ -113,6 +114,36 @@ export async function render({ main, session }) {
     draw();
     return [msg, tabBar, h("div", { style: "height:12px" }), page];
   });
+}
+
+// 상담 평가(2026-11-26): 이번 달 평균·건수·별점별, 최근 3개월 목록(거르기), 줄을 누르면 그 대화
+const starsOf = (n) => "★★★★★".slice(0, n) + "☆☆☆☆☆".slice(n);
+export function feedbackBox(list, month) {
+  if (!list) return box("상담 평가", h("p", { class: "muted" }, "상담 평가 준비(SQL 실행)가 끝나면 방문자가 남긴 별점과 대화가 나옵니다."));
+  const mine = list.filter((f) => formatSeoul(f.created_at).slice(0, 7) === month);
+  const avg = mine.length ? (mine.reduce((n, f) => n + f.stars, 0) / mine.length).toFixed(1) : "—";
+  const dist = h("div", { class: "fb-dist" }, [5, 4, 3, 2, 1].map((s) => {
+    const n = mine.filter((f) => f.stars === s).length;
+    return [h("span", {}, `★${s}`), h("span", { class: "fb-bar" }, h("i", { style: `width:${mine.length ? Math.round((n / mine.length) * 100) : 0}%` })), h("span", {}, String(n))];
+  }).flat());
+  const firstQ = (f) => f.messages.find((m) => m.role === "user")?.content ?? "";
+  const rows = h("div");
+  const draw = (v) => {
+    const shown = list.filter((f) => (v.only !== "low" || f.stars <= 3) && (v.only !== "comment" || f.comment));
+    rows.replaceChildren(table([
+      ["시각", (f) => formatSeoul(f.created_at)], ["별점", (f) => h("span", { class: "fb-stars" }, starsOf(f.stars))],
+      ["한마디 · 첫 질문", (f) => h("div", {}, f.comment || "—", h("div", { class: "muted" }, firstQ(f).slice(0, 60)))],
+    ], shown, { onPick: talkPopup }));
+  };
+  const filter = filterBar([{ key: "only", label: "거르기", options: [["", "전체"], ["low", "3점 이하"], ["comment", "한마디 있는 것"]] }], draw);
+  draw(filter.values);
+  return box(`상담 평가 · 이번 달 평균 ${avg}점 · ${mine.length}건`, dist,
+    h("p", { class: "muted" }, "방문자가 [상담 끝내기]나 채팅창 닫기에서 남긴 별점입니다. 최근 3개월만 보관합니다. 줄을 누르면 그 대화를 봅니다."), filter.el, rows);
+}
+function talkPopup(f) {
+  modal(`상담 평가 ${starsOf(f.stars)} · ${formatSeoul(f.created_at)}`, h("section", { class: "box fb-talk", style: "margin:0" },
+    f.comment ? note(`한마디: ${f.comment}`) : null,
+    ...f.messages.map((m) => h("div", { class: `fb-msg ${m.role}` }, h("b", {}, m.role === "user" ? "방문자" : "챗봇"), h("p", {}, m.content)))));
 }
 
 function limitPopup(rpc, now, help, reload) {

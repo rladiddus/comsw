@@ -1903,3 +1903,34 @@ test("강사 정보 수정 팝업: 성별·홈페이지 노출 칸 없음, 저�
   assert.ok(!src.includes('toggleSwitch(f.is_listed'), "정보 수정 팝업에 홈페이지 노출 스위치 없음(목록 스위치로)");
   assert.match(src, /gender: p\?\.gender \?\? ""/, "원래 값을 그대로 보냄");
 });
+
+test("AI 사용량 › 홈페이지 챗봇: 상담 평가(이번 달 평균·별점별·거르기), 줄을 누르면 그 대화, SQL 전에는 안내", async () => {
+  document.querySelectorAll("dialog").forEach((d) => d.remove());
+  const now = new Date().toISOString();
+  const list = [
+    { id: "f1", stars: 5, comment: "", created_at: now, messages: [{ role: "user", content: "CG 알려줘" }, { role: "assistant", content: "CG 과정이 궁금하시군요!" }] },
+    { id: "f2", stars: 2, comment: "너무 길어요", created_at: now, messages: [{ role: "user", content: "제품디자인 하고 싶어" }, { role: "assistant", content: "인테리어학과" }] },
+  ];
+  let ready = true;
+  const fake = fakeSupabase({ comsw_ai_jobs: [] });
+  const month = new Intl.DateTimeFormat("sv-SE", { timeZone: "Asia/Seoul", year: "numeric", month: "2-digit" }).format(new Date()).slice(0, 7);
+  fake.rpc = async (n) => ({ data: n === "comsw_ai_budget" ? { month, used: 0, limit: 3000, remaining: 3000 } : n === "comsw_chat_budget" ? { used: 10, count: 3, limit: 3000 } : n === "comsw_chat_feedback_list" && ready ? list : null, error: null });
+  let main = await open("usage", { uid: "u1", role: "head" }, fake);
+  [...main.querySelectorAll(".chips button")].find((b) => b.textContent === "홈페이지 챗봇").click();
+  assert.match(main.textContent, /상담 평가 · 이번 달 평균 3\.5점 · 2건/);
+  assert.match(main.textContent, /대화 내용은 방문자가 상담 평가\(별점\)를 보낸 경우에만 3개월 보관/);
+  const rows = () => [...main.querySelectorAll("tr.pick")];
+  assert.equal(rows().length, 2);
+  const sel = main.querySelector("select[aria-label='거르기 거르기']") ?? [...main.querySelectorAll("select")].at(-1);
+  sel.value = "low"; sel.dispatchEvent(new dom.window.Event("change", { bubbles: true }));
+  assert.equal(rows().length, 1);
+  assert.match(rows()[0].textContent, /★★☆☆☆너무 길어요제품디자인 하고 싶어/);
+  rows()[0].click();
+  const dlg = document.querySelector("dialog.modal");
+  assert.match(dlg.textContent, /한마디: 너무 길어요[\s\S]*방문자제품디자인 하고 싶어[\s\S]*챗봇인테리어학과/);
+  document.querySelectorAll("dialog").forEach((d) => d.remove());
+  ready = false;
+  main = await open("usage", { uid: "u1", role: "head" }, fake);
+  [...main.querySelectorAll(".chips button")].find((b) => b.textContent === "홈페이지 챗봇").click();
+  assert.match(main.textContent, /상담 평가 준비\(SQL 실행\)가 끝나면/);
+});

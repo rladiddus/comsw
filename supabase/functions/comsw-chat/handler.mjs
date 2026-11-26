@@ -43,6 +43,9 @@ export const PROMPT = `너는 SBS아카데미컴퓨터AIX학원 수원점 홈페
 - 먼저 들으면 좋은 과목만 답한다(물어본 과목 소개, 추천 형식, choices는 쓰지 않는다). 먼저 들을 과목이 없으면 바로 들어도 된다고 짧게 말한다.
 - 과목마다 "왜" 먼저 들어야 하는지 설득한다. 앞 과목에서 배우는 구체적인 내용과, 그 내용이 물어본 과목의 어느 부분에서 바로 쓰이는지를 "내용:"을 근거로 이어서 설명한다(예: "AI포토샵에서 레이어와 보정을 익혀 두면, 시각편집 디자인에서 브랜드 결과물을 만들 때 그 기술을 그대로 써요"). 안 듣고 바로 시작하면 무엇이 어려울 수 있는지도 한 문장 덧붙인다.
 
+세부 상담으로 넘어갈 때
+- 학과를 추천한 뒤 사용자가 그 학과 안에서 더 세부로 들어가면(어떤 작업부터 할지, 어느 쪽 결과물이 맞을지, 시간표·진도처럼 개인 상황에 맞춘 계획) 더 쪼개 묻지 말고 마무리한다. 추천한 학과와 그 이유를 한두 문장으로 정리하고, 자세한 계획은 멘토님과 상담하면서 정하면 좋다고 말한 뒤 ask_mentor를 true로 한다.
+
 ask_mentor 정하기: 기본은 false이다. 딱 맞는 전용 과목이 없어 가장 가까운 학과·과목을 안내했거나 관심을 더 묻는 답이면 false이다. 물어본 내용을 [홈페이지 자료]로 다 답했으면(학과, 과목, 담당 선생님, 경력, 교재, 링크, 특강 등) 반드시 false로 한다. 물어본 것 가운데 자료에 없어 답하지 못한 것이 있거나, 위에서 true로 하라고 한 경우에만 true로 한다. "더 알고 싶을 수도 있으니"라는 이유로 true로 하지 않는다.
 
 수업을 찾거나 추천을 원할 때(관심·목표를 말하거나 무엇을 배우면 좋을지 물을 때)
@@ -237,6 +240,23 @@ export function tailOf(catalog, input, now = Date.now()) {
 // AI가 줄바꿈을 글자 '\n'(역슬래시+n)으로 써 보낼 때가 있어 실제 줄바꿈으로 바꾼다(채팅창에 \n이 보이던 것, 2026-11-26)
 export const unescapeBreaks = (t) => String(t ?? "").replace(/\\r\\n|\\n|\\r/g, "\n").replace(/\\t/g, " ");
 
+// 상담 평가에 실을 대화: 전화번호·이메일은 가린다(학원 대표번호도 같이 가려짐)
+export const maskPrivate = (t) => String(t ?? "")
+  .replace(/[\w.+-]+@[\w-]+(\.[\w-]+)+/g, "[이메일]")
+  .replace(/(?<!\d)0\d{1,2}[-.\s]?\d{3,4}[-.\s]?\d{4}(?!\d)/g, "[전화번호]");
+// 상담 평가: 별점 1~5, 한마디 500자, 대화는 최근 60개·한 줄 1,500자(질문이 하나는 있어야 함)
+export function feedbackOf(f) {
+  const stars = Number(f?.stars);
+  if (!Number.isInteger(stars) || stars < 1 || stars > 5) throw new Error("별점을 골라주세요.");
+  const comment = maskPrivate(clean(typeof f?.comment === "string" ? f.comment : "")).slice(0, 500);
+  const messages = (Array.isArray(f?.messages) ? f.messages : []).slice(-60).map((m) => ({
+    role: m?.role === "assistant" ? "assistant" : "user",
+    content: maskPrivate(typeof m?.content === "string" ? m.content.trim().slice(0, 1500) : ""),
+  })).filter((m) => m.content);
+  if (!messages.some((m) => m.role === "user")) throw new Error("평가할 대화가 없습니다.");
+  return { stars, comment, messages };
+}
+
 // AI가 준 선택지: 글자만, 한 줄 60자 안, 2~3개(그 밖이면 보내지 않음)
 export function choicesOf(list) {
   const out = (Array.isArray(list) ? list : []).filter((x) => typeof x === "string")
@@ -327,8 +347,22 @@ export function createChatHandler({ env, fetcher = fetch }) {
     let input;
     try {
       const raw = await req.text();
-      if (raw.length > 20000) throw new Error("질문이 너무 깁니다.");
-      input = chatInput(JSON.parse(raw));
+      if (raw.length > 120000) throw new Error("질문이 너무 깁니다.");
+      const body = JSON.parse(raw);
+      if (!body?.feedback && raw.length > 20000) throw new Error("질문이 너무 깁니다."); // 질문은 2만 자, 평가(대화 포함)는 12만 자까지
+      // 상담 평가(2026-11-26): 별점·한마디·대화를 저장(AI는 부르지 않음)
+      if (body?.feedback) {
+        const fb = feedbackOf(body.feedback);
+        try {
+          const service = env("SUPABASE_SERVICE_ROLE_KEY");
+          await rpc("comsw_chat_feedback_add", { p_who: await whoOf(req, service), p_stars: fb.stars, p_comment: fb.comment, p_messages: fb.messages }, service);
+          return send({ ok: true });
+        } catch (e) {
+          console.error("comsw-chat feedback", e?.code ?? "", e?.message);
+          return e?.code === "P0001" ? send({ error: e.message }, 429) : send({ error: "평가를 보내지 못했어요. 잠시 뒤 다시 시도해주세요." }, 503);
+        }
+      }
+      input = chatInput(body);
     } catch (e) {
       return send({ error: e instanceof SyntaxError ? "질문을 써주세요." : e.message }, 400);
     }

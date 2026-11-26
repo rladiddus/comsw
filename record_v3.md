@@ -279,3 +279,4 @@
 - 2026-11-25 subjectPicker를 instructors.mjs에서 admin-v4/js/subject-picker.mjs로 옮겨 강사·학과 구성이 같이 씀(title 인자 추가), deptLayout에 cat 전달.
 - 2026-11-25 changes.mjs applyNotice(text, id, {msg, kind, state}): 안내+버튼 공용, applyList(dirty, state)로 지금 보이는 설정 반영. roadmap·common-editor 사용, publishBanner는 .apply-notice 모양만.
 - 2026-11-25 index.html MAINTENANCE false. 정비 코드와 index2.html은 다음 정비 때 쓰도록 남김.
+- 2026-11-26 migration drop_unlinked_roadmaps: department_id null인 roadmap_tracks 보관 후 삭제, 실행 전 깨끗하면 site_snapshots 바로 공개. 테스트 tools/test/drop-unlinked-roadmaps.test.mjs.

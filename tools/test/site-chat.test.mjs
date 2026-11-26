@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { as, freshDb } from "./pg.mjs";
-import { buildCatalog, keepKnownLinks, tailOf, chatCost, chatInput, createChatHandler, PROMPT } from "../../supabase/functions/comsw-chat/handler.mjs";
+import { buildCatalog, levelOf, seriesOf, keepKnownLinks, tailOf, chatCost, chatInput, createChatHandler, PROMPT } from "../../supabase/functions/comsw-chat/handler.mjs";
 
 const lesson = (dept, name, step, text, extra = {}) => {
   const v = Array(26).fill("");
@@ -35,9 +35,24 @@ const SITE = {
 test("재료: 보이는 학과의 과목만, 단계가 없으면 과정내용, 학과 이름은 정확히", () => {
   const { text } = buildCatalog({ lessons: LESSONS });
   assert.match(text, /- 시각편집학과: 시각편집학과 소개/);
-  assert.match(text, /## AI포토샵\n학과: 시각편집학과\n기간 1개월 · 난이도 ★★ · 프로그램 Photoshop\n내용: 1단계 합성 \/ 2단계 보정/);
+  assert.match(text, /## AI포토샵\n학과: 시각편집학과\n기간 1개월 · 난이도 5단계 중 2 · 프로그램 Photoshop\n내용: 1단계 합성 \/ 2단계 보정/);
   assert.match(text, /## AI자동화\n학과: AI학과[\s\S]*내용: 01 자동화 \/ 02 실습/);
   assert.ok(!/숨긴학과|비밀수업|AI자격증/.test(text), "숨긴 학과, 어느 보이는 학과에도 없는 과목은 빠짐");
+});
+
+test("재료: 난이도는 별 대신 5단계 중 몇, 번호만 다른 과목은 한 과정(번호 순서·개월 합), 지시문에 선수 과목 규칙", () => {
+  assert.deepEqual(["★★★☆☆", "★", "★★★★★★", "보통", ""].map(levelOf), ["5단계 중 3", "5단계 중 1", "5단계 중 5", "보통", ""]);
+  const s = (name, duration = "1개월") => ({ name, duration });
+  assert.deepEqual(seriesOf([s("캐드2"), s("CAT 2급"), s("캐드1"), s("CG1"), s("CG3", "2개월"), s("CG2"), s("라이노 1", ""), s("라이노 2"), s("컴활2급"), s("컴활1급")]),
+    ["- 캐드1 → 캐드2 (모두 2개월)", "- CG1 → CG2 → CG3 (모두 4개월)", "- 라이노 1 → 라이노 2"]);
+  assert.deepEqual(seriesOf([s("디지털 드로잉 7~12", "6개월"), s("디지털 드로잉 1~2", "2개월"), s("디지털 드로잉 3~4", "2개월")]), ["- 디지털 드로잉 1~2 → 디지털 드로잉 3~4 → 디지털 드로잉 7~12 (모두 10개월)"], "끝이 범위여도");
+  const { text } = buildCatalog({ lessons: [...LESSONS, lesson("시각편집", "캐드2", "1단계", "심화"), lesson("시각편집", "캐드1", "1단계", "기초")] });
+  assert.match(text, /# 이어지는 과목\(번호 순서대로 듣는 한 과정\)\n- 캐드1 → 캐드2 \(모두 2개월\)/);
+  assert.ok(!text.includes("★"), "재료에 별 기호 없음");
+  for (const must of ["별(★)이나 숫자로 말하지 않고", "캐드1·캐드2 → CAT 2급 → 전산응용건축제도기능사", "캐드1·캐드2 → 인벤터 → 전산응용기계제도기능사",
+    "컴퓨터 활용 → 실무엑셀 → 모스 → 컴활2급 → 컴활1급", "전산회계1급 → 전산세무2급", "분야나 목적이 다르면",
+    "SBS아카데미컴퓨터AIX학원 수원점", "김양연 부원장이 만들었어요", "031-546-3644", "경기도 수원시 팔달구 효원로 288 대원콤비프라자 8층", "수업과 관련 없는 내용은 말씀드릴 수 없어요", "원장님"]) assert.ok(PROMPT.includes(must), must);
+  assert.ok(!PROMPT.includes("컴퓨터아트학원"), "옛 학원 이름 없음");
 });
 
 test("재료: 강사(담당은 그 학과 과목만·경력)·준비물·로드맵·특강, 숨긴 강사와 빼 달라고 한 과목은 어디에도 없음", () => {

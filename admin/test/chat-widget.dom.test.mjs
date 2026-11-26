@@ -83,6 +83,27 @@ test("아이콘을 끌면 옮겨지고 열리지 않음, 채팅창은 제목 줄
   assert.notEqual(pos().r, x);
 });
 
+test("채팅창 높이: 오른쪽 아래 모서리를 끌면 높이만 바뀌고(위쪽 끝·너비 그대로) 이 탭에 기억, 너무 작게는 안 됨", () => {
+  const p = page();
+  p.$(".icon").click();
+  const win = p.$(".win");
+  const grip = p.$(".grip");
+  assert.ok(grip, "모서리 손잡이");
+  const width = win.style.width;
+  p.pointer(grip, "pointerdown", 300, 500);
+  p.pointer(grip, "pointermove", 360, 650);
+  p.pointer(grip, "pointerup", 360, 650);
+  const h = JSON.parse(p.w.sessionStorage.getItem("comsw_chat")).h;
+  assert.ok(h > 0 && win.style.height === `${h}px`, "높이를 정하고 기억");
+  assert.equal(win.style.width, width, "너비는 그대로");
+  p.pointer(grip, "pointerdown", 300, 500);
+  p.pointer(grip, "pointermove", 300, -2000);
+  p.pointer(grip, "pointerup", 300, -2000);
+  assert.equal(JSON.parse(p.w.sessionStorage.getItem("comsw_chat")).h, 320, "최소 320px");
+  const again = page({ comsw_chat: p.w.sessionStorage.getItem("comsw_chat") });
+  assert.equal(JSON.parse(again.w.sessionStorage.getItem("comsw_chat")).h, 320, "다른 페이지로 가도 그대로");
+});
+
 test("채팅창에서 누른 키는 페이지(슬라이드 넘기기)로 새지 않고, Enter는 보내기·한글 쓰는 중은 아님·Esc는 닫기", async () => {
   const p = page();
   let leaked = 0;

@@ -10,19 +10,20 @@
   var HELLO = '안녕하세요! 컴수원 수업을 안내해 드리는 AI입니다.\n배우고 싶은 것을 편하게 물어보세요.\n예) AI로 이미지를 만드는 수업을 알려줘';
   var FAIL = '지금은 답변을 받지 못했습니다. 잠시 뒤 다시 시도하거나 멘토님께 문의해주세요.';
 
-  var state = { open: false, r: 24, b: /_tablet\./.test(location.pathname) ? 200 : 110, msgs: [] };
+  var state = { open: false, r: 24, b: /_tablet\./.test(location.pathname) ? 200 : 110, h: 0, msgs: [] }; // h: 사용자가 정한 채팅창 높이(0이면 기본)
   try {
     var saved = JSON.parse(sessionStorage.getItem(KEY) || 'null');
     if (saved && Array.isArray(saved.msgs)) {
       state.open = saved.open === true;
       if (isFinite(saved.r) && isFinite(saved.b)) { state.r = Number(saved.r); state.b = Number(saved.b); }
+      if (isFinite(saved.h) && saved.h > 0) state.h = Number(saved.h);
       state.msgs = saved.msgs.filter(function(m) {
         return m && (m.role === 'user' || m.role === 'assistant') && typeof m.content === 'string';
       });
     }
   } catch (e) {}
   function save() {
-    try { sessionStorage.setItem(KEY, JSON.stringify({ open: state.open, r: state.r, b: state.b, msgs: state.msgs.slice(-MAX_SAVED) })); } catch (e) {}
+    try { sessionStorage.setItem(KEY, JSON.stringify({ open: state.open, r: state.r, b: state.b, h: state.h, msgs: state.msgs.slice(-MAX_SAVED) })); } catch (e) {}
   }
 
   var CSS = ':host{all:initial}'
@@ -47,7 +48,10 @@
     + 'textarea{flex:1;height:44px;max-height:110px;padding:10px 12px;border:1px solid #c9cbdd;border-radius:12px;font-size:16px;line-height:1.4;color:#1b1b2b;background:#fff;resize:none}'
     + '.send{flex:none;height:44px;padding:0 16px;border:0;border-radius:12px;background:#5b3fe0;color:#fff;font-size:15px;font-weight:700;cursor:pointer}'
     + '.send:disabled{background:#b9b6cf;cursor:default}'
-    + '.tip{margin:0;padding:0 14px 10px;background:#fff;color:#5f6072;font-size:12px;line-height:1.4}'
+    + '.tip{margin:0;padding:0 30px 10px 14px;background:#fff;color:#5f6072;font-size:12px;line-height:1.4}'
+    + '.grip{position:absolute;right:0;bottom:0;width:26px;height:26px;padding:0;border:0;background:none;cursor:ns-resize;touch-action:none;color:#9a9cb8}'
+    + '.grip::before{content:"";position:absolute;right:6px;bottom:6px;width:11px;height:11px;border-right:2px solid currentColor;border-bottom:2px solid currentColor;border-bottom-right-radius:4px}'
+    + '.grip:hover,.grip:focus-visible{color:#5b3fe0;outline:none}'
     + ':focus-visible{outline:3px solid #2bb3ff;outline-offset:2px}';
 
   var host = document.createElement('div');
@@ -61,9 +65,10 @@
     + '<div class="log" role="log" aria-live="polite"></div>'
     + '<form><textarea rows="1" maxlength="500" placeholder="궁금한 수업을 물어보세요" aria-label="질문"></textarea><button type="submit" class="send">보내기</button></form>'
     + '<p class="tip">AI 답변은 틀릴 수 있습니다. 이름·연락처 같은 개인정보는 쓰지 마세요.</p>'
+    + '<button type="button" class="grip" aria-label="채팅창 높이 조절(위아래로 끌기, 키보드는 ↑↓)" title="끌어서 높이 조절"></button>'
     + '</section>';
   var $ = function(s) { return root.querySelector(s); };
-  var icon = $('.icon'), win = $('.win'), bar = $('.bar'), log = $('.log'), form = $('form'), input = $('textarea'), sendBtn = $('.send');
+  var icon = $('.icon'), win = $('.win'), bar = $('.bar'), log = $('.log'), form = $('form'), input = $('textarea'), sendBtn = $('.send'), grip = $('.grip');
   root.querySelectorAll('img').forEach(function(img) { img.src = ICON; });
 
   // 자리: 화면 오른쪽 아래에서 떨어진 거리(r, b). 아이콘과 채팅창이 같은 모서리를 쓴다. 화면 밖으로는 안 나간다.
@@ -79,9 +84,11 @@
     el.style.top = v.y + top + 'px';
     return { r: v.w - left - el.offsetWidth, b: v.h - top - el.offsetHeight };
   }
+  var MIN_H = 320;
   function place() {
     var v = view(), el = state.open ? win : icon;
     win.style.setProperty('--vh', (v.h - 16) + 'px');
+    win.style.height = state.h ? Math.max(MIN_H, Math.min(state.h, v.h - 16)) + 'px' : '';
     put(el, v.w - state.r - el.offsetWidth, v.h - state.b - el.offsetHeight);
   }
   function draggable(handle, el) {
@@ -112,6 +119,30 @@
   }
   draggable(icon, icon);
   draggable(bar, win);
+
+  // 높이 조절(2026-11-26): 오른쪽 아래 모서리를 위아래로 끌면 높이만 바뀐다(위쪽 끝은 그대로). 너비는 그대로.
+  function resizeTo(h, top) {
+    var v = view();
+    state.h = Math.round(Math.max(MIN_H, Math.min(h, v.h - 16)));
+    win.style.height = state.h + 'px';
+    var at = put(win, win.getBoundingClientRect().left - v.x, top == null ? win.getBoundingClientRect().top - v.y : top);
+    state.r = at.r;
+    state.b = at.b;
+  }
+  var sizing = null;
+  grip.addEventListener('pointerdown', function(e) {
+    if (e.button) return;
+    var box = win.getBoundingClientRect();
+    sizing = { id: e.pointerId, y: e.clientY, h: box.height, top: box.top - view().y };
+    grip.setPointerCapture(e.pointerId);
+    e.preventDefault();
+  });
+  grip.addEventListener('pointermove', function(e) {
+    if (sizing && e.pointerId === sizing.id) resizeTo(sizing.h + e.clientY - sizing.y, sizing.top);
+  });
+  function sized(e) { if (sizing && e.pointerId === sizing.id) { sizing = null; save(); } }
+  grip.addEventListener('pointerup', sized);
+  grip.addEventListener('pointercancel', sized);
 
   function show(open) {
     state.open = open;
@@ -187,6 +218,11 @@
     e.stopImmediatePropagation();
     if (e.isComposing || e.keyCode === 229) return; // 한글을 쓰는 중
     if (e.key === 'Escape' && state.open) { e.preventDefault(); close(); }
+    else if ((e.key === 'ArrowUp' || e.key === 'ArrowDown') && e.composedPath()[0] === grip) {
+      e.preventDefault();
+      resizeTo(win.getBoundingClientRect().height + (e.key === 'ArrowDown' ? 40 : -40));
+      save();
+    }
     else if (e.key === 'Enter' && !e.shiftKey && e.composedPath()[0] === input) { e.preventDefault(); ask(); }
   }, true);
   ['keyup', 'keypress', 'wheel', 'touchstart', 'touchmove', 'touchend'].forEach(function(type) {

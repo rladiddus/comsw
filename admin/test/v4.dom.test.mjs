@@ -2002,3 +2002,35 @@ test("준비물 공개/비공개 탭: 공개 학과의 학과 구성에 없는 �
   assert.equal(dlg.querySelector("input, textarea, select"), null, "보기만");
   document.querySelectorAll("dialog").forEach((d) => d.remove());
 });
+
+test("준비물 편집: 교재 가격·이미지, AI 구독 비용을 보여 주고 고친 그대로 저장(예전처럼 지워지지 않음), 공개 탭에 null 글자 없음", async () => {
+  document.querySelectorAll("dialog").forEach((d) => d.remove());
+  globalThis.confirm = () => true;
+  const fake = db();
+  const calls = [];
+  fake.rpc = async (name, args) => { calls.push([name, args]); return { data: false, error: null }; };
+  const extra = {
+    course_prep_items: [
+      { id: "p1", subject_id: "s1", category: "textbook", content: "멘토 캐드", link_url: "https://book.kr/c", image_url: "https://img/c.png", extra: "33,000원" },
+      { id: "p2", subject_id: "s1", category: "ai", content: "ChatGPT", link_url: "https://chatgpt.com", extra: "무료" },
+    ],
+  };
+  const base = fake.from.bind(fake);
+  fake.from = (t) => (t in extra ? fakeSupabase({ ...extra }).from(t) : base(t));
+  const main = await open("prep", undefined, fake);
+  [...main.querySelectorAll(".chips button")].find((b) => b.textContent === "공개").click();
+  assert.ok(![...main.querySelectorAll("section.box")].some((b) => b.textContent.includes("null")), "null 글자 없음");
+  [...main.querySelectorAll("tr.pick")].find((tr) => tr.textContent.includes("캐드")).click();
+  const dlg = [...document.querySelectorAll("dialog.modal")].at(-1);
+  const cost = () => [...dlg.querySelectorAll("input[aria-label='가격·구독 비용']")];
+  assert.deepEqual(cost().map((i) => i.value), ["33,000원", "무료"]);
+  assert.equal(dlg.querySelector("input[aria-label='교재 이미지 주소']").value, "https://img/c.png");
+  assert.equal(dlg.querySelectorAll("input[aria-label='교재 이미지 주소']").length, 1, "이미지는 교재만");
+  type(cost()[1], "월 $20(Pro)");
+  await flush();
+  barBtn("사이트 적용").click();
+  await flush();
+  const [, args] = calls.find(([n]) => n === "comsw_v4_confirm_prep");
+  assert.deepEqual(args.p_items.map((i) => [i.content, i.extra, i.image_url]), [["멘토 캐드", "33,000원", "https://img/c.png"], ["ChatGPT", "월 $20(Pro)", ""]]);
+  document.querySelectorAll("dialog").forEach((d) => d.remove());
+});

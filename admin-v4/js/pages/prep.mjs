@@ -32,17 +32,23 @@ export function prepEditor(base, { subjects, items, mats, departments, msg, onAp
   const members = subjects.filter((s) => baseName(s.name) === base);
   const ids = new Set(members.map((s) => s.id));
   const seen = new Set();
-  const published = items.filter((i) => ids.has(i.subject_id)).map(({ category, content, link_url, department_id }) => ({ category, content: content ?? "", link_url: link_url ?? "", department_id: department_id ?? null }))
+  // 가격·구독 비용(extra)과 교재 이미지(image_url)도 함께 다룬다(2026-11-26, 예전에는 저장할 때 지워짐)
+  const published = items.filter((i) => ids.has(i.subject_id)).map(({ category, content, link_url, image_url, extra, department_id }) => ({ category, content: content ?? "", link_url: link_url ?? "", image_url: image_url ?? "", extra: extra ?? "", department_id: department_id ?? null }))
     .filter((i) => !seen.has(key(i)) && seen.add(key(i)));
   let list = JSON.parse(JSON.stringify(published));
   const listEl = h("div");
   const drawList = () => listEl.replaceChildren(list.length ? h("div", { class: "tablewrap" }, h("table", {},
-    h("thead", {}, h("tr", {}, ["분류", "내용", "링크(AI 도구)", "학과", ""].map((t) => h("th", {}, t)))),
+    h("thead", {}, h("tr", {}, ["분류", "내용", "링크", "가격·구독 비용", "이미지(교재)", "학과", ""].map((t) => h("th", {}, t)))),
     h("tbody", {}, list.map((it, n) => h("tr", {},
-      h("td", {}, h("select", { "aria-label": "분류", onchange: (e) => { it.category = e.target.value; } },
+      h("td", {}, h("select", { "aria-label": "분류", onchange: (e) => { it.category = e.target.value; drawList(); } },
         CATS.map(([v, l]) => h("option", { value: v, selected: v === it.category }, l)))),
       h("td", {}, h("input", { value: it.content, "aria-label": "내용", style: "width:100%", oninput: (e) => { it.content = e.target.value; } })),
       h("td", {}, h("input", { value: it.link_url ?? "", "aria-label": "링크", placeholder: "https://", style: "width:100%", oninput: (e) => { it.link_url = e.target.value; } })),
+      h("td", {}, h("input", { value: it.extra ?? "", "aria-label": "가격·구독 비용", maxLength: 200, style: "width:100%",
+        placeholder: it.category === "textbook" ? "예: 28,000원" : it.category === "ai" ? "예: 무료 / 월 $20(Pro)" : "비고(선택)", oninput: (e) => { it.extra = e.target.value; } })),
+      h("td", {}, it.category === "textbook"
+        ? h("input", { value: it.image_url ?? "", "aria-label": "교재 이미지 주소", placeholder: "https://", style: "width:100%", oninput: (e) => { it.image_url = e.target.value; } })
+        : h("span", { class: "muted" }, "—")),
       h("td", {}, deptName.get(it.department_id) ?? "전체"),
       h("td", {}, h("button", { type: "button", class: "btn danger", onclick: () => { list.splice(n, 1); drawList(); } }, "빼기"))))))) : empty("공통 준비물이 없습니다"));
   drawList();
@@ -53,14 +59,17 @@ export function prepEditor(base, { subjects, items, mats, departments, msg, onAp
     drawList();
     msg.replaceChildren(note(add.length ? `강사 준비물 ${add.length}개를 더했습니다. 정리한 뒤 [사이트 적용] 또는 [임시 저장]을 눌러주세요.` : "더할 강사 준비물이 없습니다(이미 모두 있음)."));
   };
-  const addRow = h("button", { type: "button", class: "btn", onclick: () => { list.push({ category: "supply", content: "", link_url: "" }); drawList(); } }, "+ 항목");
+  const addRow = h("button", { type: "button", class: "btn", onclick: () => { list.push({ category: "supply", content: "", link_url: "", image_url: "", extra: "" }); drawList(); } }, "+ 항목");
   const t = track({
     id: `prep:${base}`, slot: "prep", title: `${base} 공통 준비물`, baseline: published,
     read: () => list, write: (x) => { list = JSON.parse(JSON.stringify(x)); drawList(); },
     apply: async (x) => {
-      const clean = x.map((i) => ({ ...i, content: i.content.trim(), link_url: (i.link_url ?? "").trim() })).filter((i) => i.content);
+      const clean = x.map((i) => ({ ...i, content: i.content.trim(), link_url: (i.link_url ?? "").trim(), extra: (i.extra ?? "").trim(),
+        image_url: i.category === "textbook" ? (i.image_url ?? "").trim() : "" })).filter((i) => i.content);
       const bad = clean.find((i) => i.link_url && !/^https?:\/\//i.test(i.link_url));
       if (bad) throw new Error(`'${bad.content}' 링크는 http:// 또는 https://로 시작해야 합니다`);
+      const badImg = clean.find((i) => i.image_url && !/^https?:\/\//i.test(i.image_url));
+      if (badImg) throw new Error(`'${badImg.content}' 이미지 주소는 http:// 또는 https://로 시작해야 합니다`);
       await data.call("comsw_v4_confirm_prep", { p_base: base, p_items: clean });
     },
     onApplied,
@@ -118,9 +127,9 @@ export async function render({ main, params = [] }) {
       const now = pool.filter((r) => hasText(r.base, f.base) && (!f.member || r.members.some((s) => hasText(s.name, f.member)))
         && (!f.dept || (f.dept === "-" ? !r.depts.length : r.depts.includes(f.dept)))
         && (!f.prep || (f.prep === "yes" ? r.count > 0 : f.prep === "no" ? r.count === 0 : r.cats.includes(f.prep))));
-      listBox.replaceChildren(h("h3", {}, now.length === pool.length ? `기준 과목 ${pool.length}개` : `기준 과목 ${now.length}개 (전체 ${pool.length}개)`),
+      listBox.replaceChildren(...[h("h3", {}, now.length === pool.length ? `기준 과목 ${pool.length}개` : `기준 과목 ${now.length}개 (전체 ${pool.length}개)`),
         view === "hidden" ? note("공개 학과의 학과 구성에 없는 과목이라 홈페이지 수업별 준비물에 나오지 않는 준비물입니다. 과목을 누르면 내용·링크·이미지·가격을 볼 수 있습니다. 다시 보이게 하려면 학과·과목 › 학과 구성에서 그 과목을 학과에 넣거나, 맞는 과목의 준비물로 옮겨 적어주세요.") : null,
-        now.length ? (view === "hidden" ? hiddenTable(now) : listTable(now)) : empty(view === "hidden" ? "비공개 준비물이 없습니다" : "조건에 맞는 과목이 없습니다"));
+        now.length ? (view === "hidden" ? hiddenTable(now) : listTable(now)) : empty(view === "hidden" ? "비공개 준비물이 없습니다" : "조건에 맞는 과목이 없습니다")].filter(Boolean)); // null은 글자로 들어가므로 뺀다
     };
     const listTable = (list) => table([
       ["기준 과목", (r) => h("span", { class: "subject-chip" }, r.base)],

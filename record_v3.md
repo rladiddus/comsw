@@ -295,3 +295,4 @@
 - 2026-11-26 migration dedupe_instructor_curricula: 비교 칸 step_label·written·media_url·supplies·supplies_detail·class_time·status(순서·summary 제외), 강사의 학과 탭이 있는 묶음만. 테스트 tools/test/dedupe-instructor-curricula.test.mjs.
 - 2026-11-26 migration move_cat2_curriculum: ghost id 862978ef-…, 남현우가 하나일 때만, 같은 탭 CAT 2급이 있으면 멈춤. 테스트 tools/test/move-cat2-curriculum.test.mjs.
 - 2026-11-26 comsw-tools summaryOptions(kind)(feedback: 4만 자·medium·8000토큰), PROMPTS.feedback, comsw_ai_jobs kind에 feedback. usage.mjs feedbackText·reportPopup.
+- 2026-11-26 item(.html/_tablet) buildPrepView(전체수업 시트로 공개 과목·순서, prepBaseName = V4 baseName 규칙), .item-sort. comsw-chat buildCatalog prep은 subjects에 있는 과목만.

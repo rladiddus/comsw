@@ -187,13 +187,17 @@ export function buildCatalog({ lessons, menu = [], instructors = [], prep = [], 
     }
   }
   if (pageOn("수업별준비물")) {
+    // 기준 이름(끝 숫자 뗀 이름)으로 비교: '캐드' 준비물은 공개된 캐드1·캐드2의 것
+    const prepBase = (n) => clean(n).replace(/\s*\d+(\s*~\s*\d+)?$/, "").trim() || clean(n);
+    const publicBases = new Set([...subjects.values()].map((s) => prepBase(s.name)));
     const byName = new Map();
     let name = "", kind = "";
     for (const v of prep) {
       name = clean(v[0]) || name;
       kind = clean(v[1]) || kind;
       const label = PREP.find(([, re]) => re.test(kind))?.[0];
-      if (!name || !label || !clean(v[2]) || HIDE.test(name)) continue;
+      // 공개된 과목(보이는 학과의 과목)의 준비물만(홈페이지 준비물 페이지와 같게, 2026-11-26)
+      if (!name || !label || !clean(v[2]) || HIDE.test(name) || !publicBases.has(prepBase(name))) continue;
       const extra = clean(v[5]);
       byName.set(name, [...(byName.get(name) ?? []), `${label} ${line(v[2])}${extra ? `(${line(extra)})` : ""}${linkOf(v[3]) ? ` ${linkOf(v[3])} ` : ""}`.trim()]);
     }

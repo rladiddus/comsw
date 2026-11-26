@@ -83,6 +83,33 @@
       padding: 0 24px;
       white-space: nowrap;
     }
+    /* 과목 순서 고르기(학과 순서 / 가나다순, 2026-11-26) */
+    .item-sort {
+      margin-left: auto;
+      align-self: flex-end;
+      margin-bottom: 16px;
+      display: flex;
+      gap: 6px;
+      background: #ececec;
+      border-radius: 999px;
+      padding: 5px;
+    }
+    .item-sort button {
+      border: 0;
+      background: none;
+      border-radius: 999px;
+      padding: 10px 22px;
+      font-family: inherit;
+      font-size: 22px;
+      font-weight: 700;
+      color: #777;
+      cursor: pointer;
+    }
+    .item-sort button[aria-pressed="true"] {
+      background: #ffffff;
+      color: var(--accent-orange);
+      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
+    }
     .item-tab.active {
       background: var(--accent-orange);
       color: #ffffff;
@@ -418,6 +445,10 @@
         <button class="item-tab active" data-tab="textbook">교재</button>
         <button class="item-tab" data-tab="supply">준비물</button>
         <button class="item-tab" data-tab="ai">AI툴</button>
+        <div class="item-sort" role="group" aria-label="과목 순서">
+          <button type="button" data-sort="dept" aria-pressed="true">학과 순서</button>
+          <button type="button" data-sort="name" aria-pressed="false">가나다순</button>
+        </div>
       </div>
 
       <!-- 메인 흰 박스 -->
@@ -642,6 +673,8 @@
             .map(function(s) { return s.trim(); })
             .filter(Boolean)
             .forEach(function(tool) {
+              // 묶인 과목끼리 같은 AI툴은 한 번만
+              if (groupedMap[subject].tools.some(function(t) { return t.text.replace(/\s+/g, '').toLowerCase() === tool.replace(/\s+/g, '').toLowerCase(); })) return;
               groupedMap[subject].tools.push({
                 text: tool,
                 tooltip: it.pill || '',
@@ -872,6 +905,94 @@
       return await res.json();
     }
 
+    /* ============================================== */
+    /*  공개된 과목만, 기준 과목 이름으로 묶기(2026-11-26)  */
+    /*  공개된 과목 = 공개 학과의 학과 구성에 든 과목(학과 커리큘럼에 나오는 과목).    */
+    /*  'AI웹툰1~6' → 'AI웹툰'(끝 숫자·범위를 뗀 이름, 관리 화면 준비물과 같은 규칙), 묶인 과목의 준비물은 합치고 같은 것은 한 번만. */
+    /* ============================================== */
+    const PREP_SORT_KEY = 'comsw_item_sort';
+    let rawItems = [];
+    let lessonRows = [];
+    let sortMode = 'dept';
+    try { if (localStorage.getItem(PREP_SORT_KEY) === 'name') sortMode = 'name'; } catch (e) {}
+
+    function prepBaseName(name) {
+      const s = String(name || '').trim();
+      return s.replace(/\s*\d+(\s*~\s*\d+)?$/, '').trim() || s;
+    }
+    function prepTruthy(v) {
+      return window.ComswSupabase && window.ComswSupabase.truthyCell
+        ? window.ComswSupabase.truthyCell(v)
+        : (v === true || String(v).toLowerCase() === 'true');
+    }
+    function prepDeptOrd(cell, deptName) {
+      try {
+        const m = JSON.parse(cell || '{}');
+        const key = String(deptName || '').replace(/학과$/, '').replace(/\s+/g, '');
+        for (const k in m) { if (k.replace(/\s+/g, '') === key && typeof m[k] === 'number') return m[k]; }
+      } catch (e) {}
+      return 1e5;
+    }
+    // 과목 이름 → 순서 번호(공개 학과 순서 × 학과 구성 순서). 공개된 과목만 들어간다.
+    function publicSubjectRanks(rows) {
+      const depts = [];
+      rows.forEach(function(row) {
+        const v = getRawValues(row);
+        const name = normalizeText(v[14]);   // O열 학과명
+        if (name && prepTruthy(v[16]) && depts.indexOf(name) < 0) depts.push(name); // Q열 공개
+      });
+      const keys = depts.map(function(d) { return d.replace(/학과$/, '').replace(/\s+/g, ''); });
+      const rank = {};
+      rows.forEach(function(row) {
+        const v = getRawValues(row);
+        const name = normalizeText(v[2]);    // C열 과목명
+        if (!name) return;
+        normalizeText(v[1]).split(',').forEach(function(d) {   // B열 학과(학과 뗀 이름)
+          const i = keys.indexOf(d.replace(/\s+/g, ''));
+          if (i < 0) return;
+          const r = i * 1e6 + prepDeptOrd(v[25], depts[i]);
+          if (!(name in rank) || r < rank[name]) rank[name] = r;
+        });
+      });
+      return rank;
+    }
+    function buildPrepView(items, rows, mode) {
+      const rank = publicSubjectRanks(rows);
+      // 기준 이름으로 비교: '캐드' 준비물은 공개된 캐드1·캐드2의 것(관리 화면 준비물과 같은 묶음)
+      const baseRank = {};
+      Object.keys(rank).forEach(function(name) {
+        const b = prepBaseName(name);
+        if (!(b in baseRank) || rank[name] < baseRank[b]) baseRank[b] = rank[name];
+      });
+      const seen = {};
+      const list = [];
+      items.forEach(function(it, i) {
+        const base = prepBaseName(it.subject);
+        if (!(base in baseRank)) return; // 공개되지 않은 과목(학과에 없음·삭제·비공개 학과만)은 뺀다
+        const key = it.category + '|' + base + '|' + String(it.content || '').replace(/\s+/g, '').toLowerCase();
+        if (seen[key]) return;
+        seen[key] = true;
+        list.push(Object.assign({}, it, { subject: base, i: i }));
+      });
+      list.sort(function(a, b) {
+        const byBase = mode === 'name' ? a.subject.localeCompare(b.subject, 'ko') : (baseRank[a.subject] - baseRank[b.subject]) || a.subject.localeCompare(b.subject, 'ko');
+        return byBase || (a.i - b.i);
+      });
+      return list;
+    }
+    function applyPrepView() {
+      allItems = buildPrepView(rawItems, lessonRows, sortMode);
+      document.querySelectorAll('.item-sort button').forEach(function(b) { b.setAttribute('aria-pressed', String(b.dataset.sort === sortMode)); });
+      renderTab();
+    }
+    document.querySelectorAll('.item-sort button').forEach(function(b) {
+      b.addEventListener('click', function() {
+        sortMode = b.dataset.sort === 'name' ? 'name' : 'dept';
+        try { localStorage.setItem(PREP_SORT_KEY, sortMode); } catch (e) {}
+        applyPrepView();
+      });
+    });
+
     async function loadCoursePrepItemsFromSupabase() {
       if (!SUPABASE_ANON_KEY || SUPABASE_ANON_KEY === 'PASTE_SUPABASE_ANON_OR_PUBLISHABLE_KEY_HERE') {
         throw new Error('item_supabase_test.html의 SUPABASE_ANON_KEY에 Supabase Publishable/anon key를 넣어주세요.');
@@ -893,10 +1014,14 @@
     window.onload = function() {
       applyScale();
 
-      loadCoursePrepItemsFromSupabase()
-        .then(function(list) {
-          allItems = list || [];
-          renderTab();
+      Promise.all([
+        loadCoursePrepItemsFromSupabase(),
+        fetchSupabaseRowsForSheet('컴수원_전체수업')
+      ])
+        .then(function(res) {
+          rawItems = res[0] || [];
+          lessonRows = res[1] || [];
+          applyPrepView();
         })
         .catch(function(err) {
           showLoadError(err && err.message ? err.message : err);

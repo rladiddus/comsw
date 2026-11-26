@@ -1526,7 +1526,7 @@ test("AI 사용량: 종류를 누르면 프롬프트 팝업 — 지금 글 보�
     const dlg = [...document.querySelectorAll("dialog.modal")].at(-1);
     return { dlg, area: dlg.querySelector("textarea"), btn: (t) => [...dlg.querySelectorAll("button")].find((b) => b.textContent === t) };
   };
-  assert.deepEqual([...main.querySelectorAll("tr.pick")].map((tr) => tr.firstChild.textContent).filter((t) => !["관리 화면 AI", "홈페이지 챗봇"].includes(t)).sort(), ["강사 단계 문구", "공통 4단계 정리", "과정내용 정리", "로드맵 문구", "프로필 사진"]);
+  assert.deepEqual([...main.querySelectorAll("tr.pick")].map((tr) => tr.firstChild.textContent).filter((t) => !["관리 화면 AI", "홈페이지 챗봇"].includes(t)).sort(), ["강사 단계 문구", "공통 4단계 정리", "과정내용 정리", "로드맵 문구", "상담 평가 정리", "프로필 사진"]);
 
   let p = await pop("프로필 사진");
   assert.equal(p.area.value, PROMPTS.profile, "저장한 글이 없으면 기본");
@@ -1933,4 +1933,37 @@ test("AI 사용량 › 홈페이지 챗봇: 상담 평가(이번 달 평균·별
   main = await open("usage", { uid: "u1", role: "head" }, fake);
   [...main.querySelectorAll(".chips button")].find((b) => b.textContent === "홈페이지 챗봇").click();
   assert.match(main.textContent, /상담 평가 준비\(SQL 실행\)가 끝나면/);
+});
+
+test("상담 평가 [피드백 정리하기]: 거른 평가를 낮은 별점부터 글로 묶어 관리 화면 AI(feedback)로 정리, 결과 팝업에 [복사]", async () => {
+  document.querySelectorAll("dialog").forEach((d) => d.remove());
+  const { feedbackText } = await import("../../admin-v4/js/pages/usage.mjs");
+  const at = "2026-11-26T05:00:00Z";
+  const f = (stars, comment, q) => ({ stars, comment, created_at: at, messages: [{ role: "user", content: q }, { role: "assistant", content: "답 ".repeat(300) }] });
+  const { text, used } = feedbackText([f(5, "", "좋은 질문"), f(2, "길어요", "나쁜 질문"), f(3, "", "보통 질문")]);
+  assert.equal(used, 3);
+  assert.match(text, /^평가 3건 · 평균 3\.3점 · 별점별 5점 1건, 4점 0건, 3점 1건, 2점 1건, 1점 0건/);
+  assert.ok(text.indexOf("나쁜 질문") < text.indexOf("보통 질문") && text.indexOf("보통 질문") < text.indexOf("좋은 질문"), "낮은 별점부터");
+  assert.match(text, /\[평가 1\] 별점 2 · .* · 한마디: 길어요\n방문자: 나쁜 질문\n챗봇: /);
+  assert.ok(text.split("\n").every((l) => l.length <= 420), "대화 한 줄 400자까지");
+  assert.equal(feedbackText([f(1, "", "a"), f(1, "", "b")], 500).used, 1, "넘치면 뒤 평가는 뺌");
+
+  const list = [f(2, "길어요", "제품디자인"), f(5, "", "CG")].map((x, i) => ({ ...x, id: `f${i}`, created_at: new Date().toISOString() }));
+  const fake = fakeSupabase({ comsw_ai_jobs: [] });
+  fake.rpc = async (n) => ({ data: n === "comsw_ai_budget" ? { month: "2026-11", used: 0, limit: 3000, remaining: 3000 } : n === "comsw_chat_budget" ? { used: 1, count: 1, limit: 3000 } : n === "comsw_chat_feedback_list" ? list : null, error: null });
+  const sent = [];
+  const { configureServices } = await import("../../admin/js/services.mjs");
+  configureServices({ summarize: async (kind, t) => { sent.push([kind, t]); return { text: "1) 한눈에 보기\n4) 챗봇을 이렇게 고쳐 주세요\n1. 짧게 답하게 해줘" }; } });
+  const main = await open("usage", { uid: "u1", role: "head" }, fake);
+  [...main.querySelectorAll(".chips button")].find((b) => b.textContent === "홈페이지 챗봇").click();
+  const sel = [...main.querySelectorAll("select")].at(-1);
+  sel.value = "low"; sel.dispatchEvent(new dom.window.Event("change", { bubbles: true }));
+  [...main.querySelectorAll("button")].find((b) => b.textContent === "피드백 정리하기").click();
+  await flush();
+  assert.equal(sent[0][0], "feedback");
+  assert.match(sent[0][1], /^평가 1건/, "지금 거른(3점 이하) 평가만");
+  const dlg = [...document.querySelectorAll("dialog.modal")].at(-1);
+  assert.match(dlg.querySelector("textarea").value, /짧게 답하게 해줘/);
+  assert.ok([...dlg.querySelectorAll("button")].some((b) => b.textContent === "복사"));
+  document.querySelectorAll("dialog").forEach((d) => d.remove());
 });

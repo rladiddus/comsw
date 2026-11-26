@@ -5,6 +5,7 @@ import {
   requireMember,
   safeFilename,
   summaryReservation,
+  summaryOptions,
   usageCost,
 } from "./policy.mjs";
 
@@ -246,13 +247,14 @@ export function createHandler(
       }
       if (body.action === "summarize") {
         if (
-          !["week", "common", "department", "roadmap"].includes(body.kind) ||
+          !["week", "common", "department", "roadmap", "feedback"].includes(body.kind) ||
           !member.manager
         ) throw new Error("요약 권한이 없습니다");
         const text = String(body.text || "").trim();
         const prompt = promptFor(body.kind);
-        if (!text || text.length > 12000 || prompt.length > 4000) {
-          throw new Error("요약할 원문은 12,000자 이하로 입력해주세요");
+        const opt = summaryOptions(body.kind);
+        if (!text || text.length > opt.maxText || prompt.length > 4000) {
+          throw new Error(`요약할 원문은 ${opt.maxText.toLocaleString("ko-KR")}자 이하로 입력해주세요`);
         }
         const model = "gpt-6-luna"; // 요금 단가는 policy TEXT_RATE
         const key = await digest(
@@ -262,14 +264,14 @@ export function createHandler(
           await withBudget(
             body.kind,
             key,
-            summaryReservation(prompt, text, fx),
+            summaryReservation(prompt, text, fx, opt.outTokens),
             async () => {
               const data = await openai("responses", {
                 model,
                 instructions: prompt,
                 input: text,
-                reasoning: { effort: "none" }, // 생각하기 끄기(빠르고 저렴하게)
-                max_output_tokens: 512,
+                reasoning: { effort: opt.effort }, // 문구는 생각하기 끄기(빠르고 저렴하게), 상담 평가 정리는 켬
+                max_output_tokens: opt.outTokens,
                 store: false,
               });
               const summary = (data.output || []).flatMap((o) =>

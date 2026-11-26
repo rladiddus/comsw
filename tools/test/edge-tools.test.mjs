@@ -83,6 +83,7 @@ test("MIME 위장 파일은 서버에서 거절", () => {
 });
 test("토큰 비용 예약은 한글 원문과 출력 상한을 포함하고 응답 누락은 정산하지 않음", () => {
   assert.equal(summaryReservation("요약", "한글".repeat(2000), 2000), 5, "한글은 바이트로 넉넉히 + 출력 512토큰");
+  assert.ok(summaryReservation("요약", "한글".repeat(2000), 2000, 8000) > 5, "상담 평가 정리는 긴 출력만큼 더 잡음");
   assert.ok(usageCost({ input_tokens: 100, output_tokens: 100 }, 2000) > 0);
   assert.equal(usageCost({ input_tokens: 250, output_tokens: 35 }, 2000), 1, "짧은 문구는 1원");
   assert.equal(usageCost({ input_tokens: 1e6, output_tokens: 1e6 }, 2000), 1800, "글: 실제 요금(0.1+0.5달러)의 1.5배");
@@ -172,4 +173,15 @@ test("커리큘럼 이미지는 픽셀 제한 없이: WebP로 못 바꿀 만큼 
   }));
   assert.equal(response.status, 200, await response.clone().text());
   assert.deepEqual([saved[0].mime_type, saved[0].filename], ["image/png", "big.png"]);
+});
+
+test("상담 평가 정리(feedback): 학과장·관리자만, 4만 자까지, 생각하기 medium·긴 출력, 다른 종류는 그대로", async () => {
+  const { summaryOptions, PROMPTS } = await import("../../supabase/functions/comsw-tools/policy.mjs");
+  assert.deepEqual(summaryOptions("feedback"), { maxText: 40000, effort: "medium", outTokens: 8000 });
+  assert.deepEqual(summaryOptions("week"), { maxText: 12000, effort: "none", outTokens: 512 });
+  for (const must of ["잘된 점", "아쉬운 점", "챗봇을 이렇게 고쳐 주세요", "~하게 해줘", "지어내지 마"]) assert.ok(PROMPTS.feedback.includes(must), must);
+  const src = (await import("node:fs")).readFileSync(new URL("../../supabase/functions/comsw-tools/handler.mjs", import.meta.url), "utf8");
+  assert.match(src, /\["week", "common", "department", "roadmap", "feedback"\]\.includes\(body\.kind\) \|\|\s*!member\.manager/);
+  assert.match(src, /reasoning: \{ effort: opt\.effort \}/);
+  assert.match(src, /max_output_tokens: opt\.outTokens/);
 });

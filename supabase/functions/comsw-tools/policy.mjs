@@ -9,6 +9,9 @@ export const PROMPTS = {
   // 학과 커리큘럼 과정내용(2026-11-20): 공통 4단계를 단계마다 한 줄, 01~04
   department:
     "제시된 과목의 단계별 커리큘럼을 단계마다 한 줄씩 정리해줘. 각 줄은 01, 02, 03, 04처럼 단계 번호로 시작하고 줄바꿈으로 나눠. 각 줄은 띄어쓰기 포함 25자 내외로, ~합니다, ~입니다로 끝내지 말고 배우는 내용이 드러나는 단어로 마무리해줘(예: 01 인터페이스 이해, 레이어 조작, 파일 관리). 제시된 단계 수만큼만 쓰고, 다른 설명이나 대괄호 기호는 쓰지 마.",
+  // 홈페이지 챗봇 상담 평가 정리(2026-11-26): 생각하기 켬. 결과를 Claude Code에 붙여 넣어 챗봇 지시문을 고친다.
+  feedback:
+    "너는 학원 홈페이지 AI 수업 상담 챗봇의 품질을 점검하는 담당자다. 아래는 방문자가 남긴 상담 평가(별점 1~5, 한마디, 그때의 대화)다. 전화번호·이메일은 이미 가려져 있다. 다음 순서로 한국어로 정리해줘. 1) 한눈에 보기: 평가 수, 평균 별점, 별점별 개수. 2) 잘된 점: 높은 별점 대화에서 반복되는 좋은 답변 방식 2~4개. 3) 아쉬운 점: 낮은 별점과 한마디를 근거로 문제를 묶어서 정리하고, 문제마다 근거가 된 대화의 질문과 답 일부를 짧게(한 줄) 인용. 4) 챗봇을 이렇게 고쳐 주세요: 챗봇 지시문을 고치는 사람에게 그대로 전달할 수 있게 '~하게 해줘' 형식의 요청 문장으로 3~7개, 중요한 것부터 번호를 붙여서. 각 요청에는 왜 필요한지 한 줄을 붙여. 5) 더 지켜볼 것: 한두 건뿐이라 판단을 미룰 것. 평가가 적거나 근거가 약하면 그렇다고 솔직히 쓰고 지어내지 마. 사람 이름·연락처 같은 개인정보는 쓰지 마. 표와 마크다운 기호 없이 번호와 줄바꿈으로만 써줘.",
   roadmap:
     "주어진 문장을 10자 내의 두 문장으로 정리. 두 문장은 서로 줄바꿈으로 표기",
   profile:
@@ -54,10 +57,16 @@ export function safeFilename(name) {
 // 1백만 토큰 단가(달러). 글: gpt-6-luna 실제 요금(0.1·0.5)의 1.5배. 모델을 바꾸면 같이 고친다.
 const TEXT_RATE = { input: 0.15, output: 0.75 };
 const IMAGE_RATE = { input: 8, output: 30 };
-export function summaryReservation(prompt, text, fx) {
+export function summaryReservation(prompt, text, fx, outTokens = 512) {
   // UTF-8 바이트 수는 토큰 수의 상한.
   const bytes = new TextEncoder().encode(`${prompt}\n${text}`).length;
-  return Math.max(1, Math.ceil((bytes * TEXT_RATE.input + 512 * TEXT_RATE.output) / 1e6 * fx));
+  return Math.max(1, Math.ceil((bytes * TEXT_RATE.input + outTokens * TEXT_RATE.output) / 1e6 * fx));
+}
+// 종류별 글 요약 설정: 상담 평가 정리만 길게 읽고, 생각하기를 켜고(medium), 길게 쓴다.
+export function summaryOptions(kind) {
+  return kind === "feedback"
+    ? { maxText: 40000, effort: "medium", outTokens: 8000 }
+    : { maxText: 12000, effort: "none", outTokens: 512 };
 }
 export function usageCost(usage, fx, image = false) {
   if (

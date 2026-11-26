@@ -7,13 +7,14 @@ import { PROMPTS } from "../../../supabase/functions/comsw-tools/policy.mjs";
 import { formatSeoul } from "../../../admin/js/format.mjs";
 import { h, head, box, table, pill, fill, note, busy, modal, filterBar, tabs } from "../ui.mjs";
 
-const KIND = { week: "강사 단계 문구", common: "공통 4단계 정리", department: "과정내용 정리", roadmap: "로드맵 문구", profile: "프로필 사진" };
+const KIND = { week: "강사 단계 문구", common: "공통 4단계 정리", department: "과정내용 정리", roadmap: "로드맵 문구", profile: "프로필 사진", feedback: "상담 평가 정리" };
 const USED = {
   week: "강사 커리큘럼의 [AI 문장 다듬기]",
   common: "학과·과목과 방학 특강의 [AI 공통 정리], 과정내용 줄 수를 맞출 때",
   department: "학과 구성의 과정내용 [AI 정리]",
   roadmap: "로드맵 문구의 AI 요약",
   profile: "강사 프로필의 [AI 프로필 사진 만들기]",
+  feedback: "AI 사용량 › 홈페이지 챗봇 › 상담 평가의 [피드백 정리하기](생각하기 켬)",
 };
 const TRIMMED = ["week", "common", "department"]; // data.ai가 끝말(~교육·~제안)을 떼는 종류
 const MAX = 4000; // 서버(comsw-tools)가 받는 프롬프트 길이
@@ -137,9 +138,46 @@ export function feedbackBox(list, month) {
   };
   const filter = filterBar([{ key: "only", label: "거르기", options: [["", "전체"], ["low", "3점 이하"], ["comment", "한마디 있는 것"]] }], draw);
   draw(filter.values);
-  return box(`상담 평가 · 이번 달 평균 ${avg}점 · ${mine.length}건`, dist,
+  // [피드백 정리하기]: 지금 거른 평가를 관리 화면 AI(생각하기 켬)로 정리 → 복사해서 Claude Code에 붙여 넣어 챗봇을 고친다
+  const msg = h("div");
+  const reportBtn = h("button", { type: "button", class: "btn primary", disabled: !list.length }, "피드백 정리하기");
+  reportBtn.onclick = () => busy(reportBtn, msg, async () => {
+    const shown = list.filter((f) => (filter.values.only !== "low" || f.stars <= 3) && (filter.values.only !== "comment" || f.comment));
+    if (!shown.length) throw new Error("정리할 평가가 없습니다");
+    const { text, used } = feedbackText(shown);
+    reportPopup(await data.ai("feedback", text), used, shown.length);
+  });
+  return box(null, h("div", { class: "row" }, h("h3", {}, `상담 평가 · 이번 달 평균 ${avg}점 · ${mine.length}건`), reportBtn), msg, dist,
     h("p", { class: "muted" }, "방문자가 [상담 끝내기]나 채팅창 닫기에서 남긴 별점입니다. 최근 3개월만 보관합니다. 줄을 누르면 그 대화를 봅니다."), filter.el, rows);
 }
+// AI에게 줄 글: 낮은 별점·한마디 있는 것부터, 대화는 한 줄 400자까지, 전체 38,000자 안(넘치면 뒤의 평가는 뺌)
+export function feedbackText(list, max = 38000) {
+  const order = [...list].sort((a, b) => a.stars - b.stars || Number(!!b.comment) - Number(!!a.comment));
+  const avg = (list.reduce((n, f) => n + f.stars, 0) / list.length).toFixed(1);
+  let text = `평가 ${list.length}건 · 평균 ${avg}점 · 별점별 ${[5, 4, 3, 2, 1].map((s) => `${s}점 ${list.filter((f) => f.stars === s).length}건`).join(", ")}\n`;
+  let used = 0;
+  for (const f of order) {
+    const part = `\n[평가 ${used + 1}] 별점 ${f.stars} · ${formatSeoul(f.created_at)}${f.comment ? ` · 한마디: ${f.comment}` : ""}\n`
+      + f.messages.map((m) => `${m.role === "user" ? "방문자" : "챗봇"}: ${m.content.replace(/\s+/g, " ").slice(0, 400)}`).join("\n") + "\n";
+    if (text.length + part.length > max) break;
+    text += part;
+    used += 1;
+  }
+  return { text, used };
+}
+function reportPopup(report, used, total) {
+  const area = h("textarea", { class: "prompt-text", rows: 18, readOnly: true, value: report, "aria-label": "피드백 정리 결과" });
+  const msg = h("div");
+  const copy = h("button", { type: "button", class: "btn primary", onclick: async () => {
+    try { await navigator.clipboard.writeText(area.value); msg.replaceChildren(note("복사했습니다. Claude Code(챗봇을 고치는 대화창)에 붙여 넣으세요.")); }
+    catch { area.select(); msg.replaceChildren(note("자동 복사가 막혔습니다. 글이 선택되어 있으니 Ctrl+C로 복사하세요.")); }
+  } }, "복사");
+  const pop = modal("피드백 정리", h("div", { class: "modal-body" }, h("div", { class: "modal-main" }, h("section", { class: "box", style: "margin:0" },
+    h("p", { class: "muted" }, `평가 ${total}건 중 ${used}건의 대화를 읽고 정리했습니다${used < total ? "(너무 길어 낮은 별점·한마디 있는 것부터 담고 나머지는 뺐습니다)" : ""}. 복사해서 Claude Code에 붙여 넣으면 챗봇 지시문을 고칠 수 있어요.`),
+    msg, area))), { actions: [copy] });
+  pop.dlg.classList.add("modal-talk");
+}
+
 // 대화 팝업: 내용만큼 높이(화면보다 길면 안에서 스크롤), 너비 760px
 function talkPopup(f) {
   const pop = modal(`상담 평가 ${starsOf(f.stars)} · ${formatSeoul(f.created_at)}`, h("div", { class: "modal-body" }, h("div", { class: "modal-main" },

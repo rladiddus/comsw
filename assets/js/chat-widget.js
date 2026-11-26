@@ -266,7 +266,7 @@
     if (!picked) input.value = '';
     if (liveChoices) liveChoices([]); // 고르지 않고 직접 써서 답함
     bubble('user', text);
-    var wait = bubble('assistant', '답변을 찾고 있습니다…', 'wait');
+    var wait = bubble('assistant', '답변을 작성하고 있어요…', 'wait');
     var question = { role: 'user', content: text };
     try {
       var cfg = window.COMSW_SUPABASE_CONFIG;

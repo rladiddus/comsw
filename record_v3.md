@@ -293,3 +293,4 @@
 - 2026-11-26 comsw-chat 응답 {reply, choices?}(choicesOf 2~3개), json_schema choices. chat-widget choiceBox·forAI([고를 것] 붙여 보냄)·msgs.picked.
 - 2026-11-26 comsw_private.chat_feedback, comsw_chat_feedback_add(service_role)·_list(admin/head). comsw-chat body.feedback → feedbackOf·maskPrivate. chat-widget openRating/thanks/resetChat, state.asked. usage.mjs feedbackBox·talkPopup.
 - 2026-11-26 migration dedupe_instructor_curricula: 비교 칸 step_label·written·media_url·supplies·supplies_detail·class_time·status(순서·summary 제외), 강사의 학과 탭이 있는 묶음만. 테스트 tools/test/dedupe-instructor-curricula.test.mjs.
+- 2026-11-26 migration move_cat2_curriculum: ghost id 862978ef-…, 남현우가 하나일 때만, 같은 탭 CAT 2급이 있으면 멈춤. 테스트 tools/test/move-cat2-curriculum.test.mjs.

@@ -409,10 +409,8 @@ function instructorForm(p, { cat, links, isubs, reload }) {
     h("div", { class: "inst-form" },
       h("div", {},
         field("이름", h("input", { value: f.name, "aria-label": "강사 이름", oninput: (e) => { f.name = e.target.value; } })),
-        h("div", { class: "row", style: "margin-bottom:14px" },
-          field("성별", h("select", { "aria-label": "성별", onchange: (e) => { f.gender = e.target.value; } },
-            [...new Set(["", "남", "여", f.gender])].map((g) => h("option", { value: g, selected: g === f.gender }, g || "선택 안 함")))),
-          h("div", { class: "actions" }, h("span", {}, "홈페이지 노출"), toggleSwitch(f.is_listed, "홈페이지 노출", (next) => { f.is_listed = next; }))),
+        // 성별·홈페이지 노출 칸은 뺌(2026-11-26 사용자 요청). 저장할 때는 원래 값(f.gender·f.is_listed)을 그대로 보냄.
+        // 홈페이지 노출은 강사 목록의 스위치로 바꾼다.
         h("div", { class: "form-field" }, h("b", {}, "학과"), deptBox),
         h("div", { class: "form-field" }, h("div", { class: "row" }, h("b", {}, "담당 과목"),
           h("button", { type: "button", class: "btn small", onclick: () => subjectPicker("담당 과목 고르기", cat, subjects, f.subjects, (ids) => { f.subjects = ids; drawSubjects(); }) }, "과목 검색")), subjList),

@@ -1,10 +1,11 @@
 // AI 사용량: 이번 달 사용액·한도·남은 금액, 종류별 합계, 작업 기록(학과장·관리자가 봄).
 // 종류를 누르면 팝업에서 그 AI 프롬프트를 보고 고친다(site_settings ai_prompt_<종류> — 서버가 이 글로 AI를 부른다).
 // [한도 바꾸기]와 실패한 작업의 [사용액에서 빼기]는 관리자만(권한은 DB가 다시 확인). 홈페이지 내용과 상관없어 바로 저장.
+// 탭(2026-11-26): 전체(관리 화면 AI + 홈페이지 챗봇 합계) / 관리 화면 AI / 홈페이지 챗봇. 사용액 옆에 한도 대비 %.
 import * as data from "../data.mjs";
 import { PROMPTS } from "../../../supabase/functions/comsw-tools/policy.mjs";
 import { formatSeoul } from "../../../admin/js/format.mjs";
-import { h, head, box, table, pill, fill, note, busy, modal, filterBar } from "../ui.mjs";
+import { h, head, box, table, pill, fill, note, busy, modal, filterBar, tabs } from "../ui.mjs";
 
 const KIND = { week: "강사 단계 문구", common: "공통 4단계 정리", department: "과정내용 정리", roadmap: "로드맵 문구", profile: "프로필 사진" };
 const USED = {
@@ -17,6 +18,9 @@ const USED = {
 const TRIMMED = ["week", "common", "department"]; // data.ai가 끝말(~교육·~제안)을 떼는 종류
 const MAX = 4000; // 서버(comsw-tools)가 받는 프롬프트 길이
 const won = (n) => `${Number(n ?? 0).toLocaleString("ko-KR")}원`;
+// 한도 대비 사용 비율(소수 첫째 자리까지, 한도가 0이면 —)
+export const pct = (used, limit) => (limit > 0 ? `${Math.round((Number(used) / limit) * 1000) / 10}%` : "—");
+let view = "all"; // 고른 탭(다른 메뉴에 갔다 와도 그대로)
 const STUCK = 10 * 60 * 1000; // 서버는 150초 안에 끝난다. 10분 넘게 '진행 중'이면 멈춘 작업(DB 함수와 같은 기준)
 export const stuck = (j, now = Date.now()) => j.status === "reserved" && now - new Date(j.created_at).getTime() > STUCK;
 const statusOf = (j) => (j.status === "completed" ? ["완료", ""] : j.status === "failed" ? ["실패", "warn"] : stuck(j) ? ["멈춤", "warn"] : ["진행 중", "neutral"]);
@@ -45,20 +49,36 @@ export async function render({ main, session }) {
     ]);
     const msg = h("div");
     const limitBtn = admin ? h("button", { type: "button", class: "btn primary", onclick: () => limitPopup("comsw_set_ai_limit", budget.limit, "저장하면 바로 적용됩니다. 0원이면 AI를 쓰지 않습니다.", reload) }, "한도 바꾸기") : null;
-    const summary = box(null,
-      h("div", { class: "row" }, h("h3", {}, `${budget.month.replace("-", "년 ")}월`), limitBtn),
-      h("div", { class: "usage-nums" }, [["사용액", budget.used], ["남은 금액", budget.remaining], ["한 달 한도", budget.limit]]
-        .map(([t, n]) => h("div", {}, h("span", { class: "muted" }, t), h("b", {}, won(n))))),
-      h("meter", { class: "usage-meter", min: 0, max: Math.max(1, budget.limit), value: Math.min(budget.used, budget.limit), "aria-label": `한도 ${won(budget.limit)} 중 ${won(budget.used)} 사용` }),
-      note("금액은 실제 청구액이 아니라 프로그램이 넉넉하게 계산한 금액입니다. 실패한 작업은 실제로 돈이 나갔는지 알 수 없어 잡아 둔 금액이 사용액에 남습니다."));
-
-    const chatBox = box(null,
-      h("div", { class: "row" }, h("h3", {}, "홈페이지 AI 챗봇"),
-        admin && chat ? h("button", { type: "button", class: "btn", onclick: () => limitPopup("comsw_set_chat_limit", chat.limit, "방문자 챗봇만의 한도입니다. 하루에는 한 달 한도의 5분의 1까지 씁니다. 0원이면 챗봇이 답하지 않습니다.", reload) }, "챗봇 한도 바꾸기") : null),
-      chat
-        ? h("p", {}, `이번 달 질문 ${Number(chat.count).toLocaleString("ko-KR")}번 · 사용액 ${won(chat.used)} · 한 달 한도 ${won(chat.limit)}`)
-        : h("p", { class: "muted" }, "챗봇 준비(SQL 실행)가 끝나면 사용액이 나옵니다."),
-      h("p", { class: "muted" }, "위의 관리 화면 AI 한도와 따로 셉니다. 방문자가 많이 물어도 관리 화면 AI에는 영향이 없습니다. 대화 내용은 저장하지 않습니다."));
+    const chatBtn = admin && chat ? h("button", { type: "button", class: "btn primary", onclick: () => limitPopup("comsw_set_chat_limit", chat.limit, "방문자 챗봇만의 한도입니다. 하루에는 한 달 한도의 5분의 1까지 씁니다. 0원이면 챗봇이 답하지 않습니다.", reload) }, "챗봇 한도 바꾸기") : null;
+    // 사용액(%)·남은 금액·한 달 한도·막대
+    const nums = (used, limit, label) => [
+      h("div", { class: "usage-nums" }, [["사용액", won(used), pct(used, limit)], ["남은 금액", won(Math.max(0, limit - used))], ["한 달 한도", won(limit)]]
+        .map(([t, n, p]) => h("div", {}, h("span", { class: "muted" }, t), h("b", {}, n, p ? h("small", { class: "usage-pct" }, ` ${p}`) : null)))),
+      h("meter", { class: "usage-meter", min: 0, max: Math.max(1, limit), value: Math.min(used, limit), "aria-label": `${label} 한도 ${won(limit)} 중 ${won(used)} 사용(${pct(used, limit)})` }),
+    ];
+    const title = h("h3", {}, `${budget.month.replace("-", "년 ")}월`);
+    const cost = note("금액은 실제 청구액이 아니라 프로그램이 넉넉하게 계산한 금액입니다. 실패한 작업은 실제로 돈이 나갔는지 알 수 없어 잡아 둔 금액이 사용액에 남습니다.");
+    const noChat = h("p", { class: "muted" }, "챗봇 준비(SQL 실행)가 끝나면 챗봇 사용액이 나옵니다.");
+    const chatUsed = chat?.used ?? 0, chatLimit = chat?.limit ?? 0;
+    const SUMMARY = {
+      all: () => box(null, h("div", { class: "row" }, title),
+        ...nums(budget.used + chatUsed, budget.limit + chatLimit, "전체"),
+        table([["구분", (r) => r[0]], ["사용액", (r) => won(r[1])], ["한도 대비", (r) => pct(r[1], r[2])], ["한 달 한도", (r) => won(r[2])]],
+          [["관리 화면 AI", budget.used, budget.limit], ...(chat ? [["홈페이지 챗봇", chatUsed, chatLimit]] : [])], { onPick: (r) => pickView(r[0] === "관리 화면 AI" ? "admin" : "chat") }),
+        chat ? null : noChat, cost),
+      admin: () => box(null, h("div", { class: "row" }, title, limitBtn), ...nums(budget.used, budget.limit, "관리 화면 AI"), cost),
+      chat: () => box(null, h("div", { class: "row" }, title, chatBtn),
+        ...(chat ? [...nums(chatUsed, chatLimit, "홈페이지 챗봇"), h("p", {}, `이번 달 질문 ${Number(chat.count).toLocaleString("ko-KR")}번`)] : [noChat]),
+        h("p", { class: "muted" }, "관리 화면 AI 한도와 따로 셉니다. 방문자가 많이 물어도 관리 화면 AI에는 영향이 없습니다. 대화 내용은 저장하지 않습니다.")),
+    };
+    const page = h("div");
+    const tabBar = h("div");
+    const pickView = (v) => { view = v; draw(); };
+    const draw = () => {
+      tabBar.replaceChildren(tabs([["all", "전체"], ["admin", "관리 화면 AI"], ["chat", "홈페이지 챗봇"]], view, pickView, "chips"));
+      // 종류별·작업 기록은 관리 화면 AI 것(챗봇은 대화를 남기지 않아 기록이 없음)
+      page.replaceChildren(SUMMARY[view](), ...(view === "chat" ? [] : [kindBox, filter.el, listBox]));
+    };
 
     const kinds = byKind(jobs.filter((j) => j.month === budget.month));
     const kindBox = box("이번 달 종류별", h("p", { class: "muted" }, "종류를 누르면 AI 프롬프트를 보고 고칠 수 있습니다."), table([
@@ -77,7 +97,7 @@ export async function render({ main, session }) {
     };
     const months = [...new Set([budget.month, ...jobs.map((j) => j.month)])];
     const listBox = h("div");
-    const draw = (v) => {
+    const drawList = (v) => {
       const rows = jobs.filter((j) => (!v.month || j.month === v.month) && (!v.kind || j.kind === v.kind) && (!v.status || j.status === v.status));
       listBox.replaceChildren(box(`작업 기록 ${rows.length}건 · ${won(rows.reduce((n, j) => n + j.budget_krw, 0))}`, table([
         ["시각", (j) => formatSeoul(j.created_at)], ["종류", (j) => KIND[j.kind] ?? j.kind], ["상태", (j) => pill(...statusOf(j))], ["금액", (j) => won(j.budget_krw)],
@@ -88,9 +108,10 @@ export async function render({ main, session }) {
       { key: "month", label: "달", options: [["", "전체"], ...months.map((m) => [m, m])] },
       { key: "kind", label: "종류", options: [["", "전체"], ...Object.entries(KIND)] },
       { key: "status", label: "상태", options: [["", "전체"], ["completed", "완료"], ["reserved", "진행 중"], ["failed", "실패"]] },
-    ], draw);
-    draw(filter.values);
-    return [msg, summary, chatBox, kindBox, filter.el, listBox];
+    ], drawList);
+    drawList(filter.values);
+    draw();
+    return [msg, tabBar, h("div", { style: "height:12px" }), page];
   });
 }
 

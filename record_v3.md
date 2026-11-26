@@ -285,3 +285,5 @@
 - 2026-11-26 comsw_v4_save_roadmap_order(uuid[]) → roadmap_tracks.sort_order, 트리거 roadmap_track_last(겹치면 맨 아래). roadmap.mjs deptChips, track id roadmap-order.
 - 2026-11-26 courses.mjs deptChips 두 줄(.dept-tab-rows), site_settings dept_tab_top 읽음.
 - 2026-11-26 Curriculum_onepage(.html/_tablet) .subject-cell.col-content align-items center, padding-top 28 없앰.
+- 2026-11-26 usage.mjs view 탭(all/admin/chat), pct(used, limit) 소수 첫째 자리.
+- 2026-11-26 instructors.mjs 성별 select 뺌, f.gender는 원래 값 그대로 저장.

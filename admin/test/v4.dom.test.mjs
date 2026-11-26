@@ -1110,15 +1110,14 @@ test("하단 메뉴 켜기·끄기 스위치, 학과 알약 끌어서 순서·�
   dlg = [...document.querySelectorAll("dialog.modal")].at(-1);
   type(dlg.querySelector("input[aria-label='강사 이름']"), "새강사");
   [...dlg.querySelectorAll(".check-chip input")][0].click();
-  const lsw = dlg.querySelector("button[role=switch]");
-  lsw.click(); lsw.click(); lsw.click();
+  assert.equal(dlg.querySelector("button[role=switch]"), null, "홈페이지 노출 스위치 없음(목록 스위치로)");
   [...dlg.querySelectorAll("button")].find((b) => b.textContent === "저장").click();
   await flush();
   const ins = calls.find(([n]) => n === "comsw_v4_save_instructor")[1];
   assert.equal(ins.p_id, null);
   assert.equal(ins.p.name, "새강사");
   assert.deepEqual(ins.p.departments, ["d1"]);
-  assert.equal(ins.p.is_listed, true, "스위치 여러 번 눌러도 마지막 상태");
+  assert.equal(ins.p.is_listed, false, "새 강사는 숨김으로 시작");
   document.querySelectorAll("dialog").forEach((d) => d.remove());
   main = await open("instructors", undefined, fake);
   [...main.querySelectorAll("tr.pick")][0].click();
@@ -1462,7 +1461,9 @@ test("AI 사용량: 사용액·한도·종류별·작업 기록, 관리자만 [�
   ] });
   fake.rpc = async (n, a) => { calls.push([n, a]); return { data: n === "comsw_ai_budget" ? { month: "2026-11", used: 2931, limit: 3000, remaining: 69 } : n === "comsw_chat_budget" && chatReady ? { used: 120, count: 1234, limit: 3000 } : null, error: null }; };
   let main = await open("usage", { uid: "u1", role: "head" }, fake);
-  assert.match(main.textContent, /2,931원[\s\S]*69원[\s\S]*3,000원/);
+  const tab = (t) => [...main.querySelectorAll(".chips button")].find((b) => b.textContent === t).click();
+  tab("관리 화면 AI");
+  assert.match(main.textContent, /2,931원 97.7%[\s\S]*69원[\s\S]*3,000원/, "사용액 옆 %");
   assert.match(main.textContent, /프로필 사진2건2,920원120원1건/, "종류별: 평균은 성공한 것만");
   assert.match(main.textContent, /작업 기록 4건 · 2,940원/);
   assert.ok(![...main.querySelectorAll("button")].some((b) => /한도 바꾸기|사용액에서 빼기/.test(b.textContent)), "학과장은 보기만");
@@ -1471,6 +1472,7 @@ test("AI 사용량: 사용액·한도·종류별·작업 기록, 관리자만 [�
   assert.match(main.textContent, /작업 기록 1건 · 9원/);
 
   main = await open("usage", { uid: "u1", role: "admin" }, fake);
+  assert.equal(main.querySelector(".chips button[aria-pressed='true']").textContent, "관리 화면 AI", "고른 탭 기억");
   const btn = (t, root = main) => [...root.querySelectorAll("button")].filter((b) => b.textContent === t);
   assert.equal(btn("사용액에서 빼기").length, 1, "실패한 작업만");
   btn("사용액에서 빼기")[0].click();
@@ -1486,12 +1488,20 @@ test("AI 사용량: 사용액·한도·종류별·작업 기록, 관리자만 [�
   btn("저장", dlg)[0].click();
   await flush();
   assert.deepEqual(calls.find(([n]) => n === "comsw_set_ai_limit")[1], { p_limit: 20000 });
-  assert.match(main.textContent, /홈페이지 AI 챗봇[\s\S]*SQL 실행/, "챗봇 SQL 전에도 화면은 열림");
+  [...main.querySelectorAll(".chips button")].find((b) => b.textContent === "홈페이지 챗봇").click();
+  assert.match(main.textContent, /SQL 실행/, "챗봇 SQL 전에도 화면은 열림");
+  [...main.querySelectorAll(".chips button")].find((b) => b.textContent === "관리 화면 AI").click();
   assert.equal(document.querySelector("dialog.modal"), null);
   assert.match(main.textContent, /공통 4단계 정리0건0원/, "안 쓴 종류도 보임");
   chatReady = true;
   main = await open("usage", { uid: "u1", role: "admin" }, fake);
-  assert.match(main.textContent, /이번 달 질문 1,234번 · 사용액 120원 · 한 달 한도 3,000원/);
+  [...main.querySelectorAll(".chips button")].find((b) => b.textContent === "전체").click();
+  assert.match(main.textContent, /3,051원 50.8%[\s\S]*2,949원[\s\S]*6,000원/, "전체 = 관리 화면 AI + 챗봇");
+  assert.match(main.textContent, /관리 화면 AI2,931원97.7%3,000원홈페이지 챗봇120원4%3,000원/);
+  assert.match(main.textContent, /이번 달 종류별/, "전체에도 종류별·작업 기록");
+  [...main.querySelectorAll("tr.pick")].find((tr) => tr.textContent.startsWith("홈페이지 챗봇")).click();
+  assert.match(main.textContent, /120원 4%[\s\S]*2,880원[\s\S]*이번 달 질문 1,234번/);
+  assert.ok(!/이번 달 종류별/.test(main.textContent), "챗봇 탭에는 종류별 없음");
   btn("챗봇 한도 바꾸기")[0].click();
   type(document.querySelector("dialog.modal input"), "5000");
   btn("저장", document.querySelector("dialog.modal"))[0].click();
@@ -1509,13 +1519,14 @@ test("AI 사용량: 종류를 누르면 프롬프트 팝업 — 지금 글 보�
   fake.rpc = async () => ({ data: { month: "2026-11", used: 0, limit: 3000, remaining: 3000 }, error: null });
   const saves = () => fake.calls.filter(([k, t]) => k === "upsert" && t === "site_settings").map((c) => c[2]);
   const main = await open("usage", { uid: "u1", role: "head" }, fake);
+  [...main.querySelectorAll(".chips button")].find((b) => b.textContent === "전체").click();
   const pop = async (name) => {
     [...main.querySelectorAll("tr.pick")].find((tr) => tr.firstChild.textContent === name).click();
     await flush();
     const dlg = [...document.querySelectorAll("dialog.modal")].at(-1);
     return { dlg, area: dlg.querySelector("textarea"), btn: (t) => [...dlg.querySelectorAll("button")].find((b) => b.textContent === t) };
   };
-  assert.deepEqual([...main.querySelectorAll("tr.pick")].map((tr) => tr.firstChild.textContent).sort(), ["강사 단계 문구", "공통 4단계 정리", "과정내용 정리", "로드맵 문구", "프로필 사진"]);
+  assert.deepEqual([...main.querySelectorAll("tr.pick")].map((tr) => tr.firstChild.textContent).filter((t) => !["관리 화면 AI", "홈페이지 챗봇"].includes(t)).sort(), ["강사 단계 문구", "공통 4단계 정리", "과정내용 정리", "로드맵 문구", "프로필 사진"]);
 
   let p = await pop("프로필 사진");
   assert.equal(p.area.value, PROMPTS.profile, "저장한 글이 없으면 기본");
@@ -1882,4 +1893,13 @@ test("학과 구성 탭: 홈페이지 학과 커리큘럼처럼 두 줄(공개 �
   await flush();
   assert.deepEqual(lines(), [["라학과", "가학과"], ["나학과", "다학과"]], "아랫줄에서 윗줄로 옮기면 윗줄 끝(공개 2개 다음)이 아랫줄로");
   assert.ok(barBtn("사이트 적용"), "순서는 [사이트 적용]으로");
+});
+
+test("강사 정보 수정 팝업: 성별·홈페이지 노출 칸 없음, 저장하면 원래 값은 그대로", async () => {
+  document.querySelectorAll("dialog").forEach((d) => d.remove());
+  const { readFileSync } = await import("node:fs");
+  const src = readFileSync(new URL("../../admin-v4/js/pages/instructors.mjs", import.meta.url), "utf8");
+  assert.ok(!src.includes('"aria-label": "성별"'), "성별 선택 칸 없음");
+  assert.ok(!src.includes('toggleSwitch(f.is_listed'), "정보 수정 팝업에 홈페이지 노출 스위치 없음(목록 스위치로)");
+  assert.match(src, /gender: p\?\.gender \?\? ""/, "원래 값을 그대로 보냄");
 });

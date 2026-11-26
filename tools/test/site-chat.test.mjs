@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { as, freshDb } from "./pg.mjs";
-import { buildCatalog, levelOf, seriesOf, keepKnownLinks, tailOf, chatCost, chatInput, createChatHandler, PROMPT } from "../../supabase/functions/comsw-chat/handler.mjs";
+import { buildCatalog, levelOf, seriesOf, choicesOf, keepKnownLinks, tailOf, chatCost, chatInput, createChatHandler, PROMPT } from "../../supabase/functions/comsw-chat/handler.mjs";
 
 const lesson = (dept, name, step, text, extra = {}) => {
   const v = Array(26).fill("");
@@ -53,6 +53,20 @@ test("재료: 난이도는 별 대신 5단계 중 몇, 번호만 다른 과목�
     "컴퓨터 활용 → 실무엑셀 → 모스 → 컴활2급 → 컴활1급", "전산회계1급 → 전산세무2급", "분야나 목적이 다르면",
     "SBS아카데미컴퓨터AIX학원 수원점", "김양연 부원장이 만들었어요", "031-546-3644", "경기도 수원시 팔달구 효원로 288 대원콤비프라자 8층", "수업과 관련 없는 내용은 말씀드릴 수 없어요", "원장님", "번호로 이어지는 과목끼리만 쓰고"]) assert.ok(PROMPT.includes(must), must);
   assert.ok(!PROMPT.includes("컴퓨터아트학원"), "옛 학원 이름 없음");
+});
+
+test("번호 고르기: 선택지는 2~3개 글자만(앞 번호·기호 떼고, 60자 넘으면 뺌), AI 형식에 choices, 답에 실어 보냄", async () => {
+  assert.deepEqual(choicesOf(["① 함수로 값 찾기", "2. 피벗 테이블", "필터", "넷째"]), ["함수로 값 찾기", "피벗 테이블", "필터"]);
+  assert.deepEqual(choicesOf(["하나만"]), [], "하나면 보내지 않음");
+  assert.deepEqual(choicesOf(["가".repeat(61), "짧음", 3, null]), [], "긴 것·글자 아닌 것은 빼고 하나 남으면 안 보냄");
+  assert.deepEqual(choicesOf(undefined), []);
+  const s = setup({ answer: { answer: "컴활1급은 조금 어려운 편이에요.", ask_mentor: false, choices: ["VLOOKUP으로 값 찾기", "피벗 테이블로 요약하기"] } });
+  const out = await (await s.ask()).json();
+  assert.deepEqual(out, { reply: "컴활1급은 조금 어려운 편이에요.", choices: ["VLOOKUP으로 값 찾기", "피벗 테이블로 요약하기"] });
+  const ai = s.calls.find(([n]) => n === "responses")[1];
+  assert.deepEqual(ai.text.format.schema.required, ["answer", "ask_mentor", "choices"]);
+  assert.ok(!("choices" in await (await setup().ask()).json()), "선택지가 없으면 reply만");
+  for (const must of ["해 보신 것을 모두 골라 주세요", "[고를 것]", "로드맵에서 앞에 있는\" 같은 말은 쓰지 않고"]) assert.ok(PROMPT.includes(must), must);
 });
 
 test("재료: 강사(담당은 그 학과 과목만·경력)·준비물·로드맵·특강, 숨긴 강사와 빼 달라고 한 과목은 어디에도 없음", () => {

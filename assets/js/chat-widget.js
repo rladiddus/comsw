@@ -18,6 +18,7 @@
       if (isFinite(saved.r) && isFinite(saved.b)) { state.r = Number(saved.r); state.b = Number(saved.b); }
       if (isFinite(saved.h) && saved.h > 0) state.h = Number(saved.h);
       state.msgs = saved.msgs.filter(function(m) {
+        if (m && !(Array.isArray(m.choices) && m.choices.every(function(c) { return typeof c === 'string'; }))) delete m.choices;
         return m && (m.role === 'user' || m.role === 'assistant') && typeof m.content === 'string';
       });
     }
@@ -43,6 +44,15 @@
     + '.msg{max-width:86%;padding:10px 13px;border-radius:14px;font-size:15px;line-height:1.55;white-space:pre-wrap;overflow-wrap:anywhere;word-break:keep-all;user-select:text;-webkit-user-select:text}'
     + '.assistant{align-self:flex-start;background:#fff;border-bottom-left-radius:4px;box-shadow:0 1px 3px rgba(0,0,0,.08)}'
     + '.user{align-self:flex-end;background:#5b3fe0;color:#fff;border-bottom-right-radius:4px}'
+    + '.choices{align-self:flex-start;width:86%;display:flex;flex-direction:column;gap:7px;margin-top:-4px}'
+    + '.choice{display:flex;align-items:center;gap:10px;width:100%;padding:10px 12px;border:1.5px solid #c9cbdd;border-radius:12px;background:#fff;text-align:left;font-size:14px;line-height:1.4;color:#1b1b2b;cursor:pointer}'
+    + '.choice .num{flex:none;width:26px;height:26px;border-radius:50%;border:1.5px solid #c9cbdd;display:grid;place-items:center;font-weight:700;font-size:13px;color:#5f6072;background:#fff}'
+    + '.choice[aria-pressed=true]{border-color:#5b3fe0;background:#efeaff}'
+    + '.choice[aria-pressed=true] .num{background:#5b3fe0;border-color:#5b3fe0;color:#fff}'
+    + '.choice.none{border-style:dashed;color:#5f6072}.choice.none[aria-pressed=true]{color:#1b1b2b}'
+    + '.pick-send{padding:11px;border:0;border-radius:12px;background:#5b3fe0;color:#fff;font-size:14.5px;font-weight:700;cursor:pointer}'
+    + '.pick-send:disabled{background:#c9c3ef;cursor:default}'
+    + '.choices.done .choice{cursor:default;opacity:.75}'
     + '.assistant a{color:#2451c7;text-decoration:underline;word-break:break-all}.user a{color:#fff}.wait{color:#5f6072}.err{background:#fff1f0;color:#a4241b}'
     + 'form{flex:none;display:flex;gap:8px;align-items:flex-end;padding:10px 12px 6px;background:#fff;border-top:1px solid #e4e5f0}'
     + 'textarea{flex:1;height:44px;max-height:110px;padding:10px 12px;border:1px solid #c9cbdd;border-radius:12px;font-size:16px;line-height:1.4;color:#1b1b2b;background:#fff;resize:none}'
@@ -176,15 +186,85 @@
     log.scrollTop = log.scrollHeight;
     return el;
   }
+  // 번호 고르기(2026-11-26): 답변 아래 선택지 칸. 누르면 색이 바뀌고(여러 개), [이대로 답하기]로 "1번, 3번은 해 봤어요"를 보낸다.
+  // 고른 뒤(또는 직접 써서 답한 뒤)에는 고른 그대로 흐리게 남는다. picked = 고른 번호(0부터), 마지막 칸은 '모두 처음이에요'.
+  var liveChoices = null;
+  function choiceBox(m, live) {
+    var box = document.createElement('div');
+    box.className = 'choices';
+    var items = m.choices.concat('모두 처음이에요');
+    var none = items.length - 1;
+    var buttons = items.map(function(text, i) {
+      var b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'choice' + (i === none ? ' none' : '');
+      b.setAttribute('aria-pressed', String(!!(m.picked && m.picked.indexOf(i) >= 0)));
+      var num = document.createElement('span');
+      num.className = 'num';
+      num.textContent = i === none ? '–' : String(i + 1);
+      b.append(num, text);
+      box.append(b);
+      return b;
+    });
+    function done(picked) {
+      m.picked = picked;
+      box.classList.add('done');
+      buttons.forEach(function(b, i) { b.disabled = true; b.setAttribute('aria-pressed', String(picked.indexOf(i) >= 0)); });
+      if (send) send.remove();
+      if (liveChoices === finish) liveChoices = null;
+      save();
+    }
+    function finish(picked) { done(picked || []); }
+    var send = null;
+    if (!live) { done(m.picked || []); log.append(box); return; }
+    send = document.createElement('button');
+    send.type = 'button';
+    send.className = 'pick-send';
+    box.append(send);
+    function chosen() { return buttons.map(function(b, i) { return b.getAttribute('aria-pressed') === 'true' ? i : -1; }).filter(function(i) { return i >= 0; }); }
+    function sync() {
+      var n = chosen().length;
+      send.disabled = !n;
+      send.textContent = !n ? '하나 이상 골라 주세요' : chosen()[0] === none ? '이대로 답하기' : '이대로 답하기 (' + n + '개 선택)';
+    }
+    buttons.forEach(function(b, i) {
+      b.addEventListener('click', function() {
+        if (box.classList.contains('done')) return;
+        var next = b.getAttribute('aria-pressed') !== 'true';
+        if (next) buttons.forEach(function(o, j) { if (i === none ? j !== none : j === none) o.setAttribute('aria-pressed', 'false'); });
+        b.setAttribute('aria-pressed', String(next));
+        sync();
+      });
+    });
+    send.addEventListener('click', function() {
+      var picked = chosen();
+      if (!picked.length || busy) return;
+      var text = picked[0] === none ? '모두 처음이에요' : picked.map(function(i) { return (i + 1) + '번'; }).join(', ') + '은 해 봤어요';
+      finish(picked);
+      ask(text);
+    });
+    sync();
+    liveChoices = finish;
+    log.append(box);
+    log.scrollTop = log.scrollHeight;
+  }
   bubble('assistant', HELLO);
-  state.msgs.forEach(function(m) { bubble(m.role, m.content); });
+  state.msgs.forEach(function(m, i) {
+    bubble(m.role, m.content);
+    if (m.role === 'assistant' && m.choices) choiceBox(m, i === state.msgs.length - 1 && !m.picked);
+  });
+  // AI에게 보내는 대화: 선택지가 있던 답변에는 [고를 것] 번호를 붙여 "1번"이 무엇인지 알게 한다.
+  function forAI(m) {
+    return { role: m.role, content: m.choices ? m.content + '\n[고를 것] ' + m.choices.map(function(c, i) { return (i + 1) + '. ' + c; }).join(' / ') + ' / ' + (m.choices.length + 1) + '. 모두 처음이에요' : m.content };
+  }
 
   var busy = false;
-  async function ask() {
-    var text = input.value.trim();
+  async function ask(picked) {
+    var text = picked || input.value.trim();
     if (!text || busy) return;
     busy = sendBtn.disabled = true;
-    input.value = '';
+    if (!picked) input.value = '';
+    if (liveChoices) liveChoices([]); // 고르지 않고 직접 써서 답함
     bubble('user', text);
     var wait = bubble('assistant', '답변을 찾고 있습니다…', 'wait');
     var question = { role: 'user', content: text };
@@ -193,19 +273,22 @@
       var res = await fetch(cfg.url.replace(/\/+$/, '') + '/functions/v1/comsw-chat', {
         method: 'POST',
         headers: { apikey: cfg.anonKey, Authorization: 'Bearer ' + cfg.anonKey, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ messages: state.msgs.slice(-7).concat(question) }),
+        body: JSON.stringify({ messages: state.msgs.slice(-7).map(forAI).concat(question) }),
         signal: AbortSignal.timeout(60000)
       });
       var data = await res.json().catch(function() { return {}; });
       if (!res.ok || !data.reply) throw { say: res.status === 429 || res.status === 503 ? data.error : '' };
-      state.msgs.push(question, { role: 'assistant', content: data.reply });
+      var answer = { role: 'assistant', content: data.reply };
+      if (Array.isArray(data.choices) && data.choices.length >= 2) answer.choices = data.choices.slice(0, 3).map(String);
+      state.msgs.push(question, answer);
       wait.remove();
       bubble('assistant', data.reply);
+      if (answer.choices) choiceBox(answer, true);
       save();
     } catch (e) {
       wait.remove();
       bubble('assistant', (e && e.say) || FAIL, 'err');
-      if (!input.value) input.value = text; // 다시 보내기 쉽게
+      if (!input.value && !picked) input.value = text; // 다시 보내기 쉽게
     }
     busy = sendBtn.disabled = false;
   }

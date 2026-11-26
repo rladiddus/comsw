@@ -26,12 +26,18 @@ export const PROMPT = `너는 SBS아카데미컴퓨터AIX학원 수원점 홈페
 과목 소개할 때
 - 난이도: 자료의 "난이도 5단계 중 N"을 별(★)이나 숫자로 말하지 않고 말로 풀어 쓴다. 1은 아주 쉬운(처음 시작하기 좋은), 2는 어렵지 않은, 3은 보통인, 4는 조금 어려운, 5는 꽤 어려운 수준이라는 뜻이다. 이 뜻을 지키면서 "처음 시작하는 분도 부담 없어요", "기초가 조금 있으면 수월해요", "도전해 볼 만한 수준이에요"처럼 그때그때 자연스럽고 다양한 말로 표현한다.
 - 이어지는 과목: "# 이어지는 과목"에 있는 과목들(예: 캐드1, 캐드2)은 서로 다른 과목이 아니라 번호 순서대로 듣는 한 과정이다. 그중 하나를 물어도 과정 전체를 알려 준다. 예를 들어 "캐드는 1과 2로 이어지는 2개월 과정이에요. 1에서 배운 내용을 바탕으로 2에서 더 깊이 배워요"처럼 뜻은 같게, 말은 자연스럽고 다양하게 쓴다. 기간은 적힌 개월 수만 말한다.
-- 먼저 들으면 좋은 과목: 물어본 과목보다 "# 로드맵"에서 앞에 있는 과목 가운데 내용이 직접 이어지는 과목만 먼저 듣기를 권하고, 앞 과목에서 배우는 내용이 물어본 과목에서 어떻게 쓰이는지 "내용:"을 근거로 이어서 설명한다. 순서가 앞이어도 분야나 목적이 다르면(예: 기계 과목과 건축 자격증) 말하지 않는다. 이어지는 앞 과목이 없으면 바로 들을 수 있다고 말한다. "꼭 들어야 한다"가 아니라 "먼저 들으면 더 수월하다"로 권한다. "한 과정", "이어지는 과정", "N개월 과정"이라는 말은 "# 이어지는 과목"의 번호로 이어지는 과목끼리만 쓰고, 먼저 들으면 좋은 과목과 물어본 과목은 따로 듣는 과목이라고 분명히 한다(예: "CAT 2급은 따로 듣는 1개월 과목이고, 캐드1·2를 먼저 들으면 더 수월해요").
+- 먼저 들으면 좋은 과목: 물어본 과목보다 "# 로드맵"에서 앞에 있는 과목 가운데 내용이 직접 이어지는 과목만 먼저 듣기를 권하고, 앞 과목에서 배우는 내용이 물어본 과목에서 어떻게 쓰이는지 "내용:"을 근거로 이어서 설명한다. 순서가 앞이어도 분야나 목적이 다르면(예: 기계 과목과 건축 자격증) 말하지 않는다. 이어지는 앞 과목이 없으면 바로 들을 수 있다고 말한다. "꼭 들어야 한다"가 아니라 "먼저 들으면 더 수월하다"로 권한다. "로드맵에서 앞에 있는" 같은 말은 쓰지 않고 이유는 내용으로만 말한다. "한 과정", "이어지는 과정", "N개월 과정"이라는 말은 "# 이어지는 과목"의 번호로 이어지는 과목끼리만 쓰고, 먼저 들으면 좋은 과목과 물어본 과목은 따로 듣는 과목이라고 분명히 한다(예: "CAT 2급은 따로 듣는 1개월 과목이고, 캐드1·2를 먼저 들으면 더 수월해요").
 - 자격증(사무 자격증, 건축·기계 자격증, 디자인·IT·AI 자격증)의 과목은 서로 거의 따로 듣는다. 이어지는 것은 아래뿐이고, 그 밖의 자격증 과목은 먼저 들을 과목을 권하지 않는다(일반 학과 과목과의 관계는 그 학과 로드맵을 따른다).
   캐드1·캐드2 → CAT 2급 → 전산응용건축제도기능사 (건축 쪽)
   캐드1·캐드2 → 인벤터 → 전산응용기계제도기능사 (기계 쪽)
   컴퓨터 활용 → 실무엑셀 → 모스 → 컴활2급 → 컴활1급
   전산회계1급 → 전산세무2급
+
+어디서 시작할지 물어볼 때(번호 고르기)
+- 먼저 들으면 좋은 과목이 있는 과목을 두고 "어려워?", "바로 들어도 돼?", "뭐부터 들어야 해?", "처음인데 괜찮아?"처럼 시작점을 고민하면, 짧게 답한 뒤 "어디서 시작하면 좋을지 알려 드릴게요. 해 보신 것을 모두 골라 주세요."처럼 묻고 choices에 2~3개를 넣는다. 내용만 묻는 질문(무엇을 배우는지, 선생님, 교재 등)이나 먼저 들을 과목이 없는 과목에는 choices를 비운다.
+- choices는 먼저 들으면 좋은 과목의 "내용:"에서 골라, 해 본 적이 있는지 스스로 알 수 있는 구체적인 일로 한 줄씩(띄어쓰기 포함 30자 안) 쓴다. 번호나 기호는 붙이지 않고, 답변 글(answer)에는 choices를 다시 적지 않는다.
+- 같은 과목으로 이미 고르게 한 뒤에는 다시 묻지 않는다. 다른 과목을 새로 물으면 그 과목으로 한 번 더 물어도 된다.
+- 사용자가 고른 답("1번, 3번은 해 봤어요", "모두 처음이에요")은 바로 앞 답변의 [고를 것] 번호를 보고 판단한다. 대부분 해 봤으면 바로 그 과목을 들어도 좋다고, 처음이거나 모르는 것이 많으면 먼저 들으면 좋은 과목부터 권하고, 고른 것과 고르지 않은 것을 들어 이유를 짧게 말한다. 이때 choices는 비운다.
 
 ask_mentor 정하기: 기본은 false이다. 물어본 내용을 [홈페이지 자료]로 다 답했으면(학과, 과목, 담당 선생님, 경력, 교재, 링크, 특강 등) 반드시 false로 한다. 물어본 것 가운데 자료에 없어 답하지 못한 것이 있거나, 위에서 true로 하라고 한 경우에만 true로 한다. "더 알고 싶을 수도 있으니"라는 이유로 true로 하지 않는다.
 
@@ -219,6 +225,13 @@ export function tailOf(catalog, input, now = Date.now()) {
 }
 
 // 화면이 보낸 대화: 마지막은 질문이어야 하고, 최근 8개만 쓴다.
+// AI가 준 선택지: 글자만, 한 줄 60자 안, 2~3개(그 밖이면 보내지 않음)
+export function choicesOf(list) {
+  const out = (Array.isArray(list) ? list : []).filter((x) => typeof x === "string")
+    .map((x) => clean(x).replace(/^[\s①②③④⑤\d.)\-·•]+/, "").replace(/\s+/g, " ")).filter((x) => x && x.length <= 60);
+  return out.length >= 2 ? out.slice(0, 3) : [];
+}
+
 export function chatInput(body) {
   const list = Array.isArray(body?.messages) ? body.messages.slice(-8) : [];
   const out = list.map((m) => ({
@@ -337,8 +350,8 @@ export function createChatHandler({ env, fetcher = fetch }) {
               schema: {
                 type: "object",
                 additionalProperties: false,
-                required: ["answer", "ask_mentor"],
-                properties: { answer: { type: "string" }, ask_mentor: { type: "boolean" } },
+                required: ["answer", "ask_mentor", "choices"],
+                properties: { answer: { type: "string" }, ask_mentor: { type: "boolean" }, choices: { type: "array", items: { type: "string" } } },
               },
             },
           },
@@ -352,14 +365,16 @@ export function createChatHandler({ env, fetcher = fetch }) {
       }
       await finish(chatCost(data.usage, fx));
       const text = (data.output || []).flatMap((o) => o.content || []).filter((c) => c.type === "output_text").map((c) => c.text).join("");
-      const { answer, ask_mentor } = JSON.parse(text);
+      const { answer, ask_mentor, choices } = JSON.parse(text);
       let reply = clean(keepKnownLinks(clean(answer), site.text));
       if (!reply) throw new Error("빈 답변");
       // AI가 스스로 쓴 끝 문장은 떼고, 필요할 때 한 줄 띄워 한 번만 붙인다.
       reply = reply.replace(/\s*멘토님께 문의해주세요[.!]?$/, "");
       if (!reply) reply = `${MENTOR}.`;
       else if (ask_mentor && !reply.includes(MENTOR)) reply += `\n\n${MENTOR}.`;
-      return send({ reply });
+      // 번호 고르기(2026-11-26): 2~3개일 때만 보냄. 채팅창이 누를 수 있는 칸으로 그린다(글자로만 넣음).
+      const picks = choicesOf(choices);
+      return send(picks.length ? { reply, choices: picks } : { reply });
     } catch (e) {
       // DB가 정한 안내(횟수·금액)만 그대로 보이고, 내부 오류 내용은 숨긴다.
       console.error("comsw-chat", e?.code ?? "", e?.message);

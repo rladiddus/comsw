@@ -104,6 +104,52 @@ test("채팅창 높이: 오른쪽 아래 모서리를 끌면 높이만 바뀌고
   assert.equal(JSON.parse(again.w.sessionStorage.getItem("comsw_chat")).h, 320, "다른 페이지로 가도 그대로");
 });
 
+test("번호 고르기: 선택지를 누르면 색이 바뀌고(모두 처음이에요는 따로), [이대로 답하기]로 보내며 고른 그대로 남음, 다음 질문에는 [고를 것]을 붙여 보냄", async () => {
+  const replies = [{ reply: "컴활1급은 조금 어려운 편이에요.", choices: ["함수로 값 찾기", "피벗 테이블", "필터·정렬"] }, { reply: "컴활2급부터 추천해요." }];
+  const p = page({}, async () => ({ ok: true, status: 200, json: async () => replies.shift() }));
+  p.$(".icon").click();
+  p.$("textarea").value = "컴활1급 많이 어려워?";
+  p.$("form").dispatchEvent(new p.w.Event("submit", { cancelable: true }));
+  await flush();
+  const btns = () => [...p.root.querySelectorAll(".choice")];
+  const send = () => p.$(".pick-send");
+  assert.deepEqual(btns().map((b) => b.textContent), ["1함수로 값 찾기", "2피벗 테이블", "3필터·정렬", "–모두 처음이에요"]);
+  assert.ok(send().disabled, "고르기 전에는 보낼 수 없음");
+  btns()[0].click(); btns()[2].click();
+  assert.deepEqual(btns().map((b) => b.getAttribute("aria-pressed")), ["true", "false", "true", "false"]);
+  assert.equal(send().textContent, "이대로 답하기 (2개 선택)");
+  btns()[3].click();
+  assert.deepEqual(btns().map((b) => b.getAttribute("aria-pressed")), ["false", "false", "false", "true"], "모두 처음이에요를 누르면 다른 선택은 풀림");
+  btns()[0].click(); btns()[2].click();
+  assert.equal(btns()[3].getAttribute("aria-pressed"), "false");
+  send().click();
+  await flush();
+  assert.equal(p.texts().at(-2), "1번, 3번은 해 봤어요");
+  assert.equal(p.texts().at(-1), "컴활2급부터 추천해요.");
+  assert.ok(p.$(".choices").classList.contains("done") && !send(), "고른 그대로 남고 다시 못 바꿈");
+  assert.ok(btns().every((b) => b.disabled));
+  const sent = p.sent[1][1].messages;
+  assert.equal(sent.at(-2).content, "컴활1급은 조금 어려운 편이에요.\n[고를 것] 1. 함수로 값 찾기 / 2. 피벗 테이블 / 3. 필터·정렬 / 4. 모두 처음이에요");
+  assert.equal(sent.at(-1).content, "1번, 3번은 해 봤어요");
+  const again = page({ comsw_chat: p.w.sessionStorage.getItem("comsw_chat") });
+  assert.deepEqual([...again.root.querySelectorAll(".choice")].map((b) => b.getAttribute("aria-pressed")), ["true", "false", "true", "false"], "다른 페이지에서도 고른 그대로");
+  assert.ok(!again.$(".pick-send"));
+});
+
+test("번호 고르기: 고르지 않고 직접 써서 답하면 선택지는 닫힘", async () => {
+  const replies = [{ reply: "어려운 편이에요.", choices: ["가", "나"] }, { reply: "알겠어요." }];
+  const p = page({}, async () => ({ ok: true, status: 200, json: async () => replies.shift() }));
+  p.$(".icon").click();
+  p.$("textarea").value = "컴활1급 어려워?";
+  p.$("form").dispatchEvent(new p.w.Event("submit", { cancelable: true }));
+  await flush();
+  p.$("textarea").value = "엑셀은 매일 써요";
+  p.$("form").dispatchEvent(new p.w.Event("submit", { cancelable: true }));
+  await flush();
+  assert.ok(p.$(".choices").classList.contains("done") && !p.$(".pick-send"));
+  assert.equal(p.texts().at(-2), "엑셀은 매일 써요");
+});
+
 test("채팅창에서 누른 키는 페이지(슬라이드 넘기기)로 새지 않고, Enter는 보내기·한글 쓰는 중은 아님·Esc는 닫기", async () => {
   const p = page();
   let leaked = 0;

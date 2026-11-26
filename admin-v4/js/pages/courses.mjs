@@ -21,11 +21,15 @@ export async function render({ main, params = [] }) {
   await fill(body, async () => {
     const cat = await data.catalog();
     const subjects = data.general(cat); // 일반 과목만(방학 특강 과목은 방학 특강 메뉴)
-    const [weeks, approved, isubs] = await Promise.all([
+    const [weeks, approved, isubs, settings] = await Promise.all([
       data.weeks(),
       data.curricula((q) => q.eq("status", "approved").order("id")), // 페이지로 나눠 읽어도 겹치지 않게 id 순서
       data.all("instructor_subjects"),
+      data.settings().catch(() => []),
     ]);
+    // 학과 탭 윗줄 개수: 홈페이지 학과 커리큘럼과 같은 값(site_settings dept_tab_top, 없으면 5)
+    const topN = Number.parseInt(settings.find((s) => s.key === "dept_tab_top")?.value, 10) > 0
+      ? Number.parseInt(settings.find((s) => s.key === "dept_tab_top").value, 10) : 5;
     const general = weeks.filter((w) => !w.set_id);
     const stepsOf = (id) => general.filter((w) => w.subject_id === id).sort((x, y) => (x.sort_order ?? 0) - (y.sort_order ?? 0));
     // 적용한 공통이 없는 과목 → 강사 자료 초안(과목 팝업에 보이는 것과 같은 4단계, 저장하지 않음)
@@ -132,8 +136,11 @@ export async function render({ main, params = [] }) {
       onApplied: reload,
     });
     let dragDept = null;
+    // 홈페이지 학과 커리큘럼 탭과 같은 두 줄: 공개 학과 앞의 topN개가 윗줄, 나머지 아랫줄(비공개 학과는 순서 자리에 그대로)
     const deptChips = () => {
-      const row = h("div", { class: "chips dept-chips" });
+      const row = h("div", { class: "dept-chips dept-tab-rows" });
+      const lines = [h("div", { class: "chips" }), h("div", { class: "chips" })];
+      let shown = 0;
       const clear = () => row.querySelectorAll(".drop-before,.drop-after").forEach((x) => x.classList.remove("drop-before", "drop-after"));
       const byId = new Map(cat.departments.map((d) => [d.id, d]));
       deptMeta.order.forEach((id, i) => {
@@ -156,9 +163,11 @@ export async function render({ main, params = [] }) {
             draw();
           },
         }, d.name);
-        row.append(b);
+        lines[shown < topN ? 0 : 1].append(b);
+        if (deptMeta.active[id] !== false) shown += 1;
       });
-      row.append(h("button", { type: "button", class: "add-chip", onclick: () => deptPopup(null) }, "+ 학과 추가"));
+      lines[1].append(h("button", { type: "button", class: "add-chip", onclick: () => deptPopup(null) }, "+ 학과 추가"));
+      row.append(...lines);
       return row;
     };
 

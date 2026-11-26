@@ -1862,3 +1862,24 @@ test("로드맵 학과 탭: 이름(단계 수), 끌어서 순서를 바꾸면 [�
   assert.deepEqual(calls.find(([n]) => n === "comsw_v4_save_roadmap_order")?.[1], { p_departments: ["d1", "d2"] });
   assert.ok(!calls.some(([n]) => n === "comsw_v4_save_roadmap"), "학과 순서만 바꾸면 그 학과 로드맵은 저장 안 함");
 });
+
+test("학과 구성 탭: 홈페이지 학과 커리큘럼처럼 두 줄(공개 학과 앞 N개가 윗줄, N은 dept_tab_top), 끌어서 줄을 넘어 옮김", async () => {
+  const fake = db();
+  const depts = ["가", "나", "다", "라"].map((n, i) => ({ id: `x${i}`, name: `${n}학과`, sort_order: i, is_active: n !== "나" }));
+  const extra = { departments: depts, site_settings: [{ key: "dept_tab_top", value: "2" }] };
+  const base = fake.from.bind(fake);
+  fake.from = (t) => (t in extra ? fakeSupabase({ ...extra }).from(t) : base(t));
+  const main = await open("courses", undefined, fake);
+  [...main.querySelectorAll(".tabs button")].find((b) => b.textContent === "학과 구성").click();
+  const lines = () => [...main.querySelectorAll(".dept-tab-rows > .chips")].map((r) => [...r.querySelectorAll("button[draggable]")].map((b) => b.textContent));
+  assert.deepEqual(lines(), [["가학과", "나학과", "다학과"], ["라학과"]], "비공개(나)는 세지 않고 공개 2개까지 윗줄");
+  assert.ok([...main.querySelectorAll(".dept-tab-rows > .chips")][1].querySelector(".add-chip"), "[+ 학과 추가]는 아랫줄 끝");
+  const btn = (name) => [...main.querySelectorAll(".dept-chips button[draggable]")].find((b) => b.textContent === name);
+  const Ev = dom.window.Event;
+  btn("라학과").dispatchEvent(new Ev("dragstart", { bubbles: true }));
+  btn("가학과").dispatchEvent(Object.assign(new Ev("dragover", { bubbles: true, cancelable: true }), { clientX: 0 }));
+  btn("가학과").dispatchEvent(new Ev("drop", { bubbles: true, cancelable: true }));
+  await flush();
+  assert.deepEqual(lines(), [["라학과", "가학과"], ["나학과", "다학과"]], "아랫줄에서 윗줄로 옮기면 윗줄 끝(공개 2개 다음)이 아랫줄로");
+  assert.ok(barBtn("사이트 적용"), "순서는 [사이트 적용]으로");
+});

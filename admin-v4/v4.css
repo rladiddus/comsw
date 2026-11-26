@@ -265,6 +265,12 @@ dialog.modal.modal-small { width: min(420px, calc(100vw - 32px)); height: fit-co
 .mat-row > span:empty { display: none; }
 /* 학과 알약: 끌어서 순서, 비공개는 회색 */
 .dept-chips button { position: relative; }
+/* 학과·과목 탭 두 줄(홈페이지 학과 커리큘럼과 같게): 줄마다 같은 너비로 나눔 */
+.dept-tab-rows { display: grid; gap: 6px; }
+.dept-tab-rows .chips { flex-wrap: nowrap; }
+.dept-tab-rows .chips button { flex: 1 1 0; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.dept-tab-rows .chips .add-chip { flex: none; }
+@media (max-width: 900px) { .dept-tab-rows .chips { flex-wrap: wrap; } .dept-tab-rows .chips button { flex: 1 1 auto; } }
 .dept-chips button.off { color: var(--sub); border-style: dashed; }
 .dept-chips button.dragging { opacity: .4; }
 .dept-chips button.drop-before::before, .dept-chips button.drop-after::after { content: ""; position: absolute; top: -4px; bottom: -4px; border-left: 3px dashed var(--red); pointer-events: none; }

@@ -801,11 +801,13 @@ test("목록 거르기: 강사(이름 검색·학과·홈페이지 노출), 준�
   type(main.querySelector("input[aria-label='적용 과목 검색']"), "캐드2");
   assert.deepEqual(bases(), ["캐드"]);
   type(main.querySelector("input[aria-label='적용 과목 검색']"), "");
-  sel("공통 준비물", "no");
+  const noPrep = () => [...main.querySelectorAll(".chips button")].find((b) => b.textContent.startsWith("준비물 없음"));
+  noPrep().click();
   assert.deepEqual(bases(), ["아트 드로잉"]);
-  sel("공통 준비물", "ai");
+  noPrep().click();
+  sel("분류", "ai");
   assert.deepEqual(bases(), ["캐드"]);
-  sel("공통 준비물", "");
+  sel("분류", "");
   sel("학과", "시각학과");
   assert.deepEqual(bases(), ["아트 드로잉"]);
   type(main.querySelector("input[aria-label='기준 과목 검색']"), "캐");
@@ -2044,4 +2046,26 @@ test("준비물 편집: 교재 가격·이미지, AI 구독 비용을 보여 주
   const [, args] = calls.find(([n]) => n === "comsw_v4_confirm_prep");
   assert.deepEqual(args.p_items.map((i) => [i.content, i.extra, i.image_url]), [["멘토 캐드", "33,000원", "https://img/new.png"], ["ChatGPT", "월 $20(Pro)", ""]]);
   document.querySelectorAll("dialog").forEach((d) => d.remove());
+});
+
+test("준비물 공개 탭: 준비물 있음·없음 토글(개수 표시, 다시 누르면 전체), 비공개 탭에서는 안 보임", async () => {
+  document.querySelectorAll("dialog").forEach((d) => d.remove());
+  const main = await open("prep");
+  const chips = () => [...main.querySelectorAll(".chips button")];
+  chips().find((b) => b.textContent === "공개").click();
+  const names = () => [...main.querySelectorAll("tr.pick .subject-chip")].map((x) => x.textContent).sort();
+  const all = names();
+  const yes = chips().find((b) => b.textContent.startsWith("준비물 있음"));
+  assert.match(yes.textContent, /^준비물 있음\(\d+\)$/);
+  yes.click();
+  const withPrep = names();
+  chips().find((b) => b.textContent.startsWith("준비물 없음")).click();
+  const without = names();
+  assert.deepEqual([...withPrep, ...without].sort(), all, "있음 + 없음 = 전체");
+  assert.ok(withPrep.includes("캐드") && !without.includes("캐드"));
+  chips().find((b) => b.textContent.startsWith("준비물 없음")).click();
+  assert.deepEqual(names(), all, "다시 누르면 전체");
+  chips().find((b) => b.textContent.startsWith("비공개")).click();
+  assert.ok(!chips().some((b) => b.textContent.startsWith("준비물 있음")), "비공개 탭에는 토글 없음");
+  chips().find((b) => b.textContent === "공개").click();
 });

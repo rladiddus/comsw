@@ -9,6 +9,7 @@ import { track, unsaved, untrack, check } from "../changes.mjs";
 const CATS = [["textbook", "교재"], ["supply", "준비물"], ["ai", "AI 도구"]];
 let pick = null;
 let view = "public"; // 공개 / 비공개 탭(2026-11-26)
+let has = ""; // 공개 탭의 준비물 있음·없음 토글("" 전체, yes, no)
 const CAT_LABEL = Object.fromEntries(CATS);
 const key = (i) => `${i.category}|${String(i.content ?? "").replace(/\s/g, "").toLowerCase()}|${i.department_id ?? ""}`;
 
@@ -134,18 +135,25 @@ export async function render({ main, params = [] }) {
       { key: "base", label: "기준 과목" },
       { key: "member", label: "적용 과목" },
       { key: "dept", label: "학과", options: [["", "전체 학과"], ["-", "학과 없음"], ...deptOpts.map((d) => [d, d])] },
-      { key: "prep", label: "공통 준비물", options: [["", "전체"], ["yes", "있음"], ["no", "없음"], ...CATS.map(([c, l]) => [c, `${l} 있음`])] },
+      { key: "prep", label: "분류", options: [["", "전체"], ...CATS.map(([c, l]) => [c, `${l} 있음`])] },
     ], () => drawList());
     const listBox = h("section", { class: "box" });
     const tabBar = h("div");
     const drawList = () => {
       const f = filter.values;
       const hiddenRows = rows.filter((r) => !r.isPublic); // 홈페이지에 안 나오는 과목은 준비물이 없어도 비공개(2026-11-26 사용자 요청)
-      tabBar.replaceChildren(tabs([["public", "공개"], ["hidden", `비공개(${hiddenRows.length})`]], view, (v) => { view = v; drawList(); }, "chips"));
-      const pool = view === "hidden" ? hiddenRows : rows.filter((r) => r.isPublic);
+      const publicRows = rows.filter((r) => r.isPublic);
+      const n = (x) => publicRows.filter((r) => (x === "yes" ? r.count > 0 : r.count === 0)).length;
+      tabBar.replaceChildren(h("div", { class: "row", style: "justify-content:flex-start;gap:14px;flex-wrap:wrap" },
+        tabs([["public", "공개"], ["hidden", `비공개(${hiddenRows.length})`]], view, (v) => { view = v; drawList(); }, "chips"),
+        // 공개 탭: 준비물 있음·없음 토글(다시 누르면 전체)
+        view === "public" ? h("div", { class: "chips", role: "group", "aria-label": "준비물 있음·없음" },
+          [["yes", `준비물 있음(${n("yes")})`], ["no", `준비물 없음(${n("no")})`]].map(([v, l]) =>
+            h("button", { type: "button", "aria-pressed": String(has === v), onclick: () => { has = has === v ? "" : v; drawList(); } }, l))) : null));
+      const pool = view === "hidden" ? hiddenRows : publicRows.filter((r) => !has || (has === "yes" ? r.count > 0 : r.count === 0));
       const now = pool.filter((r) => hasText(r.base, f.base) && (!f.member || r.members.some((s) => hasText(s.name, f.member)))
         && (!f.dept || (f.dept === "-" ? !r.depts.length : r.depts.includes(f.dept)))
-        && (!f.prep || (f.prep === "yes" ? r.count > 0 : f.prep === "no" ? r.count === 0 : r.cats.includes(f.prep))));
+        && (!f.prep || r.cats.includes(f.prep)));
       listBox.replaceChildren(...[h("h3", {}, now.length === pool.length ? `기준 과목 ${pool.length}개` : `기준 과목 ${now.length}개 (전체 ${pool.length}개)`),
         view === "hidden" ? note("공개 학과의 학과 구성에 없는 과목이라 홈페이지 수업별 준비물에 나오지 않는 준비물입니다. 과목을 누르면 내용·링크·이미지·가격을 볼 수 있습니다. 다시 보이게 하려면 학과·과목 › 학과 구성에서 그 과목을 학과에 넣거나, 맞는 과목의 준비물로 옮겨 적어주세요.") : null,
         now.length ? (view === "hidden" ? hiddenTable(now) : listTable(now)) : empty(view === "hidden" ? "비공개 준비물이 없습니다" : "조건에 맞는 과목이 없습니다")].filter(Boolean)); // null은 글자로 들어가므로 뺀다

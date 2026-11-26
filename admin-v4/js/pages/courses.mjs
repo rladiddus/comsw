@@ -105,7 +105,7 @@ export async function render({ main, params = [] }) {
         beforeClose: () => !unsaved(ed.trackId) || confirm("임시 저장하지 않은 준비물 변경이 있습니다. 닫으면 사라집니다. 닫을까요?"),
         onClose: () => untrack(ed.trackId),
       });
-      pop.dlg.classList.add("modal-fit", "modal-mid");
+      pop.dlg.classList.add("modal-fit", "modal-prep");
     };
 
     const renamePopup = (s, done) => {

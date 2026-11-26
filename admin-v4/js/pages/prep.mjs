@@ -2,9 +2,9 @@
 // 강사 준비물(원문)은 그대로 두고 [강사 준비물 가져오기]로 모아 학과장이 정리 → 떠 있는 창 [임시 저장] / [사이트 적용](준비물만 공개).
 // 학과·과목 화면의 '공통 준비물 정리'도 여기로 온다(같은 원본 course_prep_items).
 import * as data from "../data.mjs";
-import { h, head, box, fill, empty, note, publishBanner, table, pill, modal, filterBar, hasText, tabs } from "../ui.mjs";
+import { h, head, box, fill, empty, note, fail, publishBanner, table, pill, modal, filterBar, hasText, tabs } from "../ui.mjs";
 import { baseName } from "../rules.mjs";
-import { track, unsaved, untrack } from "../changes.mjs";
+import { track, unsaved, untrack, check } from "../changes.mjs";
 
 const CATS = [["textbook", "교재"], ["supply", "준비물"], ["ai", "AI 도구"]];
 let pick = null;
@@ -37,6 +37,27 @@ export function prepEditor(base, { subjects, items, mats, departments, msg, onAp
     .filter((i) => !seen.has(key(i)) && seen.add(key(i)));
   let list = JSON.parse(JSON.stringify(published));
   const listEl = h("div");
+  // 교재 이미지: 칸을 눌러 파일을 고르거나 끌어다 놓으면 올리고(주소는 보이지 않음), [빼기]로 뺀다(2026-11-26)
+  const imageCell = (it) => {
+    const file = h("input", { type: "file", accept: "image/png,image/jpeg,image/webp", "aria-label": `${it.content || "교재"} 이미지 올리기` });
+    const label = h("label", { class: "prep-img", title: "눌러서 파일을 고르거나 이미지를 끌어다 놓으세요" },
+      it.image_url ? h("img", { src: it.image_url, class: "thumb", alt: `${it.content} 이미지` }) : h("span", { class: "muted" }, "이미지 넣기"), file);
+    file.onchange = async () => {
+      if (!file.files[0]) return;
+      label.classList.add("busy");
+      msg?.replaceChildren();
+      try {
+        it.image_url = (await data.upload(file.files[0], "image")).url;
+        drawList();
+        check();
+      } catch (err) {
+        msg?.replaceChildren(fail(err?.message ?? String(err)));
+        label.classList.remove("busy");
+      }
+    };
+    return h("div", { class: "prep-img-cell" }, label,
+      it.image_url ? h("button", { type: "button", class: "btn small", onclick: () => { it.image_url = ""; drawList(); } }, "빼기") : null);
+  };
   const drawList = () => listEl.replaceChildren(list.length ? h("div", { class: "tablewrap" }, h("table", {},
     h("thead", {}, h("tr", {}, ["분류", "내용", "링크", "가격·구독 비용", "이미지(교재)", "학과", ""].map((t) => h("th", {}, t)))),
     h("tbody", {}, list.map((it, n) => h("tr", {},
@@ -46,11 +67,9 @@ export function prepEditor(base, { subjects, items, mats, departments, msg, onAp
       h("td", {}, h("input", { value: it.link_url ?? "", "aria-label": "링크", placeholder: "https://", style: "width:100%", oninput: (e) => { it.link_url = e.target.value; } })),
       h("td", {}, h("input", { value: it.extra ?? "", "aria-label": "가격·구독 비용", maxLength: 200, style: "width:100%",
         placeholder: it.category === "textbook" ? "예: 28,000원" : it.category === "ai" ? "예: 무료 / 월 $20(Pro)" : "비고(선택)", oninput: (e) => { it.extra = e.target.value; } })),
-      h("td", {}, it.category === "textbook"
-        ? h("input", { value: it.image_url ?? "", "aria-label": "교재 이미지 주소", placeholder: "https://", style: "width:100%", oninput: (e) => { it.image_url = e.target.value; } })
-        : h("span", { class: "muted" }, "—")),
-      h("td", {}, deptName.get(it.department_id) ?? "전체"),
-      h("td", {}, h("button", { type: "button", class: "btn danger", onclick: () => { list.splice(n, 1); drawList(); } }, "빼기"))))))) : empty("공통 준비물이 없습니다"));
+      h("td", {}, it.category === "textbook" ? imageCell(it) : h("span", { class: "muted" }, "—")),
+      h("td", { class: "nowrap" }, deptName.get(it.department_id) ?? "전체"),
+      h("td", { class: "nowrap" }, h("button", { type: "button", class: "btn danger", onclick: () => { list.splice(n, 1); drawList(); } }, "빼기"))))))) : empty("공통 준비물이 없습니다"));
   drawList();
   const fromTeachers = h("button", { type: "button", class: "btn" }, "강사 준비물 가져오기");
   fromTeachers.onclick = () => {
@@ -172,7 +191,7 @@ export async function render({ main, params = [] }) {
         beforeClose: () => !unsaved(ed.trackId) || confirm("임시 저장하지 않은 준비물 변경이 있습니다. 닫으면 사라집니다. 닫을까요?"),
         onClose: () => { untrack(ed.trackId); pick = null; },
       });
-      pop.dlg.classList.add("modal-fit", "modal-mid");
+      pop.dlg.classList.add("modal-fit", "modal-prep");
     };
     if (pick && bases.includes(pick)) setTimeout(() => openPop(pick)); // #/prep/기준과목 으로 오면 그 팝업을 연다
     return [banner, msg, tabBar, h("div", { style: "height:10px" }), filter.el, listBox];

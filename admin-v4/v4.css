@@ -367,3 +367,11 @@ dialog.modal.modal-talk { width: min(760px, calc(100vw - 32px)); height: fit-con
 .fb-msg.assistant { background: #fff; border: 1px solid var(--line); }
 .fb-msg b { font-size: 12px; color: var(--sub); }
 .fb-msg p { margin: 4px 0 0; white-space: pre-line; line-height: 1.6; }
+/* 준비물 편집 팝업: 칸이 많아 넓게, 학과·빼기는 한 줄. 교재 이미지 칸은 눌러서 고르거나 끌어다 놓기 */
+dialog.modal.modal-prep { width: min(1180px, calc(100vw - 32px)); }
+td.nowrap, td.nowrap .btn { white-space: nowrap; }
+.prep-img-cell { display: flex; align-items: center; gap: 6px; }
+.prep-img { display: inline-flex; align-items: center; justify-content: center; min-width: 76px; height: 50px; padding: 2px; border: 1px dashed var(--line); border-radius: 6px; cursor: pointer; font-size: 12px; white-space: nowrap; }
+.prep-img:hover { border-color: var(--green); }
+.prep-img.busy { opacity: .5; pointer-events: none; }
+.prep-img input[type=file] { display: none; }

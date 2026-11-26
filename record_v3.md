@@ -287,3 +287,4 @@
 - 2026-11-26 Curriculum_onepage(.html/_tablet) .subject-cell.col-content align-items center, padding-top 28 없앰.
 - 2026-11-26 usage.mjs view 탭(all/admin/chat), pct(used, limit) 소수 첫째 자리.
 - 2026-11-26 instructors.mjs 성별 select 뺌, f.gender는 원래 값 그대로 저장.
+- 2026-11-26 comsw_department_renamed에 roadmap_tracks.name 갱신 추가, 한 번 맞춤 + 깨끗하면 바로 공개. 테스트 tools/test/roadmap-track-dept-name.test.mjs.

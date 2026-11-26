@@ -193,3 +193,4 @@
 - 로드맵 한 단계 이름 합치기는 페이지(mergeNumberedSubjectNames)와 V4 roadmapLabel이 같은 규칙. 공개 SQL v4_roadmap_label은 단일 숫자만 합침(범위는 페이지가 합침).
 - 강사별 커리큘럼 크게 보기: 이전·다음은 누른 과목의 단계만(2026-11-26 사용자 요청).
 - 홈페이지 로드맵 학과 순서는 roadmap_tracks.sort_order(V4 로드맵 탭 끌기), 학과 순서(departments.sort_order)와 따로. 5단계 이하 둘 연속이면 한 줄(roadmap.html groupIntoRows).
+- V4 끌기 점선은 버튼 바깥(::before/::after)에 그림 → 그 버튼에 overflow:hidden 쓰지 말 것.

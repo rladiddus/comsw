@@ -268,7 +268,7 @@ dialog.modal.modal-small { width: min(420px, calc(100vw - 32px)); height: fit-co
 /* 학과·과목 탭 두 줄(홈페이지 학과 커리큘럼과 같게): 줄마다 같은 너비로 나눔 */
 .dept-tab-rows { display: grid; gap: 6px; }
 .dept-tab-rows .chips { flex-wrap: nowrap; }
-.dept-tab-rows .chips button { flex: 1 1 0; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.dept-tab-rows .chips button { flex: 1 1 0; white-space: nowrap; } /* overflow:hidden 쓰지 않기: 끌 때 경계 점선(::before/::after)이 바깥에 그려짐 */
 .dept-tab-rows .chips .add-chip { flex: none; }
 @media (max-width: 900px) { .dept-tab-rows .chips { flex-wrap: wrap; } .dept-tab-rows .chips button { flex: 1 1 auto; } }
 .dept-chips button.off { color: var(--sub); border-style: dashed; }

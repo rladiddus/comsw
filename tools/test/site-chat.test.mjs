@@ -66,7 +66,7 @@ test("번호 고르기: 선택지는 2~3개 글자만(앞 번호·기호 떼고,
   const ai = s.calls.find(([n]) => n === "responses")[1];
   assert.deepEqual(ai.text.format.schema.required, ["answer", "ask_mentor", "choices"]);
   assert.ok(!("choices" in await (await setup().ask()).json()), "선택지가 없으면 reply만");
-  for (const must of ["해 보신 것을 모두 골라 주세요", "[고를 것]", "로드맵에서 앞에 있는\" 같은 말은 쓰지 않고"]) assert.ok(PROMPT.includes(must), must);
+  for (const must of ["해 보신 것을 모두 골라 주세요", "[고를 것]", "로드맵에서 앞에 있는\" 같은 말은 쓰지 않고", "2D모션2부터 들어도 괜찮아?", "로드맵 중간에 있는 과목을 물었다는 이유만으로는 묻지 않고", "\"왜\" 먼저 들어야 하는지 설득한다"]) assert.ok(PROMPT.includes(must), must);
 });
 
 test("재료: 강사(담당은 그 학과 과목만·경력)·준비물·로드맵·특강, 숨긴 강사와 빼 달라고 한 과목은 어디에도 없음", () => {

@@ -4,6 +4,7 @@
 import * as data from "../data.mjs";
 import { h, head, box, tabs, pill, fill, empty, note, busy, publishBanner, toggleSwitch, modal } from "../ui.mjs";
 import { commonEditor } from "./common-editor.mjs";
+import { subjectPicker } from "../subject-picker.mjs";
 import { track, canSwitch, untrack, unsaved } from "../changes.mjs";
 
 let pick = null;
@@ -62,21 +63,22 @@ export async function render({ main }) {
           h("div", { class: "actions" }, h("h3", { style: "margin:0" }, `${v.name} 설정`),
             h("button", { type: "button", class: "btn", onclick: () => namePopup(v) }, "이름 수정")),
           h("div", { class: "actions" }, h("span", {}, "공개"),
-            toggleSwitch(st.show, "홈페이지 방학 특강 페이지에 이 특강 공개", (next) => { st.show = next; draw(); }))));
+            toggleSwitch(st.show, "홈페이지 방학 특강 페이지에 이 특강 공개", (next) => { st.show = next; draw(); }),
+            // [과목 추가]: 학과 구성의 과목 추가와 같은 팝업, 방학 특강 과목만(체크하면 넣고 풀면 뺌, 2026-11-27)
+            h("button", { type: "button", class: "btn", onclick: () => subjectPicker(`${v.name} 과목 고르기`, cat, vacSubjects, st.subjects,
+              (ids) => { st.subjects = ids; draw(); }) }, "과목 추가"))));
       // 왼쪽: 이 특강 과목(넣기·빼기)
       const count = (sid) => new Set(rows.filter((r) => r.set_id === v?.id && r.subject_id === sid).map((r) => r.instructor_id)).size;
       const linked = (sid) => cat.vacLinks.some((l) => l.set_id === v?.id && l.subject_id === sid);
       const mine = st.subjects.map((id) => byId.get(id)).filter(Boolean).sort((a, b) => a.name.localeCompare(b.name, "ko"));
       if (!mine.some((s) => s.id === open)) open = mine.find((s) => linked(s.id))?.id ?? null;
-      const add = h("select", { "aria-label": "넣을 방학 특강 과목", onchange: (e) => { if (e.target.value) { st.subjects = [...st.subjects, e.target.value]; draw(); } } },
-        h("option", { value: "" }, "과목 넣기…"), vacSubjects.filter((s) => !st.subjects.includes(s.id)).map((s) => h("option", { value: s.id }, s.name)));
       const picks = h("div", { class: "picks" }, mine.length ? mine.map((s) => h("div", { class: "vac-pick" },
         h("button", { type: "button", "aria-pressed": String(s.id === open), title: s.name, onclick: () => { if (s.id === open || !leaveEditor()) return; open = s.id; draw(); } },
           s.name, " ", !linked(s.id) ? pill("적용 전", "neutral") : count(s.id) ? pill(`강사 ${count(s.id)}`, "neutral") : null,
           v && vsteps.some((x) => x.set_id === v.id && x.subject_id === s.id) ? pill("공통 확정") : null),
         h("button", { type: "button", class: "btn danger small", title: "이 특강에서 빼기(과목과 자료는 그대로)", onclick: () => { st.subjects = st.subjects.filter((x) => x !== s.id); draw(); } }, "빼기")))
         : empty("이 특강에 넣은 과목이 없습니다"));
-      const left = box(`과목 · ${mine.length}개`, picks, h("div", { style: "margin-top:10px" }, add),
+      const left = box(`과목 · ${mine.length}개`, picks,
         vacSubjects.length ? null : note("방학 특강 과목이 없습니다. 위 '과목 생성'에서 먼저 만들어주세요."));
       // 오른쪽: 고른 과목의 이 특강 공통 커리큘럼(학과·과목 팝업과 같은 모양, [수정]으로 고침)
       out.replaceChildren(banner, msg, top, h("div", { style: "height:14px" }), settingsBox,

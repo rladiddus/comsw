@@ -301,10 +301,13 @@ test("사이트 편집이 열리고, 방학 특강 과목 구성은 체크한 �
   await vac.render({ main });
   await flush();
   assert.ok(!main.textContent.includes("null"), "'null' 글자 없음");
-  const add = main.querySelector("select[aria-label='넣을 방학 특강 과목']");
-  assert.deepEqual([...add.options].slice(1).map((o) => o.value), ["s9"], "일반 과목(캐드2·아트 드로잉)은 후보 아님, 같은 이름이라도 방학 특강 과목만");
+  [...main.querySelectorAll("button")].find((b) => b.textContent === "과목 추가").click();
+  const pickDlg = [...document.querySelectorAll("dialog.modal")].at(-1);
+  const pickRows = [...pickDlg.querySelectorAll("tr.pick")];
+  assert.deepEqual(pickRows.filter((r) => !r.querySelector("input").checked).map((r) => r.children[1].textContent), ["캐드1"], "일반 과목(캐드2·아트 드로잉)은 후보 아님, 같은 이름이라도 방학 특강 과목만");
   assert.match(main.querySelector(".vac-right").textContent, /캐드1 · 2026 겨울 공통 커리큘럼/, "넣은 과목을 고르면 오른쪽에 커리큘럼");
-  add.value = "s9"; add.dispatchEvent(new dom.window.Event("change", { bubbles: true }));
+  pickRows.find((r) => !r.querySelector("input").checked).click();
+  [...pickDlg.querySelectorAll("button")].find((b) => b.textContent === "확인").click();
   await flush();
   barBtn("사이트 적용").click();
   await flush();
@@ -2068,4 +2071,27 @@ test("준비물 공개 탭: 준비물 있음·없음 토글(개수 표시, 다�
   chips().find((b) => b.textContent.startsWith("비공개")).click();
   assert.ok(!chips().some((b) => b.textContent.startsWith("준비물 있음")), "비공개 탭에는 토글 없음");
   chips().find((b) => b.textContent === "공개").click();
+});
+
+test("방학 특강 [과목 추가]: 공개 스위치 오른쪽 버튼 → 과목 고르기 팝업(방학 특강 과목만), 체크하면 넣고 풀면 뺌", async () => {
+  document.querySelectorAll("dialog").forEach((d) => d.remove());
+  const main = await open("vacation");
+  const btn = () => [...main.querySelectorAll("button")].find((b) => b.textContent === "과목 추가");
+  assert.ok(btn(), "과목 추가 버튼");
+  assert.ok(btn().previousElementSibling?.matches("[role='switch']") || btn().parentElement.querySelector("[role='switch']"), "공개 스위치 옆");
+  assert.ok(!main.querySelector("select[aria-label='넣을 방학 특강 과목']"), "드롭다운 없음");
+  const picks = () => [...main.querySelectorAll(".vac-pick > button:first-child")].map((b) => b.title);
+  const before = picks();
+  btn().click();
+  const dlg = [...document.querySelectorAll("dialog.modal")].at(-1);
+  const rows = () => [...dlg.querySelectorAll("tr.pick")];
+  const names = rows().map((r) => r.children[1].textContent);
+  assert.ok(names.length && names.every((n) => n !== "아트 드로잉" && n !== "캐드2"), "방학 특강 과목만(일반 과목 없음)");
+  assert.equal(rows().filter((r) => r.querySelector("input").checked).length, before.length, "넣은 과목은 체크");
+  rows().find((r) => r.querySelector("input").checked).click();
+  [...dlg.querySelectorAll("button")].find((b) => b.textContent === "확인").click();
+  assert.equal(picks().length, before.length - 1, "체크를 풀면 빠짐");
+  await flush();
+  assert.ok(barBtn("사이트 적용"), "[사이트 적용]으로 반영");
+  document.querySelectorAll("dialog").forEach((d) => d.remove());
 });

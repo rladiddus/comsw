@@ -203,4 +203,4 @@
 - 챗봇 상담 평가: 대화는 평가를 보낸 것만 3개월 보관(가림). 보는 곳 V4 AI 사용량 › 홈페이지 챗봇.
 - 예전 시트 옮기기(tools/migrate/transform.mjs)는 동명이인을 학과로 못 가리면 숨김 강사를 따로 만듦 → 이름은 같은데 담당 과목 없는 숨김 강사가 있으면 이 경우.
 - 로드맵 과목 블록 팝업은 assets/js/subject-popup.js(학과 커리큘럼 페이지 과목 팝업과 같은 모양). 바꾸면 roadmap 두 페이지의 ?v= 올리기.
-- 옵저버(보기 전용) 역할 observer: 쌤톡 grade "observer"+approved. 새 표를 만들면 공개 자료면 observer_read 정책도 같이 넣고, 민감 정보(신청자·제출본·대화·프롬프트)면 넣지 않기. 새 읽기 RPC를 V4에서 부르면 data.mjs READ_RPCS에도 넣어야 옵저버 화면이 안 깨짐.
+- 옵저버(보기 전용) 역할 observer: 쌤톡 옵저버(users.observer: true, approved: false, 쌤톡 setupObserver로만 지정). 승인 켜면 쌤톡 메신저까지 열리니 승인하지 않기. 새 표를 만들면 공개 자료면 observer_read 정책도 같이 넣고, 민감 정보(신청자·제출본·대화·프롬프트)면 넣지 않기. 새 읽기 RPC를 V4에서 부르면 data.mjs READ_RPCS에도 넣어야 옵저버 화면이 안 깨짐.

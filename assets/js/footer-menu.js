@@ -770,7 +770,7 @@
   }
 
   function getCaptureFileName() {
-    const raw = (document.title || currentPage || 'comsw-page')
+    const raw = (currentPage || document.title || 'comsw-page') // 페이지마다 다른 이름(탭 제목은 모든 페이지가 같음, 2026-11-27)
       .replace(/[\\/:*?"<>|]+/g, '-')
       .replace(/\s+/g, '-')
       .replace(/-+/g, '-')

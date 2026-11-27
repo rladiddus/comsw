@@ -4,6 +4,7 @@ import { menusFor } from "./menus.mjs";
 import { auth } from "../../admin/js/firebase.mjs";
 import { configureServices, createServices } from "../../admin/js/services.mjs";
 import { supabase } from "../../admin/js/session.mjs";
+import { setReadOnly } from "./data.mjs";
 import { useDb } from "./data.mjs";
 import { h, fail } from "./ui.mjs";
 import { resetTracking, unsaved } from "./changes.mjs";
@@ -43,12 +44,14 @@ function route() {
 export function startApp({ role, email, uid, displayName }) {
   session = { role, email, uid, displayName };
   useDb(supabase);
+  setReadOnly(role === "observer");
+  document.body.classList.toggle("observer", role === "observer");
   const cfg = window.COMSW_SUPABASE_CONFIG;
   configureServices(createServices({ ...cfg, getToken: () => auth.currentUser?.getIdToken() }));
   $("#loginWrap").hidden = true;
   $("#appView").hidden = false;
   $("#userName").textContent = displayName || email;
-  $("#userRole").textContent = roleLabel(role);
+  $("#userRole").textContent = role === "observer" ? "옵저버(보기 전용)" : roleLabel(role);
   // 사용방법(새 탭): 강사는 강사 편부터
   $("#helpLink").href = role === "teacher" ? "./help.html#teacher" : "./help.html#head";
   // 사용방법 페이지가 볼 편을 정하도록 이 브라우저에 역할만 남긴다(로그아웃하면 지움). 화면에서 숨기는 용도일 뿐 보안 장치는 아님.

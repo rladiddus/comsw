@@ -1,7 +1,7 @@
 // 특강·세미나: 여러 특강 → 고르면 공개 정보 편집(포스터 올리기) + 신청 수강생(비공개, 학과장·관리자만 DB가 보여 줌).
 // 바꾸면 떠 있는 창 [임시 저장] / [사이트 적용](그 특강 정보만 공개). 신청 기능·신청자 정보는 그대로.
 import * as data from "../data.mjs";
-import { h, head, box, table, pill, media, fill, empty, busy, publishBanner } from "../ui.mjs";
+import { h, head, box, table, pill, media, fill, empty, busy, publishBanner, note } from "../ui.mjs";
 import { track, check, canSwitch } from "../changes.mjs";
 
 let pick = null;
@@ -58,7 +58,8 @@ export async function render({ main }) {
           h("div", {}, h("h4", {}, "포스터"), poster, file))),
         apps));
       paint();
-      if (s.id) fill(apps, async () => {
+      if (s.id && data.isReadOnly()) apps.replaceChildren(box("신청 수강생", note(`신청자 이름·연락처는 ${data.HIDDEN}`)));
+      else if (s.id) fill(apps, async () => {
         const rows = await data.applications(s.id);
         return box(`신청 수강생 ${rows.length}명`, table([
           ["이름", (a) => a.name], ["연락처", (a) => a.phone], ["신청 시각", (a) => new Date(a.created_at).toLocaleString("ko-KR")],

@@ -16,6 +16,7 @@ export function resetTracking() { trackers = []; if (bar) { bar.hidden = true; b
 
 // 로그아웃 직전: 임시 저장 안 한 변경을 조용히 임시 저장(다시 로그인하면 이어서). 실패해도 로그아웃은 막지 않는다.
 export async function stashAll() {
+  if (data.isReadOnly()) return;
   for (const t of trackers) {
     const cur = t.read();
     if (same(cur, t.baseline) || same(cur, t.saved)) continue;
@@ -82,6 +83,12 @@ function draw() {
   for (const t of trackers) if (t.saved && same(t.read(), t.baseline)) { t.saved = null; t.store.drop().catch(() => {}); }
   if (!dirty.length) { bar.hidden = true; bar.replaceChildren(); return; }
   if (busyNow) return;
+  if (data.isReadOnly()) {
+    bar.hidden = false;
+    bar.replaceChildren(h("b", { class: "bar-title" }, "보기 전용"), h("span", { class: "muted" }, data.READ_ONLY),
+      h("div", { class: "actions" }, h("button", { type: "button", class: "btn", onclick: () => { cancelAll(); draw(); } }, "되돌리기")));
+    return;
+  }
   const allSaved = dirty.every((t) => same(t.read(), t.saved));
   const msg = h("div");
   const first = allSaved

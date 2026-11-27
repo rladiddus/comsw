@@ -20,6 +20,6 @@ export const TEACHER_MENUS = [
 ];
 
 export const menusFor = (role) => [
-  ...(canManage(role) ? [["관리", ADMIN_MENUS]] : []),
+  ...(canManage(role) || role === "observer" ? [["관리", ADMIN_MENUS]] : []), // 옵저버: 관리 화면을 보기만
   ...(role === "teacher" || canManage(role) ? [["내 작업", TEACHER_MENUS]] : []),
 ];

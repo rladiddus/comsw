@@ -120,6 +120,7 @@ export async function render({ main, session }) {
 // 상담 평가(2026-11-26): 이번 달 평균·건수·별점별, 최근 3개월 목록(거르기), 줄을 누르면 그 대화
 const starsOf = (n) => "★★★★★".slice(0, n) + "☆☆☆☆☆".slice(n);
 export function feedbackBox(list, month) {
+  if (data.isReadOnly()) return box("상담 평가", note(`방문자 상담 대화와 평가는 ${data.HIDDEN}`));
   if (!list) return box("상담 평가", h("p", { class: "muted" }, "상담 평가 준비(SQL 실행)가 끝나면 방문자가 남긴 별점과 대화가 나옵니다."));
   const mine = list.filter((f) => formatSeoul(f.created_at).slice(0, 7) === month);
   const avg = mine.length ? (mine.reduce((n, f) => n + f.stars, 0) / mine.length).toFixed(1) : "—";
@@ -206,6 +207,11 @@ function limitPopup(rpc, now, help, reload) {
 
 // 프롬프트 팝업: 보기로 열리고 [수정] → [저장](바로 저장, 다음 AI 작업부터). 기본과 같은 글이면 저장값을 비워 기본을 쓴다.
 export async function promptPopup(kind) {
+  if (data.isReadOnly()) {
+    const pop = modal(`${KIND[kind]} 프롬프트`, h("section", { class: "box", style: "margin:0" }, note(`AI 프롬프트는 ${data.HIDDEN}`)));
+    pop.dlg.classList.add("modal-small");
+    return;
+  }
   const msg = h("div");
   const body = h("div", { class: "modal-main" });
   const edit = h("button", { type: "button", class: "btn primary", disabled: true }, "수정");

@@ -2096,3 +2096,46 @@ test("방학 특강 [과목 추가]: 공개 스위치 오른쪽 버튼 → 과�
   assert.ok(barBtn("사이트 적용"), "[사이트 적용]으로 반영");
   document.querySelectorAll("dialog").forEach((d) => d.remove());
 });
+
+test("옵저버(보기 전용): 관리 메뉴는 보이고 내 작업은 없음, 저장·AI·올리기는 막힘, 민감 화면(신청자·강사 제출본·상담 평가·프롬프트)은 가림", async () => {
+  document.querySelectorAll("dialog").forEach((d) => d.remove());
+  const { menusFor } = await import("../../admin-v4/js/menus.mjs");
+  assert.deepEqual(menusFor("observer").map(([g]) => g), ["관리"]);
+  const fake = db();
+  const calls = [];
+  fake.rpc = async (name, args) => { calls.push(name); return { data: name === "comsw_ai_budget" ? { month: "2026-11", used: 10, limit: 3000, remaining: 2990 } : name === "comsw_chat_budget" ? { used: 1, count: 2, limit: 3000 } : false, error: null }; };
+  data.setReadOnly(true);
+  try {
+    await assert.rejects(data.call("comsw_v4_save_departments", {}), /보기 전용/);
+    await assert.rejects(data.ai("week", "글"), /보기 전용/);
+    await assert.rejects(data.upload({}, "image"), /보기 전용/);
+    await assert.rejects(data.savePrompt("week", "x"), /보기 전용/);
+    assert.deepEqual(await data.profileDrafts(), []);
+    // 상담 평가·프롬프트 가림, 사용량은 보임
+    let main = await open("usage", { uid: "o1", role: "observer" }, fake);
+    [...main.querySelectorAll(".chips button")].find((b) => b.textContent === "홈페이지 챗봇").click();
+    assert.match(main.textContent, /방문자 상담 대화와 평가는 지금 계정에서는 볼 수 없습니다/);
+    assert.match(main.textContent, /이번 달 질문 2번/, "사용량은 보임");
+    assert.ok(!calls.includes("comsw_chat_feedback_list"), "상담 평가는 부르지도 않음");
+    [...main.querySelectorAll(".chips button")].find((b) => b.textContent === "관리 화면 AI").click();
+    [...main.querySelectorAll("tr.pick")].find((tr) => tr.firstChild.textContent === "강사 단계 문구").click();
+    await flush();
+    const dlg = [...document.querySelectorAll("dialog.modal")].at(-1);
+    assert.match(dlg.textContent, /AI 프롬프트는 지금 계정에서는 볼 수 없습니다/);
+    assert.equal(dlg.querySelector("textarea"), null);
+    document.querySelectorAll("dialog").forEach((d) => d.remove());
+    // 바꾸면 떠 있는 창은 보기 전용 안내(저장 버튼 없음)
+    main = await open("courses", { uid: "o1", role: "observer" }, fake);
+    const chip = main.querySelector(".dept-chips button[draggable]");
+    chip.parentElement.querySelector("[role=switch]")?.click();
+    const sw = main.querySelector("[role=switch]");
+    sw.click();
+    await flush();
+    const bar = document.querySelector(".change-bar");
+    assert.match(bar.textContent, /보기 전용/);
+    assert.ok(![...bar.querySelectorAll("button")].some((b) => /임시 저장|사이트 적용/.test(b.textContent)), "저장 버튼 없음");
+  } finally {
+    data.setReadOnly(false);
+    document.querySelectorAll("dialog").forEach((d) => d.remove());
+  }
+});

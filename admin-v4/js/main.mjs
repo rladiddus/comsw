@@ -37,7 +37,7 @@ function lockForm(locked) {
 }
 
 async function enter(role) {
-  if (!canEnter(role)) {
+  if (!canEnter(role) && role !== "observer") { // 옵저버는 V4만(기존 관리 화면은 못 들어감)
     await signOutAll();
     errorEl.textContent = NO_ACCESS;
     show("login");

@@ -111,9 +111,11 @@ export async function render({ main }) {
 
 function profile(p, { msg, reload }) {
   const d = p.draft;
+  // 옵저버: 검토 대기 제출본(강사 원본 사진 등)은 가리고 공개 중인 프로필만
+  const hiddenNote = data.isReadOnly() ? note(`검토 대기 중인 프로필 제출본(강사가 올린 원본 사진 등)은 ${data.HIDDEN}`) : null;
   // 사진은 팝업 높이 안에 다 보이게(스크롤 없이 최대한 크게), 글은 넘치면 글 쪽만 스크롤
   if (!d) return h("div", { class: "profile-grid" },
-    h("div", { class: "profile-text" }, h("h4", {}, "공개 중"), dl([["이름", p.name], ["경력", p.career], ["한마디", p.message]])),
+    h("div", { class: "profile-text" }, hiddenNote, h("h4", {}, "공개 중"), dl([["이름", p.name], ["경력", p.career], ["한마디", p.message]])),
     h("div", { class: "profile-photo" }, h("h4", {}, "사진"), media(p.photo_url)));
   const f = { career: d.career ?? "", message: d.message ?? "" };
   const area = (k, rows) => h("textarea", { rows, value: f[k], style: "width:100%", oninput: (e) => { f[k] = e.target.value; } });

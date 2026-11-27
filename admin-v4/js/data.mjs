@@ -6,6 +6,16 @@ import { trimEnding } from "./rules.mjs";
 let db = null;
 export const useDb = (client) => { db = client; };
 
+// 옵저버(보기 전용, 2026-11-27): 저장·반영·AI·올리기는 화면에서 먼저 막는다(DB도 다시 막음).
+// 읽기 DB 함수만 부를 수 있다. 민감 정보(신청자·강사 제출본·챗봇 대화·AI 프롬프트)는 DB가 옵저버에게 주지 않는다.
+let readOnly = false;
+export const setReadOnly = (on) => { readOnly = !!on; };
+export const isReadOnly = () => readOnly;
+export const READ_ONLY = "옵저버(보기 전용) 계정은 바꾸거나 저장할 수 없습니다.";
+export const HIDDEN = "지금 계정에서는 볼 수 없습니다.";
+const READ_RPCS = new Set(["comsw_ai_budget", "comsw_chat_budget", "comsw_v4_unpublished"]);
+const guard = () => { if (readOnly) throw new Error(READ_ONLY); };
+
 const PAGE = 1000;
 // 표 전체(1000줄 넘으면 나눠 읽음). 실패하면 던진다(빈 목록으로 숨기지 않음).
 export async function all(table, build = (q) => q) {
@@ -37,7 +47,7 @@ export const curricula = (build) => all("instructor_curricula", build);
 export const instructors = () => all("instructors", (q) => q.order("sort_order", { nullsFirst: false }));
 export const instructorDepartments = () => all("instructor_departments");
 export const instructorSubjects = (id) => all("instructor_subjects", (q) => q.eq("instructor_id", id));
-export const profileDrafts = () => all("instructor_profile_drafts");
+export const profileDrafts = () => (readOnly ? Promise.resolve([]) : all("instructor_profile_drafts")); // 옵저버는 볼 수 없음
 export const prepItems = () => all("course_prep_items", (q) => q.order("sort_order", { nullsFirst: false }));
 export const materials = (build) => all("instructor_subject_materials", build);
 export const seminars = () => all("seminars", (q) => q.order("sort_order", { nullsFirst: false }));
@@ -57,6 +67,7 @@ export const myInstructor = async (uid) => (await all("instructors", (q) => q.eq
 // 홈페이지에 반영하는 함수(V4 확정·저장·삭제·복원, [같이 반영]). 도는 동안 화면을 막는다.
 const publishes = (name) => name === "comsw_publish" || (name.startsWith("comsw_v4_") && name !== "comsw_v4_unpublished");
 export async function call(name, args = {}) {
+  if (readOnly && !READ_RPCS.has(name)) throw new Error(READ_ONLY);
   const block = publishes(name) && typeof document !== "undefined" ? (await import("./ui.mjs")).blocker("사이트에 적용 중입니다") : null;
   let res;
   try { res = await db.rpc(name, args); } finally { block?.(); }
@@ -77,6 +88,7 @@ export const publishPending = () => call("comsw_publish");
 
 // 이미지 올리기: 기존 규칙(PNG·JPG·WEBP, 20MB, 브라우저에서 줄여 보냄)과 서버 함수 그대로. 성공해야 주소를 돌려준다.
 export async function upload(file, kind = "curriculum") {
+  guard();
   const { validateImage, shrinkImage } = await import("../../admin/js/image-upload.mjs");
   const { getServices } = await import("../../admin/js/services.mjs");
   validateImage(file);
@@ -100,6 +112,7 @@ export async function profileSource(assetId) {
   return (await svc.source(assetId)).dataUrl;
 }
 export async function ai(kind, text) {
+  guard();
   const { getServices } = await import("../../admin/js/services.mjs");
   const svc = getServices();
   if (!svc.summarize) throw new Error("다시 로그인해주세요");
@@ -117,6 +130,7 @@ export async function ai(kind, text) {
 
 // AI 프롬프트(종류별). 저장한 글이 없으면(null) 서버의 기본 프롬프트를 쓴다. 다음 AI 작업부터 적용, 홈페이지 공개와 상관없음.
 export async function savePrompt(kind, value) {
+  guard();
   const { error } = await db.from("site_settings").upsert({ key: `ai_prompt_${kind}`, value });
   if (error) throw new Error(error.message);
 }
@@ -129,6 +143,7 @@ export async function teacherDraft(instructorId, kind, target) {
   return data;
 }
 export async function saveTeacherDraft(instructorId, kind, target, payload) {
+  guard();
   const { error } = await db.from("v4_teacher_drafts")
     .upsert({ instructor_id: instructorId, kind, target, payload, updated_at: new Date().toISOString() });
   if (error) throw new Error(error.message);
@@ -141,10 +156,12 @@ export async function dropTeacherDraft(instructorId, kind, target) {
 
 // 학과장 작성 보관함(v4_drafts): 공통 커리큘럼·준비물 등. 저장은 여기까지(공개 안 됨).
 export async function upsertDraft(kind, target, payload) {
+  if (readOnly) return { error: READ_ONLY };
   const { error } = await db.from("v4_drafts").upsert({ kind, target, payload, updated_at: new Date().toISOString() });
   return { error: error?.message ?? null };
 }
 export async function dropDraft(kind, target) {
+  if (readOnly) return;
   const { error } = await db.from("v4_drafts").delete().eq("kind", kind).eq("target", target);
   if (error) throw new Error(error.message);
 }

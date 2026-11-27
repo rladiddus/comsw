@@ -194,3 +194,22 @@ test("로딩 문구 폰트: 고른 폰트·크기(clamp 세 값)·두께를 적�
   assert.equal(textEl.style.fontFamily, "");
   assert.equal(textEl.style.fontSize, "");
 });
+
+test("하단 메뉴 순서: 0은 첫 번째(비었을 때만 맨 뒤), 다른 페이지 메뉴는 왼쪽들 → 오른쪽들", async () => {
+  const menuRow = (name, side, order, on = "true") => ({ data: { values: ["", "", "", "", name, on, side, order, "", "", ""] } });
+  const rows = [menuRow("특강/세미나", "오른쪽", "0"), menuRow("로드맵", "왼쪽", "0"), menuRow("수업별 준비물", "오른쪽", "2"), menuRow("강사님 커리큘럼", "왼쪽", "3"), menuRow("방학 특강", "오른쪽", "1", "false"), menuRow("순서 없음", "왼쪽", "")];
+  for (const file of ["footer-menu.js", "footer-menu-tablet.js"]) {
+    const code = src(file);
+    assert.match(code, /=== "" \? 999 : \(Number\(vals\[7\]\) \|\| 0\)/, `${file}: 0을 999로 바꾸지 않음`);
+    assert.match(code, /list\.sort\(function\(a, b\) \{ return \(a\.right - b\.right\) \|\| \(a\.order - b\.order\); \}\);/, `${file}: 왼쪽들 → 오른쪽들`);
+  }
+  for (const page of ["index.html", "index_tablet.html"]) {
+    const html = readFileSync(new URL(`../../${page}`, import.meta.url), "utf8");
+    assert.ok(!html.includes("Number(values[7]) || 999"), `${page}: 0을 999로 바꾸지 않음`);
+  }
+  // 메인 화면: 왼쪽은 큰 순서부터 넣고 row-reverse로 그려 화면에서는 왼→오 0,1,2… 가운데 버튼 쪽이 마지막
+  const order = (v) => (String(v ?? "").trim() === "" ? 999 : (Number(v) || 0));
+  const left = rows.filter((r) => r.data.values[6] === "왼쪽" && r.data.values[5] === "true").map((r) => ({ n: r.data.values[4], o: order(r.data.values[7]) }));
+  const shown = left.sort((a, b) => b.o - a.o).map((x) => x.n).reverse(); // row-reverse
+  assert.deepEqual(shown, ["로드맵", "강사님 커리큘럼", "순서 없음"], "로드맵(0)이 맨 왼쪽");
+});

@@ -156,12 +156,14 @@
       const vals = window.ComswSupabase.getRawValues(row);
       const name = window.ComswSupabase.normalizeText(vals[4]);    // E열
       const checked = vals[5];                                      // F열
-      const order = Number(vals[7]) || 999;                         // H열
+      const order = String(vals[7] ?? "").trim() === "" ? 999 : (Number(vals[7]) || 0); // 순서 0은 첫 번째(비었을 때만 맨 뒤, 2026-11-27) // H열
+      // 메인 화면처럼 왼쪽 메뉴들(순서대로) 다음 오른쪽 메뉴들(순서대로)로 한 줄에 세운다
+      const right = /^(오른쪽|right|r)$/i.test(window.ComswSupabase.normalizeText(vals[6])) ? 1 : 0; // G열
       if (!name) return;
       if (!window.ComswSupabase.truthyCell(checked)) return;
-      list.push({ name: name, label: window.ComswSupabase.normalizeText(vals[10]) || name, order: order }); // K열: 고친 메뉴 이름(이동은 E로)
+      list.push({ name: name, label: window.ComswSupabase.normalizeText(vals[10]) || name, order: order, right: right }); // K열: 고친 메뉴 이름(이동은 E로)
     });
-    list.sort(function(a, b) { return a.order - b.order; });
+    list.sort(function(a, b) { return (a.right - b.right) || (a.order - b.order); });
     return list;
   }
 

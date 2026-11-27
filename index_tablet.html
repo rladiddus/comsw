@@ -468,7 +468,7 @@
         const name = normalizeText(values[4]);
         const checked = values[5];
         const direction = normalizeText(values[6]);
-        const order = Number(values[7]) || 999;
+        const order = String(values[7] ?? "").trim() === "" ? 999 : (Number(values[7]) || 0); // 순서 0은 첫 번째(비었을 때만 맨 뒤, 2026-11-27)
         if (!name || !truthyCell(checked)) return null;
 
         let dir = direction.toLowerCase();
@@ -805,7 +805,8 @@
       const row1 = document.getElementById('comsw-footer-menu-row1');
       const row2 = document.getElementById('comsw-footer-menu-row2');
       const container = document.getElementById('comsw-footer-menu');
-      const sorted = menus.slice().sort((a, b) => a.order - b.order);
+      // 왼쪽 메뉴들(순서대로) 다음 오른쪽 메뉴들(순서대로) — 관리 화면 하단 메뉴 배치와 같은 순서(2026-11-27)
+      const sorted = menus.slice().sort((a, b) => ((a.direction === 'right') - (b.direction === 'right')) || (a.order - b.order));
       let r1 = row1 ? row1.children.length : 4;  // download 버튼이 이미 row1에 있음
       sorted.forEach(function(menu) {
         const item = createMenuItem(menu);

@@ -298,3 +298,4 @@
 - 2026-11-26 item(.html/_tablet) buildPrepView(전체수업 시트로 공개 과목·순서, prepBaseName = V4 baseName 규칙), .item-sort. comsw-chat buildCatalog prep은 subjects에 있는 과목만.
 - 2026-11-26 comsw_v4_confirm_prep에 image_url·extra(이미지 http(s), extra 200자). prepEditor 칸 추가.
 - 2026-11-26 assets/js/subject-popup.js(ComswSubjectPopup.open/resolve/subjectsOf, sp- 접두 CSS·DOM), roadmap(.html/_tablet) openSubjectCurriculum. 테스트 tools/test/subject-popup.test.mjs.
+- 2026-11-27 메뉴 H열 순서: String(v).trim()==="" ? 999 : Number(v)||0. footer-menu list에 right(G열) 정렬 키, index_tablet onMenuLoaded도 같은 정렬.

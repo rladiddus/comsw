@@ -130,7 +130,7 @@
     .roadmap-rows {
       position: absolute;
       left: 0;
-      top: 200px;   /* 첫 학과 행 시작 y (피그마 y=210 근처) */
+      top: 150px;   /* 첫 학과 행 시작 y — 위쪽 흰 영역을 줄여 행이 더 많이 보이게(200→150, 2026-11-27) */
       width: 100%;
       overflow-x: hidden;
       overflow-y: auto;
@@ -554,7 +554,7 @@
     const CANVAS_W    = 1920;
     const ROW_HEIGHT  = 130;
     const ROW_GAP     = 11;
-    const HEADER_H    = 200;
+    const HEADER_H    = 150;   // .roadmap-rows top과 같게
     const FOOTER_PAD  = 80;
 
     const SIDE_PAD       = 45;        // 학과 행 좌측 시작

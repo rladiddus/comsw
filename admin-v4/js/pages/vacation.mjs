@@ -58,11 +58,12 @@ export async function render({ main }) {
       }
       const st = edits.get(ekey);
       // 제목 옆 [이름 수정](학과명 수정과 같은 팝업, 바로 반영), 오른쪽 '공개' 스위치(오른쪽 아래 창으로 반영)
+      // 학과 구성 제목 줄처럼 한 줄 왼쪽부터: 제목 · [이름 수정] · 공개 스위치 · [과목 추가](2026-11-27)
       const settingsBox = box(null,
-        h("div", { class: "row" },
-          h("div", { class: "actions" }, h("h3", { style: "margin:0" }, `${v.name} 설정`),
-            h("button", { type: "button", class: "btn", onclick: () => namePopup(v) }, "이름 수정")),
-          h("div", { class: "actions" }, h("span", {}, "공개"),
+        h("div", { class: "actions", style: "flex-wrap:wrap" },
+          h("h3", { style: "margin:0" }, `${v.name} 설정`),
+          h("button", { type: "button", class: "btn", onclick: () => namePopup(v) }, "이름 수정"),
+          h("div", { class: "actions", style: "margin-left:8px" }, h("span", { class: "muted" }, "공개"),
             toggleSwitch(st.show, "홈페이지 방학 특강 페이지에 이 특강 공개", (next) => { st.show = next; draw(); }),
             // [과목 추가]: 학과 구성의 과목 추가와 같은 팝업, 방학 특강 과목만(체크하면 넣고 풀면 뺌, 2026-11-27)
             h("button", { type: "button", class: "btn", onclick: () => subjectPicker(`${v.name} 과목 고르기`, cat, vacSubjects, st.subjects,

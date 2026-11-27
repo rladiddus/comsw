@@ -731,7 +731,7 @@ test("학과·과목: [과목 생성]은 일반 과목으로 만들고, 방학 �
   assert.deepEqual(calls.find(([n]) => n === "comsw_v4_create_subject")[1], { p_name: "AI포토샵", p_vacation: false });
 });
 
-test("방학 특강: 설정 제목 오른쪽 '공개' 스위치로 켜고 끄기(체크박스 문구 없음), 바꾸면 오른쪽 아래 창", async () => {
+test("방학 특강: 설정 제목 옆 '공개' 스위치로 켜고 끄기(체크박스 문구 없음), 바꾸면 오른쪽 아래 창", async () => {
   const fake = db();
   const calls = [];
   fake.rpc = async (name, args) => { calls.push([name, args]); return { data: name === "comsw_v4_unpublished" ? false : "v1", error: null }; };
@@ -740,7 +740,8 @@ test("방학 특강: 설정 제목 오른쪽 '공개' 스위치로 켜고 끄기
   await flush();
   assert.ok(!main.textContent.includes("보여 주기"), "예전 체크박스 문구 없음: " + main.textContent.slice(0, 300));
   const sw = main.querySelector("button[role=switch]");
-  assert.ok(sw && sw.closest(".row").textContent.includes("공개"), main.textContent.slice(0, 400));
+  assert.ok(sw && sw.parentElement.textContent.includes("공개"), main.textContent.slice(0, 400));
+  assert.match(sw.closest(".box").querySelector(".actions").textContent, /설정이름 수정공개과목 추가/, "제목·이름 수정·공개·과목 추가 한 줄");
   const before = sw.getAttribute("aria-checked");
   sw.click();
   await flush();

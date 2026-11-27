@@ -2,6 +2,7 @@ import { signInWithEmailAndPassword, signOut } from "https://www.gstatic.com/fir
 import { httpsCallable } from "https://www.gstatic.com/firebasejs/11.9.0/firebase-functions.js";
 import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.49.4/+esm";
 import { auth, functions } from "./firebase.mjs";
+import { resolveSyncedRole } from "./session-role.mjs";
 
 const cfg = window.COMSW_SUPABASE_CONFIG;
 
@@ -10,14 +11,12 @@ export const supabase = createClient(cfg.url, cfg.anonKey, {
 });
 
 // 승인·등급 변경이 옛 토큰에 남지 않도록 클레임을 다시 계산하고 토큰을 강제 갱신한다.
-// 직원이 아니면 토큰에 Supabase 인증 클레임이 없으므로 Supabase를 부르지 않는다.
+// 로그인 역할은 갱신 함수와 새 토큰을 대조한다. DB 읽기·쓰기 권한은 Supabase RLS가 따로 검사한다.
 async function syncRole(user) {
-  const { data: refreshed } = await httpsCallable(functions, "refreshMyComswClaims")();
-  if (!refreshed?.role) return null;
-  await user.getIdToken(true);
-  const { data, error } = await supabase.rpc("comsw_whoami");
-  if (error) throw error;
-  return data?.role ?? null;
+  return resolveSyncedRole({
+    refresh: async () => (await httpsCallable(functions, "refreshMyComswClaims")()).data,
+    user,
+  });
 }
 
 export async function signIn(idOrEmail, password) {

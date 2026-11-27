@@ -1329,3 +1329,4 @@
 - 2026-11-27 (학생 사이트) 모든 페이지 탭 제목 "SBS아카데미컴퓨터AIX 수원 커리큘럼", 탭 아이콘 SBS 원 로고(흰색 투명, assets/img/favicon.png·favicon.ico·apple-touch-icon.png). 이미지 저장 파일 이름은 예전처럼 페이지 이름. SQL 없음.
 - 2026-11-27 (학생 사이트 로드맵 PC·태블릿) 위쪽 흰 영역 줄임: 첫 학과 행 시작 200→150px(제목 아래 22px 여백). SQL 없음.
 - 2026-11-27 (V4 옵저버) 포트폴리오 심사용 보기 전용 계정: 관리 메뉴는 보이고 저장·사이트 적용·AI·올리기는 화면과 DB 모두 막음. 특강 신청자·강사 프로필 제출본·챗봇 상담 평가·AI 프롬프트는 "지금 계정에서는 볼 수 없습니다". AI 사용량(금액)은 보임. SQL 20261127010000_observer_role.sql(사용자 실행), 쌤톡 comsw-claims-functions: 쌤톡 옵저버(users.observer: true, 승인 꺼짐)면 observer(사용자 Firebase 배포). 등급 observer+승인 방식은 승인하면 쌤톡 메신저(직원 목록·게시판·대화)까지 열려서 버림.
+- 2026-11-27 (옵저버 로그인) 아이디 `테스트`의 쌤톡 `observer: true`와 Firebase `comsw_role: observer`를 확인. 로그인 직후 역할을 Supabase `comsw_whoami` 결과로 다시 정해 접근 거부가 나던 경로를, 갱신 함수 응답과 강제 갱신된 Firebase 토큰 역할이 일치할 때 입장하도록 변경. DB 읽기·쓰기 권한은 계속 Supabase RLS가 검사. V3 미리 받기 목록과 V2/V4 캐시 버전 갱신, 역할 일치·불일치 테스트 추가. SQL 없음.
